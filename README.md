@@ -7,6 +7,10 @@ A pipeline that connects a Kinect v2 and a HoloLens in real-time.
 - A Windows 10 computer, a Kinect v2, and a HoloLens.
 - CMake, Unity3D 2018.4, and Visual Studio 2019.
 
+# How to Use
+Download the examples from https://github.com/hanseuljun/kinect-to-hololens/releases.  
+For installing the HoloLens application, see https://docs.microsoft.com/en-us/hololens/holographic-custom-apps.
+
 # Build Instructions
 1. Initiate vcpkg as a submodule (git submodule init, git submodule update).
 2. Run bootstrap-vcpkg.bat in vcpkg to build vcpkg.exe.
