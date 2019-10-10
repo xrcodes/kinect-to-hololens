@@ -40,3 +40,6 @@ A pipeline that connects a Kinect v2 and a HoloLens in real-time.
 5. Run 'Kinect to HoloLens' with the HoloLens device.
 6. Enter the IP address and port of the computer running kinect_sender_demo.exe to 'Kinect to HoloLens'. This requires usage of the virtual keyboard in the 'Microsoft HoloLens' as an application. First, you will be able enter the IP address through the virtual keyboard. Then use the tab key to switch mode for entering the port, then enter the port. After that, press enter.
 7. Done!
+
+## To Cite
+Jun, H., Bailenson, J.N., Fuchs, H., & Wetzstein, G. (in press). An Easy-to-use Pipeline for an RGBD Camera and an AR Headset. *PRESENCE: Teleoperators and Virtual Environments*.
