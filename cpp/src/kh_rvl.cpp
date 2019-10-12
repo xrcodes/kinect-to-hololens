@@ -131,15 +131,17 @@ void decompress(uint8_t* input, uint16_t* output, int width, int height, int row
     int nibblesWritten = 0;
     short current, previous = 0;
     int numPixelsToDecode = width * height;
-    int row = 0;
+    int row_count = 0;
     while (numPixelsToDecode) {
         int zeros = wilson::DecodeVLE(pBuffer, word, nibblesWritten); // number of zeros
         numPixelsToDecode -= zeros;
         for (; zeros; zeros--) {
             *output++ = 0;
             // Jumps row_pitch - width for each row since there might be spaces left between rows of a Direct3D texture.
-            if (++row == width)
+            if (++row_count == width) {
                 output += row_pitch - width;
+                row_count = 0;
+            }
         }
         int nonzeros = wilson::DecodeVLE(pBuffer, word, nibblesWritten); // number of nonzeros
         numPixelsToDecode -= nonzeros;
@@ -150,8 +152,10 @@ void decompress(uint8_t* input, uint16_t* output, int width, int height, int row
             *output++ = current;
             previous = current;
             // Jumps row_pitch - width for each row since there might be spaces left between rows of a Direct3D texture.
-            if (++row == width)
+            if (++row_count == width) {
                 output += row_pitch - width;
+                row_count = 0;
+            }
         }
     }
 }
