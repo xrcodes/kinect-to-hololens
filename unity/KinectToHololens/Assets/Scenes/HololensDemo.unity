@@ -112,7 +112,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &469852409
+--- !u!1 &470315188
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -120,53 +120,52 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 469852410}
-  - component: {fileID: 469852413}
-  - component: {fileID: 469852412}
-  - component: {fileID: 469852411}
+  - component: {fileID: 470315189}
+  - component: {fileID: 470315192}
+  - component: {fileID: 470315191}
+  - component: {fileID: 470315190}
   m_Layer: 0
-  m_Name: ScreenRenderer
+  m_Name: AzureKinectScreenRenderer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &469852410
+--- !u!4 &470315189
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 469852409}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_GameObject: {fileID: 470315188}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 1681210201}
   m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &469852411
+--- !u!114 &470315190
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 469852409}
+  m_GameObject: {fileID: 470315188}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 60bb5c06d6b520248b7cf366728c6f41, type: 3}
+  m_Script: {fileID: 11500000, guid: 81862ada3a8167c4987e9db056d2e499, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  meshFilter: {fileID: 469852413}
-  meshRenderer: {fileID: 469852412}
-  headsetCamera: {fileID: 862077150}
---- !u!23 &469852412
+  meshFilter: {fileID: 470315192}
+  meshRenderer: {fileID: 470315191}
+--- !u!23 &470315191
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 469852409}
+  m_GameObject: {fileID: 470315188}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -177,7 +176,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 218752acc21f5bf4ab874fb4f0522745, type: 2}
+  - {fileID: 2100000, guid: 49bd05b413c589b42841f51a8882f0a5, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -197,13 +196,13 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
---- !u!33 &469852413
+--- !u!33 &470315192
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 469852409}
+  m_GameObject: {fileID: 470315188}
   m_Mesh: {fileID: 0}
 --- !u!1 &547042504
 GameObject:
@@ -809,8 +808,9 @@ MonoBehaviour:
   portText: {fileID: 2104168116}
   portInputField: {fileID: 650381203}
   instructionText: {fileID: 1009649383}
-  screenMaterial: {fileID: 2100000, guid: 218752acc21f5bf4ab874fb4f0522745, type: 2}
-  screenRenderer: {fileID: 469852411}
+  azureKinectScreenMaterial: {fileID: 2100000, guid: 49bd05b413c589b42841f51a8882f0a5,
+    type: 2}
+  azureKinectScreenRenderer: {fileID: 470315190}
 --- !u!1 &1681210200
 GameObject:
   m_ObjectHideFlags: 0
@@ -843,7 +843,7 @@ Transform:
   - {fileID: 2104168118}
   - {fileID: 650381205}
   - {fileID: 1009649385}
-  - {fileID: 469852410}
+  - {fileID: 470315189}
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

@@ -26,8 +26,8 @@ public class HololensDemoManager : MonoBehaviour
     public TextMesh portInputField;
     public TextMesh instructionText;
     // For rendering the Kinect pixels in 3D.
-    public Material screenMaterial;
-    public ScreenRenderer screenRenderer;
+    public Material azureKinectScreenMaterial;
+    public AzureKinectScreenRenderer azureKinectScreenRenderer;
 
     // To recognize when the user taps.
     private GestureRecognizer gestureRecognizer;
@@ -95,10 +95,10 @@ public class HololensDemoManager : MonoBehaviour
 
             // TextureGroup includes Y, U, V, and a depth texture.
             var textureGroup = new TextureGroup();
-            screenMaterial.SetTexture("_YTex", textureGroup.YTexture);
-            screenMaterial.SetTexture("_UTex", textureGroup.UTexture);
-            screenMaterial.SetTexture("_VTex", textureGroup.VTexture);
-            screenMaterial.SetTexture("_DepthTex", textureGroup.DepthTexture);
+            azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.YTexture);
+            azureKinectScreenMaterial.SetTexture("_UTex", textureGroup.UTexture);
+            azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.VTexture);
+            azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.DepthTexture);
             textureCreated = true;
         }
 
@@ -128,8 +128,9 @@ public class HololensDemoManager : MonoBehaviour
         {
             //var kinectScreen = CreateKinectScreenFromIntrinsicsMessage(message);
             //screenRenderer.SetKinectScreen(kinectScreen);
-            var azureKinectCalibration = ReadAzureKinectCalibrationFromMessage(message);
-            print("depth cx: " + azureKinectCalibration.DepthIntrinsics.Cx);
+            var calibration = ReadAzureKinectCalibrationFromMessage(message);
+            var screen = new AzureKinectScreen(calibration);
+            azureKinectScreenRenderer.SetScreen(screen);
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)
