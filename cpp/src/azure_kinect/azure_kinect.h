@@ -47,4 +47,5 @@ private:
 };
 
 std::unique_ptr<AzureKinectDevice> obtainAzureKinectDevice();
+k4a_device_configuration_t getDefaultDeviceConfiguration();
 }

@@ -16,14 +16,9 @@ void _display_azure_kinect_frames()
         std::cout << "Could not find an Azure Kinect." << std::endl;
         return;
     }
-
-    k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    config.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
-    config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-    config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-
-    auto calibration = device->getCalibration(config.depth_mode, config.color_resolution);
+    
+    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
+    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
     if (!calibration) {
         std::cout << "Failed to receive calibration of the Azure Kinect." << std::endl;
         return;
@@ -34,7 +29,7 @@ void _display_azure_kinect_frames()
                        TARGET_BITRATE);
     Vp8Decoder decoder;
 
-    if (!device->start(config)) {
+    if (!device->start(configuration)) {
         std::cout << "Failed to start the Azure Kinect." << std::endl;
         return;
     }
@@ -81,7 +76,7 @@ void _display_azure_kinect_frames()
     }
 }
 
-void _display_azure_kinect_intrinsics()
+void _display_azure_kinect_calibration()
 {
     auto device = azure_kinect::obtainAzureKinectDevice();
     if (!device) {
@@ -93,24 +88,50 @@ void _display_azure_kinect_intrinsics()
         std::cout << "Failed to get calibration information of the Azure Kinect." << std::endl;
     }
 
-    auto intrinsics = calibration->color_camera_calibration.intrinsics;
-    std::cout << "intrinsics type: " << intrinsics.type << std::endl;
-    std::cout << "intrinsics parameter_count: " << intrinsics.parameter_count << std::endl;
-    std::cout << "intrinsics cx: " << intrinsics.parameters.param.cx << std::endl;
-    std::cout << "intrinsics cy: " << intrinsics.parameters.param.cy << std::endl;
-    std::cout << "intrinsics fx: " << intrinsics.parameters.param.fx << std::endl;
-    std::cout << "intrinsics fy: " << intrinsics.parameters.param.fy << std::endl;
-    std::cout << "intrinsics k1: " << intrinsics.parameters.param.k1 << std::endl;
-    std::cout << "intrinsics k2: " << intrinsics.parameters.param.k2 << std::endl;
-    std::cout << "intrinsics k3: " << intrinsics.parameters.param.k3 << std::endl;
-    std::cout << "intrinsics k4: " << intrinsics.parameters.param.k4 << std::endl;
-    std::cout << "intrinsics k5: " << intrinsics.parameters.param.k5 << std::endl;
-    std::cout << "intrinsics k6: " << intrinsics.parameters.param.k6 << std::endl;
-    std::cout << "intrinsics cody: " << intrinsics.parameters.param.codx << std::endl;
-    std::cout << "intrinsics codx: " << intrinsics.parameters.param.cody << std::endl;
-    std::cout << "intrinsics p2: " << intrinsics.parameters.param.p2 << std::endl;
-    std::cout << "intrinsics p1: " << intrinsics.parameters.param.p1 << std::endl;
-    std::cout << "intrinsics metric_radius: " << intrinsics.parameters.param.metric_radius << std::endl;
+    auto color_intrinsics = calibration->color_camera_calibration.intrinsics;
+    std::cout << "color intrinsics type: " << color_intrinsics.type << std::endl;
+    std::cout << "color intrinsics parameter_count: " << color_intrinsics.parameter_count << std::endl;
+    std::cout << "color intrinsics cx: " << color_intrinsics.parameters.param.cx << std::endl;
+    std::cout << "color intrinsics cy: " << color_intrinsics.parameters.param.cy << std::endl;
+    std::cout << "color intrinsics fx: " << color_intrinsics.parameters.param.fx << std::endl;
+    std::cout << "color intrinsics fy: " << color_intrinsics.parameters.param.fy << std::endl;
+    std::cout << "color intrinsics k1: " << color_intrinsics.parameters.param.k1 << std::endl;
+    std::cout << "color intrinsics k2: " << color_intrinsics.parameters.param.k2 << std::endl;
+    std::cout << "color intrinsics k3: " << color_intrinsics.parameters.param.k3 << std::endl;
+    std::cout << "color intrinsics k4: " << color_intrinsics.parameters.param.k4 << std::endl;
+    std::cout << "color intrinsics k5: " << color_intrinsics.parameters.param.k5 << std::endl;
+    std::cout << "color intrinsics k6: " << color_intrinsics.parameters.param.k6 << std::endl;
+    std::cout << "color intrinsics cody: " << color_intrinsics.parameters.param.codx << std::endl;
+    std::cout << "color intrinsics codx: " << color_intrinsics.parameters.param.cody << std::endl;
+    std::cout << "color intrinsics p2: " << color_intrinsics.parameters.param.p2 << std::endl;
+    std::cout << "color intrinsics p1: " << color_intrinsics.parameters.param.p1 << std::endl;
+    std::cout << "color intrinsics metric_radius: " << color_intrinsics.parameters.param.metric_radius << std::endl;
+
+    auto depth_intrinsics = calibration->depth_camera_calibration.intrinsics;
+    std::cout << "depth intrinsics type: " << depth_intrinsics.type << std::endl;
+    std::cout << "depth intrinsics parameter_count: " << depth_intrinsics.parameter_count << std::endl;
+    std::cout << "depth intrinsics cx: " << depth_intrinsics.parameters.param.cx << std::endl;
+    std::cout << "depth intrinsics cy: " << depth_intrinsics.parameters.param.cy << std::endl;
+    std::cout << "depth intrinsics fx: " << depth_intrinsics.parameters.param.fx << std::endl;
+    std::cout << "depth intrinsics fy: " << depth_intrinsics.parameters.param.fy << std::endl;
+    std::cout << "depth intrinsics k1: " << depth_intrinsics.parameters.param.k1 << std::endl;
+    std::cout << "depth intrinsics k2: " << depth_intrinsics.parameters.param.k2 << std::endl;
+    std::cout << "depth intrinsics k3: " << depth_intrinsics.parameters.param.k3 << std::endl;
+    std::cout << "depth intrinsics k4: " << depth_intrinsics.parameters.param.k4 << std::endl;
+    std::cout << "depth intrinsics k5: " << depth_intrinsics.parameters.param.k5 << std::endl;
+    std::cout << "depth intrinsics k6: " << depth_intrinsics.parameters.param.k6 << std::endl;
+    std::cout << "depth intrinsics cody: " << depth_intrinsics.parameters.param.codx << std::endl;
+    std::cout << "depth intrinsics codx: " << depth_intrinsics.parameters.param.cody << std::endl;
+    std::cout << "depth intrinsics p2: " << depth_intrinsics.parameters.param.p2 << std::endl;
+    std::cout << "depth intrinsics p1: " << depth_intrinsics.parameters.param.p1 << std::endl;
+    std::cout << "depth intrinsics metric_radius: " << depth_intrinsics.parameters.param.metric_radius << std::endl;
+
+    auto extrinsics = calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
+    for (int i = 0; i < 9; ++i)
+        std::cout << "extrinsic rotation[" << i << "]: " << extrinsics.rotation[i] << std::endl;
+
+    for (int i = 0; i < 3; ++i)
+        std::cout << "extrinsic translation[" << i << "]: " << extrinsics.translation[i] << std::endl;
 }
 
 void display_frames()
@@ -119,16 +140,16 @@ void display_frames()
         std::cout << "Press enter to display frames." << std::endl;
         std::string line;
         std::getline(std::cin, line);
+
         // If "intrinsics" is entered, prints KinectIntrinsics instead of displaying frames.
         // A kind of an easter egg.
         // Usually, Kinect frames are displayed.
-        if (line == "intrinsics") {
-            //_display_intrinsics();
-            _display_azure_kinect_intrinsics();
-        } else {
-            //_display_frames();
-            _display_azure_kinect_frames();
+        if (line == "calibration") {
+            _display_azure_kinect_calibration();
+            continue;
         }
+
+        _display_azure_kinect_frames();
     }
 }
 }

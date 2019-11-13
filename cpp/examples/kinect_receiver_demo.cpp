@@ -38,9 +38,9 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
         // There can be two types of messages: a KinectIntrinsics and a Kinect frame.
         if (message_type == 0) {
-            // This application has nothing to do with a KinectIntrinsics that is for 3D rendering
+            // This application has nothing to do with a calibration information that is for 3D rendering
             // since it uses OpenCV to render the frames in 2D.
-            std::cout << "Received intrinsics." << std::endl;
+            std::cout << "Received calibration information." << std::endl;
         } else if (message_type == 1) {
             // Parse the ID of the frame and send a feedback meesage to the sender
             // to indicate the frame was succesfully received.

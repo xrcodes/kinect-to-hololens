@@ -19,13 +19,8 @@ void _send_azure_kinect_frames(int port)
         return;
     }
 
-    k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    config.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
-    config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-    config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-
-    auto calibration = device->getCalibration(config.depth_mode, config.color_resolution);
+    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
+    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
     if (!calibration) {
         std::cout << "Failed to receive calibration of the Azure Kinect." << std::endl;
         return;
@@ -48,9 +43,9 @@ void _send_azure_kinect_frames(int port)
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    // sender.send(intrinsics);
+    sender.send(*calibration);
 
-    if (!device->start(config)) {
+    if (!device->start(configuration)) {
         std::cout << "Failed to start the Azure Kinect." << std::endl;
         return;
     }

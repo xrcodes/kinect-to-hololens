@@ -14,4 +14,15 @@ std::unique_ptr<AzureKinectDevice> obtainAzureKinectDevice()
 
     return std::make_unique<AzureKinectDevice>(device);
 }
+
+k4a_device_configuration_t getDefaultDeviceConfiguration()
+{
+    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
+    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
+
+    return configuration;
+}
 }

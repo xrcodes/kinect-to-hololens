@@ -23,6 +23,9 @@ set(SOURCE_FILES
 
 add_library(KinectToHololens ${SOURCE_FILES})
 
+target_include_directories(KinectToHololens PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
 target_link_libraries(KinectToHololens
   ${FFMPEG_LIBRARIES}
 )
