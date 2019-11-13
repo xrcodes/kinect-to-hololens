@@ -102,6 +102,7 @@ void _display_azure_kinect_frames()
     const int TARGET_BITRATE = 2000;
     const int32_t TIMEOUT_IN_MS = 1000;
 
+    // Obtain device to access Kinect frames.
     auto device = azure_kinect::obtainAzureKinectDevice();
     if (!device) {
         std::cout << "Could not find an Azure Kinect." << std::endl;
@@ -113,11 +114,6 @@ void _display_azure_kinect_frames()
     config.color_resolution = K4A_COLOR_RESOLUTION_720P;
     config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-
-    if (!device->start(config)) {
-        std::cout << "Failed to start the Azure Kinect." << std::endl;
-        return;
-    }
 
     auto calibration = device->getCalibration(config.depth_mode, config.color_resolution);
     if (!calibration) {
@@ -131,7 +127,13 @@ void _display_azure_kinect_frames()
                        TARGET_BITRATE);
     Vp8Decoder decoder;
 
+    if (!device->start(config)) {
+        std::cout << "Failed to start the Azure Kinect." << std::endl;
+        return;
+    }
+
     for (;;) {
+        // Try getting Kinect images until a valid pair pops up.
         auto capture = device->getCapture(TIMEOUT_IN_MS);
         if (!capture) {
             std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
@@ -139,15 +141,15 @@ void _display_azure_kinect_frames()
         }
 
         auto color_image = capture->getColorImage();
-        if (!color_image) {
+        if (!color_image)
             continue;
-        }
 
         auto depth_image = capture->getDepthImage();
-        if (!depth_image) {
+        if (!depth_image)
             continue;
-        }
 
+        // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
+        // Then, converts the pixels for OpenCV.
         auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(),
                                                                  color_image->getWidth(),
                                                                  color_image->getHeight(),
@@ -156,12 +158,15 @@ void _display_azure_kinect_frames()
         auto ffmpeg_frame = decoder.decode(vp8_frame.data(), vp8_frame.size());
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
+        // Compresses and decompresses the depth pixels to test the compression and decompression functions.
+        // Then, converts the pixels for OpenCV.
         auto rvl_frame = createRvlFrameFromKinectDepthBuffer(reinterpret_cast<uint16_t*>(depth_image->getBuffer()),
                                                              depth_image->getWidth(),
                                                              depth_image->getHeight());
         auto depth_pixels = createDepthImageFromRvlFrame(rvl_frame.data(), depth_image->getWidth(), depth_image->getHeight());
         auto depth_mat = createCvMatFromKinectDepthImage(depth_pixels.data(), depth_image->getWidth(), depth_image->getHeight());
 
+        // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);
         cv::imshow("Depth", depth_mat);
         if (cv::waitKey(1) >= 0)
@@ -176,7 +181,7 @@ void _display_azure_kinect_intrinsics()
         std::cout << "Could not find an Azure Kinect." << std::endl;
     }
 
-    auto calibration = device->getCalibration(K4A_DEPTH_MODE_NFOV_UNBINNED, K4A_COLOR_RESOLUTION_1080P);
+    auto calibration = device->getCalibration(K4A_DEPTH_MODE_NFOV_UNBINNED, K4A_COLOR_RESOLUTION_720P);
     if (!calibration) {
         std::cout << "Failed to get calibration information of the Azure Kinect." << std::endl;
     }
@@ -207,8 +212,8 @@ void display_frames()
         std::cout << "Press enter to display frames." << std::endl;
         std::string line;
         std::getline(std::cin, line);
-        // An kind of an easter egg.
         // If "intrinsics" is entered, prints KinectIntrinsics instead of displaying frames.
+        // A kind of an easter egg.
         // Usually, Kinect frames are displayed.
         if (line == "intrinsics") {
             //_display_intrinsics();

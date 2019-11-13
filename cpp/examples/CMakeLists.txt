@@ -53,8 +53,10 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   target_include_directories(KinectSenderDemo PRIVATE
     "$ENV{KINECTSDK20_DIR}/inc"
     "${LIBFREENECT2_DIR}/include"
+    "${AZURE_KINECT_DIR}/sdk/include"
   )
   target_link_libraries(KinectSenderDemo
+    AzureKinect
     KinectToHololens
     Kinect
     ${Libvpx_LIB}
@@ -76,6 +78,14 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   )
   add_custom_command(TARGET KinectSenderDemo POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LIBFREENECT2_DIR}/bin/turbojpeg.dll"
+    $<TARGET_FILE_DIR:KinectSenderDemo>
+  )
+  add_custom_command(TARGET KinectSenderDemo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
+    $<TARGET_FILE_DIR:KinectSenderDemo>
+  )
+  add_custom_command(TARGET KinectSenderDemo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
     $<TARGET_FILE_DIR:KinectSenderDemo>
   )
 endif()
