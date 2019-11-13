@@ -100,7 +100,8 @@ public class ReceiverDemoManager : MonoBehaviour
         // ReceiverDemo renders in 2D, therefore, no need to use intrinsics.
         if (message[0] == 0)
         {
-            Debug.Log("Received intrinsics.");
+            Debug.Log("Received calibration information.");
+            print(message.Length);
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)

@@ -126,8 +126,10 @@ public class HololensDemoManager : MonoBehaviour
         // Prepare the ScreenRenderer with the received KinectIntrinsics.
         if(message[0] == 0)
         {
-            var kinectScreen = CreateKinectScreenFromIntrinsicsMessage(message);
-            screenRenderer.SetKinectScreen(kinectScreen);
+            //var kinectScreen = CreateKinectScreenFromIntrinsicsMessage(message);
+            //screenRenderer.SetKinectScreen(kinectScreen);
+            var azureKinectCalibration = ReadAzureKinectCalibrationFromMessage(message);
+            print("depth cx: " + azureKinectCalibration.DepthIntrinsics.Cx);
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)
@@ -292,11 +294,135 @@ public class HololensDemoManager : MonoBehaviour
         this.inputState = inputState;
     }
 
+    private static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message)
+    {
+        int cursor = 1;
+        AzureKinectCalibration.Intrinsics colorIntrinsics;
+        {
+            float cx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float cy = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float fx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float fy = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k1 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k3 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k4 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k5 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k6 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float codx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float cody = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p1 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float metricRadius = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+
+            colorIntrinsics = new AzureKinectCalibration.Intrinsics(cx: cx,
+                                                                    cy: cy,
+                                                                    fx: fx,
+                                                                    fy: fy,
+                                                                    k1: k1,
+                                                                    k2: k2,
+                                                                    k3: k3,
+                                                                    k4: k4,
+                                                                    k5: k5,
+                                                                    k6: k6,
+                                                                    codx: codx,
+                                                                    cody: cody,
+                                                                    p1: p1,
+                                                                    p2: p2,
+                                                                    metricRadius: metricRadius);
+        }
+
+        AzureKinectCalibration.Intrinsics depthIntrinsics;
+        {
+            float cx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float cy = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float fx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float fy = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k1 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k3 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k4 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k5 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k6 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float codx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float cody = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p1 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float metricRadius = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+
+            depthIntrinsics = new AzureKinectCalibration.Intrinsics(cx: cx,
+                                                                    cy: cy,
+                                                                    fx: fx,
+                                                                    fy: fy,
+                                                                    k1: k1,
+                                                                    k2: k2,
+                                                                    k3: k3,
+                                                                    k4: k4,
+                                                                    k5: k5,
+                                                                    k6: k6,
+                                                                    codx: codx,
+                                                                    cody: cody,
+                                                                    p1: p1,
+                                                                    p2: p2,
+                                                                    metricRadius: metricRadius);
+        }
+
+        AzureKinectCalibration.Extrinsics depthToColorExtrinsics;
+        {
+            float[] rotation = new float[9];
+            for(int i = 0; i < 9; ++i)
+            {
+                rotation[i] = BitConverter.ToSingle(message, cursor);
+                cursor += 4;
+            }
+
+            float[] translation = new float[3];
+            for(int i = 0; i < 3; ++i)
+            {
+                translation[i] = BitConverter.ToSingle(message, cursor);
+                cursor += 4;
+            }
+
+            depthToColorExtrinsics = new AzureKinectCalibration.Extrinsics(rotation, translation);
+        }
+
+        return new AzureKinectCalibration(colorIntrinsics, depthIntrinsics, depthToColorExtrinsics);
+    }
+
     // Parses a message that contains a KinectIntrinsics and uses the KinectIntrinsics to build a KinectScreen
     // that gets used for properly rendering the Kinect frame pixels in 3D.
     private static KinectScreen CreateKinectScreenFromIntrinsicsMessage(byte[] message)
     {
-
         int cursor = 1;
         KinectColorIntrinsics colorIntrinsics;
         {

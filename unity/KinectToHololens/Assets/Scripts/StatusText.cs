@@ -17,7 +17,5 @@ public class StatusText : MonoBehaviour
 
         transform.localPosition = (rotation * translation);
         transform.localRotation = rotation;
-
-        print(angle);
     }
 }
