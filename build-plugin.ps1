@@ -1,6 +1,8 @@
 Install-Module VSSetup -Scope CurrentUser
 
-$vsPath = (Get-VSSetupInstance).InstallationPath + "\MSBuild"
+$vsInstance = Get-VSSetupInstance `
+            | Select-VSSetupInstance -Version '[16.0, 17.0)' -Latest
+$vsPath = $vsInstance.InstallationPath + "\MSBuild"
 $msBuilds = Get-ChildItem $vsPath -recurse -filter "MSBuild.exe"
 $msBuild = $msBuilds[0].FullName
 

@@ -21,11 +21,10 @@ For installing the HoloLens application, see https://docs.microsoft.com/en-us/ho
 ```powershell
 .\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows libvpx:x86-windows libvpx:x64-windows opencv:x86-windows opencv:x64-windows
 ```
-4. Install Kinect for Windows SDK 2.0 (https://www.microsoft.com/en-us/download/details.aspx?id=44561).
-5. Install UsbDk (https://github.com/daynix/UsbDk/releases).
-6. Run run-cmake.ps1 in cpp to build Visual Studio solutions with CMake.
-7. Run build-plugin.ps1 that builds a Unity3D plugin with the Visual Studio solution, then copies DLL files including the plugin into the Unity3D project in unity/KinectToHoloLens.
-8. Build executable files with the Unity3D project and the Visual Studio solution in cpp/build/x64.
+4. Install Kinect for Azure Kinect Sensor SDK 1.3.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download).
+5. Run run-cmake.ps1 in cpp to build Visual Studio solutions with CMake.
+6. Run build-plugin.ps1 that builds a Unity3D plugin with the Visual Studio solution, then copies DLL files including the plugin into the Unity3D project in unity/KinectToHoloLens.
+7. Build executable files with the Unity3D project and the Visual Studio solution in cpp/build/x64.
 
 # Examples
 ## Examples that does not require a HoloLens

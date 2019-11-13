@@ -9,10 +9,14 @@ typedef void* VoidPtr;
 // COLOR_WIDTH and COLOR_HEIGHT are half of the ones of Kinect since color resolution gets halved
 // before getting sent by a Sender.
 // DEPTH_WIDTH and DEPTH_HEIGHT are for the resolution of the Kinect depth camera.
-const int COLOR_WIDTH = 960;
-const int COLOR_HEIGHT = 540;
-const int DEPTH_WIDTH = 512;
-const int DEPTH_HEIGHT = 424;
+//const int COLOR_WIDTH = 960;
+//const int COLOR_HEIGHT = 540;
+//const int DEPTH_WIDTH = 512;
+//const int DEPTH_HEIGHT = 424;
+const int AZURE_KINECT_COLOR_WIDTH = 1280;
+const int AZURE_KINECT_COLOR_HEIGHT = 720;
+const int AZURE_KINECT_DEPTH_WIDTH = 640;
+const int AZURE_KINECT_DEPTH_HEIGHT = 576;
 
 // Instances of classes for Direct3D textures.
 std::unique_ptr<kh::ChannelTexture> y_texture_;
@@ -33,10 +37,10 @@ std::vector<uint8_t> rvl_frame_;
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(ID3D11Device* device)
 {
-    y_texture_ = std::make_unique<kh::ChannelTexture>(device, COLOR_WIDTH, COLOR_HEIGHT);
-    u_texture_ = std::make_unique<kh::ChannelTexture>(device, COLOR_WIDTH / 2, COLOR_HEIGHT / 2);
-    v_texture_ = std::make_unique<kh::ChannelTexture>(device, COLOR_WIDTH / 2, COLOR_HEIGHT / 2);
-    depth_texture_ = std::make_unique<kh::DepthTexture>(device, DEPTH_WIDTH, DEPTH_HEIGHT);
+    y_texture_ = std::make_unique<kh::ChannelTexture>(device, AZURE_KINECT_COLOR_WIDTH, AZURE_KINECT_COLOR_HEIGHT);
+    u_texture_ = std::make_unique<kh::ChannelTexture>(device, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2);
+    v_texture_ = std::make_unique<kh::ChannelTexture>(device, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2);
+    depth_texture_ = std::make_unique<kh::DepthTexture>(device, AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
 
     // Set the texture view variables, so Unity can create Unity textures that are connected to the textures through the texture views.
     y_texture_view_ = y_texture_->getTextureView(device);
@@ -80,8 +84,8 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_rvl
 // Updating pixels of the textures. Should be called in a render thread.
 void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
-    y_texture_->updatePixels(device, device_context, COLOR_WIDTH, COLOR_HEIGHT, ffmpeg_frame_, 0);
-    u_texture_->updatePixels(device, device_context, COLOR_WIDTH / 2, COLOR_HEIGHT / 2, ffmpeg_frame_, 1);
-    v_texture_->updatePixels(device, device_context, COLOR_WIDTH / 2, COLOR_HEIGHT / 2, ffmpeg_frame_, 2);
-    depth_texture_->updatePixels(device, device_context, DEPTH_WIDTH, DEPTH_HEIGHT, rvl_frame_);
+    y_texture_->updatePixels(device, device_context, AZURE_KINECT_COLOR_WIDTH, AZURE_KINECT_COLOR_HEIGHT, ffmpeg_frame_, 0);
+    u_texture_->updatePixels(device, device_context, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2, ffmpeg_frame_, 1);
+    v_texture_->updatePixels(device, device_context, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2, ffmpeg_frame_, 2);
+    depth_texture_->updatePixels(device, device_context, AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT, rvl_frame_);
 }
