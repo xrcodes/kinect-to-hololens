@@ -1,5 +1,8 @@
 # Kinect to HoloLens
-A pipeline that connects a Kinect v2 and a HoloLens in real-time.
+A pipeline that connects a Kinect for Azure and a HoloLens in real-time.
+
+The version for a Kinect v2 and a HoloLens:  
+https://github.com/hanseuljun/kinect-to-hololens/tree/291dab26dd0d644ca38284e155c0ab74dac763cc
 
 ![](kinect-to-hololens.jpg)
 
