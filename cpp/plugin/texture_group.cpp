@@ -6,13 +6,7 @@
 
 typedef void* VoidPtr;
 
-// COLOR_WIDTH and COLOR_HEIGHT are half of the ones of Kinect since color resolution gets halved
-// before getting sent by a Sender.
-// DEPTH_WIDTH and DEPTH_HEIGHT are for the resolution of the Kinect depth camera.
-//const int COLOR_WIDTH = 960;
-//const int COLOR_HEIGHT = 540;
-//const int DEPTH_WIDTH = 512;
-//const int DEPTH_HEIGHT = 424;
+// These constants are for the resolution of Azure Kinect.
 const int AZURE_KINECT_COLOR_WIDTH = 1280;
 const int AZURE_KINECT_COLOR_HEIGHT = 720;
 const int AZURE_KINECT_DEPTH_WIDTH = 640;
