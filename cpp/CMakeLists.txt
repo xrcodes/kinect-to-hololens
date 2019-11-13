@@ -11,9 +11,6 @@ add_definitions(-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
 # This allows including header files without the ".."s.
 include_directories("${PROJECT_SOURCE_DIR}/src")
 
-# The path to libfreenect2 included in this repository.
-set(LIBFREENECT2_DIR ${PROJECT_SOURCE_DIR}/third_party/libfreenect2-0.2.0-usbdk-vs2015-x64)
-
 # By adding the directory containing asio.hpp, that is the directory containing
 # all header files of vcpkg, header files from vcpkg can be included to this project.
 find_path(VCPKG_INCLUDE_DIR NAMES asio.hpp PATH_SUFFIXES asio)

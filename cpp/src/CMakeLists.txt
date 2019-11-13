@@ -1,10 +1,7 @@
 # The 32-bit version of this project is only for the Unity plugin,
 # which does not directly relate to Kinects.
-# Also, building the source files inside the kinect folder requires
-# libfreenect2, but we only have a 64-bit version of it.
-# azure_kinect currently imports a 64-bit .lib file.
+# Also, azure_kinect currently imports a 64-bit .lib file.
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  add_subdirectory(kinect)
   add_subdirectory(azure_kinect)
 endif()
 
@@ -26,13 +23,6 @@ set(SOURCE_FILES
 
 add_library(KinectToHololens ${SOURCE_FILES})
 
-# These files are not required for the 32-bit version.
-# However, they do not prevent the project from getting built
-# unless a cpp file related to libfreenect2 gets involved.
-target_include_directories(KinectToHololens PRIVATE
-  "$ENV{KINECTSDK20_DIR}/inc"
-  "${LIBFREENECT2_DIR}/include"
-)
 target_link_libraries(KinectToHololens
   ${FFMPEG_LIBRARIES}
 )

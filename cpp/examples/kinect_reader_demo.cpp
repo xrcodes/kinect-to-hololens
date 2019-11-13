@@ -1,7 +1,6 @@
 #include <iostream>
 #include "helper/opencv_helper.h"
 #include "kh_vp8.h"
-#include "kinect/kinect.h"
 #include "azure_kinect/azure_kinect.h"
 
 namespace kh
