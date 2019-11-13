@@ -29,22 +29,19 @@ cv::Mat createCvMatFromYuvImage(YuvImage& yuv_frame)
     return bgr_frame;
 }
 
-cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer)
+cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer, int width, int height)
 {
-    const int WIDTH = 512;
-    const int HEIGHT = 424;
+    std::vector<uint8_t> reduced_depth_frame(width * height);
+    std::vector<uint8_t> half(width * height);
 
-    std::vector<uint8_t> reduced_depth_frame(WIDTH * HEIGHT);
-    std::vector<uint8_t> half(WIDTH * HEIGHT);
-
-    for (int i = 0; i < WIDTH * HEIGHT; ++i) {
+    for (int i = 0; i < width * height; ++i) {
         reduced_depth_frame[i] = depth_buffer[i] / 32;
         half[i] = 128;
     }
 
-    cv::Mat y_channel(HEIGHT, WIDTH, CV_8UC1, reduced_depth_frame.data());
-    cv::Mat cr_channel(HEIGHT, WIDTH, CV_8UC1, half.data());
-    cv::Mat cb_channel(HEIGHT, WIDTH, CV_8UC1, half.data());
+    cv::Mat y_channel(height, width, CV_8UC1, reduced_depth_frame.data());
+    cv::Mat cr_channel(height, width, CV_8UC1, half.data());
+    cv::Mat cb_channel(height, width, CV_8UC1, half.data());
 
     std::vector<cv::Mat> y_cr_cb_channels;
     y_cr_cb_channels.push_back(y_channel);
@@ -57,5 +54,14 @@ cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer)
     cv::Mat bgr_frame = y_cr_cb_frame.clone();
     cvtColor(y_cr_cb_frame, bgr_frame, CV_YCrCb2BGR);
     return bgr_frame;
+}
+
+// An obsolete function for Kinect v2.
+cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer)
+{
+    const int WIDTH = 512;
+    const int HEIGHT = 424;
+
+    return createCvMatFromKinectDepthImage(depth_buffer, WIDTH, HEIGHT);
 }
 }

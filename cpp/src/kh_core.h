@@ -101,6 +101,10 @@ private:
 YuvImage createHalvedYuvImageFromKinectColorBuffer(uint8_t* buffer);
 YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int height, int stride);
 YuvImage createYuvImageFromAvFrame(AVFrame* av_frame);
+// An obsolete function for Kinect v2.
 std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer);
+std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer, int width, int height);
+// An obsolete function for Kinect v2.
 std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame);
+std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame, int width, int height);
 }

@@ -6,6 +6,7 @@
 
 namespace kh
 {
+// An obsolete function for Kinect v2.
 void _display_frames()
 {
     // Obtain KinectDevice to access Kinect frames.
@@ -47,6 +48,7 @@ void _display_frames()
     }
 }
 
+// An obsolete function for Kinect v2.
 void _display_intrinsics()
 {
     // Obtain KinectIntrinsics using Freenect2.
@@ -141,13 +143,27 @@ void _display_azure_kinect_frames()
             continue;
         }
 
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(), color_image->getWidth(), color_image->getHeight(), color_image->getStride());
-        //auto vp8_frame = encoder.encode(yuv_image);
-        //auto ffmpeg_frame = decoder.decode(vp8_frame.data(), vp8_frame.size());
-        //auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
-        auto color_mat = createCvMatFromYuvImage(yuv_image);
+        auto depth_image = capture->getDepthImage();
+        if (!depth_image) {
+            continue;
+        }
+
+        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(),
+                                                                 color_image->getWidth(),
+                                                                 color_image->getHeight(),
+                                                                 color_image->getStride());
+        auto vp8_frame = encoder.encode(yuv_image);
+        auto ffmpeg_frame = decoder.decode(vp8_frame.data(), vp8_frame.size());
+        auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
+
+        auto rvl_frame = createRvlFrameFromKinectDepthBuffer(reinterpret_cast<uint16_t*>(depth_image->getBuffer()),
+                                                             depth_image->getWidth(),
+                                                             depth_image->getHeight());
+        auto depth_pixels = createDepthImageFromRvlFrame(rvl_frame.data(), depth_image->getWidth(), depth_image->getHeight());
+        auto depth_mat = createCvMatFromKinectDepthImage(depth_pixels.data(), depth_image->getWidth(), depth_image->getHeight());
 
         cv::imshow("Color", color_mat);
+        cv::imshow("Depth", depth_mat);
         if (cv::waitKey(1) >= 0)
             break;
     }

@@ -114,7 +114,12 @@ std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer)
     const int WIDTH = 512;
     const int HEIGHT = 424;
 
-    return rvl::compress(buffer, WIDTH * HEIGHT);
+    return createRvlFrameFromKinectDepthBuffer(buffer, WIDTH, HEIGHT);
+}
+
+std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer, int width, int height)
+{
+    return rvl::compress(buffer, width * height);
 }
 
 // A helper function for rvl::decompress that also adds consistency through our codebase
@@ -125,6 +130,11 @@ std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame)
     const int WIDTH = 512;
     const int HEIGHT = 424;
 
-    return rvl::decompress(rvl_frame, WIDTH * HEIGHT);
+    return createDepthImageFromRvlFrame(rvl_frame, WIDTH, HEIGHT);
+}
+
+std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame, int width, int height)
+{
+    return rvl::decompress(rvl_frame, width * height);
 }
 }
