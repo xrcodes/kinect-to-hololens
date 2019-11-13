@@ -99,6 +99,7 @@ private:
 // createDepthImageFromRvlFrame(): decompresses depth pixels compressed by RVL.
 // See kh_core.cpp for details.
 YuvImage createHalvedYuvImageFromKinectColorBuffer(uint8_t* buffer);
+YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int height, int stride);
 YuvImage createYuvImageFromAvFrame(AVFrame* av_frame);
 std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer);
 std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame);

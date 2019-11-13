@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 project(KinectToHololens)
 
+set(AZURE_KINECT_DIR $ENV{PROGRAMFILES}/Azure\ Kinect\ SDK\ v1.3.0)
+
 # To keep asio quite from leaving a lot of warnings.
 # reference: https://github.com/chriskohlhoff/asio/issues/290
 add_definitions(-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
