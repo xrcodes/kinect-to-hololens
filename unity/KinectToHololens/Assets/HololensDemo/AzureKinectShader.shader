@@ -41,11 +41,22 @@
             SamplerState sampler_YTex;
             sampler2D _DepthTex;
 
+            float4x4 _DepthToColor;
+            float4x4 _ColorProjection;
+
             v2f vert (appdata v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv;
+
+                // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
+                // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
+                // 1000 is the conversion of mm (the unit of Azure Kinect) to m (the unit of Unity3D).
+                fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
+                fixed4 vertex = v.vertex * depth;
+                o.vertex = UnityObjectToClipPos(vertex);
+
+                fixed4 uv = mul(_ColorProjection, mul(_DepthToColor, vertex));
+                o.uv = fixed2(uv.x / uv.w, 1.0 - uv.y / uv.w);
                 return o;
             }
 
