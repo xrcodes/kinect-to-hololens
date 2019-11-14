@@ -44,6 +44,22 @@
             float4x4 _DepthToColor;
             float4x4 _ColorProjection;
 
+            // Color Intrinsics
+            float _Cx;
+            float _Cy;
+            float _Fx;
+            float _Fy;
+            float _K1;
+            float _K2;
+            float _K3;
+            float _K4;
+            float _K5;
+            float _K6;
+            float _Codx;
+            float _Cody;
+            float _P1;
+            float _P2;
+
             v2f vert (appdata v)
             {
                 v2f o;
@@ -55,8 +71,50 @@
                 fixed4 vertex = v.vertex * depth;
                 o.vertex = UnityObjectToClipPos(vertex);
 
-                fixed4 uv = mul(_ColorProjection, mul(_DepthToColor, vertex));
-                o.uv = fixed2(uv.x / uv.w, 1.0 - uv.y / uv.w);
+                //fixed4 uv = mul(_ColorProjection, mul(_DepthToColor, vertex));
+                //o.uv = fixed2(uv.x / uv.w, 1.0 - uv.y / uv.w);
+
+                // Using the procedure from transformation_project_internal()
+                // in src/transformation/intrinsic_transformation.c of Azure Kinect Sensor SDK.
+                fixed3 ray = mul(_DepthToColor, vertex).xyz;
+                fixed2 xy = fixed2(ray.x / ray.z, ray.y / ray.z);
+                fixed xp = xy.x - _Codx;
+                fixed yp = xy.y - _Cody;
+
+                fixed xp2 = xp * xp;
+                fixed yp2 = yp * yp;
+                fixed xyp = xp * yp;
+                fixed rs = xp2 + yp2;
+                fixed rss = rs * rs;
+                fixed rsc = rss * rs;
+                fixed a = 1.0 + _K1 * rs + _K2 * rss + _K3 * rsc;
+                fixed b = 1.0 + _K4 * rs + _K5 * rss + _K6 * rsc;
+                fixed bi;
+                if (b != 0.0)
+                {
+                    bi = 1.0 / b;
+                }
+                else
+                {
+                    bi = 1.0;
+                }
+                fixed d = a * bi;
+                
+                fixed xp_d = xp * d;
+                fixed yp_d = yp * d;
+
+                fixed rs_2xp2 = rs + 2.0 * xp2;
+                fixed rs_2yp2 = rs + 2.0 * yp2;
+
+                xp_d += rs_2xp2 * _P2 + 2.0 * xyp * _P1;
+                yp_d += rs_2yp2 * _P1 + 2.0 * xyp * _P2;
+
+                fixed xp_d_cx = xp_d + _Codx;
+                fixed yp_d_cy = yp_d + _Cody;
+
+                fixed uv_u = (xp_d_cx * _Fx + _Cx) / 1280.0;
+                fixed uv_v = (yp_d_cy * _Fx + _Cy) / 720.0;
+                o.uv = fixed2(uv_u, 1.0 - uv_v);
                 return o;
             }
 

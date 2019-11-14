@@ -41,10 +41,10 @@ public class AzureKinectScreenRenderer : MonoBehaviour
         // where a = fx / W, b = (cx + fx * codx) / W,
         //       c = fy / H, d = (cy + fy * cody) / H.
         Matrix4x4 colorProjectionMatrix;
+        var colorIntrinsics = screen.Calibration.ColorIntrinsics;
         {
             const int AZURE_KINECT_COLOR_WIDTH = 1280;
             const int AZURE_KINECT_COLOR_HEIGHT = 720;
-            var colorIntrinsics = screen.Calibration.ColorIntrinsics;
             float a = colorIntrinsics.Fx / AZURE_KINECT_COLOR_WIDTH;
             float b = (colorIntrinsics.Cx + colorIntrinsics.Fx * colorIntrinsics.Codx) / AZURE_KINECT_COLOR_WIDTH;
             float c = colorIntrinsics.Fy / AZURE_KINECT_COLOR_HEIGHT;
@@ -57,6 +57,21 @@ public class AzureKinectScreenRenderer : MonoBehaviour
         }
 
         meshRenderer.sharedMaterial.SetMatrix("_ColorProjection", colorProjectionMatrix);
+
+        meshRenderer.sharedMaterial.SetFloat("_Cx", colorIntrinsics.Cx);
+        meshRenderer.sharedMaterial.SetFloat("_Cy", colorIntrinsics.Cy);
+        meshRenderer.sharedMaterial.SetFloat("_Fx", colorIntrinsics.Fx);
+        meshRenderer.sharedMaterial.SetFloat("_Fy", colorIntrinsics.Fy);
+        meshRenderer.sharedMaterial.SetFloat("_K1", colorIntrinsics.K1);
+        meshRenderer.sharedMaterial.SetFloat("_K2", colorIntrinsics.K2);
+        meshRenderer.sharedMaterial.SetFloat("_K3", colorIntrinsics.K3);
+        meshRenderer.sharedMaterial.SetFloat("_K4", colorIntrinsics.K4);
+        meshRenderer.sharedMaterial.SetFloat("_K5", colorIntrinsics.K5);
+        meshRenderer.sharedMaterial.SetFloat("_K6", colorIntrinsics.K6);
+        meshRenderer.sharedMaterial.SetFloat("_Codx", colorIntrinsics.Codx);
+        meshRenderer.sharedMaterial.SetFloat("_Cody", colorIntrinsics.Cody);
+        meshRenderer.sharedMaterial.SetFloat("_P1", colorIntrinsics.P1);
+        meshRenderer.sharedMaterial.SetFloat("_P2", colorIntrinsics.P2);
     }
 
     private static Mesh CreateMesh(AzureKinectScreen screen)
