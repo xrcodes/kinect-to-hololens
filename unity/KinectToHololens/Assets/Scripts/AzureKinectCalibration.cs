@@ -1,24 +1,28 @@
 ﻿public class AzureKinectCalibration
 {
-    public Camera ColorCamera { get; private set; }
     public Camera DepthCamera { get; private set; }
+    public Camera ColorCamera { get; private set; }
     public Extrinsics DepthToColorExtrinsics { get; private set; }
 
-    public AzureKinectCalibration(Camera colorCamera, Camera depthCamera,
+    public AzureKinectCalibration(Camera depthCamera, Camera colorCamera,
         Extrinsics depthToColorExtrinsics)
     {
-        ColorCamera = colorCamera;
         DepthCamera = depthCamera;
+        ColorCamera = colorCamera;
         DepthToColorExtrinsics = depthToColorExtrinsics;
     }
     public class Camera
     {
         public Intrinsics Intrinsics { get; private set; }
+        public int Width { get; private set; }
+        public int Height { get; private set; }
         public float MetricRadius { get; private set; }
 
-        public Camera(Intrinsics intrinsics, float metricRadius)
+        public Camera(Intrinsics intrinsics, int width, int height, float metricRadius)
         {
             Intrinsics = intrinsics;
+            Width = width;
+            Height = height;
             MetricRadius = metricRadius;
         }
     }

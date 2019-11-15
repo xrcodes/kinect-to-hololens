@@ -73,20 +73,36 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _BumpScale: 1
+    - _Codx: 0
+    - _Cody: 0
     - _Cutoff: 0.5
+    - _Cx: 636.88434
+    - _Cy: 367.99728
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _Fx: 609.3218
+    - _Fy: 609.28687
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
+    - _Height: 720
+    - _K1: 0.60851824
+    - _K2: -2.8204377
+    - _K3: 1.6188337
+    - _K4: 0.48822206
+    - _K5: -2.6471646
+    - _K6: 1.5471088
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
+    - _P1: 0.001237936
+    - _P2: -0.00021194342
     - _Parallax: 0.02
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
+    - _Width: 1280
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}

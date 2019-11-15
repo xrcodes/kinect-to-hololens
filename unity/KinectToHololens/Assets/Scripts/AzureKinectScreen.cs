@@ -61,7 +61,8 @@ public class AzureKinectScreen : MonoBehaviour
             var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
 
             depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
-            print("depthToColorMatrix: " + depthToColorMatrix);
+            print($"depthToColorMatrix: {depthToColorMatrix}");
+            print($"depthToColorMatrix.rotation: {depthToColorMatrix.rotation}");
         }
         meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
 

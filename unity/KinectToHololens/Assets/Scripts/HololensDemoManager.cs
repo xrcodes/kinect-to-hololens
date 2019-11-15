@@ -296,7 +296,60 @@ public class HololensDemoManager : MonoBehaviour
     {
         int cursor = 1;
 
-        float colorMetricRadius = BitConverter.ToSingle(message, cursor);
+        AzureKinectCalibration.Intrinsics depthIntrinsics;
+        {
+            float cx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float cy = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float fx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float fy = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k1 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k3 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k4 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k5 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float k6 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float codx = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float cody = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p1 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float metricRadius = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+
+            depthIntrinsics = new AzureKinectCalibration.Intrinsics(cx: cx,
+                                                                    cy: cy,
+                                                                    fx: fx,
+                                                                    fy: fy,
+                                                                    k1: k1,
+                                                                    k2: k2,
+                                                                    k3: k3,
+                                                                    k4: k4,
+                                                                    k5: k5,
+                                                                    k6: k6,
+                                                                    codx: codx,
+                                                                    cody: cody,
+                                                                    p2: p2,
+                                                                    p1: p1,
+                                                                    metricRadius: metricRadius);
+        }
+
+        int depthWidth = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
+
+        int depthHeight = BitConverter.ToInt32(message, cursor);
         cursor += 4;
 
         float depthMetricRadius = BitConverter.ToSingle(message, cursor);
@@ -352,55 +405,14 @@ public class HololensDemoManager : MonoBehaviour
                                                                     metricRadius: metricRadius);
         }
 
-        AzureKinectCalibration.Intrinsics depthIntrinsics;
-        {
-            float cx = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float cy = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float fx = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float fy = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float k1 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float k2 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float k3 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float k4 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float k5 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float k6 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float codx = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float cody = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float p2 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float p1 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
-            float metricRadius = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
+        int colorWidth = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
 
-            depthIntrinsics = new AzureKinectCalibration.Intrinsics(cx: cx,
-                                                                    cy: cy,
-                                                                    fx: fx,
-                                                                    fy: fy,
-                                                                    k1: k1,
-                                                                    k2: k2,
-                                                                    k3: k3,
-                                                                    k4: k4,
-                                                                    k5: k5,
-                                                                    k6: k6,
-                                                                    codx: codx,
-                                                                    cody: cody,
-                                                                    p2: p2,
-                                                                    p1: p1,
-                                                                    metricRadius: metricRadius);
-        }
+        int colorHeight = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
+
+        float colorMetricRadius = BitConverter.ToSingle(message, cursor);
+        cursor += 4;
 
         AzureKinectCalibration.Extrinsics depthToColorExtrinsics;
         {
@@ -421,8 +433,8 @@ public class HololensDemoManager : MonoBehaviour
             depthToColorExtrinsics = new AzureKinectCalibration.Extrinsics(rotation, translation);
         }
 
-        var colorCamera = new AzureKinectCalibration.Camera(colorIntrinsics, colorMetricRadius);
-        var depthCamera = new AzureKinectCalibration.Camera(depthIntrinsics, depthMetricRadius);
+        var depthCamera = new AzureKinectCalibration.Camera(depthIntrinsics, depthWidth, depthHeight, depthMetricRadius);
+        var colorCamera = new AzureKinectCalibration.Camera(colorIntrinsics, colorWidth, colorHeight, colorMetricRadius);
 
         return new AzureKinectCalibration(colorCamera: colorCamera,
                                           depthCamera: depthCamera,
