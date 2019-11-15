@@ -140,7 +140,7 @@ public class ReceiverDemoManager : MonoBehaviour
 
             if (frameId % 100 == 0)
             {
-                Debug.LogFormat("Received frame {0} (vp8FrameSize: {1}, rvlFrameSize: {2}).", frameId, vp8FrameSize, rvlFrameSize);
+                print($"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {rvlFrameSize}).");
             }
 
             // Invokes a function to be called in a render thread.
@@ -161,7 +161,7 @@ public class ReceiverDemoManager : MonoBehaviour
         string portString = portInputField.text;
         int port = portString.Length != 0 ? int.Parse(portString) : 7777;
 
-        Debug.LogFormat("Try connecting to {0}:{1}.", ipAddress, port);
+        print($"Try connecting to {ipAddress}:{port}.");
         var receiver = new Receiver();
         if (await receiver.ConnectAsync(new IPEndPoint(IPAddress.Parse(ipAddress), port)))
         {

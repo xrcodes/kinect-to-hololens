@@ -28,6 +28,9 @@ void _send_azure_kinect_frames(int port)
 
     // K4A_COLOR_RESOLUTION_720P has a resolution of 1280x720.
     // The bitrate is chosen arbitrarily.
+    assert(color_camera_calibration.resolution_width == 1280);
+    assert(color_camera_calibration.resolution_height == 720);
+
     Vp8Encoder encoder(calibration->color_camera_calibration.resolution_width,
                        calibration->color_camera_calibration.resolution_height,
                        TARGET_BITRATE);
@@ -115,10 +118,9 @@ void _send_azure_kinect_frames(int port)
         if (frame_id % 100 == 0) {
             auto end = std::chrono::system_clock::now();
             std::chrono::duration<double> diff = end - start;
-            std::cout << "Sending frame " << frame_id
-                << ", FPS: " << frame_count / diff.count()
-                << ", Bandwidth: " << frame_size / (diff.count() * 131072) // 131072 = 1024 * 1024 / 8
-                << " Mbps.\r";
+            std::cout << "Sending frame " << frame_id << ", "
+                      << "FPS: " << frame_count / diff.count() << ", "
+                      << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps.\r"; // 131072 = 1024 * 1024 / 8
             start = end;
             frame_count = 0;
             frame_size = 0;

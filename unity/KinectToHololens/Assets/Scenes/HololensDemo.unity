@@ -125,7 +125,7 @@ GameObject:
   - component: {fileID: 470315191}
   - component: {fileID: 470315190}
   m_Layer: 0
-  m_Name: AzureKinectScreenRenderer
+  m_Name: AzureKinectScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -140,7 +140,7 @@ Transform:
   m_GameObject: {fileID: 470315188}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1, y: -1, z: 1}
   m_Children: []
   m_Father: {fileID: 1681210201}
   m_RootOrder: 5
@@ -810,7 +810,7 @@ MonoBehaviour:
   instructionText: {fileID: 1009649383}
   azureKinectScreenMaterial: {fileID: 2100000, guid: 49bd05b413c589b42841f51a8882f0a5,
     type: 2}
-  azureKinectScreenRenderer: {fileID: 470315190}
+  azureKinectScreen: {fileID: 470315190}
 --- !u!1 &1681210200
 GameObject:
   m_ObjectHideFlags: 0

@@ -44,6 +44,8 @@
             float4x4 _DepthToColor;
 
             // Color Intrinsics
+            float _Width;
+            float _Height;
             float _Cx;
             float _Cy;
             float _Fx;
@@ -61,28 +63,23 @@
 
             v2f vert (appdata v)
             {
-                // Conversion from the texture coordinate system to the Kinect image coordinate system.
-                v.uv.y = 1.0 - v.uv.y;
-
                 v2f o;
 
                 // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
                 // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
                 // 1000 is the conversion of mm (the unit of Azure Kinect) to m (the unit of Unity3D).
-
                 fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
-                
-                fixed4 vertex = v.vertex * depth;
-                o.vertex = UnityObjectToClipPos(vertex);
+                // vertex in the depth camera coordinate system
+                fixed4 depth_vertex = v.vertex * depth;
 
-                // The version without radial distortion.
-                //fixed4 uv = mul(_ColorProjection, mul(_DepthToColor, vertex));
-                //o.uv = fixed2(uv.x / uv.w, 1.0 - uv.y / uv.w);
+                // Below lines are following the logic of transformation_compute_correspondence in rgbz.c.
+                fixed4 color_vertex = mul(_DepthToColor, depth_vertex);
+
+                // The below line comes from transformation_project() in intrinsic_transformation.c.
+                fixed2 xy = fixed2(color_vertex.x / color_vertex.z, color_vertex.y / color_vertex.z);
 
                 // Using the procedure from transformation_project_internal()
                 // in src/transformation/intrinsic_transformation.c of Azure Kinect Sensor SDK.
-                fixed3 ray = mul(_DepthToColor, vertex).xyz;
-                fixed2 xy = fixed2(ray.x / ray.z, ray.y / ray.z);
                 fixed xp = xy.x - _Codx;
                 fixed yp = xy.y - _Cody;
 
@@ -94,16 +91,6 @@
                 fixed rsc = rss * rs;
                 fixed a = 1.0 + _K1 * rs + _K2 * rss + _K3 * rsc;
                 fixed b = 1.0 + _K4 * rs + _K5 * rss + _K6 * rsc;
-                //fixed bi;
-                //if (b != 0.0)
-                //{
-                //    bi = 1.0 / b;
-                //}
-                //else
-                //{
-                //    bi = 1.0;
-                //}
-                //fixed d = a * bi;
                 fixed d = a / b;
                 
                 fixed xp_d = xp * d;
@@ -118,18 +105,15 @@
                 fixed xp_d_cx = xp_d + _Codx;
                 fixed yp_d_cy = yp_d + _Cody;
 
-                fixed uv_u = (xp_d_cx * _Fx + _Cx) / 1280.0;
-                fixed uv_v = (yp_d_cy * _Fx + _Cy) / 720.0;
-                o.uv = fixed2(uv_u, uv_v);
-                
+                fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fx + _Cy) / (_Height - 1));
+
+                o.vertex = UnityObjectToClipPos(depth_vertex);
+                o.uv = color_uv;
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // Conversion from the texture coordinate system to the Kinect image coordinate system.
-                i.uv.y = 1.0 - i.uv.y;
-
                 // Formula came from https://docs.microsoft.com/en-us/windows/desktop/medfound/recommended-8-bit-yuv-formats-for-video-rendering.
                 // Commented code before optimization.
                 //fixed c = (tex2D(_YTex, i.uv).r - 0.0625) * 1.164383;

@@ -27,7 +27,7 @@ public class HololensDemoManager : MonoBehaviour
     public TextMesh instructionText;
     // For rendering the Kinect pixels in 3D.
     public Material azureKinectScreenMaterial;
-    public AzureKinectScreenRenderer azureKinectScreenRenderer;
+    public AzureKinectScreen azureKinectScreen;
 
     // To recognize when the user taps.
     private GestureRecognizer gestureRecognizer;
@@ -127,7 +127,7 @@ public class HololensDemoManager : MonoBehaviour
         if(message[0] == 0)
         {
             var calibration = ReadAzureKinectCalibrationFromMessage(message);
-            azureKinectScreenRenderer.InitializeScreen(calibration);
+            azureKinectScreen.Setup(calibration);
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)
@@ -166,7 +166,7 @@ public class HololensDemoManager : MonoBehaviour
 
             if (frameId % 100 == 0)
             {
-                string logString = string.Format("Received frame {0} (vp8FrameSize: {1}, rvlFrameSize: {2}).", frameId, vp8FrameSize, rvlFrameSize);
+                string logString = $"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {rvlFrameSize})";
                 Debug.Log(logString);
                 statusText.text = logString;
             }
@@ -259,7 +259,7 @@ public class HololensDemoManager : MonoBehaviour
         string portString = portInputField.text;
         int port = portString.Length != 0 ? int.Parse(portString) : 7777;
 
-        string logString = string.Format("Try connecting to {0}:{1}...", ipAddress, port);
+        string logString = $"Try connecting to {ipAddress}:{port}...";
         Debug.Log(logString);
         statusText.text = logString;
         var receiver = new Receiver();
@@ -267,12 +267,12 @@ public class HololensDemoManager : MonoBehaviour
         {
             this.receiver = receiver;
             decoder = new Vp8Decoder();
-            statusText.text = string.Format("Connected to {0}:{1}!", ipAddress, port);
+            statusText.text = $"Connected to {ipAddress}:{port}!";
         }
         else
         {
             UiVisibility = true;
-            statusText.text = string.Format("Failed to connect to {0}:{1}.", ipAddress, port);
+            statusText.text = $"Failed to connect to {ipAddress}:{port}.";
         }
     }
 

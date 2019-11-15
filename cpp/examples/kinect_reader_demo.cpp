@@ -68,6 +68,14 @@ void _display_azure_kinect_frames()
         auto depth_pixels = createDepthImageFromRvlFrame(rvl_frame.data(), depth_image->getWidth(), depth_image->getHeight());
         auto depth_mat = createCvMatFromKinectDepthImage(depth_pixels.data(), depth_image->getWidth(), depth_image->getHeight());
 
+
+        auto extrinsics = calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
+        for (int i = 0; i < 9; ++i)
+            std::cout << "extrinsic rotation[" << i << "]: " << extrinsics.rotation[i] << std::endl;
+
+        for (int i = 0; i < 3; ++i)
+            std::cout << "extrinsic translation[" << i << "]: " << extrinsics.translation[i] << std::endl;
+
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);
         cv::imshow("Depth", depth_mat);
@@ -83,14 +91,19 @@ void _display_azure_kinect_calibration()
         std::cout << "Could not find an Azure Kinect." << std::endl;
     }
 
-    auto calibration = device->getCalibration(K4A_DEPTH_MODE_NFOV_UNBINNED, K4A_COLOR_RESOLUTION_720P);
+
+    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
+    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
     if (!calibration) {
         std::cout << "Failed to get calibration information of the Azure Kinect." << std::endl;
     }
 
     auto color_intrinsics = calibration->color_camera_calibration.intrinsics;
+    std::cout << "color camera metric_radius: " << calibration->color_camera_calibration.metric_radius << std::endl;
+
     std::cout << "color intrinsics type: " << color_intrinsics.type << std::endl;
     std::cout << "color intrinsics parameter_count: " << color_intrinsics.parameter_count << std::endl;
+
     std::cout << "color intrinsics cx: " << color_intrinsics.parameters.param.cx << std::endl;
     std::cout << "color intrinsics cy: " << color_intrinsics.parameters.param.cy << std::endl;
     std::cout << "color intrinsics fx: " << color_intrinsics.parameters.param.fx << std::endl;
@@ -106,11 +119,13 @@ void _display_azure_kinect_calibration()
     std::cout << "color intrinsics p2: " << color_intrinsics.parameters.param.p2 << std::endl;
     std::cout << "color intrinsics p1: " << color_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "color intrinsics metric_radius: " << color_intrinsics.parameters.param.metric_radius << std::endl;
-    std::cout << "color camera metric_radius: " << calibration->color_camera_calibration.metric_radius << std::endl;
 
     auto depth_intrinsics = calibration->depth_camera_calibration.intrinsics;
+    std::cout << "depth camera metric_radius: " << calibration->depth_camera_calibration.metric_radius << std::endl;
+
     std::cout << "depth intrinsics type: " << depth_intrinsics.type << std::endl;
     std::cout << "depth intrinsics parameter_count: " << depth_intrinsics.parameter_count << std::endl;
+
     std::cout << "depth intrinsics cx: " << depth_intrinsics.parameters.param.cx << std::endl;
     std::cout << "depth intrinsics cy: " << depth_intrinsics.parameters.param.cy << std::endl;
     std::cout << "depth intrinsics fx: " << depth_intrinsics.parameters.param.fx << std::endl;
@@ -126,7 +141,6 @@ void _display_azure_kinect_calibration()
     std::cout << "depth intrinsics p2: " << depth_intrinsics.parameters.param.p2 << std::endl;
     std::cout << "depth intrinsics p1: " << depth_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "depth intrinsics metric_radius: " << depth_intrinsics.parameters.param.metric_radius << std::endl;
-    std::cout << "depth camera metric_radius: " << calibration->depth_camera_calibration.metric_radius << std::endl;
 
     auto extrinsics = calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
     for (int i = 0; i < 9; ++i)
