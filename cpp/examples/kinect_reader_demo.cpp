@@ -68,14 +68,6 @@ void _display_azure_kinect_frames()
         auto depth_pixels = createDepthImageFromRvlFrame(rvl_frame.data(), depth_image->getWidth(), depth_image->getHeight());
         auto depth_mat = createCvMatFromKinectDepthImage(depth_pixels.data(), depth_image->getWidth(), depth_image->getHeight());
 
-
-        auto extrinsics = calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
-        for (int i = 0; i < 9; ++i)
-            std::cout << "extrinsic rotation[" << i << "]: " << extrinsics.rotation[i] << std::endl;
-
-        for (int i = 0; i < 3; ++i)
-            std::cout << "extrinsic translation[" << i << "]: " << extrinsics.translation[i] << std::endl;
-
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);
         cv::imshow("Depth", depth_mat);

@@ -6,6 +6,22 @@
         _UTex("U Texture", 2D) = "white" {}
         _VTex("V Texture", 2D) = "white" {}
         _DepthTex("Depth Texture", 2D) = "white" {}
+        _Width("Color Width", Float) = 0.0
+        _Height("Color Height", Float) = 0.0
+        _Cx("Color Cx", Float) = 0.0
+        _Cy("Color Cy", Float) = 0.0
+        _Fx("Color Fx", Float) = 0.0
+        _Fy("Color Fy", Float) = 0.0
+        _K1("Color K1", Float) = 0.0
+        _K2("Color K2", Float) = 0.0
+        _K3("Color K3", Float) = 0.0
+        _K4("Color K4", Float) = 0.0
+        _K5("Color K5", Float) = 0.0
+        _K6("Color K6", Float) = 0.0
+        _Codx("Color Codx", Float) = 0.0
+        _Cody("Color Cody", Float) = 0.0
+        _P1("Color P1", Float) = 0.0
+        _P2("Color P2", Float) = 0.0
     }
     SubShader
     {
@@ -71,7 +87,7 @@
                 fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
                 // vertex in the depth camera coordinate system
                 fixed4 depth_vertex = v.vertex * depth;
-
+                
                 // Below lines are following the logic of transformation_compute_correspondence in rgbz.c.
                 fixed4 color_vertex = mul(_DepthToColor, depth_vertex);
 
@@ -105,7 +121,7 @@
                 fixed xp_d_cx = xp_d + _Codx;
                 fixed yp_d_cy = yp_d + _Cody;
 
-                fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fx + _Cy) / (_Height - 1));
+                fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fy + _Cy) / (_Height - 1));
 
                 o.vertex = UnityObjectToClipPos(depth_vertex);
                 o.uv = color_uv;
@@ -119,10 +135,10 @@
                 //fixed c = (tex2D(_YTex, i.uv).r - 0.0625) * 1.164383;
                 //fixed c = tex2D(_YTex, i.uv).r * 1.164383 - 0.072774;
                 //fixed c = mad(tex2D(_YTex, i.uv).r, 1.164383, -0.072774);
-                //fixed d = tex2D(_UTex, i.uv).r - 0.5;
-                //fixed e = tex2D(_VTex, i.uv).r - 0.5;
                 fixed c = mad(_YTex.Sample(sampler_YTex, i.uv).r, 1.164383, -0.072774);
+                //fixed d = tex2D(_UTex, i.uv).r - 0.5;
                 fixed d = _UTex.Sample(sampler_YTex, i.uv).r - 0.5;
+                //fixed e = tex2D(_VTex, i.uv).r - 0.5;
                 fixed e = _VTex.Sample(sampler_YTex, i.uv).r - 0.5;
 
                 //return fixed4(c + 1.596027 * e, c - 0.391762 * d - 0.812968 * e, c + 2.017232 * d, 1.0);

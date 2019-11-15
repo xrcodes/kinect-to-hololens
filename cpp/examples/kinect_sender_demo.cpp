@@ -65,21 +65,6 @@ void _send_azure_kinect_frames(int port)
     int frame_count = 0;
     size_t frame_size = 0;
     for (;;) {
-        // Try getting Kinect images until a valid pair pops up.
-        auto capture = device->getCapture(TIMEOUT_IN_MS);
-        if (!capture) {
-            std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
-            return;
-        }
-
-        auto color_image = capture->getColorImage();
-        if (!color_image)
-            continue;
-
-        auto depth_image = capture->getDepthImage();
-        if (!depth_image)
-            continue;
-
         // Try receiving a frame ID from the receiver and update receiver_frame_id if possible.
         auto receive_result = sender.receive();
         if (receive_result) {
@@ -97,6 +82,21 @@ void _send_azure_kinect_frames(int port)
         // If more than MAXIMUM_FRAME_ID_DIFF frames are sent to the receiver without receiver_frame_id getting updated,
         // stop sending more.
         if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
+            continue;
+
+        // Try getting Kinect images until a valid pair pops up.
+        auto capture = device->getCapture(TIMEOUT_IN_MS);
+        if (!capture) {
+            std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
+            return;
+        }
+
+        auto color_image = capture->getColorImage();
+        if (!color_image)
+            continue;
+
+        auto depth_image = capture->getDepthImage();
+        if (!depth_image)
             continue;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.

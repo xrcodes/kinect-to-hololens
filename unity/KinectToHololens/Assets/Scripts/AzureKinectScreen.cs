@@ -59,14 +59,18 @@ public class AzureKinectScreen : MonoBehaviour
             var column2 = new Vector4(r[2], r[5], r[8], 0.0f);
             // Scale mm to m.
             var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
+
             depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
             print("depthToColorMatrix: " + depthToColorMatrix);
         }
         meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
 
+        const int AZURE_KINECT_COLOR_WIDTH = 1280;
+        const int AZURE_KINECT_COLOR_HEIGHT = 720;
+
         var colorIntrinsics = calibration.ColorCamera.Intrinsics;
-        meshRenderer.sharedMaterial.SetFloat("_Width", 1280.0f);
-        meshRenderer.sharedMaterial.SetFloat("_Height", 720.0f);
+        meshRenderer.sharedMaterial.SetFloat("_Width", AZURE_KINECT_COLOR_WIDTH);
+        meshRenderer.sharedMaterial.SetFloat("_Height", AZURE_KINECT_COLOR_HEIGHT);
         meshRenderer.sharedMaterial.SetFloat("_Cx", colorIntrinsics.Cx);
         meshRenderer.sharedMaterial.SetFloat("_Cy", colorIntrinsics.Cy);
         meshRenderer.sharedMaterial.SetFloat("_Fx", colorIntrinsics.Fx);
@@ -94,7 +98,7 @@ public class AzureKinectScreen : MonoBehaviour
         var uv = new Vector2[AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT];
 
         int failureCount = 0;
-        int invalidCount = 0;
+        int invalidityCount = 0;
 
         for (int i = 0; i < AZURE_KINECT_DEPTH_WIDTH; ++i)
         {
@@ -115,12 +119,12 @@ public class AzureKinectScreen : MonoBehaviour
                                                                    j / (float)(AZURE_KINECT_DEPTH_HEIGHT - 1));
 
                 if (valid == 0)
-                    ++invalidCount;
+                    ++invalidityCount;
             }
         }
 
-        print("failureCount: " + failureCount);
-        print("invalidCount: " + invalidCount);
+        print($"failure: {failureCount}");
+        print($"invalidity: {invalidityCount}");
 
         var triangles = new int[vertices.Length];
         for (int i = 0; i < triangles.Length; ++i)
