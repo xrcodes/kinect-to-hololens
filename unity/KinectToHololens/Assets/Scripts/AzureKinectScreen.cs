@@ -49,29 +49,40 @@ public class AzureKinectScreen : MonoBehaviour
 
         meshFilter.mesh = CreateMesh(calibration);
 
-        Matrix4x4 depthToColorMatrix;
-        {
-            var extrinsics = calibration.DepthToColorExtrinsics;
-            var r = extrinsics.Rotation;
-            var t = extrinsics.Translation;
-            var column0 = new Vector4(r[0], r[3], r[6], 0.0f);
-            var column1 = new Vector4(r[1], r[4], r[7], 0.0f);
-            var column2 = new Vector4(r[2], r[5], r[8], 0.0f);
-            // Scale mm to m.
-            var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
+        //Matrix4x4 depthToColorMatrix;
+        //{
+        //    var extrinsics = calibration.DepthToColorExtrinsics;
+        //    var r = extrinsics.Rotation;
+        //    var t = extrinsics.Translation;
+        //    var column0 = new Vector4(r[0], r[3], r[6], 0.0f);
+        //    var column1 = new Vector4(r[1], r[4], r[7], 0.0f);
+        //    var column2 = new Vector4(r[2], r[5], r[8], 0.0f);
+        //    // Scale mm to m.
+        //    var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
 
-            depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
-            print($"depthToColorMatrix: {depthToColorMatrix}");
-            print($"depthToColorMatrix.rotation: {depthToColorMatrix.rotation}");
-        }
-        meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
+        //    depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
+        //}
+        //meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
 
-        const int AZURE_KINECT_COLOR_WIDTH = 1280;
-        const int AZURE_KINECT_COLOR_HEIGHT = 720;
+        // Entering the matrix as floats to see them in the Editor.
+        // Also, matrices get reset from Unity after clicking another app and coming back.
+        var extrinsics = calibration.DepthToColorExtrinsics;
+        meshRenderer.sharedMaterial.SetFloat("_R0", extrinsics.Rotation[0]);
+        meshRenderer.sharedMaterial.SetFloat("_R1", extrinsics.Rotation[1]);
+        meshRenderer.sharedMaterial.SetFloat("_R2", extrinsics.Rotation[2]);
+        meshRenderer.sharedMaterial.SetFloat("_R3", extrinsics.Rotation[3]);
+        meshRenderer.sharedMaterial.SetFloat("_R4", extrinsics.Rotation[4]);
+        meshRenderer.sharedMaterial.SetFloat("_R5", extrinsics.Rotation[5]);
+        meshRenderer.sharedMaterial.SetFloat("_R6", extrinsics.Rotation[6]);
+        meshRenderer.sharedMaterial.SetFloat("_R7", extrinsics.Rotation[7]);
+        meshRenderer.sharedMaterial.SetFloat("_R8", extrinsics.Rotation[8]);
+        meshRenderer.sharedMaterial.SetFloat("_T0", extrinsics.Translation[0] * 0.001f);
+        meshRenderer.sharedMaterial.SetFloat("_T1", extrinsics.Translation[1] * 0.001f);
+        meshRenderer.sharedMaterial.SetFloat("_T2", extrinsics.Translation[2] * 0.001f);
 
         var colorIntrinsics = calibration.ColorCamera.Intrinsics;
-        meshRenderer.sharedMaterial.SetFloat("_Width", AZURE_KINECT_COLOR_WIDTH);
-        meshRenderer.sharedMaterial.SetFloat("_Height", AZURE_KINECT_COLOR_HEIGHT);
+        meshRenderer.sharedMaterial.SetFloat("_Width", calibration.ColorCamera.Width);
+        meshRenderer.sharedMaterial.SetFloat("_Height", calibration.ColorCamera.Height);
         meshRenderer.sharedMaterial.SetFloat("_Cx", colorIntrinsics.Cx);
         meshRenderer.sharedMaterial.SetFloat("_Cy", colorIntrinsics.Cy);
         meshRenderer.sharedMaterial.SetFloat("_Fx", colorIntrinsics.Fx);
@@ -90,34 +101,33 @@ public class AzureKinectScreen : MonoBehaviour
 
     private static Mesh CreateMesh(AzureKinectCalibration calibration)
     {
-        const int AZURE_KINECT_DEPTH_WIDTH = 640;
-        const int AZURE_KINECT_DEPTH_HEIGHT = 576;
+        int width = calibration.DepthCamera.Width;
+        int height = calibration.DepthCamera.Height;
 
         var depthCamera = calibration.DepthCamera;
 
-        var vertices = new Vector3[AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT];
-        var uv = new Vector2[AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT];
+        var vertices = new Vector3[width * height];
+        var uv = new Vector2[width * height];
 
         int failureCount = 0;
         int invalidityCount = 0;
 
-        for (int i = 0; i < AZURE_KINECT_DEPTH_WIDTH; ++i)
+        for (int i = 0; i < width; ++i)
         {
-            for(int j = 0; j < AZURE_KINECT_DEPTH_HEIGHT; ++j)
+            for(int j = 0; j < height; ++j)
             {
                 float[] xy = new float[2];
                 int valid = 0;
                 if(AzureKinectIntrinsicTransformation.Unproject(depthCamera, new float[2] { i, j }, ref xy, ref valid))
                 {
-                    vertices[i + j * AZURE_KINECT_DEPTH_WIDTH] = new Vector3(xy[0], xy[1], 1.0f);
+                    vertices[i + j * width] = new Vector3(xy[0], xy[1], 1.0f);
                 }
                 else
                 {
-                    vertices[i + j * AZURE_KINECT_DEPTH_WIDTH] = new Vector3(0.0f, 0.0f, 0.0f);
+                    vertices[i + j * width] = new Vector3(0.0f, 0.0f, 0.0f);
                     ++failureCount;
                 }
-                uv[i + j * AZURE_KINECT_DEPTH_WIDTH] = new Vector2(i / (float)(AZURE_KINECT_DEPTH_WIDTH - 1),
-                                                                   j / (float)(AZURE_KINECT_DEPTH_HEIGHT - 1));
+                uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
 
                 if (valid == 0)
                     ++invalidityCount;
