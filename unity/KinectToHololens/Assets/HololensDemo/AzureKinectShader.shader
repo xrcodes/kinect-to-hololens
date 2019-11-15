@@ -31,8 +31,8 @@
 
             struct v2f
             {
-                float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
+                float2 uv : TEXCOORD0;
             };
 
             Texture2D _YTex;
@@ -42,7 +42,6 @@
             sampler2D _DepthTex;
 
             float4x4 _DepthToColor;
-            float4x4 _ColorProjection;
 
             // Color Intrinsics
             float _Cx;
@@ -62,15 +61,21 @@
 
             v2f vert (appdata v)
             {
+                // Conversion from the texture coordinate system to the Kinect image coordinate system.
+                v.uv.y = 1.0 - v.uv.y;
+
                 v2f o;
 
                 // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
                 // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
                 // 1000 is the conversion of mm (the unit of Azure Kinect) to m (the unit of Unity3D).
+
                 fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
+                
                 fixed4 vertex = v.vertex * depth;
                 o.vertex = UnityObjectToClipPos(vertex);
 
+                // The version without radial distortion.
                 //fixed4 uv = mul(_ColorProjection, mul(_DepthToColor, vertex));
                 //o.uv = fixed2(uv.x / uv.w, 1.0 - uv.y / uv.w);
 
@@ -89,16 +94,17 @@
                 fixed rsc = rss * rs;
                 fixed a = 1.0 + _K1 * rs + _K2 * rss + _K3 * rsc;
                 fixed b = 1.0 + _K4 * rs + _K5 * rss + _K6 * rsc;
-                fixed bi;
-                if (b != 0.0)
-                {
-                    bi = 1.0 / b;
-                }
-                else
-                {
-                    bi = 1.0;
-                }
-                fixed d = a * bi;
+                //fixed bi;
+                //if (b != 0.0)
+                //{
+                //    bi = 1.0 / b;
+                //}
+                //else
+                //{
+                //    bi = 1.0;
+                //}
+                //fixed d = a * bi;
+                fixed d = a / b;
                 
                 fixed xp_d = xp * d;
                 fixed yp_d = yp * d;
@@ -114,12 +120,16 @@
 
                 fixed uv_u = (xp_d_cx * _Fx + _Cx) / 1280.0;
                 fixed uv_v = (yp_d_cy * _Fx + _Cy) / 720.0;
-                o.uv = fixed2(uv_u, 1.0 - uv_v);
+                o.uv = fixed2(uv_u, uv_v);
+                
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
+                // Conversion from the texture coordinate system to the Kinect image coordinate system.
+                i.uv.y = 1.0 - i.uv.y;
+
                 // Formula came from https://docs.microsoft.com/en-us/windows/desktop/medfound/recommended-8-bit-yuv-formats-for-video-rendering.
                 // Commented code before optimization.
                 //fixed c = (tex2D(_YTex, i.uv).r - 0.0625) * 1.164383;

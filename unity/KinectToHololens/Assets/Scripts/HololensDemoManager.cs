@@ -123,14 +123,11 @@ public class HololensDemoManager : MonoBehaviour
         if(message == null)
             return;
 
-        // Prepare the ScreenRenderer with the received KinectIntrinsics.
+        // Prepare the ScreenRenderer with calibration information of the Kinect.
         if(message[0] == 0)
         {
-            //var kinectScreen = CreateKinectScreenFromIntrinsicsMessage(message);
-            //screenRenderer.SetKinectScreen(kinectScreen);
             var calibration = ReadAzureKinectCalibrationFromMessage(message);
-            var screen = new AzureKinectScreen(calibration);
-            azureKinectScreenRenderer.SetScreen(screen);
+            azureKinectScreenRenderer.InitializeScreen(calibration);
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)
@@ -298,6 +295,13 @@ public class HololensDemoManager : MonoBehaviour
     private static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message)
     {
         int cursor = 1;
+
+        float colorMetricRadius = BitConverter.ToSingle(message, cursor);
+        cursor += 4;
+
+        float depthMetricRadius = BitConverter.ToSingle(message, cursor);
+        cursor += 4;
+
         AzureKinectCalibration.Intrinsics colorIntrinsics;
         {
             float cx = BitConverter.ToSingle(message, cursor);
@@ -324,9 +328,9 @@ public class HololensDemoManager : MonoBehaviour
             cursor += 4;
             float cody = BitConverter.ToSingle(message, cursor);
             cursor += 4;
-            float p1 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
             float p2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p1 = BitConverter.ToSingle(message, cursor);
             cursor += 4;
             float metricRadius = BitConverter.ToSingle(message, cursor);
             cursor += 4;
@@ -343,8 +347,8 @@ public class HololensDemoManager : MonoBehaviour
                                                                     k6: k6,
                                                                     codx: codx,
                                                                     cody: cody,
-                                                                    p1: p1,
                                                                     p2: p2,
+                                                                    p1: p1,
                                                                     metricRadius: metricRadius);
         }
 
@@ -374,9 +378,9 @@ public class HololensDemoManager : MonoBehaviour
             cursor += 4;
             float cody = BitConverter.ToSingle(message, cursor);
             cursor += 4;
-            float p1 = BitConverter.ToSingle(message, cursor);
-            cursor += 4;
             float p2 = BitConverter.ToSingle(message, cursor);
+            cursor += 4;
+            float p1 = BitConverter.ToSingle(message, cursor);
             cursor += 4;
             float metricRadius = BitConverter.ToSingle(message, cursor);
             cursor += 4;
@@ -393,8 +397,8 @@ public class HololensDemoManager : MonoBehaviour
                                                                     k6: k6,
                                                                     codx: codx,
                                                                     cody: cody,
-                                                                    p1: p1,
                                                                     p2: p2,
+                                                                    p1: p1,
                                                                     metricRadius: metricRadius);
         }
 
@@ -417,7 +421,12 @@ public class HololensDemoManager : MonoBehaviour
             depthToColorExtrinsics = new AzureKinectCalibration.Extrinsics(rotation, translation);
         }
 
-        return new AzureKinectCalibration(colorIntrinsics, depthIntrinsics, depthToColorExtrinsics);
+        var colorCamera = new AzureKinectCalibration.Camera(colorIntrinsics, colorMetricRadius);
+        var depthCamera = new AzureKinectCalibration.Camera(depthIntrinsics, depthMetricRadius);
+
+        return new AzureKinectCalibration(colorCamera: colorCamera,
+                                          depthCamera: depthCamera,
+                                          depthToColorExtrinsics: depthToColorExtrinsics);
     }
 
     // Parses a message that contains a KinectIntrinsics and uses the KinectIntrinsics to build a KinectScreen

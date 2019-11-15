@@ -16,11 +16,17 @@ Sender::Sender(asio::ip::tcp::socket&& socket)
 // Sends a Kinect calibration information to a Receiver.
 void Sender::send(k4a_calibration_t calibration)
 {
+    float color_metric_radius = calibration.color_camera_calibration.metric_radius;
+    float depth_metric_radius = calibration.depth_camera_calibration.metric_radius;
     auto color_intrinsics = calibration.color_camera_calibration.intrinsics.parameters.param;
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     auto depth_to_color_extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
 
-    uint32_t message_size = static_cast<uint32_t>(1 + sizeof(color_intrinsics) + sizeof(depth_intrinsics) +
+    uint32_t message_size = static_cast<uint32_t>(1 +
+                                                  sizeof(color_metric_radius) +
+                                                  sizeof(depth_metric_radius) +
+                                                  sizeof(color_intrinsics) +
+                                                  sizeof(depth_intrinsics) +
                                                   sizeof(depth_to_color_extrinsics));
     uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
 
@@ -33,6 +39,12 @@ void Sender::send(k4a_calibration_t calibration)
     // Message type
     buffer[4] = static_cast<uint8_t>(0);
     cursor += 1;
+
+    memcpy(buffer.data() + cursor, &color_metric_radius, sizeof(color_metric_radius));
+    cursor += sizeof(color_metric_radius);
+
+    memcpy(buffer.data() + cursor, &depth_metric_radius, sizeof(depth_metric_radius));
+    cursor += sizeof(depth_metric_radius);
 
     memcpy(buffer.data() + cursor, &color_intrinsics, sizeof(color_intrinsics));
     cursor += sizeof(color_intrinsics);

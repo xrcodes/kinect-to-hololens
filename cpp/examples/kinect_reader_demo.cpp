@@ -106,6 +106,7 @@ void _display_azure_kinect_calibration()
     std::cout << "color intrinsics p2: " << color_intrinsics.parameters.param.p2 << std::endl;
     std::cout << "color intrinsics p1: " << color_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "color intrinsics metric_radius: " << color_intrinsics.parameters.param.metric_radius << std::endl;
+    std::cout << "color camera metric_radius: " << calibration->color_camera_calibration.metric_radius << std::endl;
 
     auto depth_intrinsics = calibration->depth_camera_calibration.intrinsics;
     std::cout << "depth intrinsics type: " << depth_intrinsics.type << std::endl;
@@ -125,6 +126,7 @@ void _display_azure_kinect_calibration()
     std::cout << "depth intrinsics p2: " << depth_intrinsics.parameters.param.p2 << std::endl;
     std::cout << "depth intrinsics p1: " << depth_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "depth intrinsics metric_radius: " << depth_intrinsics.parameters.param.metric_radius << std::endl;
+    std::cout << "depth camera metric_radius: " << calibration->depth_camera_calibration.metric_radius << std::endl;
 
     auto extrinsics = calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
     for (int i = 0; i < 9; ++i)
