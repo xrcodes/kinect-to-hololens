@@ -1,6 +1,7 @@
 #include "kh_core.h"
 #include "kh_sender.h"
 #include "kh_vp8.h"
+#include "kh_rvl.h"
 #include "azure_kinect/azure_kinect.h"
 
 namespace kh
@@ -109,10 +110,7 @@ void _send_azure_kinect_frames(int port)
         auto vp8_frame = encoder.encode(yuv_image);
 
         // Compress the depth pixels.
-        //auto rvl_frame = createRvlFrameFromKinectDepthBuffer(kinect_frame->depth_frame()->getUnderlyingBuffer());
-        auto rvl_frame = createRvlFrameFromKinectDepthBuffer(reinterpret_cast<uint16_t*>(depth_image->getBuffer()),
-                                                             depth_image->getWidth(),
-                                                             depth_image->getHeight());
+        auto rvl_frame = rvl::compress(reinterpret_cast<short*>(depth_image->getBuffer()), depth_image->getWidth() * depth_image->getHeight());
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
@@ -128,7 +126,7 @@ void _send_azure_kinect_frames(int port)
 
         // Try sending the frame. Escape the loop if there is a network error.
         try {
-            sender.send(frame_id++, vp8_frame, rvl_frame);
+            sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(rvl_frame.data()), rvl_frame.size());
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
             break;

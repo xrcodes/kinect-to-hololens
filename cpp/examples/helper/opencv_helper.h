@@ -55,13 +55,4 @@ cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer, int width,
     cvtColor(y_cr_cb_frame, bgr_frame, CV_YCrCb2BGR);
     return bgr_frame;
 }
-
-// An obsolete function for Kinect v2.
-cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer)
-{
-    const int WIDTH = 512;
-    const int HEIGHT = 424;
-
-    return createCvMatFromKinectDepthImage(depth_buffer, WIDTH, HEIGHT);
-}
 }

@@ -49,7 +49,7 @@ void DepthTexture::updatePixels(ID3D11Device* device,
 								ID3D11DeviceContext* device_context,
 								int width,
 								int height,
-								std::vector<uint16_t>& pixels)
+								uint16_t* pixels)
 {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	HRESULT hr = device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);

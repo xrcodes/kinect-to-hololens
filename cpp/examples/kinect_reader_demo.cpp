@@ -1,6 +1,8 @@
 #include <iostream>
 #include "helper/opencv_helper.h"
 #include "kh_vp8.h"
+#include "kh_rvl.h"
+#include "kh_trvl.h"
 #include "azure_kinect/azure_kinect.h"
 
 namespace kh
@@ -8,6 +10,8 @@ namespace kh
 void _display_azure_kinect_frames()
 {
     const int TARGET_BITRATE = 2000;
+    const short CHANGE_THRESHOLD = 10;
+    const int INVALID_THRESHOLD = 2;
     const int32_t TIMEOUT_IN_MS = 1000;
 
     // Obtain device to access Kinect frames.
@@ -24,10 +28,15 @@ void _display_azure_kinect_frames()
         return;
     }
 
-    Vp8Encoder encoder(calibration->color_camera_calibration.resolution_width,
-                       calibration->color_camera_calibration.resolution_height,
-                       TARGET_BITRATE);
-    Vp8Decoder decoder;
+    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
+                           calibration->color_camera_calibration.resolution_height,
+                           TARGET_BITRATE);
+    Vp8Decoder vp8_decoder;
+
+    int frame_size = calibration->depth_camera_calibration.resolution_width
+                   * calibration->depth_camera_calibration.resolution_height;
+    TrvlEncoder trvl_encoder(frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+    TrvlDecoder trvl_decoder(frame_size);
 
     if (!device->start(configuration)) {
         std::cout << "Failed to start the Azure Kinect." << std::endl;
@@ -56,17 +65,18 @@ void _display_azure_kinect_frames()
                                                                  color_image->getWidth(),
                                                                  color_image->getHeight(),
                                                                  color_image->getStride());
-        auto vp8_frame = encoder.encode(yuv_image);
-        auto ffmpeg_frame = decoder.decode(vp8_frame.data(), vp8_frame.size());
+        auto vp8_frame = vp8_encoder.encode(yuv_image);
+        auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        auto rvl_frame = createRvlFrameFromKinectDepthBuffer(reinterpret_cast<uint16_t*>(depth_image->getBuffer()),
-                                                             depth_image->getWidth(),
-                                                             depth_image->getHeight());
-        auto depth_pixels = createDepthImageFromRvlFrame(rvl_frame.data(), depth_image->getWidth(), depth_image->getHeight());
-        auto depth_mat = createCvMatFromKinectDepthImage(depth_pixels.data(), depth_image->getWidth(), depth_image->getHeight());
+        //auto rvl_frame = rvl::compress(reinterpret_cast<short*>(depth_image->getBuffer()), depth_image->getWidth() * depth_image->getHeight());
+        //auto depth_pixels = rvl::decompress(rvl_frame.data(), depth_image->getWidth() * depth_image->getHeight());
+
+        auto trvl_frame = trvl_encoder.encode(reinterpret_cast<short*>(depth_image->getBuffer()));
+        auto depth_pixels = trvl_decoder.decode(trvl_frame.data());
+        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), depth_image->getWidth(), depth_image->getHeight());
 
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);

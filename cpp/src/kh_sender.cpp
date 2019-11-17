@@ -80,9 +80,9 @@ void Sender::send(k4a_calibration_t calibration)
 }
 
 // Sends a Kinect frame to a Receiver.
-void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame, std::vector<uint8_t> rvl_frame)
+void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame, uint8_t* rvl_frame, uint32_t rvl_frame_size)
 {
-    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + vp8_frame.size() + 4 + rvl_frame.size());
+    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + vp8_frame.size() + 4 + rvl_frame_size);
     uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
 
     std::vector<uint8_t> buffer(buffer_size);
@@ -105,11 +105,10 @@ void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame, std::vector<uin
     memcpy(buffer.data() + cursor, vp8_frame.data(), vp8_frame.size());
     cursor += vp8_frame.size();
 
-    auto rvl_frame_size = static_cast<uint32_t>(rvl_frame.size());
     memcpy(buffer.data() + cursor, &rvl_frame_size, 4);
     cursor += 4;
 
-    memcpy(buffer.data() + cursor, rvl_frame.data(), rvl_frame.size());
+    memcpy(buffer.data() + cursor, rvl_frame, rvl_frame_size);
 
     sendMessageBuffer(socket_, buffer);
 }

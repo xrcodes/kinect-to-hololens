@@ -92,19 +92,8 @@ private:
     AVFrame* av_frame_;
 };
 
-// createHalvedYuvImageFromKinectColorBuffer(): converts color pixels to a YuvImage
-//   while halving the Kinect's resolution.
+// createYuvImageFromAzureKinectYuy2Buffer(): converts color pixels to a YuvImage.
 // createYuvImageFromAvFrame(): converts the outcome of Vp8Decoder to color pixels in Yuv420.
-// createRvlFrameFromKinectDepthBuffer(): compresses depth pixels using RVL.
-// createDepthImageFromRvlFrame(): decompresses depth pixels compressed by RVL.
-// See kh_core.cpp for details.
-YuvImage createHalvedYuvImageFromKinectColorBuffer(uint8_t* buffer);
 YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int height, int stride);
 YuvImage createYuvImageFromAvFrame(AVFrame* av_frame);
-// An obsolete function for Kinect v2.
-std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer);
-std::vector<uint8_t> createRvlFrameFromKinectDepthBuffer(uint16_t* buffer, int width, int height);
-// An obsolete function for Kinect v2.
-std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame);
-std::vector<uint16_t> createDepthImageFromRvlFrame(uint8_t* rvl_frame, int width, int height);
 }

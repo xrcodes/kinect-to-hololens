@@ -15,7 +15,7 @@ class Sender
 public:
     Sender(asio::ip::tcp::socket&& socket);
     void send(k4a_calibration_t calibration);
-    void send(int frame_id, std::vector<uint8_t>& vp8_frame, std::vector<uint8_t> rvl_frame);
+    void send(int frame_id, std::vector<uint8_t>& vp8_frame, uint8_t* rvl_frame, uint32_t rvl_frame_size);
     std::optional<std::vector<uint8_t>> receive();
 
 private:

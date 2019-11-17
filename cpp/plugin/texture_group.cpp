@@ -108,6 +108,6 @@ void texture_group_update_rvl(ID3D11Device* device, ID3D11DeviceContext* device_
     u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
     v_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 2);
     
-    auto depth_pixels = kh::rvl::decompress(rvl_frame_.data(), depth_width_ * depth_height_);
-    depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, depth_pixels);
+    auto depth_pixels = kh::rvl::decompress(reinterpret_cast<char*>(rvl_frame_.data()), depth_width_ * depth_height_);
+    depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
 }

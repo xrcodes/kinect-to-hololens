@@ -99,65 +99,24 @@ namespace kh
 namespace rvl
 {
 // Compresses depth pixels using RVL.
-std::vector<uint8_t> compress(uint16_t* input, int num_pixels)
+std::vector<char> compress(short* input, int num_pixels)
 {
-    std::vector<uint8_t> output(num_pixels);
-    int size = wilson::CompressRVL(reinterpret_cast<short*>(input), reinterpret_cast<char*>(output.data()), num_pixels);
+    std::vector<char> output(num_pixels);
+    int size = wilson::CompressRVL(input, output.data(), num_pixels);
     // This is theoretically possible to happen since lossless compression does not guarantee reduction of size.
     // However, it is very unlikely to happen.
     if (size > num_pixels)
         throw std::exception("RVL compression failed to reduce the size of its input.");
-    // Purging the part of the std::vector that was not needed to contain the outcome.
     output.resize(size);
     output.shrink_to_fit();
     return output;
 }
 
-// Decompress depth pixels using RVL.
-std::vector<uint16_t> decompress(uint8_t* input, int num_pixels)
+std::vector<short> decompress(char* input, int num_pixels)
 {
-    std::vector<uint16_t> output(num_pixels);
-    wilson::DecompressRVL(reinterpret_cast<char*>(input), reinterpret_cast<short*>(output.data()), num_pixels);
+    std::vector<short> output(num_pixels);
+    wilson::DecompressRVL(input, output.data(), num_pixels);
     return output;
 }
-
-// A special function for decompressing depth pixels using RVL and directly putting the pixels into a Direct3D texture.
-// It is a modification of wilson::DecompressRVL().
-//void decompress(uint8_t* input, uint16_t* output, int width, int height, int row_pitch)
-//{
-//    int* buffer = (int*)input;
-//    int* pBuffer = (int*)input;
-//    int word = 0;
-//    int nibblesWritten = 0;
-//    short current, previous = 0;
-//    int numPixelsToDecode = width * height;
-//    int row_count = 0;
-//    while (numPixelsToDecode) {
-//        int zeros = wilson::DecodeVLE(pBuffer, word, nibblesWritten); // number of zeros
-//        numPixelsToDecode -= zeros;
-//        for (; zeros; zeros--) {
-//            *output++ = 0;
-//            // Jumps row_pitch - width for each row since there might be spaces left between rows of a Direct3D texture.
-//            if (++row_count == width) {
-//                output += row_pitch - width;
-//                row_count = 0;
-//            }
-//        }
-//        int nonzeros = wilson::DecodeVLE(pBuffer, word, nibblesWritten); // number of nonzeros
-//        numPixelsToDecode -= nonzeros;
-//        for (; nonzeros; nonzeros--) {
-//            int positive = wilson::DecodeVLE(pBuffer, word, nibblesWritten); // nonzero value
-//            int delta = (positive >> 1) ^ -(positive & 1);
-//            current = previous + delta;
-//            *output++ = current;
-//            previous = current;
-//            // Jumps row_pitch - width for each row since there might be spaces left between rows of a Direct3D texture.
-//            if (++row_count == width) {
-//                output += row_pitch - width;
-//                row_count = 0;
-//            }
-//        }
-//    }
-//}
 }
 }

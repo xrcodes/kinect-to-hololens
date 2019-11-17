@@ -2,6 +2,7 @@
 #include <asio.hpp>
 #include "kh_receiver.h"
 #include "kh_vp8.h"
+#include "kh_rvl.h"
 #include "helper/opencv_helper.h"
 
 namespace kh
@@ -76,8 +77,8 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
             auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
             // Decompressing a RVL frame into depth pixels.
-            auto depth_image = createDepthImageFromRvlFrame(rvl_frame.data(), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
-            auto depth_mat = createCvMatFromKinectDepthImage(depth_image.data(), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
+            auto depth_image = rvl::decompress(reinterpret_cast<char*>(rvl_frame.data()), AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+            auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
 
             // Rendering the depth pixels.
             cv::imshow("Color", color_mat);
