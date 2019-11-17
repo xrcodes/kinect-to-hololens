@@ -108,9 +108,6 @@ public class AzureKinectScreen : MonoBehaviour
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
 
-        int failureCount = 0;
-        int invalidityCount = 0;
-
         for (int i = 0; i < width; ++i)
         {
             for(int j = 0; j < height; ++j)
@@ -124,19 +121,31 @@ public class AzureKinectScreen : MonoBehaviour
                 else
                 {
                     vertices[i + j * width] = new Vector3(0.0f, 0.0f, 0.0f);
-                    ++failureCount;
                 }
                 uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
-
-                if (valid == 0)
-                    ++invalidityCount;
             }
         }
 
-        print($"failure: {failureCount}");
-        print($"invalidity: {invalidityCount}");
+        // Converting the point cloud version of vertices and uv into a quad version one.
+        int quadWidth = width - 2;
+        int quadHeight = height - 2;
+        var quadPositions = new Vector3[quadWidth * quadHeight];
+        var quadUv = new Vector2[quadWidth * quadHeight];
+        var quadDimensions = new Vector2[quadWidth * quadHeight];
 
-        var triangles = new int[vertices.Length];
+        for (int ii = 0; ii < quadWidth; ++ii)
+        {
+            for (int jj = 0; jj < quadHeight - 2; ++jj)
+            {
+                int i = ii + 1;
+                int j = jj + 1;
+                quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
+                quadUv[ii + jj * quadWidth] = uv[i + j * width];
+                quadDimensions[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+            }
+        }
+
+        var triangles = new int[quadPositions.Length];
         for (int i = 0; i < triangles.Length; ++i)
             triangles[i] = i;
 
@@ -148,8 +157,9 @@ public class AzureKinectScreen : MonoBehaviour
         var mesh = new Mesh()
         {
             indexFormat = IndexFormat.UInt32,
-            vertices = vertices,
-            uv = uv,
+            vertices = quadPositions,
+            uv = quadUv,
+            uv2 = quadDimensions,
             triangles = triangles,
             bounds = bounds,
         };

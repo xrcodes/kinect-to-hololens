@@ -55,6 +55,7 @@
             {
                 float3 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+                float2 uv2 : TEXCOORD1;
             };
 
             struct v2f
