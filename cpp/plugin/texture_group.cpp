@@ -7,11 +7,7 @@
 
 typedef void* VoidPtr;
 
-// These constants are for the resolution of Azure Kinect.
-//const int AZURE_KINECT_COLOR_WIDTH = 1280;
-//const int AZURE_KINECT_COLOR_HEIGHT = 720;
-//const int AZURE_KINECT_DEPTH_WIDTH = 640;
-//const int AZURE_KINECT_DEPTH_HEIGHT = 576;
+// Color and depth texture sizes.
 int color_width_;
 int color_height_;
 int depth_width_;
@@ -29,7 +25,7 @@ ID3D11ShaderResourceView* u_texture_view_ = nullptr;
 ID3D11ShaderResourceView* v_texture_view_ = nullptr;
 ID3D11ShaderResourceView* depth_texture_view_ = nullptr;
 
-// These variables get set in the main thread of Unity, then gets assigned to textures in a render thread of Unity.
+// These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
 kh::FFmpegFrame ffmpeg_frame_(nullptr);
 std::vector<uint8_t> rvl_frame_;
 
@@ -108,6 +104,6 @@ void texture_group_update_rvl(ID3D11Device* device, ID3D11DeviceContext* device_
     u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
     v_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 2);
     
-    auto depth_pixels = kh::rvl::decompress(reinterpret_cast<char*>(rvl_frame_.data()), depth_width_ * depth_height_);
+    auto depth_pixels = kh::rvl::decompress(rvl_frame_.data(), depth_width_ * depth_height_);
     depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
 }

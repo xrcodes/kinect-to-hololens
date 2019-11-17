@@ -99,10 +99,10 @@ namespace kh
 namespace rvl
 {
 // Compresses depth pixels using RVL.
-std::vector<char> compress(short* input, int num_pixels)
+std::vector<uint8_t> compress(short* input, int num_pixels)
 {
-    std::vector<char> output(num_pixels);
-    int size = wilson::CompressRVL(input, output.data(), num_pixels);
+    std::vector<uint8_t> output(num_pixels);
+    int size = wilson::CompressRVL(input, reinterpret_cast<char*>(output.data()), num_pixels);
     // This is theoretically possible to happen since lossless compression does not guarantee reduction of size.
     // However, it is very unlikely to happen.
     if (size > num_pixels)
@@ -112,10 +112,10 @@ std::vector<char> compress(short* input, int num_pixels)
     return output;
 }
 
-std::vector<short> decompress(char* input, int num_pixels)
+std::vector<short> decompress(uint8_t* input, int num_pixels)
 {
     std::vector<short> output(num_pixels);
-    wilson::DecompressRVL(input, output.data(), num_pixels);
+    wilson::DecompressRVL(reinterpret_cast<char*>(input), output.data(), num_pixels);
     return output;
 }
 }

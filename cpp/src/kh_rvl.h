@@ -10,8 +10,8 @@ namespace kh
 namespace rvl
 {
 // Compresses depth pixels using RVL.
-std::vector<char> compress(short* input, int num_pixels);
+std::vector<uint8_t> compress(short* input, int num_pixels);
 // Decompress depth pixels using RVL.
-std::vector<short> decompress(char* input, int num_pixels);
+std::vector<short> decompress(uint8_t* input, int num_pixels);
 }
 }

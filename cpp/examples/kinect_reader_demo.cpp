@@ -1,13 +1,11 @@
 #include <iostream>
 #include "helper/opencv_helper.h"
-#include "kh_vp8.h"
-#include "kh_rvl.h"
-#include "kh_trvl.h"
+#include "kh_depth_compression_helper.h"
 #include "azure_kinect/azure_kinect.h"
 
 namespace kh
 {
-void _display_azure_kinect_frames()
+void _display_frames(DepthCompressionType type)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -33,10 +31,23 @@ void _display_azure_kinect_frames()
                            TARGET_BITRATE);
     Vp8Decoder vp8_decoder;
 
-    int depth_frame_size = calibration->depth_camera_calibration.resolution_width
-                         * calibration->depth_camera_calibration.resolution_height;
-    TrvlEncoder trvl_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
-    TrvlDecoder trvl_decoder(depth_frame_size);
+    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
+    int depth_frame_size = depth_frame_width * depth_frame_height;
+
+    std::unique_ptr<DepthEncoder> depth_encoder;
+    std::unique_ptr<DepthDecoder> depth_decoder;
+
+    if (type == DepthCompressionType::Rvl) {
+        depth_encoder = std::make_unique<RvlDepthEncoder>(depth_frame_size);
+        depth_decoder = std::make_unique<RvlDepthDecoder>(depth_frame_size);
+    } else if (type == DepthCompressionType::Trvl) {
+        depth_encoder = std::make_unique<TrvlDepthEncoder>(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+        depth_decoder = std::make_unique<TrvlDepthDecoder>(depth_frame_size);
+    } else if (type == DepthCompressionType::Vp8) {
+        depth_encoder = std::make_unique<Vp8DepthEncoder>(depth_frame_width, depth_frame_height, TARGET_BITRATE);
+        depth_decoder = std::make_unique<Vp8DepthDecoder>();
+    }
 
     if (!device->start(configuration)) {
         std::cout << "Failed to start the Azure Kinect." << std::endl;
@@ -71,11 +82,8 @@ void _display_azure_kinect_frames()
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        //auto rvl_frame = rvl::compress(reinterpret_cast<short*>(depth_image->getBuffer()), depth_image->getWidth() * depth_image->getHeight());
-        //auto depth_pixels = rvl::decompress(rvl_frame.data(), depth_image->getWidth() * depth_image->getHeight());
-
-        auto trvl_frame = trvl_encoder.encode(reinterpret_cast<short*>(depth_image->getBuffer()));
-        auto depth_pixels = trvl_decoder.decode(trvl_frame.data());
+        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image->getBuffer()));
+        auto depth_pixels = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
         auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), depth_image->getWidth(), depth_image->getHeight());
 
         // Displays the color and depth pixels.
@@ -86,7 +94,7 @@ void _display_azure_kinect_frames()
     }
 }
 
-void _display_azure_kinect_calibration()
+void _display_calibration()
 {
     auto device = azure_kinect::obtainAzureKinectDevice();
     if (!device) {
@@ -155,7 +163,7 @@ void _display_azure_kinect_calibration()
 void display_frames()
 {
     for (;;) {
-        std::cout << "Press enter to display frames." << std::endl;
+        std::cout << "Enter the type of depth compression to display frames. (RVL: 1, TRVL: 2, VP8: 3)" << std::endl;
         std::string line;
         std::getline(std::cin, line);
 
@@ -163,11 +171,21 @@ void display_frames()
         // A kind of an easter egg.
         // Usually, Kinect frames are displayed.
         if (line == "calibration") {
-            _display_azure_kinect_calibration();
+            _display_calibration();
             continue;
         }
 
-        _display_azure_kinect_frames();
+        if (line == "1") {
+            _display_frames(DepthCompressionType::Rvl);
+        } else if (line == "2") {
+            _display_frames(DepthCompressionType::Trvl);
+        } else if (line == "3") {
+            _display_frames(DepthCompressionType::Vp8);
+        } else {
+            // Use TRVL as the default type.
+            _display_frames(DepthCompressionType::Trvl);
+        }
+
     }
 }
 }

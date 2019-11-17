@@ -88,7 +88,7 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
             // Decompressing a RVL frame into depth pixels.
             //auto depth_image = rvl::decompress(reinterpret_cast<char*>(rvl_frame.data()), AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
-            auto depth_image = trvl_decoder.decode(reinterpret_cast<char*>(trvl_frame.data()));
+            auto depth_image = trvl_decoder.decode(trvl_frame.data());
             auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
 
             // Rendering the depth pixels.

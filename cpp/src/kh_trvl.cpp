@@ -42,7 +42,7 @@ TrvlEncoder::TrvlEncoder(int frame_size, short change_threshold, int invalid_thr
 {
 }
 
-std::vector<char> TrvlEncoder::encode(short* depth_buffer)
+std::vector<uint8_t> TrvlEncoder::encode(short* depth_buffer)
 {
     auto frame_size = pixels_.size();
     std::vector<short> pixel_diffs(frame_size);
@@ -59,7 +59,7 @@ TrvlDecoder::TrvlDecoder(int frame_size)
     : prev_pixel_values_(frame_size, 0)
 {
 }
-std::vector<short> TrvlDecoder::decode(char* trvl_frame)
+std::vector<short> TrvlDecoder::decode(uint8_t* trvl_frame)
 {
     int frame_size = prev_pixel_values_.size();
     auto pixel_diffs = rvl::decompress(trvl_frame, frame_size);
