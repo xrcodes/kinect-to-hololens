@@ -157,6 +157,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 81862ada3a8167c4987e9db056d2e499, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mainCamera: {fileID: 862077150}
   meshFilter: {fileID: 470315192}
   meshRenderer: {fileID: 470315191}
 --- !u!23 &470315191

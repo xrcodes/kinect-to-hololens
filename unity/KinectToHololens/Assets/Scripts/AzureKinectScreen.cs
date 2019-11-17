@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class AzureKinectScreen : MonoBehaviour
 {
+    public Camera mainCamera;
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
 
@@ -98,6 +99,46 @@ public class AzureKinectScreen : MonoBehaviour
         meshRenderer.sharedMaterial.SetFloat("_P1", colorIntrinsics.P1);
     }
 
+    // Updates _VertexOffsetXVector and _VertexOffsetYVector so the rendered quads can face the headsetCamera.
+    // This method gets called right before this ScreenRenderer gets rendered.
+    void OnWillRenderObject()
+    {
+        if (meshRenderer.sharedMaterial == null)
+            return;
+
+        // Ignore when this method is called while Unity rendering the Editor's "Scene" (not the "Game" part of the editor).
+        if (Camera.current != mainCamera)
+            return;
+
+        var cameraTransform = mainCamera.transform;
+        var worldCameraFrontVector = cameraTransform.TransformDirection(new Vector3(0.0f, 0.0f, 1.0f));
+
+        // Using the y direction as the up vector instead the up vector of the camera allows the user to feel more
+        // comfortable as it preserves the sense of gravity.
+        // Getting the right vector directly from the camera transform through zeroing its y-component does not
+        // work when the y-component of the camera's up vector is negative. While it is possible to solve the problem
+        // with an if statement, inverting when the y-component is negative, I decided to detour this case with
+        // usage of the cross product with the front vector.
+        var worldUpVector = new Vector3(0.0f, 1.0f, 0.0f);
+        var worldRightVector = Vector3.Cross(worldUpVector, worldCameraFrontVector);
+        worldRightVector = new Vector3(worldRightVector.x, 0.0f, worldRightVector.z);
+        worldRightVector.Normalize();
+
+        var localRightVector = transform.InverseTransformDirection(worldRightVector);
+        var localUpVector = transform.InverseTransformDirection(worldUpVector);
+
+        // The coordinate system of Kinect's textures have (1) its origin at its left-up side.
+        // Also, the viewpoint of it is sort of (2) the opposite of the viewpoint of the Hololens, considering the typical use case. (this is not the case for Azure Kinect)
+        // Due to (1), vertexOffsetYVector = -localCameraUpVector.
+        // Due to (2), vertexOffsetXVector = -localCameraRightVector.
+        //var vertexOffsetXVector = -localRightVector;
+        var vertexOffsetXVector = localRightVector;
+        var vertexOffsetYVector = -localUpVector;
+
+        meshRenderer.sharedMaterial.SetVector("_VertexOffsetXVector", new Vector4(vertexOffsetXVector.x, vertexOffsetXVector.y, vertexOffsetXVector.z, 0.0f));
+        meshRenderer.sharedMaterial.SetVector("_VertexOffsetYVector", new Vector4(vertexOffsetYVector.x, vertexOffsetYVector.y, vertexOffsetYVector.z, 0.0f));
+    }
+
     private static Mesh CreateMesh(AzureKinectCalibration calibration)
     {
         int width = calibration.DepthCamera.Width;
@@ -131,7 +172,8 @@ public class AzureKinectScreen : MonoBehaviour
         int quadHeight = height - 2;
         var quadPositions = new Vector3[quadWidth * quadHeight];
         var quadUv = new Vector2[quadWidth * quadHeight];
-        var quadDimensions = new Vector2[quadWidth * quadHeight];
+        var quadPositionSizes = new Vector2[quadWidth * quadHeight];
+        var quadUvSizes = new Vector2[quadWidth * quadHeight];
 
         for (int ii = 0; ii < quadWidth; ++ii)
         {
@@ -141,7 +183,8 @@ public class AzureKinectScreen : MonoBehaviour
                 int j = jj + 1;
                 quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
                 quadUv[ii + jj * quadWidth] = uv[i + j * width];
-                quadDimensions[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+                quadPositionSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+                quadUvSizes[ii + jj * quadWidth] = (uv[(i + 1) + (j + 1) * width] - uv[(i - 1) + (j - 1) * width]) * 0.5f;
             }
         }
 
@@ -159,7 +202,8 @@ public class AzureKinectScreen : MonoBehaviour
             indexFormat = IndexFormat.UInt32,
             vertices = quadPositions,
             uv = quadUv,
-            uv2 = quadDimensions,
+            uv2 = quadPositionSizes,
+            uv3 = quadUvSizes,
             triangles = triangles,
             bounds = bounds,
         };

@@ -6,34 +6,36 @@
         _UTex("U Texture", 2D) = "white" {}
         _VTex("V Texture", 2D) = "white" {}
         _DepthTex("Depth Texture", 2D) = "white" {}
-        _R0("Depth to Color Rotation 0", Float) = 0.0
-        _R1("Depth to Color Rotation 1", Float) = 0.0
-        _R2("Depth to Color Rotation 2", Float) = 0.0
-        _R3("Depth to Color Rotation 3", Float) = 0.0
-        _R4("Depth to Color Rotation 4", Float) = 0.0
-        _R5("Depth to Color Rotation 5", Float) = 0.0
-        _R6("Depth to Color Rotation 6", Float) = 0.0
-        _R7("Depth to Color Rotation 7", Float) = 0.0
-        _R8("Depth to Color Rotation 8", Float) = 0.0
-        _T0("Depth to Color Translation 0", Float) = 0.0
-        _T1("Depth to Color Translation 1", Float) = 0.0
-        _T2("Depth to Color Translation 2", Float) = 0.0
-        _Width("Color Width", Float) = 0.0
-        _Height("Color Height", Float) = 0.0
-        _Cx("Color Cx", Float) = 0.0
-        _Cy("Color Cy", Float) = 0.0
-        _Fx("Color Fx", Float) = 0.0
-        _Fy("Color Fy", Float) = 0.0
-        _K1("Color K1", Float) = 0.0
-        _K2("Color K2", Float) = 0.0
-        _K3("Color K3", Float) = 0.0
-        _K4("Color K4", Float) = 0.0
-        _K5("Color K5", Float) = 0.0
-        _K6("Color K6", Float) = 0.0
-        _Codx("Color Codx", Float) = 0.0
-        _Cody("Color Cody", Float) = 0.0
-        _P1("Color P1", Float) = 0.0
-        _P2("Color P2", Float) = 0.0
+        //_R0("Depth to Color Rotation 0", Float) = 0.0
+        //_R1("Depth to Color Rotation 1", Float) = 0.0
+        //_R2("Depth to Color Rotation 2", Float) = 0.0
+        //_R3("Depth to Color Rotation 3", Float) = 0.0
+        //_R4("Depth to Color Rotation 4", Float) = 0.0
+        //_R5("Depth to Color Rotation 5", Float) = 0.0
+        //_R6("Depth to Color Rotation 6", Float) = 0.0
+        //_R7("Depth to Color Rotation 7", Float) = 0.0
+        //_R8("Depth to Color Rotation 8", Float) = 0.0
+        //_T0("Depth to Color Translation 0", Float) = 0.0
+        //_T1("Depth to Color Translation 1", Float) = 0.0
+        //_T2("Depth to Color Translation 2", Float) = 0.0
+        //_Width("Color Width", Float) = 0.0
+        //_Height("Color Height", Float) = 0.0
+        //_Cx("Color Cx", Float) = 0.0
+        //_Cy("Color Cy", Float) = 0.0
+        //_Fx("Color Fx", Float) = 0.0
+        //_Fy("Color Fy", Float) = 0.0
+        //_K1("Color K1", Float) = 0.0
+        //_K2("Color K2", Float) = 0.0
+        //_K3("Color K3", Float) = 0.0
+        //_K4("Color K4", Float) = 0.0
+        //_K5("Color K5", Float) = 0.0
+        //_K6("Color K6", Float) = 0.0
+        //_Codx("Color Codx", Float) = 0.0
+        //_Cody("Color Cody", Float) = 0.0
+        //_P1("Color P1", Float) = 0.0
+        //_P2("Color P2", Float) = 0.0
+        //_VertexOffsetXVector("Vertex Offset X Vector", Vector) = (0, 0, 0, 0)
+        //_VertexOffsetYVector("Vertex Offset Y Vector", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
@@ -46,7 +48,7 @@
             CGPROGRAM
             #pragma target 4.0
             #pragma vertex vert
-            //#pragma geometry geom
+            #pragma geometry geom
             #pragma fragment frag
 
             #include "UnityCG.cginc"
@@ -56,9 +58,18 @@
                 float3 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 float2 uv2 : TEXCOORD1;
+                float2 uv3 : TEXCOORD2;
             };
 
-            struct v2f
+            struct v2g
+            {
+                fixed4 vertex : POSITION;
+                fixed2 uv : TEXCOORD0;
+                fixed2 vertex_offset : TEXCOORD1;
+                fixed2 uv_offset : TEXCOORD2;
+            };
+
+            struct g2f
             {
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
@@ -103,9 +114,12 @@
             float _P1;
             float _P2;
 
-            v2f vert (appdata v)
+            fixed4 _VertexOffsetXVector;
+            fixed4 _VertexOffsetYVector;
+
+            v2g vert (appdata v)
             {
-                v2f o;
+                v2g o;
 
                 // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
                 // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
@@ -155,12 +169,53 @@
 
                 fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fy + _Cy) / (_Height - 1));
 
-                o.vertex = UnityObjectToClipPos(depth_vertex);
+                //o.vertex = UnityObjectToClipPos(depth_vertex);
+                o.vertex = fixed4(depth_vertex, 1.0);
                 o.uv = color_uv;
+                o.vertex_offset = v.uv2 * depth;
+                o.uv_offset = v.uv3;
+
                 return o;
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            [maxvertexcount(4)]
+            void geom(point v2g i[1], inout TriangleStream<g2f> triangles)
+            {
+                // Filtering out invalid depth pixels and depth pixels without a corresponding color pixel.
+                // Tried mad here, but it added cost.
+                if (i[0].vertex.z > 0.1 && i[0].uv.x > 0.0 && i[0].uv.x < 1.0 && i[0].uv.y > 0.0 && i[0].uv.y < 1.0)
+                {
+                    g2f o;
+                    // Tried using mvp matrix instead of the below one using vp matrix and unity_ObjectToWorld.
+                    // It turns calculating vertex, offset_x, and offset_y from 6 matrix-vector multiplications into
+                    // a matrix-matrix multiplication and 3 matrix-vector multiplications.
+                    // Unfortunately, it didn't improved this shader...
+                    fixed4 vertex = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, float4(i[0].vertex.xyz, 1.0)));
+                    fixed4 offset_x = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, _VertexOffsetXVector * i[0].vertex_offset.x));
+                    fixed4 offset_y = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, _VertexOffsetYVector * i[0].vertex_offset.y));
+
+                    fixed uv_right = i[0].uv_offset.x;
+                    fixed uv_up = i[0].uv_offset.y;
+
+                    o.vertex = vertex;
+                    o.uv = i[0].uv;
+                    triangles.Append(o);
+
+                    o.vertex = o.vertex + offset_x;
+                    o.uv = i[0].uv + fixed2(i[0].uv_offset.x, 0.0);
+                    triangles.Append(o);
+
+                    o.vertex = vertex + offset_y;
+                    o.uv = i[0].uv + fixed2(0.0, i[0].uv_offset.y);
+                    triangles.Append(o);
+
+                    o.vertex = vertex + offset_x + offset_y;
+                    o.uv = i[0].uv + i[0].uv_offset;
+                    triangles.Append(o);
+                }
+            }
+
+            fixed4 frag(g2f i) : SV_Target
             {
                 // Formula came from https://docs.microsoft.com/en-us/windows/desktop/medfound/recommended-8-bit-yuv-formats-for-video-rendering.
                 // Commented code before optimization.
