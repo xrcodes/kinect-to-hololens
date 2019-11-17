@@ -105,8 +105,11 @@ public class ReceiverDemoManager : MonoBehaviour
         // ReceiverDemo renders in 2D, therefore, no need to use intrinsics.
         if (message[0] == 0)
         {
-            Debug.Log("Received calibration information.");
             print(message.Length);
+            int depthCompressionType = BitConverter.ToInt32(message, 1);
+            Debug.Log($"Received the initialization message (depthCompressionType: {depthCompressionType})");
+
+            Plugin.texture_group_init_depth_encoder(depthCompressionType);
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)
@@ -132,20 +135,21 @@ public class ReceiverDemoManager : MonoBehaviour
             Marshal.FreeHGlobal(vp8FrameBytes);
             cursor += vp8FrameSize;
 
-            int rvlFrameSize = BitConverter.ToInt32(message, cursor);
+            int depthEncoderFrameSize = BitConverter.ToInt32(message, cursor);
             cursor += 4;
 
             // Marshal.AllocHGlobal, Marshal.Copy, and Marshal.FreeHGlobal are like
             // malloc, memcpy, and free of C.
             // This is required since rvlFrameBytes gets sent to the native plugin.
-            IntPtr rvlFrameBytes = Marshal.AllocHGlobal(rvlFrameSize);
-            Marshal.Copy(message, cursor, rvlFrameBytes, rvlFrameSize);
-            Plugin.texture_group_set_rvl_frame(rvlFrameBytes, rvlFrameSize);
-            Marshal.FreeHGlobal(rvlFrameBytes);
+            IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
+            Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
+            //Plugin.texture_group_set_rvl_frame(rvlFrameBytes, rvlFrameSize);
+            Plugin.texture_group_set_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
+            Marshal.FreeHGlobal(depthEncoderFrameBytes);
 
             if (frameId % 100 == 0)
             {
-                print($"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {rvlFrameSize}).");
+                print($"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {depthEncoderFrameSize}).");
             }
 
             // Invokes a function to be called in a render thread.

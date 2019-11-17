@@ -137,7 +137,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
 
         // Try sending the frame. Escape the loop if there is a network error.
         try {
-            //sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(rvl_frame.data()), rvl_frame.size());
             sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
@@ -163,7 +162,7 @@ void send_frames()
         // The default port (the port when nothing is entered) is 7777.
         int port = line.empty() ? 7777 : std::stoi(line);
 
-        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3):";
+        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3): ";
         std::getline(std::cin, line);
 
         // The default type is TRVL.

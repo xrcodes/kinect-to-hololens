@@ -163,7 +163,7 @@ void _display_calibration()
 void display_frames()
 {
     for (;;) {
-        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3):";
+        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3): ";
         std::string line;
         std::getline(std::cin, line);
 

@@ -130,7 +130,12 @@ public class HololensDemoManager : MonoBehaviour
         // Prepare the ScreenRenderer with calibration information of the Kinect.
         if(message[0] == 0)
         {
-            var calibration = ReadAzureKinectCalibrationFromMessage(message);
+            int depthCompressionType;
+            AzureKinectCalibration calibration;
+            ReadAzureKinectCalibrationFromMessage(message, out depthCompressionType, out calibration);
+
+            Plugin.texture_group_init_depth_encoder(depthCompressionType);
+
             azureKinectScreen.Setup(calibration);
 
             if((textureGroup.ColorWidth != calibration.ColorCamera.Width) ||
@@ -166,20 +171,21 @@ public class HololensDemoManager : MonoBehaviour
             Marshal.FreeHGlobal(vp8FrameBytes);
             cursor += vp8FrameSize;
 
-            int rvlFrameSize = BitConverter.ToInt32(message, cursor);
+            int depthEncoderFrameSize = BitConverter.ToInt32(message, cursor);
             cursor += 4;
 
             // Marshal.AllocHGlobal, Marshal.Copy, and Marshal.FreeHGlobal are like
             // malloc, memcpy, and free of C.
             // This is required since rvlFrameBytes gets sent to the native plugin.
-            IntPtr rvlFrameBytes = Marshal.AllocHGlobal(rvlFrameSize);
-            Marshal.Copy(message, cursor, rvlFrameBytes, rvlFrameSize);
-            Plugin.texture_group_set_rvl_frame(rvlFrameBytes, rvlFrameSize);
-            Marshal.FreeHGlobal(rvlFrameBytes);
+            IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
+            Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
+            //Plugin.texture_group_set_rvl_frame(rvlFrameBytes, rvlFrameSize);
+            Plugin.texture_group_set_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
+            Marshal.FreeHGlobal(depthEncoderFrameBytes);
 
             if (frameId % 100 == 0)
             {
-                string logString = $"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {rvlFrameSize})";
+                string logString = $"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {depthEncoderFrameSize})";
                 Debug.Log(logString);
                 statusText.text = logString;
             }
@@ -305,9 +311,13 @@ public class HololensDemoManager : MonoBehaviour
         this.inputState = inputState;
     }
 
-    private static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message)
+    private static void ReadAzureKinectCalibrationFromMessage(byte[] message,
+        out int depthCompressionType, out AzureKinectCalibration calibraiton)
     {
         int cursor = 1;
+
+        depthCompressionType = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
 
         AzureKinectCalibration.Intrinsics depthIntrinsics;
         {
@@ -449,8 +459,8 @@ public class HololensDemoManager : MonoBehaviour
         var depthCamera = new AzureKinectCalibration.Camera(depthIntrinsics, depthWidth, depthHeight, depthMetricRadius);
         var colorCamera = new AzureKinectCalibration.Camera(colorIntrinsics, colorWidth, colorHeight, colorMetricRadius);
 
-        return new AzureKinectCalibration(depthCamera: depthCamera,
-                                          colorCamera: colorCamera,
-                                          depthToColorExtrinsics: depthToColorExtrinsics);
+        calibraiton = new AzureKinectCalibration(depthCamera: depthCamera,
+                                                 colorCamera: colorCamera,
+                                                 depthToColorExtrinsics: depthToColorExtrinsics);
     }
 }

@@ -69,7 +69,7 @@
             SamplerState sampler_YTex;
             sampler2D _DepthTex;
 
-            //float4x4 _DepthToColor;
+            float4x4 _DepthToColor;
 
             float _R0;
             float _R1;
@@ -113,12 +113,13 @@
                 // vertex in the depth camera coordinate system
                 fixed3 depth_vertex = v.vertex * depth;
                 
-                //// Below lines are following the logic of transformation_compute_correspondence in rgbz.c.
-                //fixed4 color_vertex = mul(_DepthToColor, depth_vertex);
-
-                //// The below line comes from transformation_project() in intrinsic_transformation.c.
+                // Below lines are following the logic of transformation_compute_correspondence in rgbz.c.
+                //fixed3 color_vertex = mul(_DepthToColor, depth_vertex);
+                // The below line comes from transformation_project() in intrinsic_transformation.c.
                 //fixed2 xy = fixed2(color_vertex.x / color_vertex.z, color_vertex.y / color_vertex.z);
 
+                // Can't understand why but the upper matrix version is not giving the same results
+                // with the below element-wise version.
                 fixed color_x = _R0 * depth_vertex.x + _R1 * depth_vertex.y + _R2 * depth_vertex.z + _T0;
                 fixed color_y = _R3 * depth_vertex.x + _R4 * depth_vertex.y + _R5 * depth_vertex.z + _T1;
                 fixed color_z = _R6 * depth_vertex.x + _R7 * depth_vertex.y + _R8 * depth_vertex.z + _T2;

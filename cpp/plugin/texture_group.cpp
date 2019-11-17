@@ -3,7 +3,7 @@
 #include "unity/IUnityInterface.h"
 #include "depth_texture.h"
 #include "channel_texture.h"
-#include "kh_rvl.h"
+#include "kh_depth_compression_helper.h"
 
 typedef void* VoidPtr;
 
@@ -27,7 +27,9 @@ ID3D11ShaderResourceView* depth_texture_view_ = nullptr;
 
 // These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
 kh::FFmpegFrame ffmpeg_frame_(nullptr);
-std::vector<uint8_t> rvl_frame_;
+//std::vector<uint8_t> rvl_frame_;
+std::unique_ptr<kh::DepthDecoder> depth_decoder_;
+std::vector<uint8_t> depth_encoder_frame_;
 
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(ID3D11Device* device)
@@ -84,16 +86,27 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_dep
     depth_height_ = depth_height;
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_init_depth_encoder(int depth_compression_type)
+{
+    if (depth_compression_type == 0) {
+        depth_decoder_ = std::make_unique<kh::RvlDepthDecoder>(depth_width_ * depth_height_);
+    } else if (depth_compression_type == 1) {
+        depth_decoder_ = std::make_unique<kh::TrvlDepthDecoder>(depth_width_ * depth_height_);
+    } else if (depth_compression_type == 2) {
+        depth_decoder_ = std::make_unique<kh::Vp8DepthDecoder>();
+    }
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(void* ffmpeg_frame_ptr)
 {
     auto ffmpeg_frame = reinterpret_cast<kh::FFmpegFrame*>(ffmpeg_frame_ptr);
     ffmpeg_frame_ = std::move(*ffmpeg_frame);
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_rvl_frame(void* rvl_frame_data, int rvl_frame_size)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_encoder_frame(void* depth_encoder_frame_data, int depth_encoder_frame_size)
 {
-    rvl_frame_ = std::vector<uint8_t>(rvl_frame_size);
-    memcpy(rvl_frame_.data(), rvl_frame_data, rvl_frame_size);
+    depth_encoder_frame_ = std::vector<uint8_t>(depth_encoder_frame_size);
+    memcpy(depth_encoder_frame_.data(), depth_encoder_frame_data, depth_encoder_frame_size);
 }
 
 // Updating pixels of the textures. Should be called in a render thread.
@@ -104,6 +117,8 @@ void texture_group_update_rvl(ID3D11Device* device, ID3D11DeviceContext* device_
     u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
     v_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 2);
     
-    auto depth_pixels = kh::rvl::decompress(rvl_frame_.data(), depth_width_ * depth_height_);
+    //auto depth_pixels = kh::rvl::decompress(rvl_frame_.data(), depth_width_ * depth_height_);
+    //depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
+    auto depth_pixels = depth_decoder_->decode(depth_encoder_frame_.data(), depth_encoder_frame_.size());
     depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
 }

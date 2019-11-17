@@ -49,24 +49,23 @@ public class AzureKinectScreen : MonoBehaviour
 
         meshFilter.mesh = CreateMesh(calibration);
 
-        //Matrix4x4 depthToColorMatrix;
-        //{
-        //    var extrinsics = calibration.DepthToColorExtrinsics;
-        //    var r = extrinsics.Rotation;
-        //    var t = extrinsics.Translation;
-        //    var column0 = new Vector4(r[0], r[3], r[6], 0.0f);
-        //    var column1 = new Vector4(r[1], r[4], r[7], 0.0f);
-        //    var column2 = new Vector4(r[2], r[5], r[8], 0.0f);
-        //    // Scale mm to m.
-        //    var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
+        var extrinsics = calibration.DepthToColorExtrinsics;
+        Matrix4x4 depthToColorMatrix;
+        {
+            var r = extrinsics.Rotation;
+            var t = extrinsics.Translation;
+            var column0 = new Vector4(r[0], r[3], r[6], 0.0f);
+            var column1 = new Vector4(r[1], r[4], r[7], 0.0f);
+            var column2 = new Vector4(r[2], r[5], r[8], 0.0f);
+            // Scale mm to m.
+            var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
 
-        //    depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
-        //}
-        //meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
+            depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
+        }
+        meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
 
         // Entering the matrix as floats to see them in the Editor.
         // Also, matrices get reset from Unity after clicking another app and coming back.
-        var extrinsics = calibration.DepthToColorExtrinsics;
         meshRenderer.sharedMaterial.SetFloat("_R0", extrinsics.Rotation[0]);
         meshRenderer.sharedMaterial.SetFloat("_R1", extrinsics.Rotation[1]);
         meshRenderer.sharedMaterial.SetFloat("_R2", extrinsics.Rotation[2]);
