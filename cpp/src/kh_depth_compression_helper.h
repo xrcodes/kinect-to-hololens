@@ -8,7 +8,7 @@ namespace kh
 {
 enum class DepthCompressionType
 {
-    Rvl, Trvl, Vp8
+    Rvl = 0, Trvl = 1, Vp8 = 2
 };
 
 class DepthEncoder

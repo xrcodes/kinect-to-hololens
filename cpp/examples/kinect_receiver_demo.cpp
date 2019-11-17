@@ -1,9 +1,7 @@
 #include <iostream>
 #include <asio.hpp>
 #include "kh_receiver.h"
-#include "kh_vp8.h"
-#include "kh_rvl.h"
-#include "kh_trvl.h"
+#include "kh_depth_compression_helper.h"
 #include "helper/opencv_helper.h"
 
 namespace kh
@@ -26,7 +24,7 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
     std::cout << "Connected!" << std::endl;
 
     Vp8Decoder vp8_decoder;
-    TrvlDecoder trvl_decoder(AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+    std::unique_ptr<DepthDecoder> depth_decoder;
     for (;;) {
         // Try receiving a message from the Receiver.
         auto receive_result = receiver.receive();
@@ -41,9 +39,21 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
         // There can be two types of messages: a KinectIntrinsics and a Kinect frame.
         if (message_type == 0) {
-            // This application has nothing to do with a calibration information that is for 3D rendering
-            // since it uses OpenCV to render the frames in 2D.
-            std::cout << "Received calibration information." << std::endl;
+            std::cout << "Received a message for initialization." << std::endl;
+
+            int depth_compression_type;
+            memcpy(&depth_compression_type, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            DepthCompressionType type = static_cast<DepthCompressionType>(depth_compression_type);
+            if (type == DepthCompressionType::Rvl) {
+                depth_decoder = std::make_unique<RvlDepthDecoder>(AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+            } else if (type == DepthCompressionType::Trvl) {
+                depth_decoder = std::make_unique<TrvlDepthDecoder>(AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+            } else if (type == DepthCompressionType::Vp8) {
+                depth_decoder = std::make_unique<Vp8DepthDecoder>();
+            }
+
         } else if (message_type == 1) {
             // Parse the ID of the frame and send a feedback meesage to the sender
             // to indicate the frame was succesfully received.
@@ -66,29 +76,20 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
             memcpy(vp8_frame.data(), receive_result->data() + cursor, vp8_frame_size);
             cursor += vp8_frame_size;
 
-            //int rvl_frame_size;
-            //memcpy(&rvl_frame_size, receive_result->data() + cursor, 4);
-            //cursor += 4;
-
-            //std::vector<uint8_t> rvl_frame(rvl_frame_size);
-            //memcpy(rvl_frame.data(), receive_result->data() + cursor, rvl_frame_size);
-            //cursor += rvl_frame_size;
-
-            int trvl_frame_size;
-            memcpy(&trvl_frame_size, receive_result->data() + cursor, 4);
+            int depth_encoder_frame_size;
+            memcpy(&depth_encoder_frame_size, receive_result->data() + cursor, 4);
             cursor += 4;
 
-            std::vector<uint8_t> trvl_frame(trvl_frame_size);
-            memcpy(trvl_frame.data(), receive_result->data() + cursor, trvl_frame_size);
-            cursor += trvl_frame_size;
+            std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size);
+            memcpy(depth_encoder_frame.data(), receive_result->data() + cursor, depth_encoder_frame_size);
+            cursor += depth_encoder_frame_size;
 
             // Decoding a Vp8Frame into color pixels.
             auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
             auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
             // Decompressing a RVL frame into depth pixels.
-            //auto depth_image = rvl::decompress(reinterpret_cast<char*>(rvl_frame.data()), AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
-            auto depth_image = trvl_decoder.decode(trvl_frame.data());
+            auto depth_image = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
             auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
 
             // Rendering the depth pixels.

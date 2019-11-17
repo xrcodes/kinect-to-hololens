@@ -14,7 +14,7 @@ Sender::Sender(asio::ip::tcp::socket&& socket)
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::send(k4a_calibration_t calibration)
+void Sender::send(int depth_compression_type, k4a_calibration_t calibration)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -29,6 +29,7 @@ void Sender::send(k4a_calibration_t calibration)
     auto depth_to_color_extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
 
     uint32_t message_size = static_cast<uint32_t>(1 +
+                                                  sizeof(depth_compression_type) +
                                                   sizeof(depth_intrinsics) +
                                                   sizeof(depth_width) +
                                                   sizeof(depth_height) +
@@ -49,6 +50,9 @@ void Sender::send(k4a_calibration_t calibration)
     // Message type
     buffer[4] = static_cast<uint8_t>(0);
     cursor += 1;
+
+    memcpy(buffer.data() + cursor, &depth_compression_type, sizeof(depth_compression_type));
+    cursor += sizeof(depth_compression_type);
 
     memcpy(buffer.data() + cursor, &depth_intrinsics, sizeof(depth_intrinsics));
     cursor += sizeof(depth_intrinsics);
@@ -80,9 +84,10 @@ void Sender::send(k4a_calibration_t calibration)
 }
 
 // Sends a Kinect frame to a Receiver.
-void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame, uint8_t* rvl_frame, uint32_t rvl_frame_size)
+void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame,
+                  uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
-    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + vp8_frame.size() + 4 + rvl_frame_size);
+    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
     uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
 
     std::vector<uint8_t> buffer(buffer_size);
@@ -105,10 +110,10 @@ void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame, uint8_t* rvl_fr
     memcpy(buffer.data() + cursor, vp8_frame.data(), vp8_frame.size());
     cursor += vp8_frame.size();
 
-    memcpy(buffer.data() + cursor, &rvl_frame_size, 4);
+    memcpy(buffer.data() + cursor, &depth_encoder_frame_size, 4);
     cursor += 4;
 
-    memcpy(buffer.data() + cursor, rvl_frame, rvl_frame_size);
+    memcpy(buffer.data() + cursor, depth_encoder_frame, depth_encoder_frame_size);
 
     sendMessageBuffer(socket_, buffer);
 }

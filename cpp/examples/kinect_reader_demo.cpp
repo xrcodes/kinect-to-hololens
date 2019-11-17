@@ -163,13 +163,11 @@ void _display_calibration()
 void display_frames()
 {
     for (;;) {
-        std::cout << "Enter the type of depth compression to display frames. (RVL: 1, TRVL: 2, VP8: 3)" << std::endl;
+        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3):";
         std::string line;
         std::getline(std::cin, line);
 
-        // If "intrinsics" is entered, prints KinectIntrinsics instead of displaying frames.
-        // A kind of an easter egg.
-        // Usually, Kinect frames are displayed.
+        // If "calibration" is entered, prints calibration information instead of displaying frames.
         if (line == "calibration") {
             _display_calibration();
             continue;

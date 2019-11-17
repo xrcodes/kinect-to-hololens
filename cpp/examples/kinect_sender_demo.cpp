@@ -1,14 +1,12 @@
 #include "kh_core.h"
 #include "kh_sender.h"
-#include "kh_vp8.h"
-#include "kh_rvl.h"
-#include "kh_trvl.h"
+#include "kh_depth_compression_helper.h"
 #include "azure_kinect/azure_kinect.h"
 
 namespace kh
 {
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port)
+void _send_azure_kinect_frames(int port, DepthCompressionType type)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -39,9 +37,17 @@ void _send_azure_kinect_frames(int port)
                            calibration->color_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
-    int depth_frame_size = calibration->depth_camera_calibration.resolution_width
-                         * calibration->depth_camera_calibration.resolution_height;
-    TrvlEncoder trvl_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
+    int depth_frame_size = depth_frame_width * depth_frame_height;
+    std::unique_ptr<DepthEncoder> depth_encoder;
+    if (type == DepthCompressionType::Rvl) {
+        depth_encoder = std::make_unique<RvlDepthEncoder>(depth_frame_size);
+    } else if (type == DepthCompressionType::Trvl) {
+        depth_encoder = std::make_unique<TrvlDepthEncoder>(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+    } else if (type == DepthCompressionType::Vp8) {
+        depth_encoder = std::make_unique<Vp8DepthEncoder>(depth_frame_width, depth_frame_height, TARGET_BITRATE);
+    }
 
     // Creating a tcp socket with the port and waiting for a connection.
     asio::io_context io_context;
@@ -54,7 +60,7 @@ void _send_azure_kinect_frames(int port)
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(*calibration);
+    sender.send(static_cast<int>(type), *calibration);
 
     if (!device->start(configuration)) {
         std::cout << "Failed to start the Azure Kinect." << std::endl;
@@ -108,8 +114,6 @@ void _send_azure_kinect_frames(int port)
             continue;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        //auto yuv_image = createHalvedYuvImageFromKinectColorBuffer(kinect_frame->color_frame()->getRawUnderlyingBuffer());
-        //auto vp8_frame = encoder.encode(yuv_image);
         auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(),
                                                                  color_image->getWidth(),
                                                                  color_image->getHeight(),
@@ -117,8 +121,7 @@ void _send_azure_kinect_frames(int port)
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
-        //auto rvl_frame = rvl::compress(reinterpret_cast<short*>(depth_image->getBuffer()), depth_image->getWidth() * depth_image->getHeight());
-        auto trvl_frame = trvl_encoder.encode(reinterpret_cast<short*>(depth_image->getBuffer()));
+        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image->getBuffer()));
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
@@ -135,7 +138,7 @@ void _send_azure_kinect_frames(int port)
         // Try sending the frame. Escape the loop if there is a network error.
         try {
             //sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(rvl_frame.data()), rvl_frame.size());
-            sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(trvl_frame.data()), trvl_frame.size());
+            sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
             break;
@@ -144,7 +147,7 @@ void _send_azure_kinect_frames(int port)
         // Updating variables for profiling.
         ++frame_count;
         //frame_size += vp8_frame.size() + rvl_frame.size();
-        frame_size += vp8_frame.size() + trvl_frame.size();
+        frame_size += vp8_frame.size() + depth_encoder_frame.size();
     }
 
     std::cout << "Stopped sending Kinect frames." << std::endl;
@@ -159,8 +162,22 @@ void send_frames()
         std::getline(std::cin, line);
         // The default port (the port when nothing is entered) is 7777.
         int port = line.empty() ? 7777 : std::stoi(line);
+
+        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3):";
+        std::getline(std::cin, line);
+
+        // The default type is TRVL.
+        DepthCompressionType type = DepthCompressionType::Trvl;
+        if (line == "1") {
+            type = DepthCompressionType::Rvl;
+        } else if (line == "2") {
+            type = DepthCompressionType::Trvl;
+        } else if (line == "3") {
+            type = DepthCompressionType::Vp8;
+        }
+
         try {
-            _send_azure_kinect_frames(port);
+            _send_azure_kinect_frames(port, type);
         } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }
