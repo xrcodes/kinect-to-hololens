@@ -65,6 +65,11 @@ public class HololensDemoManager : MonoBehaviour
         textureGroup = null;
         UiVisibility = true;
         SetInputState(InputState.IpAddress);
+
+        Plugin.texture_group_set_color_width(1280);
+        Plugin.texture_group_set_color_height(720);
+        Plugin.texture_group_set_depth_width(640);
+        Plugin.texture_group_set_depth_height(576);
         PluginHelper.InitTextureGroup();
 
         // Prepare a GestureRecognizer to recognize taps.
@@ -180,7 +185,7 @@ public class HololensDemoManager : MonoBehaviour
             }
 
             // Invokes a function to be called in a render thread.
-            PluginHelper.UpdateTextureGroup();
+            PluginHelper.UpdateTextureGroupRvl();
         }
     }
 

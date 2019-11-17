@@ -19,7 +19,7 @@ public:
 					  ID3D11DeviceContext* device_context,
 					  int width,
 					  int height,
-					  std::vector<uint8_t>& frame);
+                      std::vector<uint16_t>& pixels);
 
 private:
     int width_;

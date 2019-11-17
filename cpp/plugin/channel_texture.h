@@ -21,7 +21,7 @@ public:
 					  int width,
 				 	  int height,
 					  kh::FFmpegFrame& frame,
-					  int index);
+					  int channel_index);
 
 private:
 	int width_;

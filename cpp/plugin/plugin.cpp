@@ -41,7 +41,7 @@ static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 		texture_group_init(d3d11_device_);
 		break;
 	case 1:
-		texture_group_update(d3d11_device_, d3d11_device_context_);
+		texture_group_update_rvl(d3d11_device_, d3d11_device_context_);
 		break;
 	}
 }

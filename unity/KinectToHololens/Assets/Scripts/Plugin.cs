@@ -31,6 +31,18 @@ public static class Plugin
     public static extern IntPtr texture_group_get_depth_texture_view();
 
     [DllImport(DllName)]
+    public static extern IntPtr texture_group_set_color_width(int color_width);
+
+    [DllImport(DllName)]
+    public static extern IntPtr texture_group_set_color_height(int color_height);
+
+    [DllImport(DllName)]
+    public static extern IntPtr texture_group_set_depth_width(int depth_width);
+
+    [DllImport(DllName)]
+    public static extern IntPtr texture_group_set_depth_height(int depth_height);
+
+    [DllImport(DllName)]
     public static extern IntPtr texture_group_set_ffmpeg_frame(IntPtr ffmpeg_frame_ptr);
 
     [DllImport(DllName)]

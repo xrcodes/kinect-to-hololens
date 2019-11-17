@@ -3,14 +3,19 @@
 #include "unity/IUnityInterface.h"
 #include "depth_texture.h"
 #include "channel_texture.h"
+#include "kh_rvl.h"
 
 typedef void* VoidPtr;
 
 // These constants are for the resolution of Azure Kinect.
-const int AZURE_KINECT_COLOR_WIDTH = 1280;
-const int AZURE_KINECT_COLOR_HEIGHT = 720;
-const int AZURE_KINECT_DEPTH_WIDTH = 640;
-const int AZURE_KINECT_DEPTH_HEIGHT = 576;
+//const int AZURE_KINECT_COLOR_WIDTH = 1280;
+//const int AZURE_KINECT_COLOR_HEIGHT = 720;
+//const int AZURE_KINECT_DEPTH_WIDTH = 640;
+//const int AZURE_KINECT_DEPTH_HEIGHT = 576;
+int color_width_;
+int color_height_;
+int depth_width_;
+int depth_height_;
 
 // Instances of classes for Direct3D textures.
 std::unique_ptr<kh::ChannelTexture> y_texture_;
@@ -31,10 +36,10 @@ std::vector<uint8_t> rvl_frame_;
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(ID3D11Device* device)
 {
-    y_texture_ = std::make_unique<kh::ChannelTexture>(device, AZURE_KINECT_COLOR_WIDTH, AZURE_KINECT_COLOR_HEIGHT);
-    u_texture_ = std::make_unique<kh::ChannelTexture>(device, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2);
-    v_texture_ = std::make_unique<kh::ChannelTexture>(device, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2);
-    depth_texture_ = std::make_unique<kh::DepthTexture>(device, AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
+    y_texture_ = std::make_unique<kh::ChannelTexture>(device, color_width_, color_height_);
+    u_texture_ = std::make_unique<kh::ChannelTexture>(device, color_width_ / 2, color_height_ / 2);
+    v_texture_ = std::make_unique<kh::ChannelTexture>(device, color_width_ / 2, color_height_ / 2);
+    depth_texture_ = std::make_unique<kh::DepthTexture>(device, depth_width_, depth_height_);
 
     // Set the texture view variables, so Unity can create Unity textures that are connected to the textures through the texture views.
     y_texture_view_ = y_texture_->getTextureView(device);
@@ -63,6 +68,26 @@ extern "C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_
     return depth_texture_view_;
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_color_width(int color_width)
+{
+    color_width_ = color_width;
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_color_height(int color_height)
+{
+    color_height_ = color_height;
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_width(int depth_width)
+{
+    depth_width_ = depth_width;
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_height(int depth_height)
+{
+    depth_height_ = depth_height;
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(void* ffmpeg_frame_ptr)
 {
     auto ffmpeg_frame = reinterpret_cast<kh::FFmpegFrame*>(ffmpeg_frame_ptr);
@@ -76,10 +101,13 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_rvl
 }
 
 // Updating pixels of the textures. Should be called in a render thread.
-void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context)
+void texture_group_update_rvl(ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
-    y_texture_->updatePixels(device, device_context, AZURE_KINECT_COLOR_WIDTH, AZURE_KINECT_COLOR_HEIGHT, ffmpeg_frame_, 0);
-    u_texture_->updatePixels(device, device_context, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2, ffmpeg_frame_, 1);
-    v_texture_->updatePixels(device, device_context, AZURE_KINECT_COLOR_WIDTH / 2, AZURE_KINECT_COLOR_HEIGHT / 2, ffmpeg_frame_, 2);
-    depth_texture_->updatePixels(device, device_context, AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT, rvl_frame_);
+    
+    y_texture_->updatePixels(device, device_context, color_width_, color_height_, ffmpeg_frame_, 0);
+    u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
+    v_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 2);
+    
+    auto depth_pixels = kh::rvl::decompress(rvl_frame_.data(), depth_width_ * depth_height_);
+    depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, depth_pixels);
 }

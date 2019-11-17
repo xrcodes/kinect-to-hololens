@@ -49,16 +49,16 @@ void ChannelTexture::updatePixels(ID3D11Device* device,
 								  int width,
 				 				  int height,
 								  FFmpegFrame& frame,
-								  int index)
+								  int channel_index)
 {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
 	int row_pitch = mapped.RowPitch;
-	uint8_t* texture_data = (uint8_t*)mapped.pData;
+	uint8_t* texture_data = reinterpret_cast<uint8_t*>(mapped.pData);
 
-	uint8_t* frame_data = frame.av_frame()->data[index];
-	int frame_linesize = frame.av_frame()->linesize[index];
+	uint8_t* frame_data = frame.av_frame()->data[channel_index];
+	int frame_linesize = frame.av_frame()->linesize[channel_index];
 
 	for (int i = 0; i < height; ++i)
 		memcpy(texture_data + i * row_pitch, frame_data + i * frame_linesize, width);

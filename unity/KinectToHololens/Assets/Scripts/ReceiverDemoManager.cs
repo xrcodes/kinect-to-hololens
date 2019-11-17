@@ -49,6 +49,11 @@ public class ReceiverDemoManager : MonoBehaviour
         textureCreated = false;
         UiVisibility = true;
         QuadVisibility = false;
+
+        Plugin.texture_group_set_color_width(1280);
+        Plugin.texture_group_set_color_height(720);
+        Plugin.texture_group_set_depth_width(640);
+        Plugin.texture_group_set_depth_height(576);
         PluginHelper.InitTextureGroup();
     }
 
@@ -144,7 +149,7 @@ public class ReceiverDemoManager : MonoBehaviour
             }
 
             // Invokes a function to be called in a render thread.
-            PluginHelper.UpdateTextureGroup();
+            PluginHelper.UpdateTextureGroupRvl();
         }
     }
 
