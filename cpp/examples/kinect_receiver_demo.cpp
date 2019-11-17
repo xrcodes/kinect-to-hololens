@@ -3,6 +3,7 @@
 #include "kh_receiver.h"
 #include "kh_vp8.h"
 #include "kh_rvl.h"
+#include "kh_trvl.h"
 #include "helper/opencv_helper.h"
 
 namespace kh
@@ -24,7 +25,8 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
     std::cout << "Connected!" << std::endl;
 
-    Vp8Decoder decoder;
+    Vp8Decoder vp8_decoder;
+    TrvlDecoder trvl_decoder(AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
     for (;;) {
         // Try receiving a message from the Receiver.
         auto receive_result = receiver.receive();
@@ -64,20 +66,29 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
             memcpy(vp8_frame.data(), receive_result->data() + cursor, vp8_frame_size);
             cursor += vp8_frame_size;
 
-            int rvl_frame_size;
-            memcpy(&rvl_frame_size, receive_result->data() + cursor, 4);
+            //int rvl_frame_size;
+            //memcpy(&rvl_frame_size, receive_result->data() + cursor, 4);
+            //cursor += 4;
+
+            //std::vector<uint8_t> rvl_frame(rvl_frame_size);
+            //memcpy(rvl_frame.data(), receive_result->data() + cursor, rvl_frame_size);
+            //cursor += rvl_frame_size;
+
+            int trvl_frame_size;
+            memcpy(&trvl_frame_size, receive_result->data() + cursor, 4);
             cursor += 4;
 
-            std::vector<uint8_t> rvl_frame(rvl_frame_size);
-            memcpy(rvl_frame.data(), receive_result->data() + cursor, rvl_frame_size);
-            cursor += rvl_frame_size;
+            std::vector<uint8_t> trvl_frame(trvl_frame_size);
+            memcpy(trvl_frame.data(), receive_result->data() + cursor, trvl_frame_size);
+            cursor += trvl_frame_size;
 
             // Decoding a Vp8Frame into color pixels.
-            auto ffmpeg_frame = decoder.decode(vp8_frame.data(), vp8_frame.size());
+            auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
             auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
             // Decompressing a RVL frame into depth pixels.
-            auto depth_image = rvl::decompress(reinterpret_cast<char*>(rvl_frame.data()), AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+            //auto depth_image = rvl::decompress(reinterpret_cast<char*>(rvl_frame.data()), AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+            auto depth_image = trvl_decoder.decode(reinterpret_cast<char*>(trvl_frame.data()));
             auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
 
             // Rendering the depth pixels.

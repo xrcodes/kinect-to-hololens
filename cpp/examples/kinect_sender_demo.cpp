@@ -2,6 +2,7 @@
 #include "kh_sender.h"
 #include "kh_vp8.h"
 #include "kh_rvl.h"
+#include "kh_trvl.h"
 #include "azure_kinect/azure_kinect.h"
 
 namespace kh
@@ -10,6 +11,8 @@ namespace kh
 void _send_azure_kinect_frames(int port)
 {
     const int TARGET_BITRATE = 2000;
+    const short CHANGE_THRESHOLD = 10;
+    const int INVALID_THRESHOLD = 2;
     const int32_t TIMEOUT_IN_MS = 1000;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
@@ -32,9 +35,13 @@ void _send_azure_kinect_frames(int port)
     assert(color_camera_calibration.resolution_width == 1280);
     assert(color_camera_calibration.resolution_height == 720);
 
-    Vp8Encoder encoder(calibration->color_camera_calibration.resolution_width,
-                       calibration->color_camera_calibration.resolution_height,
-                       TARGET_BITRATE);
+    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
+                           calibration->color_camera_calibration.resolution_height,
+                           TARGET_BITRATE);
+
+    int depth_frame_size = calibration->depth_camera_calibration.resolution_width
+                         * calibration->depth_camera_calibration.resolution_height;
+    TrvlEncoder trvl_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
 
     // Creating a tcp socket with the port and waiting for a connection.
     asio::io_context io_context;
@@ -107,10 +114,11 @@ void _send_azure_kinect_frames(int port)
                                                                  color_image->getWidth(),
                                                                  color_image->getHeight(),
                                                                  color_image->getStride());
-        auto vp8_frame = encoder.encode(yuv_image);
+        auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
-        auto rvl_frame = rvl::compress(reinterpret_cast<short*>(depth_image->getBuffer()), depth_image->getWidth() * depth_image->getHeight());
+        //auto rvl_frame = rvl::compress(reinterpret_cast<short*>(depth_image->getBuffer()), depth_image->getWidth() * depth_image->getHeight());
+        auto trvl_frame = trvl_encoder.encode(reinterpret_cast<short*>(depth_image->getBuffer()));
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
@@ -126,7 +134,8 @@ void _send_azure_kinect_frames(int port)
 
         // Try sending the frame. Escape the loop if there is a network error.
         try {
-            sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(rvl_frame.data()), rvl_frame.size());
+            //sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(rvl_frame.data()), rvl_frame.size());
+            sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(trvl_frame.data()), trvl_frame.size());
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
             break;
@@ -134,7 +143,8 @@ void _send_azure_kinect_frames(int port)
 
         // Updating variables for profiling.
         ++frame_count;
-        frame_size += vp8_frame.size() + rvl_frame.size();
+        //frame_size += vp8_frame.size() + rvl_frame.size();
+        frame_size += vp8_frame.size() + trvl_frame.size();
     }
 
     std::cout << "Stopped sending Kinect frames." << std::endl;

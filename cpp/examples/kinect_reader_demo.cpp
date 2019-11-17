@@ -33,10 +33,10 @@ void _display_azure_kinect_frames()
                            TARGET_BITRATE);
     Vp8Decoder vp8_decoder;
 
-    int frame_size = calibration->depth_camera_calibration.resolution_width
-                   * calibration->depth_camera_calibration.resolution_height;
-    TrvlEncoder trvl_encoder(frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
-    TrvlDecoder trvl_decoder(frame_size);
+    int depth_frame_size = calibration->depth_camera_calibration.resolution_width
+                         * calibration->depth_camera_calibration.resolution_height;
+    TrvlEncoder trvl_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+    TrvlDecoder trvl_decoder(depth_frame_size);
 
     if (!device->start(configuration)) {
         std::cout << "Failed to start the Azure Kinect." << std::endl;
