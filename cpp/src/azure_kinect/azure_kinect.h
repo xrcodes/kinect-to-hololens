@@ -3,7 +3,8 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <k4a/k4a.h>
+#include "k4a/k4a.h"
+#include "k4arecord/playback.h"
 
 namespace azure_kinect
 {
@@ -46,6 +47,19 @@ private:
     k4a_device_t device_;
 };
 
+class AzureKinectPlayback
+{
+public:
+    AzureKinectPlayback(k4a_playback_t playback);
+    ~AzureKinectPlayback();
+    std::optional<k4a_calibration_t> getCalibration();
+    std::unique_ptr<AzureKinectCapture> getNextCapture();
+
+private:
+    k4a_playback_t playback_;
+};
+
 std::unique_ptr<AzureKinectDevice> obtainAzureKinectDevice();
 k4a_device_configuration_t getDefaultDeviceConfiguration();
+std::unique_ptr<AzureKinectPlayback> obtainAzureKinectPlayback(const std::string& path);
 }

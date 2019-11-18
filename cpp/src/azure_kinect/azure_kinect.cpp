@@ -25,4 +25,15 @@ k4a_device_configuration_t getDefaultDeviceConfiguration()
 
     return configuration;
 }
+
+std::unique_ptr<AzureKinectPlayback> obtainAzureKinectPlayback(const std::string& path)
+{
+    k4a_playback_t playback = nullptr;
+    if (k4a_playback_open(path.c_str(), &playback) != K4A_RESULT_SUCCEEDED) {
+        std::cout << "Failed to open a playback from " << path << "." << std::endl;
+        return nullptr;
+    }
+
+    return std::make_unique<AzureKinectPlayback>(playback);
+}
 }

@@ -23,7 +23,7 @@ std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
 }
 
 // Sends Azure Kinect frames through a TCP port.
-void play_azure_kinect_frames(std::string file_path, int port, DepthCompressionType type)
+void play_azure_kinect_frames(std::string path, int port, DepthCompressionType type)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -34,24 +34,24 @@ void play_azure_kinect_frames(std::string file_path, int port, DepthCompressionT
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
-    k4a_playback_t playback = nullptr;
-    if (k4a_playback_open(file_path.c_str(), &playback) != K4A_RESULT_SUCCEEDED) {
-        std::cout << "Could not read a playback from " << file_path << std::endl;
+    auto playback = azure_kinect::obtainAzureKinectPlayback(path);
+    if (!playback) {
+        std::cout << "Could not find the playback." << std::endl;
         return;
     }
 
-    k4a_calibration_t calibration;
-    if (k4a_playback_get_calibration(playback, &calibration) != K4A_RESULT_SUCCEEDED) {
+    auto calibration = playback->getCalibration();
+    if (!calibration) {
         std::cout << "Could not find calibration information from playback." << std::endl;
         return;
     }
 
-    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
-                           calibration.color_camera_calibration.resolution_height,
+    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
+                           calibration->color_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
-    int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
-    int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
+    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
     std::unique_ptr<DepthEncoder> depth_encoder;
     if (type == DepthCompressionType::Rvl) {
@@ -73,12 +73,7 @@ void play_azure_kinect_frames(std::string file_path, int port, DepthCompressionT
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(static_cast<int>(type), calibration);
-
-    //if (!device->start(configuration)) {
-    //    std::cout << "Failed to start the Azure Kinect." << std::endl;
-    //    return;
-    //}
+    sender.send(static_cast<int>(type), *calibration);
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
     const int MAXIMUM_FRAME_ID_DIFF = 2;
@@ -111,26 +106,17 @@ void play_azure_kinect_frames(std::string file_path, int port, DepthCompressionT
         if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
             continue;
 
-        // Try getting Kinect images until a valid pair pops up.
-        //auto capture = device->getCapture(TIMEOUT_IN_MS);
-        //if (!capture) {
-        //    std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
-        //    return;
-        //}
-
-        k4a_capture_t k4a_capture = nullptr;
-        if (k4a_playback_get_next_capture(playback, &k4a_capture) != K4A_RESULT_SUCCEEDED) {
-            std::cout << "Cannot find capture from playback." << std::endl;
+        auto capture = playback->getNextCapture();
+        if (!capture) {
+            std::cout << "Could not find a capture from the playback" << std::endl;
             return;
         }
 
-        auto capture = azure_kinect::AzureKinectCapture(k4a_capture);
-
-        auto color_image = capture.getColorImage();
+        auto color_image = capture->getColorImage();
         if (!color_image)
             continue;
 
-        auto depth_image = capture.getDepthImage();
+        auto depth_image = capture->getDepthImage();
         if (!depth_image)
             continue;
 

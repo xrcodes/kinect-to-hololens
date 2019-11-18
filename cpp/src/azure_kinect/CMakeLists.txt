@@ -4,6 +4,7 @@ set(SOURCE_FILES
   azure_kinect_capture.cpp
   azure_kinect_device.cpp
   azure_kinect_image.cpp
+  azure_kinect_playback.cpp
 )
 
 add_library(AzureKinect ${SOURCE_FILES})
