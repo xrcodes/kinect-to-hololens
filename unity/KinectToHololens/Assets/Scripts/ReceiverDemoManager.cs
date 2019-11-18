@@ -60,7 +60,7 @@ public class ReceiverDemoManager : MonoBehaviour
         {
             // Check whether the native plugin has Direct3D textures that
             // can be connected to Unity textures.
-            if (Plugin.texture_group_is_initialized())
+            if (Plugin.texture_group_get_y_texture_view().ToInt64() != 0)
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
                 textureGroup = new TextureGroup(Plugin.texture_group_get_color_width(),

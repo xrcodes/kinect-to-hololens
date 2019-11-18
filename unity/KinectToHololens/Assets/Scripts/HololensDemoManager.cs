@@ -72,7 +72,9 @@ public class HololensDemoManager : MonoBehaviour
 
         statusText.text = "Waiting for user input.";
 
+        print($"awake y texture 1: {Plugin.texture_group_get_y_texture_view().ToInt64()}");
         Plugin.texture_group_reset();
+        print($"awake y texture 2: {Plugin.texture_group_get_y_texture_view().ToInt64()}");
     }
 
     void Update()
@@ -91,7 +93,7 @@ public class HololensDemoManager : MonoBehaviour
         {
             // Check whether the native plugin has Direct3D textures that
             // can be connected to Unity textures.
-            if (Plugin.texture_group_is_initialized())
+            if (Plugin.texture_group_get_y_texture_view().ToInt64() != 0)
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
                 textureGroup = new TextureGroup(Plugin.texture_group_get_color_width(),

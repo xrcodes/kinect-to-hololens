@@ -22,9 +22,6 @@ public static class Plugin
     public static extern void texture_group_reset();
 
     [DllImport(DllName)]
-    public static extern bool texture_group_is_initialized();
-
-    [DllImport(DllName)]
     public static extern IntPtr texture_group_get_y_texture_view();
 
     [DllImport(DllName)]

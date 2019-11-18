@@ -7,8 +7,6 @@
 
 typedef void* VoidPtr;
 
-bool initialized_;
-
 // Color and depth texture sizes.
 int color_width_;
 int color_height_;
@@ -34,6 +32,19 @@ std::unique_ptr<kh::DepthDecoder> depth_decoder_;
 //std::vector<uint8_t> depth_encoder_frame_;
 std::vector<short> depth_pixels_;
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_reset()
+{
+    y_texture_ = nullptr;
+    u_texture_ = nullptr;
+    v_texture_ = nullptr;
+    depth_texture_ = nullptr;
+
+    y_texture_view_ = nullptr;
+    u_texture_view_ = nullptr;
+    v_texture_view_ = nullptr;
+    depth_texture_view_ = nullptr;
+}
+
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(ID3D11Device* device)
 {
@@ -47,17 +58,6 @@ void texture_group_init(ID3D11Device* device)
     u_texture_view_ = u_texture_->getTextureView(device);
     v_texture_view_ = v_texture_->getTextureView(device);
     depth_texture_view_ = depth_texture_->getTextureView(device);
-    initialized_ = true;
-}
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_reset()
-{
-    initialized_ = false;
-}
-
-extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_is_initialized()
-{
-    return initialized_;
 }
 
 extern "C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_y_texture_view()

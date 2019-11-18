@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
@@ -176,7 +177,7 @@ public class AzureKinectScreen : MonoBehaviour
         var triangles = new int[quadPositions.Length];
         for (int i = 0; i < triangles.Length; ++i)
             triangles[i] = i;
-
+        
         // Without the bounds, Unity decides whether to render this mesh or not based on the vertices calculated here.
         // This causes Unity not rendering the mesh transformed by the depth texture even when the transformed one
         // belongs to the viewport of the camera.
@@ -189,7 +190,6 @@ public class AzureKinectScreen : MonoBehaviour
             uv = quadUv,
             uv2 = quadPositionSizes,
             uv3 = quadUvSizes,
-            triangles = triangles,
             bounds = bounds,
         };
         mesh.SetIndices(triangles, MeshTopology.Points, 0);
