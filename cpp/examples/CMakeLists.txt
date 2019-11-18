@@ -20,11 +20,11 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     CXX_STANDARD 17
   )
   add_custom_command(TARGET KinectReaderDemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
     $<TARGET_FILE_DIR:KinectReaderDemo>
   )
   add_custom_command(TARGET KinectReaderDemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
     $<TARGET_FILE_DIR:KinectReaderDemo>
   )
 
@@ -43,12 +43,39 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     CXX_STANDARD 17
   )
   add_custom_command(TARGET KinectSenderDemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
     $<TARGET_FILE_DIR:KinectSenderDemo>
   )
   add_custom_command(TARGET KinectSenderDemo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
     $<TARGET_FILE_DIR:KinectSenderDemo>
+  )
+  
+  add_executable(KinectPlayerDemo
+    kinect_player_demo.cpp
+  )
+  target_include_directories(KinectPlayerDemo PRIVATE
+    "${AZURE_KINECT_DIR}/sdk/include"
+  )
+  target_link_libraries(KinectPlayerDemo
+    AzureKinect
+    KinectToHololens
+    ${Libvpx_LIB}
+  )
+  set_target_properties(KinectPlayerDemo PROPERTIES
+    CXX_STANDARD 17
+  )
+  add_custom_command(TARGET KinectPlayerDemo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
+    $<TARGET_FILE_DIR:KinectPlayerDemo>
+  )
+  add_custom_command(TARGET KinectPlayerDemo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
+    $<TARGET_FILE_DIR:KinectPlayerDemo>
+  )
+  add_custom_command(TARGET KinectPlayerDemo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4arecord.dll"
+    $<TARGET_FILE_DIR:KinectPlayerDemo>
   )
 endif()
 

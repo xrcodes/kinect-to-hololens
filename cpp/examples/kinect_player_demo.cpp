@@ -1,12 +1,29 @@
+#include <filesystem>
 #include "kh_core.h"
 #include "kh_sender.h"
 #include "kh_depth_compression_helper.h"
 #include "azure_kinect/azure_kinect.h"
+#include "k4arecord/playback.h"
 
 namespace kh
 {
+std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
+{
+    std::vector<std::string> filenames;
+    for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+        std::string filename = entry.path().filename().string();
+        if (filename == ".gitignore")
+            continue;
+        if (entry.is_directory())
+            continue;
+        filenames.push_back(filename);
+    }
+
+    return filenames;
+}
+
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_depth)
+void play_azure_kinect_frames(std::string file_path, int port, DepthCompressionType type)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -14,32 +31,27 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     const int32_t TIMEOUT_IN_MS = 1000;
 
     std::cout << "DepthCompressionType: " << static_cast<int>(type) << std::endl;
-    std::cout << "binned_depth: " << binned_depth << std::endl;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
-    auto device = azure_kinect::obtainAzureKinectDevice();
-    if (!device) {
-        std::cout << "Could not find an Azure Kinect." << std::endl;
+    k4a_playback_t playback = nullptr;
+    if (k4a_playback_open(file_path.c_str(), &playback) != K4A_RESULT_SUCCEEDED) {
+        std::cout << "Could not read a playback from " << file_path << std::endl;
         return;
     }
 
-    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
-    if(binned_depth)
-        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-    
-    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
-    if (!calibration) {
-        std::cout << "Failed to receive calibration of the Azure Kinect." << std::endl;
+    k4a_calibration_t calibration;
+    if (k4a_playback_get_calibration(playback, &calibration) != K4A_RESULT_SUCCEEDED) {
+        std::cout << "Could not find calibration information from playback." << std::endl;
         return;
     }
 
-    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
-                           calibration->color_camera_calibration.resolution_height,
+    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
+                           calibration.color_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
-    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
-    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
+    int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
     std::unique_ptr<DepthEncoder> depth_encoder;
     if (type == DepthCompressionType::Rvl) {
@@ -61,12 +73,12 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(static_cast<int>(type), *calibration);
+    sender.send(static_cast<int>(type), calibration);
 
-    if (!device->start(configuration)) {
-        std::cout << "Failed to start the Azure Kinect." << std::endl;
-        return;
-    }
+    //if (!device->start(configuration)) {
+    //    std::cout << "Failed to start the Azure Kinect." << std::endl;
+    //    return;
+    //}
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
     const int MAXIMUM_FRAME_ID_DIFF = 2;
@@ -100,17 +112,25 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
             continue;
 
         // Try getting Kinect images until a valid pair pops up.
-        auto capture = device->getCapture(TIMEOUT_IN_MS);
-        if (!capture) {
-            std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
+        //auto capture = device->getCapture(TIMEOUT_IN_MS);
+        //if (!capture) {
+        //    std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
+        //    return;
+        //}
+
+        k4a_capture_t k4a_capture = nullptr;
+        if (k4a_playback_get_next_capture(playback, &k4a_capture) != K4A_RESULT_SUCCEEDED) {
+            std::cout << "Cannot find capture from playback." << std::endl;
             return;
         }
 
-        auto color_image = capture->getColorImage();
+        auto capture = azure_kinect::AzureKinectCapture(k4a_capture);
+
+        auto color_image = capture.getColorImage();
         if (!color_image)
             continue;
 
-        auto depth_image = capture->getDepthImage();
+        auto depth_image = capture.getDepthImage();
         if (!depth_image)
             continue;
 
@@ -156,32 +176,50 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
 // Repeats collecting the port number from the user and calling _send_frames() with it.
 void send_frames()
 {
+    const std::string PLAYBACK_FOLDER_PATH = "../../../../playback/";
+
     for (;;) {
+        std::vector<std::string> filenames(get_filenames_from_folder_path(PLAYBACK_FOLDER_PATH));
+
+        std::cout << "Input filenames inside the playback folder:" << std::endl;
+        for (int i = 0; i < filenames.size(); ++i) {
+            std::cout << "\t(" << i << ") " << filenames[i] << std::endl;
+        }
+
+        int filename_index;
+        for (;;) {
+            std::cout << "Enter filename index: ";
+            std::cin >> filename_index;
+            if (filename_index >= 0 && filename_index < filenames.size())
+                break;
+
+            std::cout << "Invliad index." << std::endl;
+        }
+
+        std::string filename = filenames[filename_index];
+        std::string file_path = PLAYBACK_FOLDER_PATH + filename;
+
         std::cout << "Enter a port number to start sending frames: ";
         std::string line;
         std::getline(std::cin, line);
         // The default port (the port when nothing is entered) is 7777.
         int port = line.empty() ? 7777 : std::stoi(line);
 
-        std::cout << "Enter depth compression type (1: RVL, 2: TRVL, 3: VP8, 4: Binned TRVL): ";
+        std::cout << "Enter depth compression type (1: RVL, 2: TRVL, 3: VP8): ";
         std::getline(std::cin, line);
 
         // The default type is TRVL.
         DepthCompressionType type = DepthCompressionType::Trvl;
-        bool binned_depth = false;
         if (line == "1") {
             type = DepthCompressionType::Rvl;
         } else if (line == "2") {
             type = DepthCompressionType::Trvl;
         } else if (line == "3") {
             type = DepthCompressionType::Vp8;
-        } else if (line == "4") {
-            type = DepthCompressionType::Trvl;
-            binned_depth = true;
         }
 
         try {
-            _send_azure_kinect_frames(port, type, binned_depth);
+            play_azure_kinect_frames(file_path, port, type);
         } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }

@@ -13,6 +13,7 @@ target_include_directories(AzureKinect PRIVATE
 )
 target_link_libraries(AzureKinect
   "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
+  "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
 )
 set_target_properties(AzureKinect PROPERTIES
   CXX_STANDARD 17
