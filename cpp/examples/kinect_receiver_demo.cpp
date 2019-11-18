@@ -8,9 +8,6 @@ namespace kh
 {
 void _receive_azure_kinect_frames(std::string ip_address, int port)
 {
-    const int AZURE_KINECT_DEPTH_WIDTH = 640;
-    const int AZURE_KINECT_DEPTH_HEIGHT = 576;
-
     std::cout << "Try connecting to " << ip_address << ":" << port << std::endl;
 
     // Try connecting to a Sender with the IP address and the port.
@@ -24,6 +21,8 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
     std::cout << "Connected!" << std::endl;
 
     Vp8Decoder vp8_decoder;
+    int depth_width;
+    int depth_height;
     std::unique_ptr<DepthDecoder> depth_decoder;
     for (;;) {
         // Try receiving a message from the Receiver.
@@ -33,7 +32,6 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
             continue;
 
         int cursor = 0;
-
         auto message_type = (*receive_result)[0];
         cursor += 1;
 
@@ -41,15 +39,25 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
         if (message_type == 0) {
             std::cout << "Received a message for initialization." << std::endl;
 
+            // for color width
+            cursor += 4;
+            // for color height
+            cursor += 4;
+
+            memcpy(&depth_width, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            memcpy(&depth_height, receive_result->data() + cursor, 4);
+            cursor += 4;
+
             int depth_compression_type;
             memcpy(&depth_compression_type, receive_result->data() + cursor, 4);
-            cursor += 4;
 
             DepthCompressionType type = static_cast<DepthCompressionType>(depth_compression_type);
             if (type == DepthCompressionType::Rvl) {
-                depth_decoder = std::make_unique<RvlDepthDecoder>(AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+                depth_decoder = std::make_unique<RvlDepthDecoder>(depth_width * depth_height);
             } else if (type == DepthCompressionType::Trvl) {
-                depth_decoder = std::make_unique<TrvlDepthDecoder>(AZURE_KINECT_DEPTH_WIDTH * AZURE_KINECT_DEPTH_HEIGHT);
+                depth_decoder = std::make_unique<TrvlDepthDecoder>(depth_width * depth_height);
             } else if (type == DepthCompressionType::Vp8) {
                 depth_decoder = std::make_unique<Vp8DepthDecoder>();
             }
@@ -90,7 +98,7 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
             // Decompressing a RVL frame into depth pixels.
             auto depth_image = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
-            auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), AZURE_KINECT_DEPTH_WIDTH, AZURE_KINECT_DEPTH_HEIGHT);
+            auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);
 
             // Rendering the depth pixels.
             cv::imshow("Color", color_mat);

@@ -6,12 +6,15 @@
 namespace kh
 {
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port, DepthCompressionType type)
+void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_depth)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
     const int32_t TIMEOUT_IN_MS = 1000;
+
+    std::cout << "DepthCompressionType: " << static_cast<int>(type) << std::endl;
+    std::cout << "binned_depth: " << binned_depth << std::endl;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
@@ -22,6 +25,9 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
     }
 
     auto configuration = azure_kinect::getDefaultDeviceConfiguration();
+    if(binned_depth)
+        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
+    
     auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
     if (!calibration) {
         std::cout << "Failed to receive calibration of the Azure Kinect." << std::endl;
@@ -162,21 +168,25 @@ void send_frames()
         // The default port (the port when nothing is entered) is 7777.
         int port = line.empty() ? 7777 : std::stoi(line);
 
-        std::cout << "Enter depth compression type (RVL: 1, TRVL: 2, VP8: 3): ";
+        std::cout << "Enter depth compression type (1: RVL, 2: TRVL, 3: VP8, 4: Binned TRVL): ";
         std::getline(std::cin, line);
 
         // The default type is TRVL.
         DepthCompressionType type = DepthCompressionType::Trvl;
+        bool binned_depth = false;
         if (line == "1") {
             type = DepthCompressionType::Rvl;
         } else if (line == "2") {
             type = DepthCompressionType::Trvl;
         } else if (line == "3") {
             type = DepthCompressionType::Vp8;
+        } else if (line == "4") {
+            type = DepthCompressionType::Trvl;
+            binned_depth = true;
         }
 
         try {
-            _send_azure_kinect_frames(port, type);
+            _send_azure_kinect_frames(port, type, binned_depth);
         } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }
