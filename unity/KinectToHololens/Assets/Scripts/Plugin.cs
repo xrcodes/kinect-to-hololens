@@ -51,8 +51,11 @@ public static class Plugin
     //[DllImport(DllName)]
     //public static extern void texture_group_set_rvl_frame(IntPtr rvl_frame_data, int rvl_frame_size);
 
+    //[DllImport(DllName)]
+    //public static extern void texture_group_set_depth_encoder_frame(IntPtr depth_encoder_frame_data, int depth_encoder_frame_size);
+
     [DllImport(DllName)]
-    public static extern void texture_group_set_depth_encoder_frame(IntPtr depth_encoder_frame_data, int depth_encoder_frame_size);
+    public static extern void texture_group_decode_depth_encoder_frame(IntPtr depth_encoder_frame_data, int depth_encoder_frame_size);
 
     [DllImport(DllName)]
     public static extern IntPtr create_vp8_decoder();

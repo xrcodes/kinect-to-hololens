@@ -29,7 +29,8 @@ ID3D11ShaderResourceView* depth_texture_view_ = nullptr;
 kh::FFmpegFrame ffmpeg_frame_(nullptr);
 //std::vector<uint8_t> rvl_frame_;
 std::unique_ptr<kh::DepthDecoder> depth_decoder_;
-std::vector<uint8_t> depth_encoder_frame_;
+//std::vector<uint8_t> depth_encoder_frame_;
+std::vector<short> depth_pixels_;
 
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(ID3D11Device* device)
@@ -103,10 +104,11 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_ffm
     ffmpeg_frame_ = std::move(*ffmpeg_frame);
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_encoder_frame(void* depth_encoder_frame_data, int depth_encoder_frame_size)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_decode_depth_encoder_frame(void* depth_encoder_frame_data, int depth_encoder_frame_size)
 {
-    depth_encoder_frame_ = std::vector<uint8_t>(depth_encoder_frame_size);
-    memcpy(depth_encoder_frame_.data(), depth_encoder_frame_data, depth_encoder_frame_size);
+    //depth_encoder_frame_ = std::vector<uint8_t>(depth_encoder_frame_size);
+    //memcpy(depth_encoder_frame_.data(), depth_encoder_frame_data, depth_encoder_frame_size);
+    depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data), depth_encoder_frame_size);
 }
 
 // Updating pixels of the textures. Should be called in a render thread.
@@ -116,6 +118,7 @@ void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_cont
     u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
     v_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 2);
     
-    auto depth_pixels = depth_decoder_->decode(depth_encoder_frame_.data(), depth_encoder_frame_.size());
-    depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
+    //auto depth_pixels = depth_decoder_->decode(depth_encoder_frame_.data(), depth_encoder_frame_.size());
+    //depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
+    depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels_.data()));
 }

@@ -18,7 +18,8 @@ public class ReceiverDemoManager : MonoBehaviour
     public MeshRenderer colorQuad;
     public MeshRenderer depthQuad;
 
-    private bool textureCreated;
+    private bool initialized;
+    private TextureGroup textureGroup;
     private Receiver receiver;
     private Vp8Decoder decoder;
 
@@ -46,39 +47,33 @@ public class ReceiverDemoManager : MonoBehaviour
 
     void Awake()
     {
-        textureCreated = false;
+        textureGroup = null;
+        initialized = false;
         UiVisibility = true;
         QuadVisibility = false;
-
-        Plugin.texture_group_set_color_width(1280);
-        Plugin.texture_group_set_color_height(720);
-        Plugin.texture_group_set_depth_width(640);
-        Plugin.texture_group_set_depth_height(576);
-        PluginHelper.InitTextureGroup();
     }
 
     void Update()
     {
         // If texture is not created, create and assign them to quads.
-        if (!textureCreated)
+        if (textureGroup == null)
         {
             // Check whether the native plugin has Direct3D textures that
             // can be connected to Unity textures.
-            if(Plugin.texture_group_get_y_texture_view().ToInt64() == 0)
-                return;
+            if (initialized)
+            {
+                // TextureGroup includes Y, U, V, and a depth texture.
+                textureGroup = new TextureGroup();
+                yQuad.material.mainTexture = textureGroup.YTexture;
+                uQuad.material.mainTexture = textureGroup.UTexture;
+                vQuad.material.mainTexture = textureGroup.VTexture;
 
-            // TextureGroup includes Y, U, V, and a depth texture.
-            var textureGroup = new TextureGroup();
-            yQuad.material.mainTexture = textureGroup.YTexture;
-            uQuad.material.mainTexture = textureGroup.UTexture;
-            vQuad.material.mainTexture = textureGroup.VTexture;
+                colorQuad.material.SetTexture("_YTex", textureGroup.YTexture);
+                colorQuad.material.SetTexture("_UTex", textureGroup.UTexture);
+                colorQuad.material.SetTexture("_VTex", textureGroup.VTexture);
 
-            colorQuad.material.SetTexture("_YTex", textureGroup.YTexture);
-            colorQuad.material.SetTexture("_UTex", textureGroup.UTexture);
-            colorQuad.material.SetTexture("_VTex", textureGroup.VTexture);
-
-            depthQuad.material.mainTexture = textureGroup.DepthTexture;
-            textureCreated = true;
+                depthQuad.material.mainTexture = textureGroup.DepthTexture;
+            }
         }
 
         // Do not continue if there is no Receiever connected to a Sender.
@@ -91,7 +86,7 @@ public class ReceiverDemoManager : MonoBehaviour
         {
             message = receiver.Receive();
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Debug.Log(e.Message);
             receiver = null;
@@ -105,11 +100,19 @@ public class ReceiverDemoManager : MonoBehaviour
         // ReceiverDemo renders in 2D, therefore, no need to use intrinsics.
         if (message[0] == 0)
         {
-            print(message.Length);
-            int depthCompressionType = BitConverter.ToInt32(message, 1);
-            Debug.Log($"Received the initialization message (depthCompressionType: {depthCompressionType})");
+            ReadStreamInformationFromMessage(message, out int colorWidth, out int colorHeight,
+                out int depthWidth, out int depthHeight, out int depthCompressionType);
+            print($"Received the initialization message (depthCompressionType: {depthCompressionType})");
+
+            Plugin.texture_group_set_color_width(colorWidth);
+            Plugin.texture_group_set_color_height(colorHeight);
+            Plugin.texture_group_set_depth_width(depthWidth);
+            Plugin.texture_group_set_depth_height(depthHeight);
+            PluginHelper.InitTextureGroup();
 
             Plugin.texture_group_init_depth_encoder(depthCompressionType);
+
+            initialized = true;
         }
         // When a Kinect frame got received.
         else if (message[0] == 1)
@@ -144,7 +147,8 @@ public class ReceiverDemoManager : MonoBehaviour
             IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
             Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
             //Plugin.texture_group_set_rvl_frame(rvlFrameBytes, rvlFrameSize);
-            Plugin.texture_group_set_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
+            //Plugin.texture_group_set_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
+            Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
             Marshal.FreeHGlobal(depthEncoderFrameBytes);
 
             if (frameId % 100 == 0)
@@ -153,7 +157,8 @@ public class ReceiverDemoManager : MonoBehaviour
             }
 
             // Invokes a function to be called in a render thread.
-            PluginHelper.UpdateTextureGroup();
+            if (textureGroup != null)
+                PluginHelper.UpdateTextureGroup();
         }
     }
 
@@ -182,5 +187,26 @@ public class ReceiverDemoManager : MonoBehaviour
         {
             UiVisibility = true;
         }
+    }
+
+    private static void ReadStreamInformationFromMessage(byte[] message,
+        out int colorWidth, out int colorHeight, out int depthWidth, out int depthHeight,
+        out int depthCompressionType)
+    {
+        int cursor = 1;
+
+        colorWidth = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
+
+        colorHeight = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
+
+        depthWidth = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
+
+        depthHeight = BitConverter.ToInt32(message, cursor);
+        cursor += 4;
+
+        depthCompressionType = BitConverter.ToInt32(message, cursor);
     }
 }
