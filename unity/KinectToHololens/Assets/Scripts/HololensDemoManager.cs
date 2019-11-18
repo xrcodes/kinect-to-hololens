@@ -191,7 +191,7 @@ public class HololensDemoManager : MonoBehaviour
             }
 
             // Invokes a function to be called in a render thread.
-            PluginHelper.UpdateTextureGroupRvl();
+            PluginHelper.UpdateTextureGroup();
         }
     }
 

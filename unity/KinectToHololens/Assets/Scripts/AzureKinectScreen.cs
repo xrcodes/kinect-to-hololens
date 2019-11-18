@@ -65,21 +65,6 @@ public class AzureKinectScreen : MonoBehaviour
         }
         meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
 
-        // Entering the matrix as floats to see them in the Editor.
-        // Also, matrices get reset from Unity after clicking another app and coming back.
-        meshRenderer.sharedMaterial.SetFloat("_R0", extrinsics.Rotation[0]);
-        meshRenderer.sharedMaterial.SetFloat("_R1", extrinsics.Rotation[1]);
-        meshRenderer.sharedMaterial.SetFloat("_R2", extrinsics.Rotation[2]);
-        meshRenderer.sharedMaterial.SetFloat("_R3", extrinsics.Rotation[3]);
-        meshRenderer.sharedMaterial.SetFloat("_R4", extrinsics.Rotation[4]);
-        meshRenderer.sharedMaterial.SetFloat("_R5", extrinsics.Rotation[5]);
-        meshRenderer.sharedMaterial.SetFloat("_R6", extrinsics.Rotation[6]);
-        meshRenderer.sharedMaterial.SetFloat("_R7", extrinsics.Rotation[7]);
-        meshRenderer.sharedMaterial.SetFloat("_R8", extrinsics.Rotation[8]);
-        meshRenderer.sharedMaterial.SetFloat("_T0", extrinsics.Translation[0] * 0.001f);
-        meshRenderer.sharedMaterial.SetFloat("_T1", extrinsics.Translation[1] * 0.001f);
-        meshRenderer.sharedMaterial.SetFloat("_T2", extrinsics.Translation[2] * 0.001f);
-
         var colorIntrinsics = calibration.ColorCamera.Intrinsics;
         meshRenderer.sharedMaterial.SetFloat("_Width", calibration.ColorCamera.Width);
         meshRenderer.sharedMaterial.SetFloat("_Height", calibration.ColorCamera.Height);

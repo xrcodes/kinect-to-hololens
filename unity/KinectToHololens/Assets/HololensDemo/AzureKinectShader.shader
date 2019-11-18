@@ -6,18 +6,6 @@
         _UTex("U Texture", 2D) = "white" {}
         _VTex("V Texture", 2D) = "white" {}
         _DepthTex("Depth Texture", 2D) = "white" {}
-        //_R0("Depth to Color Rotation 0", Float) = 0.0
-        //_R1("Depth to Color Rotation 1", Float) = 0.0
-        //_R2("Depth to Color Rotation 2", Float) = 0.0
-        //_R3("Depth to Color Rotation 3", Float) = 0.0
-        //_R4("Depth to Color Rotation 4", Float) = 0.0
-        //_R5("Depth to Color Rotation 5", Float) = 0.0
-        //_R6("Depth to Color Rotation 6", Float) = 0.0
-        //_R7("Depth to Color Rotation 7", Float) = 0.0
-        //_R8("Depth to Color Rotation 8", Float) = 0.0
-        //_T0("Depth to Color Translation 0", Float) = 0.0
-        //_T1("Depth to Color Translation 1", Float) = 0.0
-        //_T2("Depth to Color Translation 2", Float) = 0.0
         //_Width("Color Width", Float) = 0.0
         //_Height("Color Height", Float) = 0.0
         //_Cx("Color Cx", Float) = 0.0
@@ -83,19 +71,6 @@
 
             float4x4 _DepthToColor;
 
-            float _R0;
-            float _R1;
-            float _R2;
-            float _R3;
-            float _R4;
-            float _R5;
-            float _R6;
-            float _R7;
-            float _R8;
-            float _T0;
-            float _T1;
-            float _T2;
-
             // Color Intrinsics
             float _Width;
             float _Height;
@@ -129,16 +104,9 @@
                 fixed3 depth_vertex = v.vertex * depth;
                 
                 // Below lines are following the logic of transformation_compute_correspondence in rgbz.c.
-                //fixed3 color_vertex = mul(_DepthToColor, depth_vertex);
+                fixed3 color_vertex = mul(_DepthToColor, fixed4(depth_vertex, 1.0));
                 // The below line comes from transformation_project() in intrinsic_transformation.c.
-                //fixed2 xy = fixed2(color_vertex.x / color_vertex.z, color_vertex.y / color_vertex.z);
-
-                // Can't understand why but the upper matrix version is not giving the same results
-                // with the below element-wise version.
-                fixed color_x = _R0 * depth_vertex.x + _R1 * depth_vertex.y + _R2 * depth_vertex.z + _T0;
-                fixed color_y = _R3 * depth_vertex.x + _R4 * depth_vertex.y + _R5 * depth_vertex.z + _T1;
-                fixed color_z = _R6 * depth_vertex.x + _R7 * depth_vertex.y + _R8 * depth_vertex.z + _T2;
-                fixed2 xy = fixed2(color_x / color_z, color_y / color_z);
+                fixed2 xy = fixed2(color_vertex.x / color_vertex.z, color_vertex.y / color_vertex.z);
 
                 // Using the procedure from transformation_project_internal()
                 // in src/transformation/intrinsic_transformation.c of Azure Kinect Sensor SDK.
@@ -149,11 +117,13 @@
                 fixed yp2 = yp * yp;
                 fixed xyp = xp * yp;
                 fixed rs = xp2 + yp2;
-                fixed rss = rs * rs;
-                fixed rsc = rss * rs;
-                fixed a = 1.0 + _K1 * rs + _K2 * rss + _K3 * rsc;
-                fixed b = 1.0 + _K4 * rs + _K5 * rss + _K6 * rsc;
-                fixed d = a / b;
+                //fixed rss = rs * rs;
+                //fixed rsc = rss * rs;
+                //fixed a = 1.0 + _K1 * rs + _K2 * rss + _K3 * rsc;
+                //fixed b = 1.0 + _K4 * rs + _K5 * rss + _K6 * rsc;
+                //fixed d = a / b;
+                fixed d = (1.0 + (_K1 + (_K2 + (_K3 * rs) * rs) * rs) * rs)
+                        / (1.0 + (_K4 + (_K5 + (_K6 * rs) * rs) * rs) * rs);
                 
                 fixed xp_d = xp * d;
                 fixed yp_d = yp * d;
@@ -169,7 +139,6 @@
 
                 fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fy + _Cy) / (_Height - 1));
 
-                //o.vertex = UnityObjectToClipPos(depth_vertex);
                 o.vertex = fixed4(depth_vertex, 1.0);
                 o.uv = color_uv;
                 o.vertex_offset = v.uv2 * depth;

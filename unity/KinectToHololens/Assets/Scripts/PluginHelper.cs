@@ -8,7 +8,7 @@ public static class PluginHelper
         InvokeRenderEvent(0);
     }
 
-    public static void UpdateTextureGroupRvl()
+    public static void UpdateTextureGroup()
     {   
         InvokeRenderEvent(1);
     }

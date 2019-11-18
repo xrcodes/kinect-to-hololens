@@ -110,7 +110,7 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_dep
 }
 
 // Updating pixels of the textures. Should be called in a render thread.
-void texture_group_update_rvl(ID3D11Device* device, ID3D11DeviceContext* device_context)
+void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
     y_texture_->updatePixels(device, device_context, color_width_, color_height_, ffmpeg_frame_, 0);
     u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
