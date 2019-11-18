@@ -13,12 +13,13 @@ public class TextureGroup
     public Texture2D VTexture { get; private set; }
     public Texture2D DepthTexture { get; private set; }
 
-    public TextureGroup()
+    public TextureGroup(int colorWidth, int colorHeight,
+        int depthWidth, int depthHeight)
     {
-        ColorWidth = 1280;
-        ColorHeight = 720;
-        DepthWidth = 640;
-        DepthHeight = 576;
+        ColorWidth = colorWidth;
+        ColorHeight = colorHeight;
+        DepthWidth = depthWidth;
+        DepthHeight = depthHeight;
 
         YTexture = Texture2D.CreateExternalTexture(ColorWidth,
                                                    ColorHeight,

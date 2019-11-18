@@ -66,17 +66,17 @@ void Sender::send(int depth_compression_type, k4a_calibration_t calibration)
     memcpy(buffer.data() + cursor, &depth_compression_type, sizeof(depth_compression_type));
     cursor += sizeof(depth_compression_type);
 
-    memcpy(buffer.data() + cursor, &depth_intrinsics, sizeof(depth_intrinsics));
-    cursor += sizeof(depth_intrinsics);
-
-    memcpy(buffer.data() + cursor, &depth_metric_radius, sizeof(depth_metric_radius));
-    cursor += sizeof(depth_metric_radius);
-
     memcpy(buffer.data() + cursor, &color_intrinsics, sizeof(color_intrinsics));
     cursor += sizeof(color_intrinsics);
 
     memcpy(buffer.data() + cursor, &color_metric_radius, sizeof(color_metric_radius));
     cursor += sizeof(color_metric_radius);
+
+    memcpy(buffer.data() + cursor, &depth_intrinsics, sizeof(depth_intrinsics));
+    cursor += sizeof(depth_intrinsics);
+
+    memcpy(buffer.data() + cursor, &depth_metric_radius, sizeof(depth_metric_radius));
+    cursor += sizeof(depth_metric_radius);
 
     memcpy(buffer.data() + cursor, &depth_to_color_extrinsics, sizeof(depth_to_color_extrinsics));
 

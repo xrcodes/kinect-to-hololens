@@ -7,6 +7,8 @@
 
 typedef void* VoidPtr;
 
+bool initialized_;
+
 // Color and depth texture sizes.
 int color_width_;
 int color_height_;
@@ -45,6 +47,17 @@ void texture_group_init(ID3D11Device* device)
     u_texture_view_ = u_texture_->getTextureView(device);
     v_texture_view_ = v_texture_->getTextureView(device);
     depth_texture_view_ = depth_texture_->getTextureView(device);
+    initialized_ = true;
+}
+
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_reset()
+{
+    initialized_ = false;
+}
+
+extern "C" bool UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_is_initialized()
+{
+    return initialized_;
 }
 
 extern "C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_y_texture_view()
@@ -67,9 +80,19 @@ extern "C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_
     return depth_texture_view_;
 }
 
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_color_width()
+{
+    return color_width_;
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_color_width(int color_width)
 {
     color_width_ = color_width;
+}
+
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_color_height()
+{
+    return color_height_;
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_color_height(int color_height)
@@ -77,9 +100,19 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_col
     color_height_ = color_height;
 }
 
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_depth_width()
+{
+    return depth_width_;
+}
+
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_width(int depth_width)
 {
     depth_width_ = depth_width;
+}
+
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_depth_height()
+{
+    return depth_height_;
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_height(int depth_height)

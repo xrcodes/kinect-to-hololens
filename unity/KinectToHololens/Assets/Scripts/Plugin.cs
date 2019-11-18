@@ -19,6 +19,12 @@ public static class Plugin
     public static extern IntPtr get_render_event_function_pointer();
 
     [DllImport(DllName)]
+    public static extern void texture_group_reset();
+
+    [DllImport(DllName)]
+    public static extern bool texture_group_is_initialized();
+
+    [DllImport(DllName)]
     public static extern IntPtr texture_group_get_y_texture_view();
 
     [DllImport(DllName)]
@@ -31,13 +37,25 @@ public static class Plugin
     public static extern IntPtr texture_group_get_depth_texture_view();
 
     [DllImport(DllName)]
+    public static extern int texture_group_get_color_width();
+
+    [DllImport(DllName)]
     public static extern void texture_group_set_color_width(int color_width);
+
+    [DllImport(DllName)]
+    public static extern int texture_group_get_color_height();
 
     [DllImport(DllName)]
     public static extern void texture_group_set_color_height(int color_height);
 
     [DllImport(DllName)]
+    public static extern int texture_group_get_depth_width();
+
+    [DllImport(DllName)]
     public static extern void texture_group_set_depth_width(int depth_width);
+
+    [DllImport(DllName)]
+    public static extern int texture_group_get_depth_height();
 
     [DllImport(DllName)]
     public static extern void texture_group_set_depth_height(int depth_height);
