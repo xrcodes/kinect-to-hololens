@@ -144,7 +144,7 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
             std::cout << "Failed to destroy turboJPEG handle." << std::endl;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(bgra_color_image.get_buffer(),
+        auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(bgra_color_image.get_buffer(),
                                                                  bgra_color_image.get_width_pixels(),
                                                                  bgra_color_image.get_height_pixels(),
                                                                  bgra_color_image.get_stride_bytes());

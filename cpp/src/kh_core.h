@@ -95,5 +95,6 @@ private:
 // createYuvImageFromAzureKinectYuy2Buffer(): converts color pixels to a YuvImage.
 // createYuvImageFromAvFrame(): converts the outcome of Vp8Decoder to color pixels in Yuv420.
 YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int height, int stride);
+YuvImage createYuvImageFromAzureKinectBgraBuffer(uint8_t* buffer, int width, int height, int stride);
 YuvImage createYuvImageFromAvFrame(AVFrame* av_frame);
 }
