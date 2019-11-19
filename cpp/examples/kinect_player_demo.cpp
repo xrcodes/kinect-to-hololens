@@ -5,6 +5,7 @@
 #include "azure_kinect/azure_kinect.h"
 #include "k4arecord/playback.h"
 #include "turbojpeg.h"
+#include "k4arecord/playback.hpp"
 
 namespace kh
 {
@@ -29,30 +30,31 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
-    const int32_t TIMEOUT_IN_MS = 1000;
 
     std::cout << "DepthCompressionType: " << static_cast<int>(type) << std::endl;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
-    auto playback = azure_kinect::obtainAzureKinectPlayback(path);
-    if (!playback) {
-        std::cout << "Could not find the playback." << std::endl;
-        return;
-    }
+    //auto playback = azure_kinect::obtainAzureKinectPlayback(path);
+    //if (!playback) {
+    //    std::cout << "Could not find the playback." << std::endl;
+    //    return;
+    //}
+    auto playback = k4a::playback::open(path.c_str());
 
-    auto calibration = playback->getCalibration();
-    if (!calibration) {
-        std::cout << "Could not find calibration information from playback." << std::endl;
-        return;
-    }
+    //auto calibration = playback->getCalibration();
+    //if (!calibration) {
+    //    std::cout << "Could not find calibration information from playback." << std::endl;
+    //    return;
+    //}
+    auto calibration = playback.get_calibration();
 
-    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
-                           calibration->color_camera_calibration.resolution_height,
+    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
+                           calibration.color_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
-    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
-    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
+    int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
     std::unique_ptr<DepthEncoder> depth_encoder;
     if (type == DepthCompressionType::Rvl) {
@@ -74,7 +76,7 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(static_cast<int>(type), *calibration);
+    sender.send(static_cast<int>(type), calibration);
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
     const int MAXIMUM_FRAME_ID_DIFF = 2;
@@ -107,47 +109,51 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
         if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
             continue;
 
-        auto capture = playback->getNextCapture();
-        if (!capture) {
-            std::cout << "Could not find a capture from the playback" << std::endl;
-            return;
+        k4a::capture capture;
+        if (!playback.get_next_capture(&capture)) {
+            std::cout << "get_capture() timed out" << std::endl;
+            continue;
         }
 
-        auto jpeg_color_image = capture->getColorImage();
+        auto jpeg_color_image = capture.get_color_image();
         if (!jpeg_color_image)
             continue;
 
-        auto depth_image = capture->getDepthImage();
+        auto depth_image = capture.get_depth_image();
         if (!depth_image)
             continue;
 
-        auto format = jpeg_color_image->getFormat();
+        auto format = jpeg_color_image.get_format();
         if (format != K4A_IMAGE_FORMAT_COLOR_MJPG) {
             std::cout << "Color format not supported. Please use MJPEG." << std::endl;
             return;
         }
 
-        k4a_image_t bgra_color_image_handle;
-        if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
-                                                     jpeg_color_image->getWidth(),
-                                                     jpeg_color_image->getHeight(),
-                                                     jpeg_color_image->getWidth() * 4 * (int)sizeof(uint8_t),
-                                                     &bgra_color_image_handle)) {
-            std::cout << "Failed to create image buffer" << std::endl;
-            return;
-        }
+        //k4a_image_t bgra_color_image_handle;
+        //if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+        //                                             jpeg_color_image.get_width_pixels(),
+        //                                             jpeg_color_image.get_height_pixels(),
+        //                                             jpeg_color_image.get_width_pixels() * 4 * (int)sizeof(uint8_t),
+        //                                             &bgra_color_image_handle)) {
+        //    std::cout << "Failed to create image buffer" << std::endl;
+        //    return;
+        //}
 
-        auto bgra_color_image = azure_kinect::AzureKinectImage(bgra_color_image_handle);
+        //auto bgra_color_image = azure_kinect::AzureKinectImage(bgra_color_image_handle);
+        auto bgra_color_image = k4a::image::create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+                                                   jpeg_color_image.get_width_pixels(),
+                                                   jpeg_color_image.get_height_pixels(),
+                                                   jpeg_color_image.get_width_pixels() * 4 * (int)sizeof(uint8_t));
 
         tjhandle tjHandle;
         tjHandle = tjInitDecompress();
         if (tjDecompress2(tjHandle,
-                          jpeg_color_image->getBuffer(),
-                          static_cast<unsigned long>(jpeg_color_image->getSize()),
-                          bgra_color_image.getBuffer(),
-                          jpeg_color_image->getWidth(),
+                          jpeg_color_image.get_buffer(),
+                          static_cast<unsigned long>(jpeg_color_image.get_size()),
+                          bgra_color_image.get_buffer(),
+                          jpeg_color_image.get_width_pixels(),
                           0, // pitch
-                          jpeg_color_image->getHeight(),
+                          jpeg_color_image.get_height_pixels(),
                           TJPF_BGRA,
                           TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
         {
@@ -161,14 +167,14 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
             std::cout << "Failed to destroy turboJPEG handle." << std::endl;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(bgra_color_image.getBuffer(),
-                                                                 bgra_color_image.getWidth(),
-                                                                 bgra_color_image.getHeight(),
-                                                                 bgra_color_image.getStride());
+        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(bgra_color_image.get_buffer(),
+                                                                 bgra_color_image.get_width_pixels(),
+                                                                 bgra_color_image.get_height_pixels(),
+                                                                 bgra_color_image.get_stride_bytes());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
-        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image->getBuffer()));
+        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {

@@ -1,7 +1,7 @@
 #include "kh_core.h"
 #include "kh_sender.h"
 #include "kh_depth_compression_helper.h"
-#include "azure_kinect/azure_kinect.h"
+#include "k4a/k4a.hpp"
 
 namespace kh
 {
@@ -11,35 +11,32 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
-    const int32_t TIMEOUT_IN_MS = 1000;
+    const auto TIMEOUT = std::chrono::milliseconds(1000);
 
     std::cout << "DepthCompressionType: " << static_cast<int>(type) << std::endl;
     std::cout << "binned_depth: " << binned_depth << std::endl;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
-    auto device = azure_kinect::obtainAzureKinectDevice();
-    if (!device) {
-        std::cout << "Could not find an Azure Kinect." << std::endl;
-        return;
-    }
+    auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
 
-    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
+    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
+    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
+
     if(binned_depth)
         configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-    
-    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
-    if (!calibration) {
-        std::cout << "Failed to receive calibration of the Azure Kinect." << std::endl;
-        return;
-    }
 
-    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
-                           calibration->color_camera_calibration.resolution_height,
+    auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
+
+    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
+                           calibration.color_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
-    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
-    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
+    int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
     std::unique_ptr<DepthEncoder> depth_encoder;
     if (type == DepthCompressionType::Rvl) {
@@ -61,12 +58,9 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(static_cast<int>(type), *calibration);
+    sender.send(static_cast<int>(type), calibration);
 
-    if (!device->start(configuration)) {
-        std::cout << "Failed to start the Azure Kinect." << std::endl;
-        return;
-    }
+    device.start_cameras(&configuration);
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
     const int MAXIMUM_FRAME_ID_DIFF = 2;
@@ -99,30 +93,33 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
         if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
             continue;
 
-        // Try getting Kinect images until a valid pair pops up.
-        auto capture = device->getCapture(TIMEOUT_IN_MS);
-        if (!capture) {
-            std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
-            return;
+        k4a::capture capture;
+        if (!device.get_capture(&capture, TIMEOUT)) {
+            std::cout << "get_capture() timed out" << std::endl;
+            continue;
         }
 
-        auto color_image = capture->getColorImage();
-        if (!color_image)
+        auto color_image = capture.get_color_image();
+        if (!color_image) {
+            std::cout << "no color_image" << std::endl;
             continue;
+        }
 
-        auto depth_image = capture->getDepthImage();
-        if (!depth_image)
+        auto depth_image = capture.get_depth_image();
+        if (!depth_image) {
+            std::cout << "no depth_image" << std::endl;
             continue;
+        }
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(),
-                                                                 color_image->getWidth(),
-                                                                 color_image->getHeight(),
-                                                                 color_image->getStride());
+        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image.get_buffer(),
+                                                                 color_image.get_width_pixels(),
+                                                                 color_image.get_height_pixels(),
+                                                                 color_image.get_stride_bytes());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
-        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image->getBuffer()));
+        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
