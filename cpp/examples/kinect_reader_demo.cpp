@@ -1,38 +1,34 @@
 #include <iostream>
 #include "helper/opencv_helper.h"
 #include "kh_depth_compression_helper.h"
-#include "azure_kinect/azure_kinect.h"
+#include "k4a/k4a.hpp"
 
 namespace kh
 {
-void _display_frames(DepthCompressionType type)
+void display_frames(DepthCompressionType type)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
-    const int32_t TIMEOUT_IN_MS = 1000;
+    const auto TIMEOUT = std::chrono::milliseconds(1000);
 
     // Obtain device to access Kinect frames.
-    auto device = azure_kinect::obtainAzureKinectDevice();
-    if (!device) {
-        std::cout << "Could not find an Azure Kinect." << std::endl;
-        return;
-    }
-    
-    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
-    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
-    if (!calibration) {
-        std::cout << "Failed to receive calibration of the Azure Kinect." << std::endl;
-        return;
-    }
+    auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
 
-    Vp8Encoder vp8_encoder(calibration->color_camera_calibration.resolution_width,
-                           calibration->color_camera_calibration.resolution_height,
+    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
+    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
+    
+    auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
+    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
+                           calibration.color_camera_calibration.resolution_height,
                            TARGET_BITRATE);
     Vp8Decoder vp8_decoder;
 
-    int depth_frame_width = calibration->depth_camera_calibration.resolution_width;
-    int depth_frame_height = calibration->depth_camera_calibration.resolution_height;
+    int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
+    int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
 
     std::unique_ptr<DepthEncoder> depth_encoder;
@@ -49,42 +45,42 @@ void _display_frames(DepthCompressionType type)
         depth_decoder = std::make_unique<Vp8DepthDecoder>();
     }
 
-    if (!device->start(configuration)) {
-        std::cout << "Failed to start the Azure Kinect." << std::endl;
-        return;
-    }
+    device.start_cameras(&configuration);
 
     for (;;) {
-        // Try getting Kinect images until a valid pair pops up.
-        auto capture = device->getCapture(TIMEOUT_IN_MS);
-        if (!capture) {
-            std::cout << "Could not get a capture from the Azure Kinect." << std::endl;
-            return;
+        k4a::capture capture;
+        if (!device.get_capture(&capture, TIMEOUT)) {
+            std::cout << "get_capture() timed out" << std::endl;
+            continue;
         }
 
-        auto color_image = capture->getColorImage();
-        if (!color_image)
+        auto color_image = capture.get_color_image();
+        if (!color_image) {
+            std::cout << "no color_image" << std::endl;
             continue;
+        }
 
-        auto depth_image = capture->getDepthImage();
-        if (!depth_image)
+        auto depth_image = capture.get_depth_image();
+        if (!depth_image) {
+            std::cout << "no depth_image" << std::endl;
             continue;
+        }
 
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(),
-                                                                 color_image->getWidth(),
-                                                                 color_image->getHeight(),
-                                                                 color_image->getStride());
+        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image.get_buffer(),
+                                                                 color_image.get_width_pixels(),
+                                                                 color_image.get_height_pixels(),
+                                                                 color_image.get_stride_bytes());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
         auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image->getBuffer()));
+        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
         auto depth_pixels = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
-        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), depth_image->getWidth(), depth_image->getHeight());
+        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), depth_image.get_width_pixels(), depth_image.get_height_pixels());
 
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);
@@ -96,20 +92,18 @@ void _display_frames(DepthCompressionType type)
 
 void _display_calibration()
 {
-    auto device = azure_kinect::obtainAzureKinectDevice();
-    if (!device) {
-        std::cout << "Could not find an Azure Kinect." << std::endl;
-    }
+    auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
 
+    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
+    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
 
-    auto configuration = azure_kinect::getDefaultDeviceConfiguration();
-    auto calibration = device->getCalibration(configuration.depth_mode, configuration.color_resolution);
-    if (!calibration) {
-        std::cout << "Failed to get calibration information of the Azure Kinect." << std::endl;
-    }
+    auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
 
-    auto color_intrinsics = calibration->color_camera_calibration.intrinsics;
-    std::cout << "color camera metric_radius: " << calibration->color_camera_calibration.metric_radius << std::endl;
+    auto color_intrinsics = calibration.color_camera_calibration.intrinsics;
+    std::cout << "color camera metric_radius: " << calibration.color_camera_calibration.metric_radius << std::endl;
 
     std::cout << "color intrinsics type: " << color_intrinsics.type << std::endl;
     std::cout << "color intrinsics parameter_count: " << color_intrinsics.parameter_count << std::endl;
@@ -130,8 +124,8 @@ void _display_calibration()
     std::cout << "color intrinsics p1: " << color_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "color intrinsics metric_radius: " << color_intrinsics.parameters.param.metric_radius << std::endl;
 
-    auto depth_intrinsics = calibration->depth_camera_calibration.intrinsics;
-    std::cout << "depth camera metric_radius: " << calibration->depth_camera_calibration.metric_radius << std::endl;
+    auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics;
+    std::cout << "depth camera metric_radius: " << calibration.depth_camera_calibration.metric_radius << std::endl;
 
     std::cout << "depth intrinsics type: " << depth_intrinsics.type << std::endl;
     std::cout << "depth intrinsics parameter_count: " << depth_intrinsics.parameter_count << std::endl;
@@ -152,7 +146,7 @@ void _display_calibration()
     std::cout << "depth intrinsics p1: " << depth_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "depth intrinsics metric_radius: " << depth_intrinsics.parameters.param.metric_radius << std::endl;
 
-    auto extrinsics = calibration->extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
+    auto extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
     for (int i = 0; i < 9; ++i)
         std::cout << "extrinsic rotation[" << i << "]: " << extrinsics.rotation[i] << std::endl;
 
@@ -174,14 +168,14 @@ void display_frames()
         }
 
         if (line == "1") {
-            _display_frames(DepthCompressionType::Rvl);
+            display_frames(DepthCompressionType::Rvl);
         } else if (line == "2") {
-            _display_frames(DepthCompressionType::Trvl);
+            display_frames(DepthCompressionType::Trvl);
         } else if (line == "3") {
-            _display_frames(DepthCompressionType::Vp8);
+            display_frames(DepthCompressionType::Vp8);
         } else {
             // Use TRVL as the default type.
-            _display_frames(DepthCompressionType::Trvl);
+            display_frames(DepthCompressionType::Trvl);
         }
 
     }
