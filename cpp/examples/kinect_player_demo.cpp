@@ -2,7 +2,6 @@
 #include "kh_core.h"
 #include "kh_sender.h"
 #include "kh_depth_compression_helper.h"
-#include "azure_kinect/azure_kinect.h"
 #include "k4arecord/playback.h"
 #include "turbojpeg.h"
 #include "k4arecord/playback.hpp"
@@ -35,18 +34,7 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
-    //auto playback = azure_kinect::obtainAzureKinectPlayback(path);
-    //if (!playback) {
-    //    std::cout << "Could not find the playback." << std::endl;
-    //    return;
-    //}
     auto playback = k4a::playback::open(path.c_str());
-
-    //auto calibration = playback->getCalibration();
-    //if (!calibration) {
-    //    std::cout << "Could not find calibration information from playback." << std::endl;
-    //    return;
-    //}
     auto calibration = playback.get_calibration();
 
     Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
@@ -129,17 +117,6 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
             return;
         }
 
-        //k4a_image_t bgra_color_image_handle;
-        //if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
-        //                                             jpeg_color_image.get_width_pixels(),
-        //                                             jpeg_color_image.get_height_pixels(),
-        //                                             jpeg_color_image.get_width_pixels() * 4 * (int)sizeof(uint8_t),
-        //                                             &bgra_color_image_handle)) {
-        //    std::cout << "Failed to create image buffer" << std::endl;
-        //    return;
-        //}
-
-        //auto bgra_color_image = azure_kinect::AzureKinectImage(bgra_color_image_handle);
         auto bgra_color_image = k4a::image::create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
                                                    jpeg_color_image.get_width_pixels(),
                                                    jpeg_color_image.get_height_pixels(),

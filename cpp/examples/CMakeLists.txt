@@ -12,7 +12,8 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   )
   target_link_libraries(KinectReaderDemo
     ${OpenCV_LIBS}
-    AzureKinect
+    "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
+    "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
     KinectToHololens
     ${Libvpx_LIB}
   )
@@ -35,7 +36,8 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     "${AZURE_KINECT_DIR}/sdk/include"
   )
   target_link_libraries(KinectSenderDemo
-    AzureKinect
+    "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
+    "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
     KinectToHololens
     ${Libvpx_LIB}
   )
@@ -59,7 +61,8 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     "${JPEG_INCLUDE_DIR}"
   )
   target_link_libraries(KinectPlayerDemo PRIVATE
-    AzureKinect
+    "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
+    "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
     KinectToHololens
     ${Libvpx_LIB}
     ${JPEG_LIBRARY_RELEASE}

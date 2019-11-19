@@ -1,9 +1,6 @@
 # The 32-bit version of this project is only for the Unity plugin,
 # which does not directly relate to Kinects.
 # Also, azure_kinect currently imports a 64-bit .lib file.
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  add_subdirectory(azure_kinect)
-endif()
 
 set(SOURCE_FILES
   kh_core.h
