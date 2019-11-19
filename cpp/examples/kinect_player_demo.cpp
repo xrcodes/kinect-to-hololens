@@ -103,51 +103,23 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
             continue;
         }
 
-        auto jpeg_color_image = capture.get_color_image();
-        if (!jpeg_color_image)
+        auto color_image = capture.get_color_image();
+        if (!color_image)
             continue;
 
         auto depth_image = capture.get_depth_image();
         if (!depth_image)
             continue;
 
-        auto format = jpeg_color_image.get_format();
-        if (format != K4A_IMAGE_FORMAT_COLOR_MJPG) {
-            std::cout << "Color format not supported. Please use MJPEG." << std::endl;
+        if (color_image.get_format() != K4A_IMAGE_FORMAT_COLOR_YUY2) {
+            std::cout << "Only K4A_IMAGE_FORMAT_COLOR_YUY2 is supported as the color format." << std::endl;
             return;
         }
 
-        auto bgra_color_image = k4a::image::create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
-                                                   jpeg_color_image.get_width_pixels(),
-                                                   jpeg_color_image.get_height_pixels(),
-                                                   jpeg_color_image.get_width_pixels() * 4 * (int)sizeof(uint8_t));
-
-        tjhandle tjHandle;
-        tjHandle = tjInitDecompress();
-        if (tjDecompress2(tjHandle,
-                          jpeg_color_image.get_buffer(),
-                          static_cast<unsigned long>(jpeg_color_image.get_size()),
-                          bgra_color_image.get_buffer(),
-                          jpeg_color_image.get_width_pixels(),
-                          0, // pitch
-                          jpeg_color_image.get_height_pixels(),
-                          TJPF_BGRA,
-                          TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
-        {
-            std::cout << "Failed to decompress color frame" << std::endl;
-            if (tjDestroy(tjHandle))
-                std::cout << "Failed to destroy turboJPEG handle." << std::endl;
-
-            return;
-        }
-        if (tjDestroy(tjHandle))
-            std::cout << "Failed to destroy turboJPEG handle." << std::endl;
-
-        // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(bgra_color_image.get_buffer(),
-                                                                 bgra_color_image.get_width_pixels(),
-                                                                 bgra_color_image.get_height_pixels(),
-                                                                 bgra_color_image.get_stride_bytes());
+        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image.get_buffer(),
+                                                                 color_image.get_width_pixels(),
+                                                                 color_image.get_height_pixels(),
+                                                                 color_image.get_stride_bytes());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
