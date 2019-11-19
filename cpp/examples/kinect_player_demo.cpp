@@ -4,6 +4,7 @@
 #include "kh_depth_compression_helper.h"
 #include "azure_kinect/azure_kinect.h"
 #include "k4arecord/playback.h"
+#include "turbojpeg.h"
 
 namespace kh
 {
@@ -112,19 +113,58 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
             return;
         }
 
-        auto color_image = capture->getColorImage();
-        if (!color_image)
+        auto jpeg_color_image = capture->getColorImage();
+        if (!jpeg_color_image)
             continue;
 
         auto depth_image = capture->getDepthImage();
         if (!depth_image)
             continue;
 
+        auto format = jpeg_color_image->getFormat();
+        if (format != K4A_IMAGE_FORMAT_COLOR_MJPG) {
+            std::cout << "Color format not supported. Please use MJPEG." << std::endl;
+            return;
+        }
+
+        k4a_image_t bgra_color_image_handle;
+        if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+                                                     jpeg_color_image->getWidth(),
+                                                     jpeg_color_image->getHeight(),
+                                                     jpeg_color_image->getWidth() * 4 * (int)sizeof(uint8_t),
+                                                     &bgra_color_image_handle)) {
+            std::cout << "Failed to create image buffer" << std::endl;
+            return;
+        }
+
+        auto bgra_color_image = azure_kinect::AzureKinectImage(bgra_color_image_handle);
+
+        tjhandle tjHandle;
+        tjHandle = tjInitDecompress();
+        if (tjDecompress2(tjHandle,
+                          jpeg_color_image->getBuffer(),
+                          static_cast<unsigned long>(jpeg_color_image->getSize()),
+                          bgra_color_image.getBuffer(),
+                          jpeg_color_image->getWidth(),
+                          0, // pitch
+                          jpeg_color_image->getHeight(),
+                          TJPF_BGRA,
+                          TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
+        {
+            std::cout << "Failed to decompress color frame" << std::endl;
+            if (tjDestroy(tjHandle))
+                std::cout << "Failed to destroy turboJPEG handle." << std::endl;
+
+            return;
+        }
+        if (tjDestroy(tjHandle))
+            std::cout << "Failed to destroy turboJPEG handle." << std::endl;
+
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image->getBuffer(),
-                                                                 color_image->getWidth(),
-                                                                 color_image->getHeight(),
-                                                                 color_image->getStride());
+        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(bgra_color_image.getBuffer(),
+                                                                 bgra_color_image.getWidth(),
+                                                                 bgra_color_image.getHeight(),
+                                                                 bgra_color_image.getStride());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
@@ -162,6 +202,7 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
 // Repeats collecting the port number from the user and calling _send_frames() with it.
 void send_frames()
 {
+    // TODO: Fix this to make it work both in Visual Studio and as an exe file.
     const std::string PLAYBACK_FOLDER_PATH = "../../../../playback/";
 
     for (;;) {

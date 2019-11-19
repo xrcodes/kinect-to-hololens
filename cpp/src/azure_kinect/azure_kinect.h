@@ -17,6 +17,8 @@ public:
     int getWidth();
     int getHeight();
     int getStride();
+    k4a_image_format_t getFormat();
+    size_t getSize();
 
 private:
     k4a_image_t image_;

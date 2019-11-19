@@ -56,11 +56,14 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   )
   target_include_directories(KinectPlayerDemo PRIVATE
     "${AZURE_KINECT_DIR}/sdk/include"
+    "${JPEG_INCLUDE_DIR}"
   )
-  target_link_libraries(KinectPlayerDemo
+  target_link_libraries(KinectPlayerDemo PRIVATE
     AzureKinect
     KinectToHololens
     ${Libvpx_LIB}
+    ${JPEG_LIBRARY_RELEASE}
+    ${TURBO_JPEG_LIBRARY}
   )
   set_target_properties(KinectPlayerDemo PROPERTIES
     CXX_STANDARD 17

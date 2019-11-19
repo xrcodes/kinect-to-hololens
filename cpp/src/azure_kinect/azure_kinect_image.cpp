@@ -33,4 +33,14 @@ int AzureKinectImage::getStride()
 {
     return k4a_image_get_stride_bytes(image_);
 }
+
+k4a_image_format_t AzureKinectImage::getFormat()
+{
+    return k4a_image_get_format(image_);
+}
+
+size_t AzureKinectImage::getSize()
+{
+    return k4a_image_get_size(image_);
+}
 }

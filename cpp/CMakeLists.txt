@@ -28,6 +28,9 @@ endforeach()
 # Set ${OpenCV_LIBS} for OpenCV.
 find_package(OpenCV REQUIRED)
 
+find_package(JPEG REQUIRED)
+set(TURBO_JPEG_LIBRARY ${VCPKG_INCLUDE_DIR}/../lib/turbojpeg.lib)
+
 # The directory for general source files.
 add_subdirectory(src)
 # The directory for cpp files corresponding to exe files.
