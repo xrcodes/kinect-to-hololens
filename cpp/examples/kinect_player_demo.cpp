@@ -99,8 +99,10 @@ void play_azure_kinect_frames(std::string path, int port, DepthCompressionType t
 
         k4a::capture capture;
         if (!playback.get_next_capture(&capture)) {
-            std::cout << "get_capture() timed out" << std::endl;
-            continue;
+            playback = k4a::playback::open(path.c_str());
+            if (!playback.get_next_capture(&capture)) {
+                std::cout << "Reset of the playback did not work." << std::endl;
+            }
         }
 
         auto color_image = capture.get_color_image();
