@@ -25,7 +25,7 @@ cv::Mat createCvMatFromYuvImage(YuvImage& yuv_frame)
     cv::merge(y_cr_cb_channels, y_cr_cb_frame);
 
     cv::Mat bgr_frame = y_cr_cb_frame.clone();
-    cvtColor(y_cr_cb_frame, bgr_frame, CV_YCrCb2BGR);
+    cvtColor(y_cr_cb_frame, bgr_frame, cv::COLOR_YCrCb2BGR);
     return bgr_frame;
 }
 
@@ -52,7 +52,7 @@ cv::Mat createCvMatFromKinectDepthImage(const uint16_t* depth_buffer, int width,
     cv::merge(y_cr_cb_channels, y_cr_cb_frame);
 
     cv::Mat bgr_frame = y_cr_cb_frame.clone();
-    cvtColor(y_cr_cb_frame, bgr_frame, CV_YCrCb2BGR);
+    cvtColor(y_cr_cb_frame, bgr_frame, cv::COLOR_YCrCb2BGR);
     return bgr_frame;
 }
 }
