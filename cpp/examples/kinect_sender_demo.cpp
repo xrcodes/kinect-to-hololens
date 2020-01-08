@@ -21,7 +21,7 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
 
     k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
     configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
@@ -30,9 +30,10 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
         configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
 
     auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
+    k4a::transformation transformation(calibration);
 
-    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
-                           calibration.color_camera_calibration.resolution_height,
+    Vp8Encoder vp8_encoder(calibration.depth_camera_calibration.resolution_width,
+                           calibration.depth_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
     int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
@@ -111,11 +112,13 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
             continue;
         }
 
+        auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
+
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image.get_buffer(),
-                                                                 color_image.get_width_pixels(),
-                                                                 color_image.get_height_pixels(),
-                                                                 color_image.get_stride_bytes());
+        auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
+                                                                 transformed_color_image.get_width_pixels(),
+                                                                 transformed_color_image.get_height_pixels(),
+                                                                 transformed_color_image.get_stride_bytes());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
         // Compress the depth pixels.
