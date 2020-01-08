@@ -6,24 +6,6 @@
         _UTex("U Texture", 2D) = "white" {}
         _VTex("V Texture", 2D) = "white" {}
         _DepthTex("Depth Texture", 2D) = "white" {}
-        //_Width("Color Width", Float) = 0.0
-        //_Height("Color Height", Float) = 0.0
-        //_Cx("Color Cx", Float) = 0.0
-        //_Cy("Color Cy", Float) = 0.0
-        //_Fx("Color Fx", Float) = 0.0
-        //_Fy("Color Fy", Float) = 0.0
-        //_K1("Color K1", Float) = 0.0
-        //_K2("Color K2", Float) = 0.0
-        //_K3("Color K3", Float) = 0.0
-        //_K4("Color K4", Float) = 0.0
-        //_K5("Color K5", Float) = 0.0
-        //_K6("Color K6", Float) = 0.0
-        //_Codx("Color Codx", Float) = 0.0
-        //_Cody("Color Cody", Float) = 0.0
-        //_P1("Color P1", Float) = 0.0
-        //_P2("Color P2", Float) = 0.0
-        //_VertexOffsetXVector("Vertex Offset X Vector", Vector) = (0, 0, 0, 0)
-        //_VertexOffsetYVector("Vertex Offset Y Vector", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
@@ -46,7 +28,6 @@
                 float3 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 float2 uv2 : TEXCOORD1;
-                float2 uv3 : TEXCOORD2;
             };
 
             struct v2g
@@ -69,26 +50,6 @@
             SamplerState sampler_YTex;
             sampler2D _DepthTex;
 
-            float4x4 _DepthToColor;
-
-            // Color Intrinsics
-            float _Width;
-            float _Height;
-            float _Cx;
-            float _Cy;
-            float _Fx;
-            float _Fy;
-            float _K1;
-            float _K2;
-            float _K3;
-            float _K4;
-            float _K5;
-            float _K6;
-            float _Codx;
-            float _Cody;
-            float _P1;
-            float _P2;
-
             fixed4 _VertexOffsetXVector;
             fixed4 _VertexOffsetYVector;
 
@@ -102,48 +63,10 @@
                 fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
                 // vertex in the depth camera coordinate system
                 fixed3 depth_vertex = v.vertex * depth;
-                
-                // Below lines are following the logic of transformation_compute_correspondence in rgbz.c.
-                fixed3 color_vertex = mul(_DepthToColor, fixed4(depth_vertex, 1.0));
-                // The below line comes from transformation_project() in intrinsic_transformation.c.
-                fixed2 xy = fixed2(color_vertex.x / color_vertex.z, color_vertex.y / color_vertex.z);
-
-                // Using the procedure from transformation_project_internal()
-                // in src/transformation/intrinsic_transformation.c of Azure Kinect Sensor SDK.
-                fixed xp = xy.x - _Codx;
-                fixed yp = xy.y - _Cody;
-
-                fixed xp2 = xp * xp;
-                fixed yp2 = yp * yp;
-                fixed xyp = xp * yp;
-                fixed rs = xp2 + yp2;
-                //fixed rss = rs * rs;
-                //fixed rsc = rss * rs;
-                //fixed a = 1.0 + _K1 * rs + _K2 * rss + _K3 * rsc;
-                //fixed b = 1.0 + _K4 * rs + _K5 * rss + _K6 * rsc;
-                //fixed d = a / b;
-                fixed d = (1.0 + (_K1 + (_K2 + (_K3 * rs) * rs) * rs) * rs)
-                        / (1.0 + (_K4 + (_K5 + (_K6 * rs) * rs) * rs) * rs);
-                
-                fixed xp_d = xp * d;
-                fixed yp_d = yp * d;
-
-                fixed rs_2xp2 = rs + 2.0 * xp2;
-                fixed rs_2yp2 = rs + 2.0 * yp2;
-
-                xp_d += rs_2xp2 * _P2 + 2.0 * xyp * _P1;
-                yp_d += rs_2yp2 * _P1 + 2.0 * xyp * _P2;
-
-                fixed xp_d_cx = xp_d + _Codx;
-                fixed yp_d_cy = yp_d + _Cody;
-
-                fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fy + _Cy) / (_Height - 1));
 
                 o.vertex = fixed4(depth_vertex, 1.0);
-                //o.uv = color_uv;
                 o.uv = v.uv;
                 o.vertex_offset = v.uv2 * depth;
-                o.uv_offset = v.uv3;
 
                 return o;
             }
@@ -151,9 +74,9 @@
             [maxvertexcount(4)]
             void geom(point v2g i[1], inout TriangleStream<g2f> triangles)
             {
-                // Filtering out invalid depth pixels and depth pixels without a corresponding color pixel.
+                // Filtering out invalid depth pixels.
                 // Tried mad here, but it added cost.
-                if (i[0].vertex.z > 0.1 && i[0].uv.x > 0.0 && i[0].uv.x < 1.0 && i[0].uv.y > 0.0 && i[0].uv.y < 1.0)
+                if (i[0].vertex.z > 0.1)
                 {
                     g2f o;
                     // Tried using mvp matrix instead of the below one using vp matrix and unity_ObjectToWorld.
@@ -164,23 +87,17 @@
                     fixed4 offset_x = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, _VertexOffsetXVector * i[0].vertex_offset.x));
                     fixed4 offset_y = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, _VertexOffsetYVector * i[0].vertex_offset.y));
 
-                    fixed uv_right = i[0].uv_offset.x;
-                    fixed uv_up = i[0].uv_offset.y;
-
-                    o.vertex = vertex;
+                    o.vertex = vertex - offset_x * 0.5 - offset_y * 0.5;
                     o.uv = i[0].uv;
                     triangles.Append(o);
 
                     o.vertex = o.vertex + offset_x;
-                    o.uv = i[0].uv + fixed2(i[0].uv_offset.x, 0.0);
                     triangles.Append(o);
 
-                    o.vertex = vertex + offset_y;
-                    o.uv = i[0].uv + fixed2(0.0, i[0].uv_offset.y);
+                    o.vertex = o.vertex - offset_x + offset_y;
                     triangles.Append(o);
 
-                    o.vertex = vertex + offset_x + offset_y;
-                    o.uv = i[0].uv + i[0].uv_offset;
+                    o.vertex = o.vertex + offset_x;
                     triangles.Append(o);
                 }
             }

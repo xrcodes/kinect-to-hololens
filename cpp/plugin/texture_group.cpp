@@ -8,10 +8,8 @@
 typedef void* VoidPtr;
 
 // Color and depth texture sizes.
-int color_width_;
-int color_height_;
-int depth_width_;
-int depth_height_;
+int width_;
+int height_;
 
 // Instances of classes for Direct3D textures.
 std::unique_ptr<kh::ChannelTexture> y_texture_;
@@ -48,10 +46,10 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_reset()
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(ID3D11Device* device)
 {
-    y_texture_ = std::make_unique<kh::ChannelTexture>(device, color_width_, color_height_);
-    u_texture_ = std::make_unique<kh::ChannelTexture>(device, color_width_ / 2, color_height_ / 2);
-    v_texture_ = std::make_unique<kh::ChannelTexture>(device, color_width_ / 2, color_height_ / 2);
-    depth_texture_ = std::make_unique<kh::DepthTexture>(device, depth_width_, depth_height_);
+    y_texture_ = std::make_unique<kh::ChannelTexture>(device, width_, height_);
+    u_texture_ = std::make_unique<kh::ChannelTexture>(device, width_ / 2, height_ / 2);
+    v_texture_ = std::make_unique<kh::ChannelTexture>(device, width_ / 2, height_ / 2);
+    depth_texture_ = std::make_unique<kh::DepthTexture>(device, width_, height_);
 
     // Set the texture view variables, so Unity can create Unity textures that are connected to the textures through the texture views.
     y_texture_view_ = y_texture_->getTextureView(device);
@@ -80,52 +78,32 @@ extern "C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_
     return depth_texture_view_;
 }
 
-extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_color_width()
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_width()
 {
-    return color_width_;
+    return width_;
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_color_width(int color_width)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_width(int width)
 {
-    color_width_ = color_width;
+    width_ = width;
 }
 
-extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_color_height()
+extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_height()
 {
-    return color_height_;
+    return height_;
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_color_height(int color_height)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_height(int height)
 {
-    color_height_ = color_height;
-}
-
-extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_depth_width()
-{
-    return depth_width_;
-}
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_width(int depth_width)
-{
-    depth_width_ = depth_width;
-}
-
-extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_get_depth_height()
-{
-    return depth_height_;
-}
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_height(int depth_height)
-{
-    depth_height_ = depth_height;
+    height_ = height;
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_init_depth_encoder(int depth_compression_type)
 {
     if (depth_compression_type == 0) {
-        depth_decoder_ = std::make_unique<kh::RvlDepthDecoder>(depth_width_ * depth_height_);
+        depth_decoder_ = std::make_unique<kh::RvlDepthDecoder>(width_ * height_);
     } else if (depth_compression_type == 1) {
-        depth_decoder_ = std::make_unique<kh::TrvlDepthDecoder>(depth_width_ * depth_height_);
+        depth_decoder_ = std::make_unique<kh::TrvlDepthDecoder>(width_ * height_);
     } else if (depth_compression_type == 2) {
         depth_decoder_ = std::make_unique<kh::Vp8DepthDecoder>();
     }
@@ -147,11 +125,11 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_decode_
 // Updating pixels of the textures. Should be called in a render thread.
 void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
-    y_texture_->updatePixels(device, device_context, color_width_, color_height_, ffmpeg_frame_, 0);
-    u_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 1);
-    v_texture_->updatePixels(device, device_context, color_width_ / 2, color_height_ / 2, ffmpeg_frame_, 2);
+    y_texture_->updatePixels(device, device_context, width_, height_, ffmpeg_frame_, 0);
+    u_texture_->updatePixels(device, device_context, width_ / 2, height_ / 2, ffmpeg_frame_, 1);
+    v_texture_->updatePixels(device, device_context, width_ / 2, height_ / 2, ffmpeg_frame_, 2);
     
     //auto depth_pixels = depth_decoder_->decode(depth_encoder_frame_.data(), depth_encoder_frame_.size());
     //depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
-    depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels_.data()));
+    depth_texture_->updatePixels(device, device_context, width_, height_, reinterpret_cast<uint16_t*>(depth_pixels_.data()));
 }

@@ -50,39 +50,6 @@ public class AzureKinectScreen : MonoBehaviour
             print($"translation[{i}]: {calibration.DepthToColorExtrinsics.Translation[i]}");
 
         meshFilter.mesh = CreateMesh(calibration);
-
-        var extrinsics = calibration.DepthToColorExtrinsics;
-        Matrix4x4 depthToColorMatrix;
-        {
-            var r = extrinsics.Rotation;
-            var t = extrinsics.Translation;
-            var column0 = new Vector4(r[0], r[3], r[6], 0.0f);
-            var column1 = new Vector4(r[1], r[4], r[7], 0.0f);
-            var column2 = new Vector4(r[2], r[5], r[8], 0.0f);
-            // Scale mm to m.
-            var column3 = new Vector4(t[0] * 0.001f, t[1] * 0.001f, t[2] * 0.001f, 1.0f);
-
-            depthToColorMatrix = new Matrix4x4(column0, column1, column2, column3);
-        }
-        meshRenderer.sharedMaterial.SetMatrix("_DepthToColor", depthToColorMatrix);
-
-        var colorIntrinsics = calibration.ColorCamera.Intrinsics;
-        meshRenderer.sharedMaterial.SetFloat("_Width", calibration.ColorCamera.Width);
-        meshRenderer.sharedMaterial.SetFloat("_Height", calibration.ColorCamera.Height);
-        meshRenderer.sharedMaterial.SetFloat("_Cx", colorIntrinsics.Cx);
-        meshRenderer.sharedMaterial.SetFloat("_Cy", colorIntrinsics.Cy);
-        meshRenderer.sharedMaterial.SetFloat("_Fx", colorIntrinsics.Fx);
-        meshRenderer.sharedMaterial.SetFloat("_Fy", colorIntrinsics.Fy);
-        meshRenderer.sharedMaterial.SetFloat("_K1", colorIntrinsics.K1);
-        meshRenderer.sharedMaterial.SetFloat("_K2", colorIntrinsics.K2);
-        meshRenderer.sharedMaterial.SetFloat("_K3", colorIntrinsics.K3);
-        meshRenderer.sharedMaterial.SetFloat("_K4", colorIntrinsics.K4);
-        meshRenderer.sharedMaterial.SetFloat("_K5", colorIntrinsics.K5);
-        meshRenderer.sharedMaterial.SetFloat("_K6", colorIntrinsics.K6);
-        meshRenderer.sharedMaterial.SetFloat("_Codx", colorIntrinsics.Codx);
-        meshRenderer.sharedMaterial.SetFloat("_Cody", colorIntrinsics.Cody);
-        meshRenderer.sharedMaterial.SetFloat("_P2", colorIntrinsics.P2);
-        meshRenderer.sharedMaterial.SetFloat("_P1", colorIntrinsics.P1);
     }
 
     // Updates _VertexOffsetXVector and _VertexOffsetYVector so the rendered quads can face the headsetCamera.
@@ -159,7 +126,6 @@ public class AzureKinectScreen : MonoBehaviour
         var quadPositions = new Vector3[quadWidth * quadHeight];
         var quadUv = new Vector2[quadWidth * quadHeight];
         var quadPositionSizes = new Vector2[quadWidth * quadHeight];
-        var quadUvSizes = new Vector2[quadWidth * quadHeight];
 
         for (int ii = 0; ii < quadWidth; ++ii)
         {
@@ -170,7 +136,6 @@ public class AzureKinectScreen : MonoBehaviour
                 quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
                 quadUv[ii + jj * quadWidth] = uv[i + j * width];
                 quadPositionSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
-                quadUvSizes[ii + jj * quadWidth] = (uv[(i + 1) + (j + 1) * width] - uv[(i - 1) + (j - 1) * width]) * 0.5f;
             }
         }
 
@@ -189,7 +154,6 @@ public class AzureKinectScreen : MonoBehaviour
             vertices = quadPositions,
             uv = quadUv,
             uv2 = quadPositionSizes,
-            uv3 = quadUvSizes,
             bounds = bounds,
         };
         mesh.SetIndices(triangles, MeshTopology.Points, 0);

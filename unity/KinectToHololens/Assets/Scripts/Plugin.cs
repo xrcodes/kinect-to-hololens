@@ -34,28 +34,16 @@ public static class Plugin
     public static extern IntPtr texture_group_get_depth_texture_view();
 
     [DllImport(DllName)]
-    public static extern int texture_group_get_color_width();
+    public static extern int texture_group_get_width();
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_color_width(int color_width);
+    public static extern void texture_group_set_width(int width);
 
     [DllImport(DllName)]
-    public static extern int texture_group_get_color_height();
+    public static extern int texture_group_get_height();
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_color_height(int color_height);
-
-    [DllImport(DllName)]
-    public static extern int texture_group_get_depth_width();
-
-    [DllImport(DllName)]
-    public static extern void texture_group_set_depth_width(int depth_width);
-
-    [DllImport(DllName)]
-    public static extern int texture_group_get_depth_height();
-
-    [DllImport(DllName)]
-    public static extern void texture_group_set_depth_height(int depth_height);
+    public static extern void texture_group_set_height(int height);
 
     [DllImport(DllName)]
     public static extern void texture_group_init_depth_encoder(int depth_compression_type);

@@ -63,8 +63,8 @@ public class ReceiverDemoManager : MonoBehaviour
             if (Plugin.texture_group_get_y_texture_view().ToInt64() != 0)
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
-                textureGroup = new TextureGroup(Plugin.texture_group_get_depth_width(),
-                                                Plugin.texture_group_get_depth_height());
+                textureGroup = new TextureGroup(Plugin.texture_group_get_width(),
+                                                Plugin.texture_group_get_height());
 
                 yQuad.material.mainTexture = textureGroup.YTexture;
                 uQuad.material.mainTexture = textureGroup.UTexture;
@@ -104,10 +104,8 @@ public class ReceiverDemoManager : MonoBehaviour
             DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(message,
                 out int depthCompressionType, out AzureKinectCalibration calibration);
 
-            Plugin.texture_group_set_color_width(calibration.DepthCamera.Width);
-            Plugin.texture_group_set_color_height(calibration.DepthCamera.Height);
-            Plugin.texture_group_set_depth_width(calibration.DepthCamera.Width);
-            Plugin.texture_group_set_depth_height(calibration.DepthCamera.Height);
+            Plugin.texture_group_set_width(calibration.DepthCamera.Width);
+            Plugin.texture_group_set_height(calibration.DepthCamera.Height);
             PluginHelper.InitTextureGroup();
 
             Plugin.texture_group_init_depth_encoder(depthCompressionType);
