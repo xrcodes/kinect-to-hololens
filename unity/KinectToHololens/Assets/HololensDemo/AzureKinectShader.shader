@@ -140,7 +140,8 @@
                 fixed2 color_uv = fixed2((xp_d_cx * _Fx + _Cx) / (_Width - 1), (yp_d_cy * _Fy + _Cy) / (_Height - 1));
 
                 o.vertex = fixed4(depth_vertex, 1.0);
-                o.uv = color_uv;
+                //o.uv = color_uv;
+                o.uv = v.uv;
                 o.vertex_offset = v.uv2 * depth;
                 o.uv_offset = v.uv3;
 
