@@ -15,15 +15,17 @@ void display_frames(DepthCompressionType type)
     // Obtain device to access Kinect frames.
     auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
 
-    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
+    auto configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
     configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
     
     auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
-    Vp8Encoder vp8_encoder(calibration.color_camera_calibration.resolution_width,
-                           calibration.color_camera_calibration.resolution_height,
+    k4a::transformation transformation(calibration);
+
+    Vp8Encoder vp8_encoder(calibration.depth_camera_calibration.resolution_width,
+                           calibration.depth_camera_calibration.resolution_height,
                            TARGET_BITRATE);
     Vp8Decoder vp8_decoder;
 
@@ -66,12 +68,15 @@ void display_frames(DepthCompressionType type)
             continue;
         }
 
+        auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
+
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
-        auto yuv_image = createYuvImageFromAzureKinectYuy2Buffer(color_image.get_buffer(),
-                                                                 color_image.get_width_pixels(),
-                                                                 color_image.get_height_pixels(),
-                                                                 color_image.get_stride_bytes());
+        auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
+                                                                 transformed_color_image.get_width_pixels(),
+                                                                 transformed_color_image.get_height_pixels(),
+                                                                 transformed_color_image.get_stride_bytes());
+
         auto vp8_frame = vp8_encoder.encode(yuv_image);
         auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
