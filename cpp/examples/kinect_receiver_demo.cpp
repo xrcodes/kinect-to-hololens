@@ -25,79 +25,90 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
     int depth_height;
     std::unique_ptr<DepthDecoder> depth_decoder;
     for (;;) {
-        // Try receiving a message from the Receiver.
-        auto receive_result = receiver.receive();
-        // Keep trying again if there is none.
-        if (!receive_result)
-            continue;
+        std::optional<int> last_frame_id;
+        std::optional<kh::FFmpegFrame> ffmpeg_frame;
+        std::vector<short> depth_image;
 
-        int cursor = 0;
-        auto message_type = (*receive_result)[0];
-        cursor += 1;
+        for (;;) {
+            // Try receiving a message from the Receiver.
+            auto receive_result = receiver.receive();
+            // Keep trying again if there is none.
+            if (!receive_result)
+                break;
 
-        // There can be two types of messages: a KinectIntrinsics and a Kinect frame.
-        if (message_type == 0) {
-            std::cout << "Received a message for initialization." << std::endl;
+            int cursor = 0;
+            auto message_type = (*receive_result)[0];
+            cursor += 1;
+            // There can be two types of messages: a KinectIntrinsics and a Kinect frame.
+            if (message_type == 0) {
+                std::cout << "Received a message for initialization." << std::endl;
 
-            // for color width
-            cursor += 4;
-            // for color height
-            cursor += 4;
+                // for color width
+                cursor += 4;
+                // for color height
+                cursor += 4;
 
-            memcpy(&depth_width, receive_result->data() + cursor, 4);
-            cursor += 4;
+                memcpy(&depth_width, receive_result->data() + cursor, 4);
+                cursor += 4;
 
-            memcpy(&depth_height, receive_result->data() + cursor, 4);
-            cursor += 4;
+                memcpy(&depth_height, receive_result->data() + cursor, 4);
+                cursor += 4;
 
-            int depth_compression_type;
-            memcpy(&depth_compression_type, receive_result->data() + cursor, 4);
+                int depth_compression_type;
+                memcpy(&depth_compression_type, receive_result->data() + cursor, 4);
 
-            DepthCompressionType type = static_cast<DepthCompressionType>(depth_compression_type);
-            if (type == DepthCompressionType::Rvl) {
-                depth_decoder = std::make_unique<RvlDepthDecoder>(depth_width * depth_height);
-            } else if (type == DepthCompressionType::Trvl) {
-                depth_decoder = std::make_unique<TrvlDepthDecoder>(depth_width * depth_height);
-            } else if (type == DepthCompressionType::Vp8) {
-                depth_decoder = std::make_unique<Vp8DepthDecoder>();
+                DepthCompressionType type = static_cast<DepthCompressionType>(depth_compression_type);
+                if (type == DepthCompressionType::Rvl) {
+                    depth_decoder = std::make_unique<RvlDepthDecoder>(depth_width * depth_height);
+                } else if (type == DepthCompressionType::Trvl) {
+                    depth_decoder = std::make_unique<TrvlDepthDecoder>(depth_width * depth_height);
+                } else if (type == DepthCompressionType::Vp8) {
+                    depth_decoder = std::make_unique<Vp8DepthDecoder>();
+                }
+
+            } else if (message_type == 1) {
+                // Parse the ID of the frame and send a feedback meesage to the sender
+                // to indicate the frame was succesfully received.
+                // This is required to minimize the end-to-end latency from the Kinect of the Sender
+                // and the display of the Receiver.
+                int frame_id;
+                memcpy(&frame_id, receive_result->data() + cursor, 4);
+                cursor += 4;
+
+                if (frame_id % 100 == 0)
+                    std::cout << "Received frame " << frame_id << "." << std::endl;
+                last_frame_id = frame_id;
+
+                // Parsing the bytes of the message into the VP8 and RVL frames.
+                int vp8_frame_size;
+                memcpy(&vp8_frame_size, receive_result->data() + cursor, 4);
+                cursor += 4;
+
+                std::vector<uint8_t> vp8_frame(vp8_frame_size);
+                memcpy(vp8_frame.data(), receive_result->data() + cursor, vp8_frame_size);
+                cursor += vp8_frame_size;
+
+                int depth_encoder_frame_size;
+                memcpy(&depth_encoder_frame_size, receive_result->data() + cursor, 4);
+                cursor += 4;
+
+                std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size);
+                memcpy(depth_encoder_frame.data(), receive_result->data() + cursor, depth_encoder_frame_size);
+                cursor += depth_encoder_frame_size;
+
+                // Decoding a Vp8Frame into color pixels.
+                ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
+
+                // Decompressing a RVL frame into depth pixels.
+                depth_image = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
             }
+        }
+        
+        // If there was a frame meesage
+        if (last_frame_id) {
+            receiver.send(*last_frame_id);
 
-        } else if (message_type == 1) {
-            // Parse the ID of the frame and send a feedback meesage to the sender
-            // to indicate the frame was succesfully received.
-            // This is required to minimize the end-to-end latency from the Kinect of the Sender
-            // and the display of the Receiver.
-            int frame_id;
-            memcpy(&frame_id, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            if (frame_id % 100 == 0)
-                std::cout << "Received frame " << frame_id << "." << std::endl;
-            receiver.send(frame_id);
-
-            // Parsing the bytes of the message into the VP8 and RVL frames.
-            int vp8_frame_size;
-            memcpy(&vp8_frame_size, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            std::vector<uint8_t> vp8_frame(vp8_frame_size);
-            memcpy(vp8_frame.data(), receive_result->data() + cursor, vp8_frame_size);
-            cursor += vp8_frame_size;
-
-            int depth_encoder_frame_size;
-            memcpy(&depth_encoder_frame_size, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size);
-            memcpy(depth_encoder_frame.data(), receive_result->data() + cursor, depth_encoder_frame_size);
-            cursor += depth_encoder_frame_size;
-
-            // Decoding a Vp8Frame into color pixels.
-            auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
-            auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
-
-            // Decompressing a RVL frame into depth pixels.
-            auto depth_image = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
+            auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
             auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);
 
             // Rendering the depth pixels.

@@ -1,5 +1,7 @@
 #include "kh_receiver.h"
 
+#include <iostream>
+
 namespace kh
 {
 // Creates a socket with io_context.
@@ -18,6 +20,8 @@ bool Receiver::connect(std::string ip_address, int port)
 
     if (error && error != asio::error::would_block)
         return false;
+
+    socket_.non_blocking(true);
 
     return socket_.is_open();
 }

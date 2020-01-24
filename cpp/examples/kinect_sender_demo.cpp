@@ -125,7 +125,8 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
-        std::cout << "diff: " << (frame_id - receiver_frame_id) << "     \r";
+        // A temporary log. Should be deleted later.
+        std::cout << "diff: " << (frame_id - receiver_frame_id) << std::endl;
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
