@@ -64,8 +64,8 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     device.start_cameras(&configuration);
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
-    // const int MAXIMUM_FRAME_ID_DIFF = 2;
-    const int MAXIMUM_FRAME_ID_DIFF = 10;
+    const int MAXIMUM_FRAME_ID_DIFF = 3;
+    // const int MAXIMUM_FRAME_ID_DIFF = 10;
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.

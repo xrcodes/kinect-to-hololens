@@ -108,7 +108,8 @@ public class HololensDemoManager : MonoBehaviour
         if (receiver == null)
             return;
 
-        bool updatedTextureGroup = false;
+        //bool updatedTextureGroup = false;
+        int? lastFrameId = null;
 
         while (true)
         {
@@ -120,7 +121,7 @@ public class HololensDemoManager : MonoBehaviour
             }
             catch (Exception e)
             {
-                Debug.Log(e.Message);
+                Debug.LogError(e.Message);
                 receiver = null;
                 return;
             }
@@ -152,7 +153,8 @@ public class HololensDemoManager : MonoBehaviour
                 cursor += 4;
 
                 // Notice the Sender that the frame was received through the Receiver.
-                receiver.Send(frameId);
+                // receiver.Send(frameId);
+                lastFrameId = frameId;
 
                 int vp8FrameSize = BitConverter.ToInt32(message, cursor);
                 cursor += 4;
@@ -179,8 +181,6 @@ public class HololensDemoManager : MonoBehaviour
                 Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
                 Marshal.FreeHGlobal(depthEncoderFrameBytes);
 
-                updatedTextureGroup = true;
-
                 if (frameId % 100 == 0)
                 {
                     string logString = $"Received frame {frameId} (vp8FrameSize: {vp8FrameSize}, rvlFrameSize: {depthEncoderFrameSize})";
@@ -190,9 +190,16 @@ public class HololensDemoManager : MonoBehaviour
             }
         }
 
-        // Invokes a function to be called in a render thread.
-        if (textureGroup != null && updatedTextureGroup)
-            PluginHelper.UpdateTextureGroup();
+        // If a frame message was received.
+        if (lastFrameId.HasValue)
+        {
+            receiver.Send(lastFrameId.Value);
+            // Invokes a function to be called in a render thread.
+            if (textureGroup != null)
+            {
+                PluginHelper.UpdateTextureGroup();
+            }
+        }
     }
 
     private void OnTapped(TappedEventArgs args)
