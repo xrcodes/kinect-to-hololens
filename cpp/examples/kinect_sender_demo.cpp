@@ -64,7 +64,8 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     device.start_cameras(&configuration);
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
-    const int MAXIMUM_FRAME_ID_DIFF = 2;
+    // const int MAXIMUM_FRAME_ID_DIFF = 2;
+    const int MAXIMUM_FRAME_ID_DIFF = 10;
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
@@ -124,13 +125,18 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
+        std::cout << "diff: " << (frame_id - receiver_frame_id) << "     \r";
+
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
             auto end = std::chrono::system_clock::now();
             std::chrono::duration<double> diff = end - start;
-            std::cout << "Sending frame " << frame_id << ", "
-                      << "FPS: " << frame_count / diff.count() << ", "
-                      << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps.\r"; // 131072 = 1024 * 1024 / 8
+            std::stringstream ss;
+            ss << "Summry for frame " << frame_id << ", "
+                << "FPS: " << frame_count / diff.count() << ", "
+                << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps.     "; // 131072 = 1024 * 1024 / 8
+            // White spaces are added at the end to make sure to clean up the previous line.
+            std::cout << ss.str() << "       \r";
             start = end;
             frame_count = 0;
             frame_size = 0;

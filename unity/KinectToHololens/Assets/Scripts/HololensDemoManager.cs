@@ -72,9 +72,7 @@ public class HololensDemoManager : MonoBehaviour
 
         statusText.text = "Waiting for user input.";
 
-        print($"awake y texture 1: {Plugin.texture_group_get_y_texture_view().ToInt64()}");
         Plugin.texture_group_reset();
-        print($"awake y texture 2: {Plugin.texture_group_get_y_texture_view().ToInt64()}");
     }
 
     void Update()

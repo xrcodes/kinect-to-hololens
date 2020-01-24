@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
@@ -11,44 +10,6 @@ public class AzureKinectScreen : MonoBehaviour
 
     public void Setup(AzureKinectCalibration calibration)
     {
-        print("calibration.ColorCamera.MetricRadius: " + calibration.ColorCamera.MetricRadius);
-        print("calibration.ColorCamera.Intrinsics.Cx: " + calibration.ColorCamera.Intrinsics.Cx);
-        print("calibration.ColorCamera.Intrinsics.Cy: " + calibration.ColorCamera.Intrinsics.Cy);
-        print("calibration.ColorCamera.Intrinsics.Fx: " + calibration.ColorCamera.Intrinsics.Fx);
-        print("calibration.ColorCamera.Intrinsics.Fy: " + calibration.ColorCamera.Intrinsics.Fy);
-        print("calibration.ColorCamera.Intrinsics.K1: " + calibration.ColorCamera.Intrinsics.K1);
-        print("calibration.ColorCamera.Intrinsics.K2: " + calibration.ColorCamera.Intrinsics.K2);
-        print("calibration.ColorCamera.Intrinsics.K3: " + calibration.ColorCamera.Intrinsics.K3);
-        print("calibration.ColorCamera.Intrinsics.K4: " + calibration.ColorCamera.Intrinsics.K4);
-        print("calibration.ColorCamera.Intrinsics.K5: " + calibration.ColorCamera.Intrinsics.K5);
-        print("calibration.ColorCamera.Intrinsics.K6: " + calibration.ColorCamera.Intrinsics.K6);
-        print("calibration.ColorCamera.Intrinsics.Codx: " + calibration.ColorCamera.Intrinsics.Codx);
-        print("calibration.ColorCamera.Intrinsics.Cody: " + calibration.ColorCamera.Intrinsics.Cody);
-        print("calibration.ColorCamera.Intrinsics.P2: " + calibration.ColorCamera.Intrinsics.P2);
-        print("calibration.ColorCamera.Intrinsics.P1: " + calibration.ColorCamera.Intrinsics.P1);
-
-        print("calibration.DepthCamera.MetricRadius: " + calibration.DepthCamera.MetricRadius);
-        print("calibration.DepthCamera.Intrinsics.Cx: " + calibration.DepthCamera.Intrinsics.Cx);
-        print("calibration.DepthCamera.Intrinsics.Cy: " + calibration.DepthCamera.Intrinsics.Cy);
-        print("calibration.DepthCamera.Intrinsics.Fx: " + calibration.DepthCamera.Intrinsics.Fx);
-        print("calibration.DepthCamera.Intrinsics.Fy: " + calibration.DepthCamera.Intrinsics.Fy);
-        print("calibration.DepthCamera.Intrinsics.K1: " + calibration.DepthCamera.Intrinsics.K1);
-        print("calibration.DepthCamera.Intrinsics.K2: " + calibration.DepthCamera.Intrinsics.K2);
-        print("calibration.DepthCamera.Intrinsics.K3: " + calibration.DepthCamera.Intrinsics.K3);
-        print("calibration.DepthCamera.Intrinsics.K4: " + calibration.DepthCamera.Intrinsics.K4);
-        print("calibration.DepthCamera.Intrinsics.K5: " + calibration.DepthCamera.Intrinsics.K5);
-        print("calibration.DepthCamera.Intrinsics.K6: " + calibration.DepthCamera.Intrinsics.K6);
-        print("calibration.DepthCamera.Intrinsics.Codx: " + calibration.DepthCamera.Intrinsics.Codx);
-        print("calibration.DepthCamera.Intrinsics.Cody: " + calibration.DepthCamera.Intrinsics.Cody);
-        print("calibration.DepthCamera.Intrinsics.P2: " + calibration.DepthCamera.Intrinsics.P2);
-        print("calibration.DepthCamera.Intrinsics.P1: " + calibration.DepthCamera.Intrinsics.P1);
-
-        for (int i = 0; i < 9; ++i)
-            print($"rotation[{i}]: {calibration.DepthToColorExtrinsics.Rotation[i]}");
-
-        for (int i = 0; i < 3; ++i)
-            print($"translation[{i}]: {calibration.DepthToColorExtrinsics.Translation[i]}");
-
         meshFilter.mesh = CreateMesh(calibration);
     }
 
