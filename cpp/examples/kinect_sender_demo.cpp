@@ -6,6 +6,16 @@
 
 namespace kh
 {
+int pow_of_two(int exp) {
+    assert(exp >= 0);
+
+    int res = 1;
+    for (int i = 0; i < exp; ++i) {
+        res *= 2;
+    }
+    return res;
+}
+
 // Sends Azure Kinect frames through a TCP port.
 void _send_azure_kinect_frames(int port, DepthCompressionType type)
 {
@@ -108,6 +118,24 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
             continue;
         }
 
+        int frame_id_diff = frame_id - receiver_frame_id;
+
+        auto time_stamp = color_image.get_device_timestamp();
+        auto time_diff = time_stamp - latest_time_stamp;
+        // Rounding assuming that the framerate is 30 Hz.
+        int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
+
+        int lhs = device_frame_diff;
+        int rhs = pow_of_two(frame_id_diff - 1) / 2;
+
+        // Skip frame if the receiver is struggling.
+        // if frame_id_diff == 1 or 2 -> don't skip
+        // if frame_id_diff == n -> skip 2 ^ (n - 3) frames.
+        // Do not test for the first frame.
+        if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+            continue;
+        }
+
         auto depth_image = capture.get_depth_image();
         if (!depth_image) {
             std::cout << "no depth_image" << std::endl;
@@ -132,7 +160,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
         auto frame_end = std::chrono::steady_clock::now();
 
         // A temporary log. Should be deleted later.
-        int frame_id_diff = frame_id - receiver_frame_id;
         int byte_size = vp8_frame.size() + depth_encoder_frame.size();
         auto frame_time_diff = frame_end - frame_start;
         auto capture_time_diff = compression_start - capture_start;
@@ -140,8 +167,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
         auto compression_time = frame_end - compression_start;
         auto color_compression_time = depth_compression_start - compression_start;
         auto depth_compression_time = frame_end - depth_compression_start;
-        auto time_stamp = color_image.get_device_timestamp();
-        auto time_diff = time_stamp - latest_time_stamp;
 
         std::cout << "frame_id: " << frame_id << ", "
                   << "frame_id_diff: " << frame_id_diff << ", "
