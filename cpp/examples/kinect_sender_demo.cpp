@@ -19,7 +19,7 @@ int pow_of_two(int exp) {
 // Sends Azure Kinect frames through a TCP port.
 void _send_azure_kinect_frames(int port, DepthCompressionType type)
 {
-    const int TARGET_BITRATE = 4000;
+    const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
     const auto TIMEOUT = std::chrono::milliseconds(1000);
