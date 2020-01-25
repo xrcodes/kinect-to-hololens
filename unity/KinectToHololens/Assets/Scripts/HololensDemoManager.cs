@@ -2,6 +2,7 @@
 using System.Net;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.XR.WSA.Input;
 
 // The main script for the HololensDemo scene.
@@ -163,12 +164,14 @@ public class HololensDemoManager : MonoBehaviour
                 // malloc, memcpy, and free of C.
                 // This is required since vp8FrameBytes gets sent to a Vp8Decoder
                 // inside the native plugin.
+                Profiler.BeginSample("Color Decompression");
                 IntPtr vp8FrameBytes = Marshal.AllocHGlobal(vp8FrameSize);
                 Marshal.Copy(message, cursor, vp8FrameBytes, vp8FrameSize);
                 var ffmpegFrame = decoder.Decode(vp8FrameBytes, vp8FrameSize);
                 Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
                 Marshal.FreeHGlobal(vp8FrameBytes);
                 cursor += vp8FrameSize;
+                Profiler.EndSample();
 
                 int depthEncoderFrameSize = BitConverter.ToInt32(message, cursor);
                 cursor += 4;
@@ -176,10 +179,12 @@ public class HololensDemoManager : MonoBehaviour
                 // Marshal.AllocHGlobal, Marshal.Copy, and Marshal.FreeHGlobal are like
                 // malloc, memcpy, and free of C.
                 // This is required since rvlFrameBytes gets sent to the native plugin.
+                Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
                 Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
                 Marshal.FreeHGlobal(depthEncoderFrameBytes);
+                Profiler.EndSample();
 
                 if (frameId % 100 == 0)
                 {
@@ -197,7 +202,9 @@ public class HololensDemoManager : MonoBehaviour
             // Invokes a function to be called in a render thread.
             if (textureGroup != null)
             {
+                Profiler.BeginSample("Update TextureGroup");
                 PluginHelper.UpdateTextureGroup();
+                Profiler.EndSample();
             }
         }
     }

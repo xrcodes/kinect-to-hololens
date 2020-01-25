@@ -1,3 +1,4 @@
+#include <chrono>
 #include "kh_core.h"
 #include "kh_sender.h"
 #include "kh_depth_compression_helper.h"
@@ -6,15 +7,14 @@
 namespace kh
 {
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_depth)
+void _send_azure_kinect_frames(int port, DepthCompressionType type)
 {
-    const int TARGET_BITRATE = 2000;
+    const int TARGET_BITRATE = 4000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
     const auto TIMEOUT = std::chrono::milliseconds(1000);
 
     std::cout << "DepthCompressionType: " << static_cast<int>(type) << std::endl;
-    std::cout << "binned_depth: " << binned_depth << std::endl;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
@@ -25,9 +25,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
     configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
-
-    if(binned_depth)
-        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
 
     auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
     k4a::transformation transformation(calibration);
@@ -64,7 +61,7 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     device.start_cameras(&configuration);
 
     // The amount of frames this sender will send before receiveing a feedback from a receiver.
-    const int MAXIMUM_FRAME_ID_DIFF = 3;
+    //const int MAXIMUM_FRAME_ID_DIFF = 3;
     // const int MAXIMUM_FRAME_ID_DIFF = 10;
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
@@ -72,10 +69,13 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
     int receiver_frame_id = 0;
 
     // Variables for profiling the sender.
-    auto start = std::chrono::system_clock::now();
+    auto summary_start = std::chrono::system_clock::now();
     int frame_count = 0;
+    std::chrono::microseconds latest_time_stamp;
+
     size_t frame_size = 0;
     for (;;) {
+        auto frame_start = std::chrono::steady_clock::now();
         // Try receiving a frame ID from the receiver and update receiver_frame_id if possible.
         auto receive_result = sender.receive();
         if (receive_result) {
@@ -92,9 +92,10 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
 
         // If more than MAXIMUM_FRAME_ID_DIFF frames are sent to the receiver without receiver_frame_id getting updated,
         // stop sending more.
-        if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
-            continue;
+        //if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
+        //    continue;
 
+        auto capture_start = std::chrono::steady_clock::now();
         k4a::capture capture;
         if (!device.get_capture(&capture, TIMEOUT)) {
             std::cout << "get_capture() timed out" << std::endl;
@@ -113,8 +114,10 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
             continue;
         }
 
+        auto transformation_start = std::chrono::steady_clock::now();
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
+        auto compression_start = std::chrono::steady_clock::now();
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
                                                                  transformed_color_image.get_width_pixels(),
@@ -122,23 +125,51 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
                                                                  transformed_color_image.get_stride_bytes());
         auto vp8_frame = vp8_encoder.encode(yuv_image);
 
+        auto depth_compression_start = std::chrono::steady_clock::now();
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
+        auto frame_end = std::chrono::steady_clock::now();
+
         // A temporary log. Should be deleted later.
-        std::cout << "diff: " << (frame_id - receiver_frame_id) << std::endl;
+        int frame_id_diff = frame_id - receiver_frame_id;
+        int byte_size = vp8_frame.size() + depth_encoder_frame.size();
+        auto frame_time_diff = frame_end - frame_start;
+        auto capture_time_diff = compression_start - capture_start;
+        auto transformation_time = compression_start - transformation_start;
+        auto compression_time = frame_end - compression_start;
+        auto color_compression_time = depth_compression_start - compression_start;
+        auto depth_compression_time = frame_end - depth_compression_start;
+        auto time_stamp = color_image.get_device_timestamp();
+        auto time_diff = time_stamp - latest_time_stamp;
+
+        std::cout << "frame_id: " << frame_id << ", "
+                  << "frame_id_diff: " << frame_id_diff << ", "
+                  << "byte_size: " << (byte_size / 1024) << " KB, "
+                  << "frame_time_diff: " << (frame_time_diff.count() / 1000000) << " ms, "
+                  << "capture_time_diff: " << (capture_time_diff.count() / 1000000) << " ms, "
+                  << "transformation_time: " << (transformation_time.count() / 1000000) << " ms, "
+                  << "compression_time: " << (compression_time.count() / 1000000) << " ms, "
+                  << "color_compression_time: " << (color_compression_time.count() / 1000000) << " ms, "
+                  << "depth_compression_time: " << (depth_compression_time.count() / 1000000) << " ms, "
+                  << "time_diff: " << (time_diff.count() / 1000) << " ms, "
+                  //<< "device_time_stamp: " << (time_stamp.count() / 1000) << " ms, "
+                  << std::endl;
+
+        latest_time_stamp = time_stamp;
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
-            auto end = std::chrono::system_clock::now();
-            std::chrono::duration<double> diff = end - start;
+            auto summary_end = std::chrono::system_clock::now();
+            std::chrono::duration<double> diff = summary_end - summary_start;
             std::stringstream ss;
-            ss << "Summry for frame " << frame_id << ", "
+            ss << "Summary for frame " << frame_id << ", "
                 << "FPS: " << frame_count / diff.count() << ", "
-                << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps.     "; // 131072 = 1024 * 1024 / 8
+                << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
             // White spaces are added at the end to make sure to clean up the previous line.
-            std::cout << ss.str() << "       \r";
-            start = end;
+            //std::cout << ss.str() << "       \r";
+            std::cout << ss.str() << std::endl;
+            summary_start = summary_end;
             frame_count = 0;
             frame_size = 0;
         }
@@ -153,7 +184,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type, bool binned_
 
         // Updating variables for profiling.
         ++frame_count;
-        //frame_size += vp8_frame.size() + rvl_frame.size();
         frame_size += vp8_frame.size() + depth_encoder_frame.size();
     }
 
@@ -170,7 +200,7 @@ void send_frames()
         // The default port (the port when nothing is entered) is 7777.
         int port = line.empty() ? 7777 : std::stoi(line);
 
-        std::cout << "Enter depth compression type (1: RVL, 2: TRVL, 3: VP8, 4: Binned TRVL): ";
+        std::cout << "Enter depth compression type (1: RVL, 2: TRVL, 3: VP8): ";
         std::getline(std::cin, line);
 
         // The default type is TRVL.
@@ -182,13 +212,10 @@ void send_frames()
             type = DepthCompressionType::Trvl;
         } else if (line == "3") {
             type = DepthCompressionType::Vp8;
-        } else if (line == "4") {
-            type = DepthCompressionType::Trvl;
-            binned_depth = true;
         }
 
         try {
-            _send_azure_kinect_frames(port, type, binned_depth);
+            _send_azure_kinect_frames(port, type);
         } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }
