@@ -170,14 +170,14 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
 
         std::cout << "frame_id: " << frame_id << ", "
                   << "frame_id_diff: " << frame_id_diff << ", "
-                  << "byte_size: " << (byte_size / 1024) << " KB, "
-                  << "frame_time_diff: " << (frame_time_diff.count() / 1000000) << " ms, "
-                  << "capture_time_diff: " << (capture_time_diff.count() / 1000000) << " ms, "
-                  << "transformation_time: " << (transformation_time.count() / 1000000) << " ms, "
-                  << "compression_time: " << (compression_time.count() / 1000000) << " ms, "
+                  //<< "byte_size: " << (byte_size / 1024) << " KB, "
+                  //<< "frame_time_diff: " << (frame_time_diff.count() / 1000000) << " ms, "
+                  //<< "capture_time_diff: " << (capture_time_diff.count() / 1000000) << " ms, "
+                  //<< "transformation_time: " << (transformation_time.count() / 1000000) << " ms, "
+                  //<< "compression_time: " << (compression_time.count() / 1000000) << " ms, "
                   << "color_compression_time: " << (color_compression_time.count() / 1000000) << " ms, "
                   << "depth_compression_time: " << (depth_compression_time.count() / 1000000) << " ms, "
-                  << "time_diff: " << (time_diff.count() / 1000) << " ms, "
+                  //<< "time_diff: " << (time_diff.count() / 1000) << " ms, "
                   //<< "device_time_stamp: " << (time_stamp.count() / 1000) << " ms, "
                   << std::endl;
 
