@@ -10,8 +10,8 @@ public class AzureKinectScreen : MonoBehaviour
 
     public void Setup(AzureKinectCalibration calibration)
     {
-        //meshFilter.mesh = CreateMesh(calibration);
-        meshFilter.mesh = CreateMesh2(calibration);
+        meshFilter.mesh = CreateMesh(calibration);
+        //meshFilter.mesh = CreateGeometryMesh(calibration);
     }
 
     // Updates _VertexOffsetXVector and _VertexOffsetYVector so the rendered quads can face the headsetCamera.
@@ -66,75 +66,6 @@ public class AzureKinectScreen : MonoBehaviour
 
         for (int i = 0; i < width; ++i)
         {
-            for(int j = 0; j < height; ++j)
-            {
-                float[] xy = new float[2];
-                int valid = 0;
-                if(AzureKinectIntrinsicTransformation.Unproject(depthCamera, new float[2] { i, j }, ref xy, ref valid))
-                {
-                    vertices[i + j * width] = new Vector3(xy[0], xy[1], 1.0f);
-                }
-                else
-                {
-                    vertices[i + j * width] = new Vector3(0.0f, 0.0f, 0.0f);
-                }
-                uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
-            }
-        }
-
-        // Converting the point cloud version of vertices and uv into a quad version one.
-        int quadWidth = width - 2;
-        int quadHeight = height - 2;
-        var quadPositions = new Vector3[quadWidth * quadHeight];
-        var quadUv = new Vector2[quadWidth * quadHeight];
-        var quadPositionSizes = new Vector2[quadWidth * quadHeight];
-
-        for (int ii = 0; ii < quadWidth; ++ii)
-        {
-            for (int jj = 0; jj < quadHeight - 2; ++jj)
-            {
-                int i = ii + 1;
-                int j = jj + 1;
-                quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
-                quadUv[ii + jj * quadWidth] = uv[i + j * width];
-                quadPositionSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
-            }
-        }
-
-        var triangles = new int[quadPositions.Length];
-        for (int i = 0; i < triangles.Length; ++i)
-            triangles[i] = i;
-        
-        // Without the bounds, Unity decides whether to render this mesh or not based on the vertices calculated here.
-        // This causes Unity not rendering the mesh transformed by the depth texture even when the transformed one
-        // belongs to the viewport of the camera.
-        var bounds = new Bounds(Vector3.zero, Vector3.one * 1000.0f);
-
-        var mesh = new Mesh()
-        {
-            indexFormat = IndexFormat.UInt32,
-            vertices = quadPositions,
-            uv = quadUv,
-            uv2 = quadPositionSizes,
-            bounds = bounds,
-        };
-        mesh.SetIndices(triangles, MeshTopology.Points, 0);
-
-        return mesh;
-    }
-
-    private static Mesh CreateMesh2(AzureKinectCalibration calibration)
-    {
-        int width = calibration.DepthCamera.Width;
-        int height = calibration.DepthCamera.Height;
-
-        var depthCamera = calibration.DepthCamera;
-
-        var vertices = new Vector3[width * height];
-        var uv = new Vector2[width * height];
-
-        for (int i = 0; i < width; ++i)
-        {
             for (int j = 0; j < height; ++j)
             {
                 float[] xy = new float[2];
@@ -150,25 +81,6 @@ public class AzureKinectScreen : MonoBehaviour
                 uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
             }
         }
-
-        // Converting the point cloud version of vertices and uv into a quad version one.
-        //int quadWidth = width - 2;
-        //int quadHeight = height - 2;
-        //var quadPositions = new Vector3[quadWidth * quadHeight];
-        //var quadUv = new Vector2[quadWidth * quadHeight];
-        //var quadPositionSizes = new Vector2[quadWidth * quadHeight];
-
-        //for (int ii = 0; ii < quadWidth; ++ii)
-        //{
-        //    for (int jj = 0; jj < quadHeight; ++jj)
-        //    {
-        //        int i = ii + 1;
-        //        int j = jj + 1;
-        //        quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
-        //        quadUv[ii + jj * quadWidth] = uv[i + j * width];
-        //        quadPositionSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
-        //    }
-        //}
 
         int quadWidth = width - 2;
         int quadHeight = height - 2;
@@ -218,6 +130,75 @@ public class AzureKinectScreen : MonoBehaviour
             bounds = bounds,
         };
         mesh.SetIndices(triangles, MeshTopology.Triangles, 0);
+
+        return mesh;
+    }
+
+    private static Mesh CreateGeometryMesh(AzureKinectCalibration calibration)
+    {
+        int width = calibration.DepthCamera.Width;
+        int height = calibration.DepthCamera.Height;
+
+        var depthCamera = calibration.DepthCamera;
+
+        var vertices = new Vector3[width * height];
+        var uv = new Vector2[width * height];
+
+        for (int i = 0; i < width; ++i)
+        {
+            for (int j = 0; j < height; ++j)
+            {
+                float[] xy = new float[2];
+                int valid = 0;
+                if (AzureKinectIntrinsicTransformation.Unproject(depthCamera, new float[2] { i, j }, ref xy, ref valid))
+                {
+                    vertices[i + j * width] = new Vector3(xy[0], xy[1], 1.0f);
+                }
+                else
+                {
+                    vertices[i + j * width] = new Vector3(0.0f, 0.0f, 0.0f);
+                }
+                uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
+            }
+        }
+
+        // Converting the point cloud version of vertices and uv into a quad version one.
+        int quadWidth = width - 2;
+        int quadHeight = height - 2;
+        var quadPositions = new Vector3[quadWidth * quadHeight];
+        var quadUv = new Vector2[quadWidth * quadHeight];
+        var quadPositionSizes = new Vector2[quadWidth * quadHeight];
+
+        for (int ii = 0; ii < quadWidth; ++ii)
+        {
+            for (int jj = 0; jj < quadHeight - 2; ++jj)
+            {
+                int i = ii + 1;
+                int j = jj + 1;
+                quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
+                quadUv[ii + jj * quadWidth] = uv[i + j * width];
+                quadPositionSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+            }
+        }
+
+        var triangles = new int[quadPositions.Length];
+        for (int i = 0; i < triangles.Length; ++i)
+            triangles[i] = i;
+
+        // Without the bounds, Unity decides whether to render this mesh or not based on the vertices calculated here.
+        // This causes Unity not rendering the mesh transformed by the depth texture even when the transformed one
+        // belongs to the viewport of the camera.
+        var bounds = new Bounds(Vector3.zero, Vector3.one * 1000.0f);
+
+        var mesh = new Mesh()
+        {
+            indexFormat = IndexFormat.UInt32,
+            vertices = quadPositions,
+            uv = quadUv,
+            uv2 = quadPositionSizes,
+            bounds = bounds,
+        };
+        mesh.SetIndices(triangles, MeshTopology.Points, 0);
 
         return mesh;
     }
