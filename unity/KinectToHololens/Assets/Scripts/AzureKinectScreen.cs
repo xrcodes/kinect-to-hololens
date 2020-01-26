@@ -11,6 +11,7 @@ public class AzureKinectScreen : MonoBehaviour
     public void Setup(AzureKinectCalibration calibration)
     {
         meshFilter.mesh = CreateMesh(calibration);
+        //meshFilter.mesh = CreateMesh2(calibration);
     }
 
     // Updates _VertexOffsetXVector and _VertexOffsetYVector so the rendered quads can face the headsetCamera.
@@ -118,6 +119,105 @@ public class AzureKinectScreen : MonoBehaviour
             bounds = bounds,
         };
         mesh.SetIndices(triangles, MeshTopology.Points, 0);
+
+        return mesh;
+    }
+
+    private static Mesh CreateMesh2(AzureKinectCalibration calibration)
+    {
+        int width = calibration.DepthCamera.Width;
+        int height = calibration.DepthCamera.Height;
+
+        var depthCamera = calibration.DepthCamera;
+
+        var vertices = new Vector3[width * height];
+        var uv = new Vector2[width * height];
+
+        for (int i = 0; i < width; ++i)
+        {
+            for (int j = 0; j < height; ++j)
+            {
+                float[] xy = new float[2];
+                int valid = 0;
+                if (AzureKinectIntrinsicTransformation.Unproject(depthCamera, new float[2] { i, j }, ref xy, ref valid))
+                {
+                    vertices[i + j * width] = new Vector3(xy[0], xy[1], 1.0f);
+                }
+                else
+                {
+                    vertices[i + j * width] = new Vector3(0.0f, 0.0f, 0.0f);
+                }
+                uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
+            }
+        }
+
+        // Converting the point cloud version of vertices and uv into a quad version one.
+        //int quadWidth = width - 2;
+        //int quadHeight = height - 2;
+        //var quadPositions = new Vector3[quadWidth * quadHeight];
+        //var quadUv = new Vector2[quadWidth * quadHeight];
+        //var quadPositionSizes = new Vector2[quadWidth * quadHeight];
+
+        //for (int ii = 0; ii < quadWidth; ++ii)
+        //{
+        //    for (int jj = 0; jj < quadHeight; ++jj)
+        //    {
+        //        int i = ii + 1;
+        //        int j = jj + 1;
+        //        quadPositions[ii + jj * quadWidth] = vertices[i + j * width];
+        //        quadUv[ii + jj * quadWidth] = uv[i + j * width];
+        //        quadPositionSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+        //    }
+        //}
+
+        int quadWidth = width - 2;
+        int quadHeight = height - 2;
+        var quadVertices = new Vector3[quadWidth * quadHeight * 4];
+        var quadUv = new Vector2[quadWidth * quadHeight * 4];
+
+        for (int ii = 0; ii < quadWidth; ++ii)
+        {
+            for (int jj = 0; jj < quadHeight; ++jj)
+            {
+                int quadIndex = ii + jj * quadWidth;
+                int i = ii + 1;
+                int j = jj + 1;
+                quadVertices[quadIndex * 4 + 0] = (vertices[i + j * width] + vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+                quadVertices[quadIndex * 4 + 1] = (vertices[i + j * width] + vertices[(i + 1) + (j - 1) * width]) * 0.5f;
+                quadVertices[quadIndex * 4 + 2] = (vertices[i + j * width] + vertices[(i - 1) + (j + 1) * width]) * 0.5f;
+                quadVertices[quadIndex * 4 + 3] = (vertices[i + j * width] + vertices[(i + 1) + (j + 1) * width]) * 0.5f;
+
+                quadUv[quadIndex * 4 + 0] = uv[i + j * width];
+                quadUv[quadIndex * 4 + 1] = uv[i + j * width];
+                quadUv[quadIndex * 4 + 2] = uv[i + j * width];
+                quadUv[quadIndex * 4 + 3] = uv[i + j * width];
+            }
+        }
+
+        var triangles = new int[quadWidth * quadHeight * 6];
+        for (int i = 0; i < quadWidth * quadHeight; ++i)
+        {
+            triangles[i * 6 + 0] = i * 4 + 0;
+            triangles[i * 6 + 1] = i * 4 + 1;
+            triangles[i * 6 + 2] = i * 4 + 2;
+            triangles[i * 6 + 3] = i * 4 + 1;
+            triangles[i * 6 + 4] = i * 4 + 3;
+            triangles[i * 6 + 5] = i * 4 + 2;
+        }
+
+        // Without the bounds, Unity decides whether to render this mesh or not based on the vertices calculated here.
+        // This causes Unity not rendering the mesh transformed by the depth texture even when the transformed one
+        // belongs to the viewport of the camera.
+        var bounds = new Bounds(Vector3.zero, Vector3.one * 1000.0f);
+
+        var mesh = new Mesh()
+        {
+            indexFormat = IndexFormat.UInt32,
+            vertices = quadVertices,
+            uv = quadUv,
+            bounds = bounds,
+        };
+        mesh.SetIndices(triangles, MeshTopology.Triangles, 0);
 
         return mesh;
     }
