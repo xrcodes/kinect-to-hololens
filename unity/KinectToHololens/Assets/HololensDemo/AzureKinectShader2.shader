@@ -47,11 +47,6 @@
                 // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
                 // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
                 // 1000 is the conversion of mm (the unit of Azure Kinect) to m (the unit of Unity3D).
-                //fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
-                //// vertex in the depth camera coordinate system
-                //fixed3 depth_vertex = v.vertex * depth;
-                //o.vertex = UnityObjectToClipPos(depth_vertex));
-                
                 fixed depth = tex2Dlod(_DepthTex, fixed4(v.uv, 0, 0)).r * 65.535;
                 o.vertex = UnityObjectToClipPos(v.vertex * depth);
                 o.uv = v.uv;

@@ -10,8 +10,8 @@ public class AzureKinectScreen : MonoBehaviour
 
     public void Setup(AzureKinectCalibration calibration)
     {
-        meshFilter.mesh = CreateMesh(calibration);
-        //meshFilter.mesh = CreateMesh2(calibration);
+        //meshFilter.mesh = CreateMesh(calibration);
+        meshFilter.mesh = CreateMesh2(calibration);
     }
 
     // Updates _VertexOffsetXVector and _VertexOffsetYVector so the rendered quads can face the headsetCamera.

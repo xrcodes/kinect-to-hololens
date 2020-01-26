@@ -86,7 +86,16 @@
                     fixed4 offset_x = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, _VertexOffsetXVector * i[0].vertex_offset.x));
                     fixed4 offset_y = mul(UNITY_MATRIX_VP, mul(unity_ObjectToWorld, _VertexOffsetYVector * i[0].vertex_offset.y));
 
+                    // This does not work:
+                    // fixed4 vertex = UnityObjectToClipPos(float4(i[0].vertex.xyz, 1.0));
+                    // fixed4 offset_x = UnityObjectToClipPos(_VertexOffsetXVector * i[0].vertex_offset.x);
+                    // fixed4 offset_y = UnityObjectToClipPos(_VertexOffsetYVector * i[0].vertex_offset.y);
+
                     o.vertex = vertex - offset_x * 0.5 - offset_y * 0.5;
+
+                    // This does not optimize code since the code above already was converted to mad by the optimizer.
+                    //o.vertex = mad(offset_x + offset_y, -0.5, vertex);
+
                     o.uv = i[0].uv;
                     triangles.Append(o);
 
