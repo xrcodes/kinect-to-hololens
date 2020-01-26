@@ -84,10 +84,10 @@ void Sender::send(int depth_compression_type, k4a_calibration_t calibration)
 }
 
 // Sends a Kinect frame to a Receiver.
-void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame,
+void Sender::send(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
                   uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
-    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
+    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
     uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
 
     std::vector<uint8_t> buffer(buffer_size);
@@ -101,6 +101,9 @@ void Sender::send(int frame_id, std::vector<uint8_t>& vp8_frame,
     cursor += 1;
 
     memcpy(buffer.data() + cursor, &frame_id, 4);
+    cursor += 4;
+
+    memcpy(buffer.data() + cursor, &frame_time_stamp, 4);
     cursor += 4;
 
     auto encoder_frame_size = static_cast<uint32_t>(vp8_frame.size());

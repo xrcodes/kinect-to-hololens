@@ -109,9 +109,10 @@ public class HololensDemoManager : MonoBehaviour
         if (receiver == null)
             return;
 
-        //bool updatedTextureGroup = false;
         int? lastFrameId = null;
 
+        var stopWatch = System.Diagnostics.Stopwatch.StartNew();
+        int frameMessageCount = 0;
         while (true)
         {
             // Try receiving a message.
@@ -149,6 +150,8 @@ public class HololensDemoManager : MonoBehaviour
             // When a Kinect frame got received.
             else if (message[0] == 1)
             {
+                ++frameMessageCount;
+
                 int cursor = 1;
                 int frameId = BitConverter.ToInt32(message, cursor);
                 cursor += 4;
@@ -157,13 +160,16 @@ public class HololensDemoManager : MonoBehaviour
                 // receiver.Send(frameId);
                 lastFrameId = frameId;
 
+                float frameTimeStamp = BitConverter.ToSingle(message, cursor);
+                cursor += 4;
+                print($"frameTimeStamp: {frameTimeStamp}");
+
                 int vp8FrameSize = BitConverter.ToInt32(message, cursor);
                 cursor += 4;
 
                 // Marshal.AllocHGlobal, Marshal.Copy, and Marshal.FreeHGlobal are like
                 // malloc, memcpy, and free of C.
-                // This is required since vp8FrameBytes gets sent to a Vp8Decoder
-                // inside the native plugin.
+                // This is required for sending vp8FrameBytes and rvlFrameBytes to the native plugin.
                 Profiler.BeginSample("Color Decompression");
                 IntPtr vp8FrameBytes = Marshal.AllocHGlobal(vp8FrameSize);
                 Marshal.Copy(message, cursor, vp8FrameBytes, vp8FrameSize);
@@ -176,9 +182,6 @@ public class HololensDemoManager : MonoBehaviour
                 int depthEncoderFrameSize = BitConverter.ToInt32(message, cursor);
                 cursor += 4;
 
-                // Marshal.AllocHGlobal, Marshal.Copy, and Marshal.FreeHGlobal are like
-                // malloc, memcpy, and free of C.
-                // This is required since rvlFrameBytes gets sent to the native plugin.
                 Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
@@ -194,6 +197,12 @@ public class HololensDemoManager : MonoBehaviour
                 }
             }
         }
+        stopWatch.Stop();
+
+        //if (frameMessageCount > 1)
+        //{
+        //    print($"frameMessageCount: {frameMessageCount}, time: {stopWatch.ElapsedMilliseconds} ms");
+        //}
 
         // If a frame message was received.
         if (lastFrameId.HasValue)

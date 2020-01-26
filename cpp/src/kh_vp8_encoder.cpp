@@ -16,25 +16,28 @@ Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
         throw std::exception("Error from vpx_codec_enc_config_default.");
 
 
-    // From Real-time CBR Encoding and Streaming of https://www.webmproject.org/docs/encoder-parameters/
+    // From https://developers.google.com/media/vp9/live-encoding
+    // See also https://www.webmproject.org/docs/encoder-parameters/
     configuration.g_w = width;
     configuration.g_h = height;
     configuration.rc_target_bitrate = target_bitrate;
 
-    configuration.g_threads = 8;
+    //configuration.g_threads = 8;
+    configuration.g_threads = 4;
     configuration.g_lag_in_frames = 0;
     configuration.rc_min_quantizer = 4;
     configuration.rc_max_quantizer = 48;
     configuration.g_error_resilient = 1;
 
-    configuration.rc_end_usage = VPX_CBR;
+    //configuration.rc_end_usage = VPX_CBR;
 
     vpx_codec_ctx_t codec;
     res = vpx_codec_enc_init(&codec, codec_interface(), &configuration, 0);
     if (res != VPX_CODEC_OK)
         throw std::exception("Error from vpx_codec_enc_init.");
 
-    vpx_codec_control(&codec, VP8E_SET_CPUUSED, 6);
+    //vpx_codec_control(&codec, VP8E_SET_CPUUSED, 6);
+    vpx_codec_control(&codec, VP8E_SET_CPUUSED, 8);
     vpx_codec_control(&codec, VP8E_SET_STATIC_THRESHOLD, 0);
     vpx_codec_control(&codec, VP8E_SET_MAX_INTRA_BITRATE_PCT, 300);
 

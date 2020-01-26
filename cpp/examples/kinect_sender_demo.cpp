@@ -125,9 +125,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
         // Rounding assuming that the framerate is 30 Hz.
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
 
-        int lhs = device_frame_diff;
-        int rhs = pow_of_two(frame_id_diff - 1) / 2;
-
         // Skip frame if the receiver is struggling.
         // if frame_id_diff == 1 or 2 -> don't skip
         // if frame_id_diff == n -> skip 2 ^ (n - 3) frames.
@@ -141,6 +138,8 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
             std::cout << "no depth_image" << std::endl;
             continue;
         }
+
+        float frame_time_stamp = time_stamp.count() / 1000.0f;
 
         auto transformation_start = std::chrono::steady_clock::now();
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
@@ -159,7 +158,7 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
 
         auto frame_end = std::chrono::steady_clock::now();
 
-        // A temporary log. Should be deleted later.
+        // Per frame log.
         int byte_size = vp8_frame.size() + depth_encoder_frame.size();
         auto frame_time_diff = frame_end - frame_start;
         auto capture_time_diff = compression_start - capture_start;
@@ -201,7 +200,8 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
 
         // Try sending the frame. Escape the loop if there is a network error.
         try {
-            sender.send(frame_id++, vp8_frame, reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
+            sender.send(frame_id++, frame_time_stamp, vp8_frame,
+                        reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
             break;
