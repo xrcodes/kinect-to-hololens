@@ -17,14 +17,14 @@ int pow_of_two(int exp) {
 }
 
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port, DepthCompressionType type)
+void _send_azure_kinect_frames(int port, bool binned_depth)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
     const auto TIMEOUT = std::chrono::milliseconds(1000);
 
-    std::cout << "DepthCompressionType: " << static_cast<int>(type) << std::endl;
+    std::cout << "binned_depth: " << binned_depth << std::endl;
 
     std::cout << "Start sending Azure Kinect frames (port: " << port << ")." << std::endl;
 
@@ -33,7 +33,11 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
     k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    if (!binned_depth) {
+        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    } else {
+        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
+    }
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
 
     auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
@@ -46,14 +50,7 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
     int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
     int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
-    std::unique_ptr<DepthEncoder> depth_encoder;
-    if (type == DepthCompressionType::Rvl) {
-        depth_encoder = std::make_unique<RvlDepthEncoder>(depth_frame_size);
-    } else if (type == DepthCompressionType::Trvl) {
-        depth_encoder = std::make_unique<TrvlDepthEncoder>(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
-    } else if (type == DepthCompressionType::Vp8) {
-        depth_encoder = std::make_unique<Vp8DepthEncoder>(depth_frame_width, depth_frame_height, TARGET_BITRATE);
-    }
+    std::unique_ptr<DepthEncoder> depth_encoder = std::make_unique<TrvlDepthEncoder>(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
 
     // Creating a tcp socket with the port and waiting for a connection.
     asio::io_context io_context;
@@ -66,7 +63,7 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(static_cast<int>(type), calibration);
+    sender.send(static_cast<int>(DepthCompressionType::Trvl), calibration);
 
     device.start_cameras(&configuration);
 
@@ -221,22 +218,16 @@ void send_frames()
         // The default port (the port when nothing is entered) is 7777.
         int port = line.empty() ? 7777 : std::stoi(line);
 
-        std::cout << "Enter depth compression type (1: RVL, 2: TRVL, 3: VP8): ";
+        std::cout << "Choose depth resolution (1: Full, 2: Half): ";
         std::getline(std::cin, line);
 
         // The default type is TRVL.
-        DepthCompressionType type = DepthCompressionType::Trvl;
         bool binned_depth = false;
-        if (line == "1") {
-            type = DepthCompressionType::Rvl;
-        } else if (line == "2") {
-            type = DepthCompressionType::Trvl;
-        } else if (line == "3") {
-            type = DepthCompressionType::Vp8;
-        }
+        if (line == "2")
+            binned_depth = true;
 
         try {
-            _send_azure_kinect_frames(port, type);
+            _send_azure_kinect_frames(port, binned_depth);
         } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }
