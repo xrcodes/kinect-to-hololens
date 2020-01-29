@@ -70,9 +70,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
 
     device.start_cameras(&configuration);
 
-    // The amount of frames this sender will send before receiveing a feedback from a receiver.
-    //const int MAXIMUM_FRAME_ID_DIFF = 3;
-    // const int MAXIMUM_FRAME_ID_DIFF = 10;
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
@@ -99,11 +96,6 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
                 memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
             }
         }
-
-        // If more than MAXIMUM_FRAME_ID_DIFF frames are sent to the receiver without receiver_frame_id getting updated,
-        // stop sending more.
-        //if (frame_id - receiver_frame_id > MAXIMUM_FRAME_ID_DIFF)
-        //    continue;
 
         auto capture_start = std::chrono::steady_clock::now();
         k4a::capture capture;
@@ -156,6 +148,17 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
+        auto send_start = std::chrono::steady_clock::now();
+
+        // Try sending the frame. Escape the loop if there is a network error.
+        try {
+            sender.send(frame_id++, frame_time_stamp, vp8_frame,
+                        reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
+        } catch (std::exception & e) {
+            std::cout << e.what() << std::endl;
+            break;
+        }
+
         auto frame_end = std::chrono::steady_clock::now();
 
         // Per frame log.
@@ -165,7 +168,8 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
         auto transformation_time = compression_start - transformation_start;
         auto compression_time = frame_end - compression_start;
         auto color_compression_time = depth_compression_start - compression_start;
-        auto depth_compression_time = frame_end - depth_compression_start;
+        auto depth_compression_time = send_start - depth_compression_start;
+        auto send_time = frame_end - send_start;
 
         std::cout << "frame_id: " << frame_id << ", "
                   << "frame_id_diff: " << frame_id_diff << ", "
@@ -176,6 +180,7 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
                   //<< "compression_time: " << (compression_time.count() / 1000000) << " ms, "
                   << "color_compression_time: " << (color_compression_time.count() / 1000000) << " ms, "
                   << "depth_compression_time: " << (depth_compression_time.count() / 1000000) << " ms, "
+                  << "send_time: " << (send_time.count() / 1000000) << " ms, "
                   //<< "time_diff: " << (time_diff.count() / 1000) << " ms, "
                   //<< "device_time_stamp: " << (time_stamp.count() / 1000) << " ms, "
                   << std::endl;
@@ -188,23 +193,14 @@ void _send_azure_kinect_frames(int port, DepthCompressionType type)
             std::chrono::duration<double> diff = summary_end - summary_start;
             std::stringstream ss;
             ss << "Summary for frame " << frame_id << ", "
-                << "FPS: " << frame_count / diff.count() << ", "
-                << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
+               << "FPS: " << frame_count / diff.count() << ", "
+               << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
             // White spaces are added at the end to make sure to clean up the previous line.
-            //std::cout << ss.str() << "       \r";
+            // std::cout << ss.str() << "       \r";
             std::cout << ss.str() << std::endl;
             summary_start = summary_end;
             frame_count = 0;
             frame_size = 0;
-        }
-
-        // Try sending the frame. Escape the loop if there is a network error.
-        try {
-            sender.send(frame_id++, frame_time_stamp, vp8_frame,
-                        reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
-        } catch (std::exception & e) {
-            std::cout << e.what() << std::endl;
-            break;
         }
 
         // Updating variables for profiling.

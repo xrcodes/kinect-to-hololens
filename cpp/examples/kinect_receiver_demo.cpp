@@ -79,6 +79,10 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
                     std::cout << "Received frame " << frame_id << "." << std::endl;
                 last_frame_id = frame_id;
 
+                float frame_time_stamp;
+                memcpy(&frame_time_stamp, receive_result->data() + cursor, 4);
+                cursor += 4;
+
                 // Parsing the bytes of the message into the VP8 and RVL frames.
                 int vp8_frame_size;
                 memcpy(&vp8_frame_size, receive_result->data() + cursor, 4);

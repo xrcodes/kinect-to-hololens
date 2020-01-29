@@ -40,6 +40,8 @@ public class HololensDemoManager : MonoBehaviour
     // Decodes Kinect frames that were encoded before being sent over the network.
     private Vp8Decoder decoder;
 
+    float previousLastFrameTimeStamp;
+
     public TextMesh ActiveInputField
     {
         get
@@ -110,6 +112,7 @@ public class HololensDemoManager : MonoBehaviour
             return;
 
         int? lastFrameId = null;
+        float? lastFrameTime = null;
 
         var stopWatch = System.Diagnostics.Stopwatch.StartNew();
         int frameMessageCount = 0;
@@ -162,7 +165,7 @@ public class HololensDemoManager : MonoBehaviour
 
                 float frameTimeStamp = BitConverter.ToSingle(message, cursor);
                 cursor += 4;
-                print($"frameTimeStamp: {frameTimeStamp}");
+                lastFrameTime = frameTimeStamp;
 
                 int vp8FrameSize = BitConverter.ToInt32(message, cursor);
                 cursor += 4;
@@ -199,10 +202,10 @@ public class HololensDemoManager : MonoBehaviour
         }
         stopWatch.Stop();
 
-        //if (frameMessageCount > 1)
-        //{
-        //    print($"frameMessageCount: {frameMessageCount}, time: {stopWatch.ElapsedMilliseconds} ms");
-        //}
+        if (frameMessageCount > 1)
+        {
+            print($"frameId: {lastFrameId.Value}, frameMessageCount: {frameMessageCount}, stopWatch: {stopWatch.ElapsedMilliseconds} ms, lastFrameTime : {lastFrameTime.Value}");
+        }
 
         // If a frame message was received.
         if (lastFrameId.HasValue)
@@ -215,6 +218,17 @@ public class HololensDemoManager : MonoBehaviour
                 PluginHelper.UpdateTextureGroup();
                 Profiler.EndSample();
             }
+        }
+
+        if (lastFrameTime.HasValue)
+        {
+            float frameTimeDiff = lastFrameTime.Value - previousLastFrameTimeStamp;
+            if (frameTimeDiff > 100.0f)
+            {
+                print($"frameId: {lastFrameId.Value}, frameTimeDiff: {frameTimeDiff}, stopWatch: {stopWatch.ElapsedMilliseconds} ms, lastFrameTime : {lastFrameTime}");
+            }
+
+            previousLastFrameTimeStamp = lastFrameTime.Value;
         }
     }
 

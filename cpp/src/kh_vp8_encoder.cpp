@@ -36,8 +36,7 @@ Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
     if (res != VPX_CODEC_OK)
         throw std::exception("Error from vpx_codec_enc_init.");
 
-    //vpx_codec_control(&codec, VP8E_SET_CPUUSED, 6);
-    vpx_codec_control(&codec, VP8E_SET_CPUUSED, 8);
+    vpx_codec_control(&codec, VP8E_SET_CPUUSED, 6);
     vpx_codec_control(&codec, VP8E_SET_STATIC_THRESHOLD, 0);
     vpx_codec_control(&codec, VP8E_SET_MAX_INTRA_BITRATE_PCT, 300);
 
