@@ -145,7 +145,6 @@ public class HololensDemoManager : MonoBehaviour
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);
                 PluginHelper.InitTextureGroup();
 
-                //Plugin.texture_group_init_depth_encoder();
                 depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
 
                 azureKinectScreen.Setup(calibration);
@@ -160,7 +159,6 @@ public class HololensDemoManager : MonoBehaviour
                 cursor += 4;
 
                 // Notice the Sender that the frame was received through the Receiver.
-                // receiver.Send(frameId);
                 lastFrameId = frameId;
 
                 float frameTimeStamp = BitConverter.ToSingle(message, cursor);
@@ -188,7 +186,6 @@ public class HololensDemoManager : MonoBehaviour
                 Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
-                //Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes);
                 var depthPixels = depthDecoder.Decode(depthEncoderFrameBytes);
                 Plugin.texture_group_set_depth_pixels(depthPixels);
                 Plugin.delete_depth_pixels(depthPixels);
