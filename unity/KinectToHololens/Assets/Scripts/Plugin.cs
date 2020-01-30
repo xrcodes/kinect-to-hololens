@@ -46,7 +46,7 @@ public static class Plugin
     public static extern void texture_group_set_height(int height);
 
     [DllImport(DllName)]
-    public static extern void texture_group_init_depth_encoder(int depth_compression_type);
+    public static extern void texture_group_init_depth_encoder();
 
     [DllImport(DllName)]
     public static extern void texture_group_set_ffmpeg_frame(IntPtr ffmpeg_frame_ptr);
@@ -58,7 +58,7 @@ public static class Plugin
     //public static extern void texture_group_set_depth_encoder_frame(IntPtr depth_encoder_frame_data, int depth_encoder_frame_size);
 
     [DllImport(DllName)]
-    public static extern void texture_group_decode_depth_encoder_frame(IntPtr depth_encoder_frame_data, int depth_encoder_frame_size);
+    public static extern void texture_group_decode_depth_encoder_frame(IntPtr depth_encoder_frame_data);
 
     [DllImport(DllName)]
     public static extern IntPtr create_vp8_decoder();

@@ -3,7 +3,7 @@
 #include "unity/IUnityInterface.h"
 #include "depth_texture.h"
 #include "channel_texture.h"
-#include "kh_depth_compression_helper.h"
+#include "kh_trvl.h"
 
 typedef void* VoidPtr;
 
@@ -26,7 +26,7 @@ ID3D11ShaderResourceView* depth_texture_view_ = nullptr;
 // These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
 kh::FFmpegFrame ffmpeg_frame_(nullptr);
 //std::vector<uint8_t> rvl_frame_;
-std::unique_ptr<kh::DepthDecoder> depth_decoder_;
+std::unique_ptr<kh::TrvlDecoder> depth_decoder_;
 //std::vector<uint8_t> depth_encoder_frame_;
 std::vector<short> depth_pixels_;
 
@@ -98,15 +98,16 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_hei
     height_ = height;
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_init_depth_encoder(int depth_compression_type)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_init_depth_encoder(/*int depth_compression_type*/)
 {
-    if (depth_compression_type == 0) {
-        depth_decoder_ = std::make_unique<kh::RvlDepthDecoder>(width_ * height_);
-    } else if (depth_compression_type == 1) {
-        depth_decoder_ = std::make_unique<kh::TrvlDepthDecoder>(width_ * height_);
-    } else if (depth_compression_type == 2) {
-        depth_decoder_ = std::make_unique<kh::Vp8DepthDecoder>();
-    }
+    //if (depth_compression_type == 0) {
+    //    depth_decoder_ = std::make_unique<kh::RvlDepthDecoder>(width_ * height_);
+    //} else if (depth_compression_type == 1) {
+    //    depth_decoder_ = std::make_unique<kh::TrvlDepthDecoder>(width_ * height_);
+    //} else if (depth_compression_type == 2) {
+    //    depth_decoder_ = std::make_unique<kh::Vp8DepthDecoder>();
+    //}
+    depth_decoder_ = std::make_unique<kh::TrvlDecoder>(width_ * height_);
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(void* ffmpeg_frame_ptr)
@@ -115,11 +116,12 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_ffm
     ffmpeg_frame_ = std::move(*ffmpeg_frame);
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_decode_depth_encoder_frame(void* depth_encoder_frame_data, int depth_encoder_frame_size)
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_decode_depth_encoder_frame(void* depth_encoder_frame_data/*, int depth_encoder_frame_size*/)
 {
     //depth_encoder_frame_ = std::vector<uint8_t>(depth_encoder_frame_size);
     //memcpy(depth_encoder_frame_.data(), depth_encoder_frame_data, depth_encoder_frame_size);
-    depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data), depth_encoder_frame_size);
+    //depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data), depth_encoder_frame_size);
+    depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data));
 }
 
 // Updating pixels of the textures. Should be called in a render thread.

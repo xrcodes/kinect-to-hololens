@@ -2,8 +2,7 @@
 
 public static class DemoManagerHelper
 {
-    public static void ReadAzureKinectCalibrationFromMessage(byte[] message,
-        out int depthCompressionType, out AzureKinectCalibration calibraiton)
+    public static void ReadAzureKinectCalibrationFromMessage(byte[] message, out AzureKinectCalibration calibraiton)
     {
         int cursor = 1;
 
@@ -17,9 +16,6 @@ public static class DemoManagerHelper
         cursor += 4;
 
         int depthHeight = BitConverter.ToInt32(message, cursor);
-        cursor += 4;
-
-        depthCompressionType = BitConverter.ToInt32(message, cursor);
         cursor += 4;
 
         AzureKinectCalibration.Intrinsics colorIntrinsics;

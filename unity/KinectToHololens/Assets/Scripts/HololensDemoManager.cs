@@ -138,14 +138,13 @@ public class HololensDemoManager : MonoBehaviour
             // Prepare the ScreenRenderer with calibration information of the Kinect.
             if (message[0] == 0)
             {
-                DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(message,
-                    out int depthCompressionType, out AzureKinectCalibration calibration);
+                DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(message, out AzureKinectCalibration calibration);
 
                 Plugin.texture_group_set_width(calibration.DepthCamera.Width);
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);
                 PluginHelper.InitTextureGroup();
 
-                Plugin.texture_group_init_depth_encoder(depthCompressionType);
+                Plugin.texture_group_init_depth_encoder();
 
                 azureKinectScreen.Setup(calibration);
 
@@ -188,7 +187,7 @@ public class HololensDemoManager : MonoBehaviour
                 Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
-                Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes, depthEncoderFrameSize);
+                Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes);
                 Marshal.FreeHGlobal(depthEncoderFrameBytes);
                 Profiler.EndSample();
 

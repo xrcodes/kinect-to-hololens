@@ -14,7 +14,7 @@ Sender::Sender(asio::ip::tcp::socket&& socket)
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::send(int depth_compression_type, k4a_calibration_t calibration)
+void Sender::send(k4a_calibration_t calibration)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -33,7 +33,6 @@ void Sender::send(int depth_compression_type, k4a_calibration_t calibration)
                                                   sizeof(color_height) +
                                                   sizeof(depth_width) +
                                                   sizeof(depth_height) +
-                                                  sizeof(depth_compression_type) +
                                                   sizeof(color_intrinsics) +
                                                   sizeof(color_metric_radius) +
                                                   sizeof(depth_intrinsics) +
@@ -62,9 +61,6 @@ void Sender::send(int depth_compression_type, k4a_calibration_t calibration)
 
     memcpy(buffer.data() + cursor, &depth_height, sizeof(depth_height));
     cursor += sizeof(depth_height);
-
-    memcpy(buffer.data() + cursor, &depth_compression_type, sizeof(depth_compression_type));
-    cursor += sizeof(depth_compression_type);
 
     memcpy(buffer.data() + cursor, &color_intrinsics, sizeof(color_intrinsics));
     cursor += sizeof(color_intrinsics);

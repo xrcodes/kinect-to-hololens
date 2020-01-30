@@ -18,7 +18,6 @@ set(SOURCE_FILES
   kh_sender.cpp
   kh_receiver.h
   kh_receiver.cpp
-  kh_depth_compression_helper.h
 )
 
 add_library(KinectToHololens ${SOURCE_FILES})

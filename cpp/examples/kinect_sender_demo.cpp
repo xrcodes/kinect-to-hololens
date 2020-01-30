@@ -1,8 +1,9 @@
 #include <chrono>
 #include "kh_core.h"
 #include "kh_sender.h"
-#include "kh_depth_compression_helper.h"
 #include "k4a/k4a.hpp"
+#include "kh_vp8.h"
+#include "kh_trvl.h"
 
 namespace kh
 {
@@ -43,14 +44,14 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
     k4a::transformation transformation(calibration);
 
-    Vp8Encoder vp8_encoder(calibration.depth_camera_calibration.resolution_width,
+    Vp8Encoder color_encoder(calibration.depth_camera_calibration.resolution_width,
                            calibration.depth_camera_calibration.resolution_height,
                            TARGET_BITRATE);
 
     int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
     int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
     int depth_frame_size = depth_frame_width * depth_frame_height;
-    std::unique_ptr<DepthEncoder> depth_encoder = std::make_unique<TrvlDepthEncoder>(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+    TrvlEncoder depth_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
 
     // Creating a tcp socket with the port and waiting for a connection.
     asio::io_context io_context;
@@ -63,7 +64,7 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
-    sender.send(static_cast<int>(DepthCompressionType::Trvl), calibration);
+    sender.send(calibration);
 
     device.start_cameras(&configuration);
 
@@ -139,11 +140,11 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
                                                                  transformed_color_image.get_width_pixels(),
                                                                  transformed_color_image.get_height_pixels(),
                                                                  transformed_color_image.get_stride_bytes());
-        auto vp8_frame = vp8_encoder.encode(yuv_image);
+        auto vp8_frame = color_encoder.encode(yuv_image);
 
         auto depth_compression_start = std::chrono::steady_clock::now();
         // Compress the depth pixels.
-        auto depth_encoder_frame = depth_encoder->encode(reinterpret_cast<short*>(depth_image.get_buffer()));
+        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
         auto send_start = std::chrono::steady_clock::now();
 

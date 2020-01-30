@@ -1,7 +1,8 @@
 #include <iostream>
 #include <asio.hpp>
 #include "kh_receiver.h"
-#include "kh_depth_compression_helper.h"
+#include "kh_vp8.h"
+#include "kh_trvl.h"
 #include "helper/opencv_helper.h"
 
 namespace kh
@@ -20,10 +21,10 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
     std::cout << "Connected!" << std::endl;
 
-    Vp8Decoder vp8_decoder;
+    Vp8Decoder color_decoder;
     int depth_width;
     int depth_height;
-    std::unique_ptr<DepthDecoder> depth_decoder;
+    std::unique_ptr<TrvlDecoder> depth_decoder;
     for (;;) {
         std::optional<int> last_frame_id;
         std::optional<kh::FFmpegFrame> ffmpeg_frame;
@@ -54,18 +55,7 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
                 memcpy(&depth_height, receive_result->data() + cursor, 4);
                 cursor += 4;
 
-                int depth_compression_type;
-                memcpy(&depth_compression_type, receive_result->data() + cursor, 4);
-
-                DepthCompressionType type = static_cast<DepthCompressionType>(depth_compression_type);
-                if (type == DepthCompressionType::Rvl) {
-                    depth_decoder = std::make_unique<RvlDepthDecoder>(depth_width * depth_height);
-                } else if (type == DepthCompressionType::Trvl) {
-                    depth_decoder = std::make_unique<TrvlDepthDecoder>(depth_width * depth_height);
-                } else if (type == DepthCompressionType::Vp8) {
-                    depth_decoder = std::make_unique<Vp8DepthDecoder>();
-                }
-
+                depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
             } else if (message_type == 1) {
                 // Parse the ID of the frame and send a feedback meesage to the sender
                 // to indicate the frame was succesfully received.
@@ -101,10 +91,10 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
                 cursor += depth_encoder_frame_size;
 
                 // Decoding a Vp8Frame into color pixels.
-                ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
+                ffmpeg_frame = color_decoder.decode(vp8_frame.data(), vp8_frame.size());
 
                 // Decompressing a RVL frame into depth pixels.
-                depth_image = depth_decoder->decode(depth_encoder_frame.data(), depth_encoder_frame.size());
+                depth_image = depth_decoder->decode(depth_encoder_frame.data());
             }
         }
         
