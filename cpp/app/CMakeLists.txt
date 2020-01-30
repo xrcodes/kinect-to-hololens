@@ -1,94 +1,90 @@
-# Source files for the demos.
-# Both the KinectReaderDemo and the KinectSenderDemo
-# cannot be built for 32-bit since they require access to
-# libfreenect2, which we have no 32-bit DLL file.
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  add_executable(KinectReaderDemo
-    kinect_reader_demo.cpp
+  add_executable(KinectReader
+    kinect_reader.cpp
     helper/opencv_helper.h
   )
-  target_include_directories(KinectReaderDemo PRIVATE
+  target_include_directories(KinectReader PRIVATE
     "${AZURE_KINECT_DIR}/sdk/include"
   )
-  target_link_libraries(KinectReaderDemo
+  target_link_libraries(KinectReader
     ${OpenCV_LIBS}
     "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
     "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
     KinectToHololens
     ${Libvpx_LIB}
   )
-  set_target_properties(KinectReaderDemo PROPERTIES
+  set_target_properties(KinectReader PROPERTIES
     CXX_STANDARD 17
   )
-  add_custom_command(TARGET KinectReaderDemo POST_BUILD
+  add_custom_command(TARGET KinectReader POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
-    $<TARGET_FILE_DIR:KinectReaderDemo>
+    $<TARGET_FILE_DIR:KinectReader>
   )
-  add_custom_command(TARGET KinectReaderDemo POST_BUILD
+  add_custom_command(TARGET KinectReader POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
-    $<TARGET_FILE_DIR:KinectReaderDemo>
+    $<TARGET_FILE_DIR:KinectReader>
   )
 
-  add_executable(KinectSenderDemo
-    kinect_sender_demo.cpp
+  add_executable(KinectSender
+    kinect_sender.cpp
   )
-  target_include_directories(KinectSenderDemo PRIVATE
+  target_include_directories(KinectSender PRIVATE
     "${AZURE_KINECT_DIR}/sdk/include"
   )
-  target_link_libraries(KinectSenderDemo
+  target_link_libraries(KinectSender
     "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
     "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
     KinectToHololens
     ${Libvpx_LIB}
   )
-  set_target_properties(KinectSenderDemo PROPERTIES
+  set_target_properties(KinectSender PROPERTIES
     CXX_STANDARD 17
   )
-  add_custom_command(TARGET KinectSenderDemo POST_BUILD
+  add_custom_command(TARGET KinectSender POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
-    $<TARGET_FILE_DIR:KinectSenderDemo>
+    $<TARGET_FILE_DIR:KinectSender>
   )
-  add_custom_command(TARGET KinectSenderDemo POST_BUILD
+  add_custom_command(TARGET KinectSender POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
-    $<TARGET_FILE_DIR:KinectSenderDemo>
+    $<TARGET_FILE_DIR:KinectSender>
   )
   
-  add_executable(KinectPlayerDemo
-    kinect_player_demo.cpp
+  add_executable(KinectPlayer
+    kinect_player.cpp
   )
-  target_include_directories(KinectPlayerDemo PRIVATE
+  target_include_directories(KinectPlayer PRIVATE
     "${AZURE_KINECT_DIR}/sdk/include"
   )
-  target_link_libraries(KinectPlayerDemo PRIVATE
+  target_link_libraries(KinectPlayer PRIVATE
     "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
     "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4arecord.lib"
     KinectToHololens
     ${Libvpx_LIB}
   )
-  set_target_properties(KinectPlayerDemo PROPERTIES
+  set_target_properties(KinectPlayer PROPERTIES
     CXX_STANDARD 17
   )
-  add_custom_command(TARGET KinectPlayerDemo POST_BUILD
+  add_custom_command(TARGET KinectPlayer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
-    $<TARGET_FILE_DIR:KinectPlayerDemo>
+    $<TARGET_FILE_DIR:KinectPlayer>
   )
-  add_custom_command(TARGET KinectPlayerDemo POST_BUILD
+  add_custom_command(TARGET KinectPlayer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
-    $<TARGET_FILE_DIR:KinectPlayerDemo>
+    $<TARGET_FILE_DIR:KinectPlayer>
   )
-  add_custom_command(TARGET KinectPlayerDemo POST_BUILD
+  add_custom_command(TARGET KinectPlayer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4arecord.dll"
-    $<TARGET_FILE_DIR:KinectPlayerDemo>
+    $<TARGET_FILE_DIR:KinectPlayer>
   )
 endif()
 
-add_executable(KinectReceiverDemo
-  kinect_receiver_demo.cpp
+add_executable(KinectReceiver
+  kinect_receiver.cpp
 )
-target_link_libraries(KinectReceiverDemo
+target_link_libraries(KinectReceiver
   ${OpenCV_LIBS}
   KinectToHololens
 )
-set_target_properties(KinectReceiverDemo PROPERTIES
+set_target_properties(KinectReceiver PROPERTIES
   CXX_STANDARD 17
 )
