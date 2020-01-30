@@ -25,9 +25,7 @@ ID3D11ShaderResourceView* depth_texture_view_ = nullptr;
 
 // These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
 kh::FFmpegFrame ffmpeg_frame_(nullptr);
-//std::vector<uint8_t> rvl_frame_;
 std::unique_ptr<kh::TrvlDecoder> depth_decoder_;
-//std::vector<uint8_t> depth_encoder_frame_;
 std::vector<short> depth_pixels_;
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_reset()
@@ -98,30 +96,10 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_hei
     height_ = height;
 }
 
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_init_depth_encoder(/*int depth_compression_type*/)
-{
-    //if (depth_compression_type == 0) {
-    //    depth_decoder_ = std::make_unique<kh::RvlDepthDecoder>(width_ * height_);
-    //} else if (depth_compression_type == 1) {
-    //    depth_decoder_ = std::make_unique<kh::TrvlDepthDecoder>(width_ * height_);
-    //} else if (depth_compression_type == 2) {
-    //    depth_decoder_ = std::make_unique<kh::Vp8DepthDecoder>();
-    //}
-    depth_decoder_ = std::make_unique<kh::TrvlDecoder>(width_ * height_);
-}
-
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(void* ffmpeg_frame_ptr)
 {
     auto ffmpeg_frame = reinterpret_cast<kh::FFmpegFrame*>(ffmpeg_frame_ptr);
     ffmpeg_frame_ = std::move(*ffmpeg_frame);
-}
-
-extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_decode_depth_encoder_frame(void* depth_encoder_frame_data/*, int depth_encoder_frame_size*/)
-{
-    //depth_encoder_frame_ = std::vector<uint8_t>(depth_encoder_frame_size);
-    //memcpy(depth_encoder_frame_.data(), depth_encoder_frame_data, depth_encoder_frame_size);
-    //depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data), depth_encoder_frame_size);
-    depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data));
 }
 
 extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_pixels(void* depth_pixels_ptr)
@@ -137,7 +115,5 @@ void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_cont
     u_texture_->updatePixels(device, device_context, width_ / 2, height_ / 2, ffmpeg_frame_, 1);
     v_texture_->updatePixels(device, device_context, width_ / 2, height_ / 2, ffmpeg_frame_, 2);
     
-    //auto depth_pixels = depth_decoder_->decode(depth_encoder_frame_.data(), depth_encoder_frame_.size());
-    //depth_texture_->updatePixels(device, device_context, depth_width_, depth_height_, reinterpret_cast<uint16_t*>(depth_pixels.data()));
     depth_texture_->updatePixels(device, device_context, width_, height_, reinterpret_cast<uint16_t*>(depth_pixels_.data()));
 }
