@@ -38,7 +38,8 @@ public class HololensDemoManager : MonoBehaviour
     // The Receiver which receives Kinect data over the network.
     private Receiver receiver;
     // Decodes Kinect frames that were encoded before being sent over the network.
-    private Vp8Decoder decoder;
+    private Vp8Decoder colorDecoder;
+    private TrvlDecoder depthDecoder;
 
     float previousLastFrameTimeStamp;
 
@@ -144,10 +145,10 @@ public class HololensDemoManager : MonoBehaviour
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);
                 PluginHelper.InitTextureGroup();
 
-                Plugin.texture_group_init_depth_encoder();
+                //Plugin.texture_group_init_depth_encoder();
+                depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
 
                 azureKinectScreen.Setup(calibration);
-
             }
             // When a Kinect frame got received.
             else if (message[0] == 1)
@@ -175,7 +176,7 @@ public class HololensDemoManager : MonoBehaviour
                 Profiler.BeginSample("Color Decompression");
                 IntPtr vp8FrameBytes = Marshal.AllocHGlobal(vp8FrameSize);
                 Marshal.Copy(message, cursor, vp8FrameBytes, vp8FrameSize);
-                var ffmpegFrame = decoder.Decode(vp8FrameBytes, vp8FrameSize);
+                var ffmpegFrame = colorDecoder.Decode(vp8FrameBytes, vp8FrameSize);
                 Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
                 Marshal.FreeHGlobal(vp8FrameBytes);
                 cursor += vp8FrameSize;
@@ -187,7 +188,10 @@ public class HololensDemoManager : MonoBehaviour
                 Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
-                Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes);
+                //Plugin.texture_group_decode_depth_encoder_frame(depthEncoderFrameBytes);
+                var depthPixels = depthDecoder.Decode(depthEncoderFrameBytes);
+                Plugin.texture_group_set_depth_pixels(depthPixels);
+                Plugin.delete_depth_pixels(depthPixels);
                 Marshal.FreeHGlobal(depthEncoderFrameBytes);
                 Profiler.EndSample();
 
@@ -321,7 +325,7 @@ public class HololensDemoManager : MonoBehaviour
         if (await receiver.ConnectAsync(new IPEndPoint(IPAddress.Parse(ipAddress), port)))
         {
             this.receiver = receiver;
-            decoder = new Vp8Decoder();
+            colorDecoder = new Vp8Decoder();
             statusText.text = $"Connected to {ipAddress}:{port}!";
         }
         else

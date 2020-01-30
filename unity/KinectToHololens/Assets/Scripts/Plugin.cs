@@ -61,6 +61,9 @@ public static class Plugin
     public static extern void texture_group_decode_depth_encoder_frame(IntPtr depth_encoder_frame_data);
 
     [DllImport(DllName)]
+    public static extern void texture_group_set_depth_pixels(IntPtr depth_pixels_ptr);
+
+    [DllImport(DllName)]
     public static extern IntPtr create_vp8_decoder();
 
     [DllImport(DllName)]
@@ -71,4 +74,16 @@ public static class Plugin
 
     [DllImport(DllName)]
     public static extern void delete_ffmpeg_frame(IntPtr ptr);
+
+    [DllImport(DllName)]
+    public static extern IntPtr create_trvl_decoder(int frame_size);
+
+    [DllImport(DllName)]
+    public static extern void delete_trvl_decoder(IntPtr ptr);
+
+    [DllImport(DllName)]
+    public static extern IntPtr trvl_decoder_decode(IntPtr decoder_ptr, IntPtr frame_ptr);
+
+    [DllImport(DllName)]
+    public static extern void delete_depth_pixels(IntPtr ptr);
 }

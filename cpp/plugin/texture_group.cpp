@@ -124,6 +124,12 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_decode_
     depth_pixels_ = depth_decoder_->decode(reinterpret_cast<uint8_t*>(depth_encoder_frame_data));
 }
 
+extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_pixels(void* depth_pixels_ptr)
+{
+    auto depth_pixels = reinterpret_cast<std::vector<short>*>(depth_pixels_ptr);
+    depth_pixels_ = std::move(*depth_pixels);
+}
+
 // Updating pixels of the textures. Should be called in a render thread.
 void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
