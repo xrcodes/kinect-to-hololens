@@ -18,8 +18,8 @@ int pow_of_two(int exp) {
 }
 
 // Sends a Kinect frame to a Receiver.
-std::vector<uint8_t> get_message(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
-                                 uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
+std::vector<uint8_t> get_frame_message(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
+                                       uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
     uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
@@ -53,6 +53,35 @@ std::vector<uint8_t> get_message(int frame_id, float frame_time_stamp, std::vect
     memcpy(buffer.data() + cursor, depth_encoder_frame, depth_encoder_frame_size);
 
     return buffer;
+}
+
+std::vector<std::vector<uint8_t>> split_frame_message(int frame_id, std::vector<uint8_t> frame_message)
+{
+    const int MAX_UDP_PACKET_SIZE = 1500;
+    const int FRAME_PACKET_HEADER_SIZE = 13;
+    const int MAX_FRAME_PACKET_CONTENT_SIZE = MAX_UDP_PACKET_SIZE - FRAME_PACKET_HEADER_SIZE;
+
+    int packet_count = (frame_message.size() - 1) / MAX_FRAME_PACKET_CONTENT_SIZE + 1;
+    std::vector<std::vector<uint8_t>> packets;
+    for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
+        int message_cursor = MAX_FRAME_PACKET_CONTENT_SIZE * packet_index;
+        
+        int packet_content_size = MAX_FRAME_PACKET_CONTENT_SIZE;
+        if ((packet_index + 1) == packet_count) {
+            packet_content_size = frame_message.size() - message_cursor;
+        }
+
+        std::vector<uint8_t> packet(packet_content_size + FRAME_PACKET_HEADER_SIZE);
+        uint8_t message_type = 1;
+        memcpy(packet.data() + 0, &message_type, 1);
+        memcpy(packet.data() + 1, &frame_id, 4);
+        memcpy(packet.data() + 5, &packet_index, 4);
+        memcpy(packet.data() + 9, &packet_count, 4);
+        memcpy(packet.data() + 13, frame_message.data() + message_cursor, packet_content_size);
+        packets.push_back(packet);
+    }
+
+    return packets;
 }
 
 // Sends Azure Kinect frames through a TCP port.
@@ -204,29 +233,34 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         if (error/* && error != boost::asio::error::message_size*/)
             throw std::system_error(error);
 
-        auto message = get_message(frame_id++, frame_time_stamp, vp8_frame,
+        auto message = get_frame_message(frame_id++, frame_time_stamp, vp8_frame,
                                    reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
 
-        const int MAX_PACKET_SIZE = 1500;
-        int cursor = 0;
-        for (;;) {
-            std::error_code ignored_error;
+        //const int MAX_PACKET_SIZE = 65535;
+        //int cursor = 0;
+        //for (;;) {
 
-            int size = message.size() - cursor;
-            if (size < MAX_PACKET_SIZE) {
-                std::vector<uint8_t> buffer(size);
-                memcpy(buffer.data(), message.data() + cursor, sizeof(size));
-                socket.send_to(asio::buffer(buffer), remote_endpoint, 0, ignored_error);
-                break;
-            }
-            else {
-                std::vector<uint8_t> buffer(MAX_PACKET_SIZE);
-                memcpy(buffer.data(), message.data() + cursor, sizeof(MAX_PACKET_SIZE));
-                socket.send_to(asio::buffer(buffer), remote_endpoint, 0, ignored_error);
-                cursor += MAX_PACKET_SIZE;
-            }
+        //    int size = message.size() - cursor;
+        //    if (size > MAX_PACKET_SIZE) {
+        //        std::vector<uint8_t> buffer(MAX_PACKET_SIZE);
+        //        memcpy(buffer.data(), message.data() + cursor, sizeof(MAX_PACKET_SIZE));
+        //        socket.send_to(asio::buffer(buffer), remote_endpoint, 0, ignored_error);
+        //        cursor += MAX_PACKET_SIZE;
+        //    } else {
+        //        std::vector<uint8_t> buffer(size);
+        //        memcpy(buffer.data(), message.data() + cursor, sizeof(size));
+        //        socket.send_to(asio::buffer(buffer), remote_endpoint, 0, ignored_error);
+        //        break;
+        //    }
 
-            std::cout << "send error message: " << ignored_error.message() << std::endl;
+        //    std::cout << "send error message: " << ignored_error.message() << std::endl;
+        //}
+
+        std::error_code send_error;
+        auto packets = split_frame_message(frame_id, message);
+        for (auto packet : packets) {
+            socket.send_to(asio::buffer(packet), remote_endpoint, 0, send_error);
+            std::cout << "send error message: " << send_error.message() << std::endl;
         }
 
         auto frame_end = std::chrono::steady_clock::now();

@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
         std::cout << "sent" << std::endl;
 
         for (;;) {
-            std::array<char, 1500> recv_buf;
+            std::array<char, 65535> recv_buf;
             asio::ip::udp::endpoint sender_endpoint;
             std::cout << "before receive" << std::endl;
             size_t len = socket.receive_from(
