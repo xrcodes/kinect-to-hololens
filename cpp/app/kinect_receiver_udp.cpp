@@ -1,43 +1,46 @@
 #include <iostream>
 #include <asio.hpp>
 
-std::string make_daytime_string()
-{
-    time_t now = time(0);
-    return ctime(&now);
-}
-
 int main(int argc, char* argv[])
 {
     try
     {
+        //if (argc != 2)
+        //{
+        //    std::cerr << "Usage: client <host>" << std::endl;
+        //    return 1;
+        //}
+
         asio::io_context io_context;
 
-        asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), 13));
+        asio::ip::udp::resolver resolver(io_context);
+        asio::ip::udp::endpoint receiver_endpoint =
+            *resolver.resolve(asio::ip::udp::v4(), "127.0.0.1", "7777").begin();
 
-        for (;;)
-        {
-            std::array<char, 1> recv_buf;
-            asio::ip::udp::endpoint remote_endpoint;
-            std::error_code error;
-            socket.receive_from(asio::buffer(recv_buf),
-                                remote_endpoint, 0, error);
+        asio::ip::udp::socket socket(io_context);
+        socket.open(asio::ip::udp::v4());
 
-            if (error && error != asio::error::message_size)
-                throw std::system_error(error);
+        std::array<char, 1> send_buf = { { 0 } };
+        socket.send_to(asio::buffer(send_buf), receiver_endpoint);
 
-            std::string message = make_daytime_string();
+        std::cout << "sent" << std::endl;
 
-            std::error_code ignored_error;
-            socket.send_to(asio::buffer(message),
-                           remote_endpoint, 0, ignored_error);
+        for (;;) {
+            std::array<char, 1500> recv_buf;
+            asio::ip::udp::endpoint sender_endpoint;
+            std::cout << "before receive" << std::endl;
+            size_t len = socket.receive_from(
+                asio::buffer(recv_buf), sender_endpoint);
+            //std::cout.write(recv_buf.data(), len);
+            std::cout << "len: " << len << std::endl;
         }
-    }
-    catch (std::exception & e)
+
+    } catch (std::exception & e)
     {
         std::cerr << e.what() << std::endl;
     }
 
+    std::cout << "done" << std::endl;
     getchar();
 
     return 0;
