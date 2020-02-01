@@ -64,28 +64,68 @@ private:
     std::vector<std::vector<std::uint8_t>> packets_;
 };
 
+class ReceiverUdp
+{
+public:
+    ReceiverUdp(asio::io_context& io_context, int receive_buffer_size)
+        : socket_(io_context), sender_endpoint_()
+    {
+        socket_.open(asio::ip::udp::v4());
+        socket_.non_blocking(true);
+        asio::socket_base::receive_buffer_size option(receive_buffer_size);
+        socket_.set_option(option);
+    }
+
+    // Connects to a Sender with the Sender's IP address and port.
+    void ping(std::string ip_address, int port)
+    {
+        sender_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
+        std::array<char, 1> send_buf = { { 0 } };
+        socket_.send_to(asio::buffer(send_buf), sender_endpoint_);
+    }
+
+    std::optional<std::vector<uint8_t>> receive()
+    {
+        std::vector<uint8_t> packet(1500);
+        std::error_code error;
+        size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint_, 0, error);
+
+        if (error == asio::error::would_block) {
+            return std::nullopt;
+        } else if (error) {
+            std::cout << "Error from ReceiverUdp: " << error.message() << std::endl;
+            return std::nullopt;
+        }
+
+        packet.resize(packet_size);
+        return packet;
+    }
+
+    void send(int frame_id)
+    {
+        std::array<char, 5> frame_id_buffer;
+        frame_id_buffer[0] = 1;
+        memcpy(frame_id_buffer.data() + 1, &frame_id, 4);
+        socket_.send_to(asio::buffer(frame_id_buffer), sender_endpoint_);
+    }
+
+private:
+    asio::ip::udp::socket socket_;
+    asio::ip::udp::endpoint sender_endpoint_;
+};
+
 void _receive_frames(std::string ip_address, int port)
 {
     asio::io_context io_context;
-    asio::ip::udp::endpoint receiver_endpoint(asio::ip::address::from_string(ip_address), port);
-
-    asio::ip::udp::socket socket(io_context);
-    socket.open(asio::ip::udp::v4());
-    socket.non_blocking(true);
-
-    // Need a large enough receive buffer, or packets get lost.
-    asio::socket_base::receive_buffer_size option(1024 * 1024 - 1);
-    socket.set_option(option);
-
-    std::array<char, 1> send_buf = { { 0 } };
-    socket.send_to(asio::buffer(send_buf), receiver_endpoint);
+    ReceiverUdp receiver(io_context, 1024 * 1024);
+    receiver.ping(ip_address, port);
 
     std::cout << "sent endpoint" << std::endl;
 
     Vp8Decoder color_decoder;
-    int depth_width = 640;
-    int depth_height = 576;
-    std::unique_ptr<TrvlDecoder> depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
+    int depth_width;
+    int depth_height;
+    std::unique_ptr<TrvlDecoder> depth_decoder;
 
     int last_frame_id = -1;
     std::unordered_map<int, std::vector<uint8_t>> frame_messages;
@@ -95,25 +135,33 @@ void _receive_frames(std::string ip_address, int port)
         std::vector<std::vector<uint8_t>> packets;
 
         for (;;) {
-            std::vector<uint8_t> packet(1500);
-            asio::ip::udp::endpoint sender_endpoint;
-            std::error_code error;
-            size_t packet_size = socket.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
-
-            if (error == asio::error::would_block) {
+            auto receive_result = receiver.receive();
+            if (!receive_result) {
                 break;
-            } else if (error) {
-                std::cout << "error: " << error.message() << std::endl;
             }
 
-            packet.resize(packet_size);
-            packets.push_back(packet);
+            packets.push_back(*receive_result);
         }
 
         for (auto packet : packets) {
+            int cursor = 0;
             uint8_t packet_type = packet[0];
+            cursor += 1;
             if (packet_type == 0) {
-                std::cout << "received calibration" << std::endl;
+                std::cout << "Received a message for initialization." << std::endl;
+
+                // for color width
+                cursor += 4;
+                // for color height
+                cursor += 4;
+
+                memcpy(&depth_width, packet.data() + cursor, 4);
+                cursor += 4;
+
+                memcpy(&depth_height, packet.data() + cursor, 4);
+                cursor += 4;
+
+                depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
                 continue;
             }
 
@@ -217,12 +265,7 @@ void _receive_frames(std::string ip_address, int port)
         // If there was a frame meesage
         if (ffmpeg_frame) {
             std::cout << "last_frame_id: " << last_frame_id << std::endl;
-            //receiver.send(*last_frame_id);
-
-            std::array<char, 5> frame_id_buffer;
-            frame_id_buffer[0] = 1;
-            memcpy(frame_id_buffer.data() + 1, &last_frame_id, 4);
-            socket.send_to(asio::buffer(frame_id_buffer), receiver_endpoint);
+            receiver.send(last_frame_id);
 
             auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
             auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);
