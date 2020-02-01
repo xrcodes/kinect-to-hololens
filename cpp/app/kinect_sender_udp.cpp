@@ -126,6 +126,14 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     //auto socket = acceptor.accept();
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
 
+    std::array<char, 1> recv_buf;
+    asio::ip::udp::endpoint remote_endpoint;
+    std::error_code error;
+    socket.receive_from(asio::buffer(recv_buf), remote_endpoint, 0, error);
+
+    if (error/* && error != boost::asio::error::message_size*/)
+        throw std::system_error(error);
+
     //std::cout << "Accepted a client!" << std::endl;
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
@@ -214,50 +222,15 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
-        auto send_start = std::chrono::steady_clock::now();
-
-        // Try sending the frame. Escape the loop if there is a network error.
-        //try {
-        //    sender.send(frame_id++, frame_time_stamp, vp8_frame,
-        //                reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
-        //} catch (std::exception & e) {
-        //    std::cout << e.what() << std::endl;
-        //    break;
-        //}
-
-        std::array<char, 1> recv_buf;
-        asio::ip::udp::endpoint remote_endpoint;
-        std::error_code error;
-        socket.receive_from(asio::buffer(recv_buf), remote_endpoint, 0, error);
-
-        if (error/* && error != boost::asio::error::message_size*/)
-            throw std::system_error(error);
+        auto message_start = std::chrono::steady_clock::now();
 
         auto message = get_frame_message(frame_id++, frame_time_stamp, vp8_frame,
-                                   reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
+                                         reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
+        auto packets = split_frame_message(frame_id, message);
 
-        //const int MAX_PACKET_SIZE = 65535;
-        //int cursor = 0;
-        //for (;;) {
-
-        //    int size = message.size() - cursor;
-        //    if (size > MAX_PACKET_SIZE) {
-        //        std::vector<uint8_t> buffer(MAX_PACKET_SIZE);
-        //        memcpy(buffer.data(), message.data() + cursor, sizeof(MAX_PACKET_SIZE));
-        //        socket.send_to(asio::buffer(buffer), remote_endpoint, 0, ignored_error);
-        //        cursor += MAX_PACKET_SIZE;
-        //    } else {
-        //        std::vector<uint8_t> buffer(size);
-        //        memcpy(buffer.data(), message.data() + cursor, sizeof(size));
-        //        socket.send_to(asio::buffer(buffer), remote_endpoint, 0, ignored_error);
-        //        break;
-        //    }
-
-        //    std::cout << "send error message: " << ignored_error.message() << std::endl;
-        //}
+        auto send_start = std::chrono::steady_clock::now();
 
         std::error_code send_error;
-        auto packets = split_frame_message(frame_id, message);
         for (auto packet : packets) {
             socket.send_to(asio::buffer(packet), remote_endpoint, 0, send_error);
             std::cout << "send error message: " << send_error.message() << std::endl;
@@ -272,7 +245,8 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         auto transformation_time = compression_start - transformation_start;
         auto compression_time = frame_end - compression_start;
         auto color_compression_time = depth_compression_start - compression_start;
-        auto depth_compression_time = send_start - depth_compression_start;
+        auto depth_compression_time = message_start - depth_compression_start;
+        auto message_time = send_start - message_start;
         auto send_time = frame_end - send_start;
 
         std::cout << "frame_id: " << frame_id << ", "
