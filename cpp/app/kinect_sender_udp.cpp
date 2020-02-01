@@ -231,7 +231,7 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
 
         auto message_start = std::chrono::steady_clock::now();
 
-        auto message = get_frame_message(frame_id++, frame_time_stamp, vp8_frame,
+        auto message = get_frame_message(frame_id, frame_time_stamp, vp8_frame,
                                          reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
         auto packets = split_frame_message(frame_id, message);
 
@@ -289,6 +289,8 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
             frame_count = 0;
             frame_size = 0;
         }
+
+        ++frame_id;
 
         // Updating variables for profiling.
         ++frame_count;
