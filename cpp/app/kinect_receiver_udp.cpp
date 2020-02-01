@@ -86,6 +86,11 @@ int main(int argc, char* argv[])
             for (int full_frame_id : full_frame_ids) {
                 frame_packet_collections.erase(full_frame_id);
                 std::cout << "frame_id: " << frame_id << std::endl;
+
+                std::array<char, 5> frame_id_buffer;
+                frame_id_buffer[0] = 1;
+                memcpy(frame_id_buffer.data() + 1, &full_frame_id, 4);
+                socket.send_to(asio::buffer(frame_id_buffer), receiver_endpoint);
             }
 
             //std::cout << "frame_id: " << frame_id << ", packet_index: " << packet_index << ", packet_count: " << packet_count << std::endl;

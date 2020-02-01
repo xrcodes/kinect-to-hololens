@@ -130,6 +130,7 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     asio::ip::udp::endpoint remote_endpoint;
     std::error_code error;
     socket.receive_from(asio::buffer(recv_buf), remote_endpoint, 0, error);
+    socket.non_blocking(true);
 
     if (error/* && error != boost::asio::error::message_size*/)
         throw std::system_error(error);
@@ -170,6 +171,12 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         //        memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
         //    }
         //}
+
+        std::array<char, 5> buffer;
+        std::error_code error;
+        socket.receive_from(asio::buffer(buffer), remote_endpoint, 0, error);
+        uint8_t message_type = buffer[0];
+        memcpy(&receiver_frame_id, buffer.data() + 1, 4);
 
         auto capture_start = std::chrono::steady_clock::now();
         k4a::capture capture;
@@ -233,7 +240,9 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         std::error_code send_error;
         for (auto packet : packets) {
             socket.send_to(asio::buffer(packet), remote_endpoint, 0, send_error);
-            std::cout << "send error message: " << send_error.message() << std::endl;
+            if (send_error) {
+                std::cout << "send error message: " << send_error.message() << std::endl;
+            }
         }
 
         auto frame_end = std::chrono::steady_clock::now();
