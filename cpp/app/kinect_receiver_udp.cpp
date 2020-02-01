@@ -112,6 +112,11 @@ void _receive_frames(std::string ip_address, int port)
 
         for (auto packet : packets) {
             uint8_t packet_type = packet[0];
+            if (packet_type == 0) {
+                std::cout << "received calibration" << std::endl;
+                continue;
+            }
+
             int frame_id;
             int packet_index;
             int packet_count;
