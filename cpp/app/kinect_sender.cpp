@@ -18,7 +18,7 @@ int pow_of_two(int exp) {
 }
 
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port, bool binned_depth)
+void _send_frames(int port, bool binned_depth)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -228,7 +228,7 @@ void send_frames()
             binned_depth = true;
 
         try {
-            _send_azure_kinect_frames(port, binned_depth);
+            _send_frames(port, binned_depth);
         } catch (std::exception& e) {
             std::cout << e.what() << std::endl;
         }

@@ -10,16 +10,9 @@ namespace kh
 class FramePacketCollection
 {
 public:
-    FramePacketCollection()
-    {
-    }
-
     FramePacketCollection(int frame_id, int packet_count)
         : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count_)
     {
-        for (int i = 0; i < packets_.size(); ++i) {
-            packets_[i] = std::vector<uint8_t>();
-        }
     }
 
     int frame_id() { return frame_id_; }
@@ -71,13 +64,10 @@ private:
     std::vector<std::vector<std::uint8_t>> packets_;
 };
 
-void run_receiver()
+void _receive_frames(std::string ip_address, int port)
 {
     asio::io_context io_context;
-
-    asio::ip::udp::resolver resolver(io_context);
-    asio::ip::udp::endpoint receiver_endpoint =
-        *resolver.resolve(asio::ip::udp::v4(), "127.0.0.1", "7777").begin();
+    asio::ip::udp::endpoint receiver_endpoint(asio::ip::address::from_string(ip_address), port);
 
     asio::ip::udp::socket socket(io_context);
     socket.open(asio::ip::udp::v4());
@@ -120,7 +110,6 @@ void run_receiver()
             packets.push_back(packet);
         }
 
-        std::cout << "packets.size(): " << packets.size() << std::endl;
         for (auto packet : packets) {
             uint8_t packet_type = packet[0];
             int frame_id;
@@ -136,7 +125,8 @@ void run_receiver()
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
             }
 
-            frame_packet_collections[frame_id].addPacket(packet_index, packet);
+            //frame_packet_collections[frame_id].addPacket(packet_index, packet);
+            frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
         }
 
         // Find all full collections and their frame_ids.
@@ -156,7 +146,7 @@ void run_receiver()
 
         // Extract messages from the full collections.
         for (int full_frame_id : full_frame_ids) {
-            frame_messages.insert({ full_frame_id, frame_packet_collections[full_frame_id].toMessage() });
+            frame_messages.insert({ full_frame_id, frame_packet_collections.at(full_frame_id).toMessage() });
 
             frame_packet_collections.erase(full_frame_id);
         }
@@ -240,9 +230,34 @@ void run_receiver()
         }
     }
 }
+
+void receive_frames()
+{
+    for (;;) {
+        // Receive IP address from the user.
+        std::cout << "Enter an IP address to start receiving frames: ";
+        std::string ip_address;
+        std::getline(std::cin, ip_address);
+        // The default IP address is 127.0.0.1.
+        if (ip_address.empty())
+            ip_address = "127.0.0.1";
+
+        // Receive port from the user.
+        std::cout << "Enter a port number to start receiving frames: ";
+        std::string port_line;
+        std::getline(std::cin, port_line);
+        // The default port is 7777.
+        int port = port_line.empty() ? 7777 : std::stoi(port_line);
+        try {
+            _receive_frames(ip_address, port);
+        } catch (std::exception & e) {
+            std::cout << e.what() << std::endl;
+        }
+    }
+}
 }
 
 void main()
 {
-    kh::run_receiver();
+    kh::receive_frames();
 }

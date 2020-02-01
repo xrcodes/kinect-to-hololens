@@ -84,8 +84,50 @@ std::vector<std::vector<uint8_t>> split_frame_message(int frame_id, std::vector<
     return packets;
 }
 
+class SenderUdp
+{
+public:
+    SenderUdp(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint)
+        : socket_(std::move(socket)), remote_endpoint_(remote_endpoint)
+    {
+        socket_.non_blocking(true);
+    }
+
+    void send(const std::vector<uint8_t>& packet)
+    {
+        std::error_code error;
+        socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
+        if (error)
+            std::cout << "Error from SenderUdp::send(): " << error.message() << std::endl;
+    }
+
+    std::optional<std::vector<uint8_t>> receive()
+    {
+        std::vector<uint8_t> packet(1500);
+        asio::ip::udp::endpoint sender_endpoint;
+        std::error_code error;
+        size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
+
+        if (error == asio::error::would_block) {
+            return std::nullopt;
+        }
+        
+        if (error) {
+            std::cout << "Error from SenderUdp::receive(): " << error.message() << std::endl;
+            return std::nullopt;
+        }
+
+        packet.resize(packet_size);
+        return packet;
+    }
+
+private:
+    asio::ip::udp::socket socket_;
+    asio::ip::udp::endpoint remote_endpoint_;
+};
+
 // Sends Azure Kinect frames through a TCP port.
-void _send_azure_kinect_frames(int port, bool binned_depth)
+void _send_frames(int port, bool binned_depth)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -101,11 +143,7 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    if (!binned_depth) {
-        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-    } else {
-        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-    }
+    configuration.depth_mode = binned_depth ? K4A_DEPTH_MODE_NFOV_2X2BINNED : K4A_DEPTH_MODE_NFOV_UNBINNED;
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
 
     auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
@@ -120,10 +158,7 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     int depth_frame_size = depth_frame_width * depth_frame_height;
     TrvlEncoder depth_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
 
-    // Creating a tcp socket with the port and waiting for a connection.
     asio::io_context io_context;
-    //asio::ip::tcp::acceptor acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port));
-    //auto socket = acceptor.accept();
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
 
     std::array<char, 1> recv_buf;
@@ -135,13 +170,15 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
     if (error/* && error != boost::asio::error::message_size*/)
         throw std::system_error(error);
 
-    //std::cout << "Accepted a client!" << std::endl;
+    std::cout << "Found a client!" << std::endl;
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
     //Sender sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
     //sender.send(calibration);
+
+    SenderUdp sender(std::move(socket), remote_endpoint);
 
     device.start_cameras(&configuration);
 
@@ -172,11 +209,17 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         //    }
         //}
 
-        std::array<char, 5> buffer;
-        std::error_code error;
-        socket.receive_from(asio::buffer(buffer), remote_endpoint, 0, error);
-        uint8_t message_type = buffer[0];
-        memcpy(&receiver_frame_id, buffer.data() + 1, 4);
+        //std::array<char, 5> buffer;
+        //std::error_code error;
+        //socket.receive_from(asio::buffer(buffer), remote_endpoint, 0, error);
+        //uint8_t message_type = buffer[0];
+        //memcpy(&receiver_frame_id, buffer.data() + 1, 4);
+
+        auto receive_result = sender.receive();
+        if (receive_result) {
+            uint8_t message_type = (*receive_result)[0];
+            memcpy(&receiver_frame_id, receive_result->data() + 1, 4);
+        }
 
         auto capture_start = std::chrono::steady_clock::now();
         k4a::capture capture;
@@ -239,10 +282,11 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
 
         std::error_code send_error;
         for (auto packet : packets) {
-            socket.send_to(asio::buffer(packet), remote_endpoint, 0, send_error);
-            if (send_error) {
-                std::cout << "send error message: " << send_error.message() << std::endl;
-            }
+            sender.send(packet);
+            //socket.send_to(asio::buffer(packet), remote_endpoint, 0, send_error);
+            //if (send_error) {
+            //    std::cout << "send error message: " << send_error.message() << std::endl;
+            //}
         }
 
         auto frame_end = std::chrono::steady_clock::now();
@@ -259,18 +303,18 @@ void _send_azure_kinect_frames(int port, bool binned_depth)
         auto send_time = frame_end - send_start;
 
         std::cout << "frame_id: " << frame_id << ", "
-            << "frame_id_diff: " << frame_id_diff << ", "
-            //<< "byte_size: " << (byte_size / 1024) << " KB, "
-            //<< "frame_time_diff: " << (frame_time_diff.count() / 1000000) << " ms, "
-            //<< "capture_time_diff: " << (capture_time_diff.count() / 1000000) << " ms, "
-            //<< "transformation_time: " << (transformation_time.count() / 1000000) << " ms, "
-            //<< "compression_time: " << (compression_time.count() / 1000000) << " ms, "
-            << "color_compression_time: " << (color_compression_time.count() / 1000000) << " ms, "
-            << "depth_compression_time: " << (depth_compression_time.count() / 1000000) << " ms, "
-            << "send_time: " << (send_time.count() / 1000000) << " ms, "
-            //<< "time_diff: " << (time_diff.count() / 1000) << " ms, "
-            //<< "device_time_stamp: " << (time_stamp.count() / 1000) << " ms, "
-            << std::endl;
+                  << "frame_id_diff: " << frame_id_diff << ", "
+                  //<< "byte_size: " << (byte_size / 1024) << " KB, "
+                  //<< "frame_time_diff: " << (frame_time_diff.count() / 1000000) << " ms, "
+                  //<< "capture_time_diff: " << (capture_time_diff.count() / 1000000) << " ms, "
+                  //<< "transformation_time: " << (transformation_time.count() / 1000000) << " ms, "
+                  //<< "compression_time: " << (compression_time.count() / 1000000) << " ms, "
+                  << "color_compression_time: " << (color_compression_time.count() / 1000000) << " ms, "
+                  << "depth_compression_time: " << (depth_compression_time.count() / 1000000) << " ms, "
+                  << "send_time: " << (send_time.count() / 1000000) << " ms, "
+                  //<< "time_diff: " << (time_diff.count() / 1000) << " ms, "
+                  //<< "device_time_stamp: " << (time_stamp.count() / 1000) << " ms, "
+                  << std::endl;
 
         latest_time_stamp = time_stamp;
 
@@ -319,7 +363,7 @@ void send_frames()
             binned_depth = true;
 
         try {
-            _send_azure_kinect_frames(port, binned_depth);
+            _send_frames(port, binned_depth);
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
         }
