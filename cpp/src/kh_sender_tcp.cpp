@@ -1,11 +1,11 @@
-#include "kh_sender.h"
+#include "kh_sender_tcp.h"
 
 #include "kh_message.h"
 
 namespace kh
 {
 // Receives a moved socket.
-Sender::Sender(asio::ip::tcp::socket&& socket)
+SenderTcp::SenderTcp(asio::ip::tcp::socket&& socket)
     : socket_(std::move(socket))
 {
     // It is unncessary for the current version of our applications to have a non-blocking socket.
@@ -14,7 +14,7 @@ Sender::Sender(asio::ip::tcp::socket&& socket)
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::send(k4a_calibration_t calibration)
+void SenderTcp::send(k4a_calibration_t calibration)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -80,7 +80,7 @@ void Sender::send(k4a_calibration_t calibration)
 }
 
 // Sends a Kinect frame to a Receiver.
-void Sender::send(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
+void SenderTcp::send(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
                   uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
@@ -118,7 +118,7 @@ void Sender::send(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp
 }
 
 // Receives a message from a Receiver that includes an ID of a Kinect frame that was sent.
-std::optional<std::vector<uint8_t>> Sender::receive()
+std::optional<std::vector<uint8_t>> SenderTcp::receive()
 {
     return message_buffer_.receive(socket_);
 }

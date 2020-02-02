@@ -1,6 +1,6 @@
 #include <iostream>
 #include <asio.hpp>
-#include "kh_receiver.h"
+#include "kh_receiver_tcp.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "helper/opencv_helper.h"
@@ -13,7 +13,7 @@ void _receive_azure_kinect_frames(std::string ip_address, int port)
 
     // Try connecting to a Sender with the IP address and the port.
     asio::io_context io_context;
-    Receiver receiver(io_context);
+    ReceiverTcp receiver(io_context);
     for (;;) {
         if (receiver.connect(ip_address, port))
             break;

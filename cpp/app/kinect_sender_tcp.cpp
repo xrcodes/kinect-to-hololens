@@ -1,6 +1,6 @@
 #include <chrono>
 #include "kh_core.h"
-#include "kh_sender.h"
+#include "kh_sender_tcp.h"
 #include "k4a/k4a.hpp"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
@@ -61,7 +61,7 @@ void _send_frames(int port, bool binned_depth)
     std::cout << "Accepted a client!" << std::endl;
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    Sender sender(std::move(socket));
+    SenderTcp sender(std::move(socket));
     // The sender sends the KinectIntrinsics, so the renderer from the receiver side can prepare rendering Kinect frames.
     // TODO: Add a function send() for Azure Kinect.
     sender.send(calibration);

@@ -1,17 +1,17 @@
-#include "kh_receiver.h"
+#include "kh_receiver_tcp.h"
 
 #include <iostream>
 
 namespace kh
 {
 // Creates a socket with io_context.
-Receiver::Receiver(asio::io_context& io_context)
+ReceiverTcp::ReceiverTcp(asio::io_context& io_context)
     : socket_(io_context), message_buffer_()
 {
 }
 
 // Connects to a Sender with the Sender's IP address and port.
-bool Receiver::connect(std::string ip_address, int port)
+bool ReceiverTcp::connect(std::string ip_address, int port)
 {
     asio::ip::tcp::resolver resolver(socket_.get_io_context());
     auto endpoints = resolver.resolve(ip_address, std::to_string(port));
@@ -27,13 +27,13 @@ bool Receiver::connect(std::string ip_address, int port)
 }
 
 // Try receiving a message from the sender and returns the message if found.
-std::optional<std::vector<uint8_t>> Receiver::receive()
+std::optional<std::vector<uint8_t>> ReceiverTcp::receive()
 {
     return message_buffer_.receive(socket_);
 }
 
 // Sends a message to the Sender that it received a Kinect frame.
-void Receiver::send(int frame_id)
+void ReceiverTcp::send(int frame_id)
 {
     uint32_t message_size = static_cast<uint32_t>(1 + 4);
     uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
