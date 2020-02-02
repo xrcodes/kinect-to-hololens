@@ -1,7 +1,7 @@
 #include <chrono>
 #include <filesystem>
+#include <iostream>
 #include "kh_core.h"
-#include "kh_sender.h"
 #include "k4a/k4a.hpp"
 #include "k4arecord/playback.hpp"
 #include "kh_vp8.h"
@@ -20,6 +20,7 @@ int pow_of_two(int exp) {
     return res;
 }
 
+// For having an interface combining devices and playbacks one day in the future...
 class KinectDevice
 {
 private:
@@ -127,12 +128,6 @@ void _send_frames(KinectDevice& device, int port)
             memcpy(&receiver_frame_id, receive_result->data() + 1, 4);
         }
 
-        //k4a::capture capture;
-        //if (!device.get_capture(&capture, TIMEOUT)) {
-        //    std::cout << "get_capture() timed out" << std::endl;
-        //    continue;
-        //}
-
         auto capture = device.getCapture();
         if (!capture)
             continue;
@@ -191,8 +186,6 @@ void _send_frames(KinectDevice& device, int port)
             ss << "Summary for frame " << frame_id << ", "
                 << "FPS: " << frame_count / diff.count() << ", "
                 << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
-             // White spaces are added at the end to make sure to clean up the previous line.
-             // std::cout << ss.str() << "       \r";
             std::cout << ss.str() << std::endl;
             summary_start = summary_end;
             frame_count = 0;
@@ -214,18 +207,15 @@ void send_frames()
 {
     for (;;) {
         std::string line;
-        std::cout << "Choose depth resolution (1: Full, 2: Half): ";
+        std::cout << "Enter a port number to start sending frames: ";
         std::getline(std::cin, line);
-
-        // The default type is TRVL.
-        bool binned_depth = false;
-        if (line == "2")
-            binned_depth = true;
+        // The default port (the port when nothing is entered) is 7777.
+        int port = line.empty() ? 7777 : std::stoi(line);
 
         k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
         configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
         configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
-        configuration.depth_mode = binned_depth ? K4A_DEPTH_MODE_NFOV_2X2BINNED : K4A_DEPTH_MODE_NFOV_UNBINNED;
+        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
         auto timeout = std::chrono::milliseconds(1000);
 
         auto device = KinectDevice::create(configuration, timeout);
@@ -234,11 +224,6 @@ void send_frames()
             continue;
         }
         device->start();
-
-        std::cout << "Enter a port number to start sending frames: ";
-        std::getline(std::cin, line);
-        // The default port (the port when nothing is entered) is 7777.
-        int port = line.empty() ? 7777 : std::stoi(line);
 
         try {
             _send_frames(*device, port);
