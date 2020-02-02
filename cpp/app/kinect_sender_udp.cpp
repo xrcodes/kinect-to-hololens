@@ -163,7 +163,7 @@ void _send_frames(KinectDevice& device, int port)
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
-        bool keyframe = frame_id % 30 != 0;
+        bool keyframe = frame_id % 30 == 0;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),

@@ -8,6 +8,81 @@
 
 namespace kh
 {
+class FrameMessage
+{
+private:
+    FrameMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
+                 bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size)
+        : message_(std::move(message)), frame_id_(frame_id), frame_time_stamp_(frame_time_stamp),
+        keyframe_(keyframe), color_encoder_frame_size_(color_encoder_frame_size),
+        depth_encoder_frame_size_(depth_encoder_frame_size)
+    {
+    }
+
+public:
+    static FrameMessage create(std::vector<uint8_t>&& message)
+    {
+        int cursor = 0;
+        int frame_id;
+        memcpy(&frame_id, message.data() + cursor, 4);
+        cursor += 4;
+
+        float frame_time_stamp;
+        memcpy(&frame_time_stamp, message.data() + cursor, 4);
+        cursor += 4;
+
+        bool keyframe = message[cursor];
+        cursor += 1;
+
+        // Parsing the bytes of the message into the VP8 and RVL frames.
+        int color_encoder_frame_size;
+        memcpy(&color_encoder_frame_size, message.data() + cursor, 4);
+        cursor += 4;
+
+        // Bytes of the color_encoder_frame.
+        cursor += color_encoder_frame_size;
+
+        int depth_encoder_frame_size;
+        memcpy(&depth_encoder_frame_size, message.data() + cursor, 4);
+
+        return FrameMessage(std::move(message), frame_id, frame_time_stamp,
+                            keyframe, color_encoder_frame_size,
+                            depth_encoder_frame_size);
+    }
+
+    int frame_id() { return frame_id_; }
+    float frame_time_stamp() { return frame_time_stamp_; }
+    bool keyframe() { return keyframe_; }
+    int color_encoder_frame_size() { return color_encoder_frame_size_; }
+    int depth_encoder_frame_size() { return depth_encoder_frame_size_; }
+
+    std::vector<uint8_t> getColorEncoderFrame()
+    {
+        int cursor = 4 + 4 + 1 + 4;
+        std::vector<uint8_t> color_encoder_frame(color_encoder_frame_size_);
+        memcpy(color_encoder_frame.data(), message_.data() + cursor, color_encoder_frame_size_);
+
+        return color_encoder_frame;
+    }
+
+    std::vector<uint8_t> getDepthEncoderFrame()
+    {
+        int cursor = 4 + 4 + 1 + 4 + color_encoder_frame_size_ + 4;
+        std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size_);
+        memcpy(depth_encoder_frame.data(), message_.data() + cursor, depth_encoder_frame_size_);
+
+        return depth_encoder_frame;
+    }
+
+private:
+    std::vector<uint8_t> message_;
+    int frame_id_;
+    float frame_time_stamp_;
+    bool keyframe_;
+    int color_encoder_frame_size_;
+    int depth_encoder_frame_size_;
+};
+
 class FramePacketCollection
 {
 public:
@@ -34,7 +109,7 @@ public:
         return true;
     }
 
-    std::vector<uint8_t> toMessage() {
+    FrameMessage toMessage() {
         int message_size = 0;
         for (auto packet : packets_) {
             message_size += packet.size() - 13;
@@ -46,7 +121,7 @@ public:
             memcpy(message.data() + cursor, packets_[i].data() + 13, packets_[i].size() - 13);
         }
 
-        return message;
+        return FrameMessage::create(std::move(message));
     }
 
     int getCollectedPacketCount() {
@@ -80,7 +155,7 @@ void _receive_frames(std::string ip_address, int port)
 
     int last_frame_id = -1;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
-    std::unordered_map<int, std::vector<uint8_t>> frame_messages;
+    std::unordered_map<int, FrameMessage> frame_messages;
 
     for (;;) {
         std::vector<std::vector<uint8_t>> packets;
@@ -165,46 +240,19 @@ void _receive_frames(std::string ip_address, int port)
             }
             auto frame_message_ptr = &find_iterator->second;
 
-            std::cout << "frame message size: " << frame_message_ptr->size() << std::endl;
+            int frame_id = frame_message_ptr->frame_id();
+            bool keyframe = frame_message_ptr->keyframe();
 
-            int cursor = 0;
-            int frame_id;
-            memcpy(&frame_id, frame_message_ptr->data() + cursor, 4);
-            cursor += 4;
-
-            std::cout << "frame_id: " << frame_id << std::endl;
-
-            if (frame_id % 100 == 0)
-                std::cout << "Received frame " << frame_id << "." << std::endl;
             last_frame_id = frame_id;
 
-            float frame_time_stamp;
-            memcpy(&frame_time_stamp, frame_message_ptr->data() + cursor, 4);
-            cursor += 4;
-
-            bool keyframe = (*frame_message_ptr)[cursor];
-            cursor += 1;
+            std::cout << "frame_id: " << frame_id << std::endl;
             std::cout << "keyframe: " << keyframe << std::endl;
 
-            // Parsing the bytes of the message into the VP8 and RVL frames.
-            int vp8_frame_size;
-            memcpy(&vp8_frame_size, frame_message_ptr->data() + cursor, 4);
-            cursor += 4;
-
-            std::vector<uint8_t> vp8_frame(vp8_frame_size);
-            memcpy(vp8_frame.data(), frame_message_ptr->data() + cursor, vp8_frame_size);
-            cursor += vp8_frame_size;
-
-            int depth_encoder_frame_size;
-            memcpy(&depth_encoder_frame_size, frame_message_ptr->data() + cursor, 4);
-            cursor += 4;
-
-            std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size);
-            memcpy(depth_encoder_frame.data(), frame_message_ptr->data() + cursor, depth_encoder_frame_size);
-            cursor += depth_encoder_frame_size;
+            auto color_encoder_frame = frame_message_ptr->getColorEncoderFrame();
+            auto depth_encoder_frame = frame_message_ptr->getDepthEncoderFrame();
 
             // Decoding a Vp8Frame into color pixels.
-            ffmpeg_frame = color_decoder.decode(vp8_frame.data(), vp8_frame.size());
+            ffmpeg_frame = color_decoder.decode(color_encoder_frame.data(), color_encoder_frame.size());
 
             // Decompressing a RVL frame into depth pixels.
             depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
