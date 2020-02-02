@@ -68,7 +68,7 @@ class ReceiverUdp
 {
 public:
     ReceiverUdp(asio::io_context& io_context, int receive_buffer_size)
-        : socket_(io_context), sender_endpoint_()
+        : socket_(io_context), remote_endpoint_()
     {
         socket_.open(asio::ip::udp::v4());
         socket_.non_blocking(true);
@@ -79,16 +79,16 @@ public:
     // Connects to a Sender with the Sender's IP address and port.
     void ping(std::string ip_address, int port)
     {
-        sender_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
+        remote_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
         std::array<char, 1> send_buf = { { 0 } };
-        socket_.send_to(asio::buffer(send_buf), sender_endpoint_);
+        socket_.send_to(asio::buffer(send_buf), remote_endpoint_);
     }
 
     std::optional<std::vector<uint8_t>> receive()
     {
         std::vector<uint8_t> packet(1500);
         std::error_code error;
-        size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint_, 0, error);
+        size_t packet_size = socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error);
 
         if (error == asio::error::would_block) {
             return std::nullopt;
@@ -106,12 +106,12 @@ public:
         std::array<char, 5> frame_id_buffer;
         frame_id_buffer[0] = 1;
         memcpy(frame_id_buffer.data() + 1, &frame_id, 4);
-        socket_.send_to(asio::buffer(frame_id_buffer), sender_endpoint_);
+        socket_.send_to(asio::buffer(frame_id_buffer), remote_endpoint_);
     }
 
 private:
     asio::ip::udp::socket socket_;
-    asio::ip::udp::endpoint sender_endpoint_;
+    asio::ip::udp::endpoint remote_endpoint_;
 };
 
 void _receive_frames(std::string ip_address, int port)
@@ -128,17 +128,21 @@ void _receive_frames(std::string ip_address, int port)
     std::unique_ptr<TrvlDecoder> depth_decoder;
 
     int last_frame_id = -1;
-    std::unordered_map<int, std::vector<uint8_t>> frame_messages;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
+    std::unordered_map<int, std::vector<uint8_t>> frame_messages;
 
     for (;;) {
         std::vector<std::vector<uint8_t>> packets;
-
         for (;;) {
             auto receive_result = receiver.receive();
             if (!receive_result) {
                 break;
             }
+
+            // Simulate packet loss
+            //if (rand() % 100 == 0) {
+            //    continue;
+            //}
 
             packets.push_back(*receive_result);
         }
@@ -165,21 +169,22 @@ void _receive_frames(std::string ip_address, int port)
                 continue;
             }
 
-            int frame_id;
-            int packet_index;
-            int packet_count;
-            memcpy(&frame_id, packet.data() + 1, 4);
-            memcpy(&packet_index, packet.data() + 5, 4);
-            memcpy(&packet_count, packet.data() + 9, 4);
+            if (packet_type == 1) {
+                int frame_id;
+                int packet_index;
+                int packet_count;
+                memcpy(&frame_id, packet.data() + 1, 4);
+                memcpy(&packet_index, packet.data() + 5, 4);
+                memcpy(&packet_count, packet.data() + 9, 4);
 
-            auto it = frame_packet_collections.find(frame_id);
-            if (it == frame_packet_collections.end()) {
-                std::cout << "add collection " << frame_id << std::endl;
-                frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+                auto it = frame_packet_collections.find(frame_id);
+                if (it == frame_packet_collections.end()) {
+                    std::cout << "add collection " << frame_id << std::endl;
+                    frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+                }
+
+                frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
             }
-
-            //frame_packet_collections[frame_id].addPacket(packet_index, packet);
-            frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
         }
 
         // Find all full collections and their frame_ids.
@@ -188,11 +193,6 @@ void _receive_frames(std::string ip_address, int port)
             if (collection_pair.second.isFull()) {
                 int frame_id = collection_pair.first;
                 full_frame_ids.push_back(frame_id);
-                std::cout << "full: " << frame_id << std::endl;
-            } else {
-                std::cout << "not full1: " << collection_pair.first << std::endl;
-                std::cout << "not full2: " << collection_pair.second.packet_count() << std::endl;
-                std::cout << "not full3: " << collection_pair.second.getCollectedPacketCount() << std::endl;
             }
         }
         std::sort(full_frame_ids.begin(), full_frame_ids.end());
