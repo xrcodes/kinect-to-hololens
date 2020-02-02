@@ -219,7 +219,6 @@ void _receive_frames(std::string ip_address, int port)
                 full_frame_ids.push_back(frame_id);
             }
         }
-        std::sort(full_frame_ids.begin(), full_frame_ids.end());
 
         // Extract messages from the full collections.
         for (int full_frame_id : full_frame_ids) {

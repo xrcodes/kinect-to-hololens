@@ -1,25 +1,13 @@
 #include <chrono>
-#include <filesystem>
 #include <iostream>
-#include "kh_core.h"
 #include "k4a/k4a.hpp"
-#include "k4arecord/playback.hpp"
+#include "kh_core.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "kh_sender_udp.h"
 
 namespace kh
 {
-//int pow_of_two(int exp) {
-//    assert(exp >= 0);
-//
-//    int res = 1;
-//    for (int i = 0; i < exp; ++i) {
-//        res *= 2;
-//    }
-//    return res;
-//}
-
 // For having an interface combining devices and playbacks one day in the future...
 class KinectDevice
 {
@@ -118,7 +106,7 @@ void _send_frames(KinectDevice& device, int port)
     // Variables for profiling the sender.
     auto summary_start = std::chrono::system_clock::now();
     int frame_count = 0;
-    std::chrono::microseconds latest_time_stamp;
+    std::chrono::microseconds last_time_stamp;
 
     size_t frame_size = 0;
     for (;;) {
@@ -141,17 +129,9 @@ void _send_frames(KinectDevice& device, int port)
         int frame_id_diff = frame_id - receiver_frame_id;
 
         auto time_stamp = color_image.get_device_timestamp();
-        auto time_diff = time_stamp - latest_time_stamp;
+        auto time_diff = time_stamp - last_time_stamp;
         // Rounding assuming that the framerate is 30 Hz.
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
-
-        //// Skip frame if the receiver is struggling.
-        //// if frame_id_diff == 1 or 2 -> don't skip
-        //// if frame_id_diff == n -> skip 2 ^ (n - 3) frames.
-        //// Do not test for the first frame.
-        //if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
-        //    continue;
-        //}
 
         auto depth_image = capture->get_depth_image();
         if (!depth_image) {
@@ -178,7 +158,7 @@ void _send_frames(KinectDevice& device, int port)
         sender.send(frame_id, frame_time_stamp, keyframe, vp8_frame,
                     reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
 
-        latest_time_stamp = time_stamp;
+        last_time_stamp = time_stamp;
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
