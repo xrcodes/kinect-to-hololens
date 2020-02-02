@@ -8,6 +8,16 @@
 
 namespace kh
 {
+int pow_of_two(int exp) {
+    assert(exp >= 0);
+
+    int res = 1;
+    for (int i = 0; i < exp; ++i) {
+        res *= 2;
+    }
+    return res;
+}
+
 // For having an interface combining devices and playbacks one day in the future...
 class KinectDevice
 {
@@ -85,7 +95,6 @@ void _send_frames(KinectDevice& device, int port)
     asio::ip::udp::endpoint remote_endpoint;
     std::error_code error;
     socket.receive_from(asio::buffer(recv_buf), remote_endpoint, 0, error);
-    socket.non_blocking(true);
 
     if (error) {
         std::cout << "Error receiving remote_endpoint: " << error.message() << std::endl;
@@ -132,7 +141,11 @@ void _send_frames(KinectDevice& device, int port)
         auto time_diff = time_stamp - last_time_stamp;
         // Rounding assuming that the framerate is 30 Hz.
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
-        
+
+        if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+            continue;
+        }
+
         auto depth_image = capture->get_depth_image();
         if (!depth_image) {
             std::cout << "no depth_image" << std::endl;
@@ -143,7 +156,7 @@ void _send_frames(KinectDevice& device, int port)
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
-        bool keyframe = frame_id % 30 == 0 || frame_id_diff > 2;
+        bool keyframe = frame_id_diff > 3;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),

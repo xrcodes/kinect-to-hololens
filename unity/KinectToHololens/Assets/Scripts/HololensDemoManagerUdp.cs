@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.XR.WSA.Input;
 
 class FrameMessage
@@ -195,8 +196,6 @@ public class HololensDemoManagerUdp : MonoBehaviour
         statusText.text = "Waiting for user input.";
 
         Plugin.texture_group_reset();
-
-        //receiver.Ping(IPAddress.Parse("127.0.0.1"), 7777);
     }
 
     void Update()
@@ -237,7 +236,7 @@ public class HololensDemoManagerUdp : MonoBehaviour
         if (receiver == null)
             return;
 
-        float start = Time.time;
+        Profiler.BeginSample("Receive Packets");
         var packets = new List<byte[]>();
         while (true)
         {
@@ -247,7 +246,9 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
             packets.Add(packet);
         }
+        Profiler.EndSample();
 
+        Profiler.BeginSample("Collect Frame Packets");
         foreach (var packet in packets)
         {
             var packetType = packet[0];
@@ -278,7 +279,9 @@ public class HololensDemoManagerUdp : MonoBehaviour
                 framePacketCollections[frameId].AddPacket(packetIndex, packet);
             }
         }
+        Profiler.EndSample();
 
+        Profiler.BeginSample("Create Frame Messages");
         // Find all full collections and their frame_ids.
         var fullFrameIds = new List<int>();
         foreach (var collectionPair in framePacketCollections)
@@ -298,8 +301,9 @@ public class HololensDemoManagerUdp : MonoBehaviour
         }
 
         frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
-
-        if(frameMessages.Count == 0)
+        Profiler.EndSample();
+        
+        if (frameMessages.Count == 0)
         {
             return;
         }
@@ -330,6 +334,9 @@ public class HololensDemoManagerUdp : MonoBehaviour
             }
         }
 
+        Profiler.BeginSample("Render");
+        // ffmpegFrame and trvlFrame are guaranteed to be non-null
+        // since the existence of beginIndex's value.
         FFmpegFrame ffmpegFrame = null;
         TrvlFrame trvlFrame = null;
         for(int i = beginIndex.Value; i < frameMessages.Count; ++i)
@@ -352,25 +359,18 @@ public class HololensDemoManagerUdp : MonoBehaviour
             Marshal.FreeHGlobal(depthEncoderFrameBytes);
         }
 
-        print($"frameMessages.Count: {frameMessages.Count}");
-        // Reset frame_messages after they are displayed.
-        frameMessages = new List<FrameMessage>();
+        receiver.Send(lastFrameId);
 
-
-
-        // If a frame message was received.
-        if (ffmpegFrame != null)
+        // Invokes a function to be called in a render thread.
+        if (textureGroup != null)
         {
-            receiver.Send(lastFrameId);
-
-            // Invokes a function to be called in a render thread.
-            if (textureGroup != null)
-            {
-                Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
-                Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);
-                PluginHelper.UpdateTextureGroup();
-            }
+            Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
+            Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);
+            PluginHelper.UpdateTextureGroup();
         }
+
+        frameMessages = new List<FrameMessage>();
+        Profiler.EndSample();
     }
 
     private void OnTapped(TappedEventArgs args)
