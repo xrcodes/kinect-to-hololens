@@ -72,51 +72,46 @@ void SenderUdp::send(k4a_calibration_t calibration)
     sendPacket(message);
 }
 
-void SenderUdp::send(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
+void SenderUdp::send(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
             uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
-    auto message = createFrameMessage(frame_id, frame_time_stamp, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
+    auto message = createFrameMessage(frame_id, frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
     auto packets = splitFrameMessage(frame_id, message);
     for (auto packet : packets) {
         sendPacket(packet);
     }
 }
 
-std::vector<uint8_t> SenderUdp::createFrameMessage(int frame_id, float frame_time_stamp, std::vector<uint8_t>& vp8_frame,
+std::vector<uint8_t> SenderUdp::createFrameMessage(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                                         uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
-    uint32_t message_size = static_cast<uint32_t>(1 + 4 + 4 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
-    uint32_t buffer_size = static_cast<uint32_t>(4 + message_size);
+    uint32_t message_size = static_cast<uint32_t>(4 + 4 + 1 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
 
-    std::vector<uint8_t> buffer(buffer_size);
+    std::vector<uint8_t> message(message_size);
     size_t cursor = 0;
 
-    memcpy(buffer.data() + cursor, &message_size, 4);
+    memcpy(message.data() + cursor, &frame_id, 4);
     cursor += 4;
 
-    // Message type
-    buffer[4] = static_cast<uint8_t>(1);
+    memcpy(message.data() + cursor, &frame_time_stamp, 4);
+    cursor += 4;
+
+    message[cursor] = static_cast<uint8_t>(keyframe);
     cursor += 1;
 
-    memcpy(buffer.data() + cursor, &frame_id, 4);
+    int vp8_frame_size = vp8_frame.size();
+    memcpy(message.data() + cursor, &vp8_frame_size, 4);
     cursor += 4;
 
-    memcpy(buffer.data() + cursor, &frame_time_stamp, 4);
-    cursor += 4;
-
-    auto encoder_frame_size = static_cast<uint32_t>(vp8_frame.size());
-    memcpy(buffer.data() + cursor, &encoder_frame_size, 4);
-    cursor += 4;
-
-    memcpy(buffer.data() + cursor, vp8_frame.data(), vp8_frame.size());
+    memcpy(message.data() + cursor, vp8_frame.data(), vp8_frame.size());
     cursor += vp8_frame.size();
 
-    memcpy(buffer.data() + cursor, &depth_encoder_frame_size, 4);
+    memcpy(message.data() + cursor, &depth_encoder_frame_size, 4);
     cursor += 4;
 
-    memcpy(buffer.data() + cursor, depth_encoder_frame, depth_encoder_frame_size);
+    memcpy(message.data() + cursor, depth_encoder_frame, depth_encoder_frame_size);
 
-    return buffer;
+    return message;
 }
 
 std::vector<std::vector<uint8_t>> SenderUdp::splitFrameMessage(int frame_id, std::vector<uint8_t> frame_message)

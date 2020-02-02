@@ -163,6 +163,8 @@ void _send_frames(KinectDevice& device, int port)
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
+        bool keyframe = false;
+
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
                                                                  transformed_color_image.get_width_pixels(),
@@ -173,7 +175,7 @@ void _send_frames(KinectDevice& device, int port)
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()));
 
-        sender.send(frame_id, frame_time_stamp, vp8_frame,
+        sender.send(frame_id, frame_time_stamp, keyframe, vp8_frame,
                     reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
 
         latest_time_stamp = time_stamp;

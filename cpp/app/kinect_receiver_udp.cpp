@@ -168,13 +168,6 @@ void _receive_frames(std::string ip_address, int port)
             std::cout << "frame message size: " << frame_message_ptr->size() << std::endl;
 
             int cursor = 0;
-            int message_size;
-            memcpy(&message_size, frame_message_ptr->data() + cursor, 4);
-            cursor += 4;
-
-            auto message_type = (*frame_message_ptr)[4];
-            cursor += 1;
-
             int frame_id;
             memcpy(&frame_id, frame_message_ptr->data() + cursor, 4);
             cursor += 4;
@@ -188,6 +181,10 @@ void _receive_frames(std::string ip_address, int port)
             float frame_time_stamp;
             memcpy(&frame_time_stamp, frame_message_ptr->data() + cursor, 4);
             cursor += 4;
+
+            bool keyframe = (*frame_message_ptr)[cursor];
+            cursor += 1;
+            std::cout << "keyframe: " << keyframe << std::endl;
 
             // Parsing the bytes of the message into the VP8 and RVL frames.
             int vp8_frame_size;
