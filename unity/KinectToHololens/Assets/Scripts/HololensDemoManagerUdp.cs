@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using UnityEngine;
-
+using UnityEngine.XR.WSA.Input;
 
 class FrameMessage
 {
@@ -124,39 +122,94 @@ class FramePacketCollection
 
 public class HololensDemoManagerUdp : MonoBehaviour
 {
-    private Dictionary<int, FramePacketCollection> framePacketCollections;
-    private List<FrameMessage> frameMessages;
-    private int lastFrameId;
+    private enum InputState
+    {
+        IpAddress, Port
+    }
 
+    // The main camera's Transform.
+    public Transform cameraTransform;
+    // The TextMesh placed above user's head.
+    public TextMesh statusText;
+    // The root of the scene that includes everything else except the main camera.
+    // This provides a convenient way to place everything in front of the camera.
+    public Transform scenceRootTransform;
+    // TextMeshes for the UI.
+    public TextMesh ipAddressText;
+    public TextMesh ipAddressInputField;
+    public TextMesh portText;
+    public TextMesh portInputField;
+    public TextMesh instructionText;
     // For rendering the Kinect pixels in 3D.
     public Material azureKinectScreenMaterial;
     public AzureKinectScreen azureKinectScreen;
 
+    // To recognize when the user taps.
+    private GestureRecognizer gestureRecognizer;
+    // Varaibles that represent states of the scene.
+    private InputState inputState;
     private TextureGroup textureGroup;
-
     private ReceiverUdp receiver;
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
 
-    //private IPAddress address;
-    //private int port;
+    private Dictionary<int, FramePacketCollection> framePacketCollections;
+    private List<FrameMessage> frameMessages;
+    private int lastFrameId;
 
+    public TextMesh ActiveInputField
+    {
+        get
+        {
+            return inputState == InputState.IpAddress ? ipAddressInputField : portInputField;
+        }
+    }
+
+    public bool UiVisibility
+    {
+        set
+        {
+            ipAddressText.gameObject.SetActive(value);
+            ipAddressInputField.gameObject.SetActive(value);
+            portText.gameObject.SetActive(value);
+            portInputField.gameObject.SetActive(value);
+            instructionText.gameObject.SetActive(value);
+        }
+    }
     void Awake()
     {
+        gestureRecognizer = new GestureRecognizer();
         receiver = new ReceiverUdp(1024 * 1024);
+        textureGroup = null;
+        UiVisibility = true;
+        SetInputState(InputState.IpAddress);
+
         framePacketCollections = new Dictionary<int, FramePacketCollection>();
         frameMessages = new List<FrameMessage>();
         lastFrameId = -1;
 
-        textureGroup = null;
+        // Prepare a GestureRecognizer to recognize taps.
+        gestureRecognizer.Tapped += OnTapped;
+        gestureRecognizer.StartCapturingGestures();
+
+        statusText.text = "Waiting for user input.";
 
         Plugin.texture_group_reset();
 
-        receiver.Ping(IPAddress.Parse("127.0.0.1"), 7777);
+        //receiver.Ping(IPAddress.Parse("127.0.0.1"), 7777);
     }
 
     void Update()
     {
+        // Space key resets the scene to be placed in front of the camera.
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            ResetView();
+        }
+
+        // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
+        AbsorbInput();
+
         // If texture is not created, create and assign them to quads.
         if (textureGroup == null)
         {
@@ -174,8 +227,15 @@ public class HololensDemoManagerUdp : MonoBehaviour
                 azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.DepthTexture);
 
                 print("textureGroup intialized");
+                // TODO: Ideally, this part should move into somewhere like Ping().
+                UiVisibility = false;
+                statusText.text = $"Connected to {receiver.Address.ToString()}:{receiver.Port}!";
             }
         }
+
+        // Do not continue if there is no Receiever connected to a Sender.
+        if (receiver == null)
+            return;
 
         float start = Time.time;
         var packets = new List<byte[]>();
@@ -311,5 +371,115 @@ public class HololensDemoManagerUdp : MonoBehaviour
                 PluginHelper.UpdateTextureGroup();
             }
         }
+    }
+
+    private void OnTapped(TappedEventArgs args)
+    {
+        // Place the scene in front of the camera when the user taps.
+        ResetView();
+    }
+
+    // Places everything in front of the camera by positing and turning a root transform for
+    // everything else except the camera.
+    private void ResetView()
+    {
+        scenceRootTransform.localPosition = cameraTransform.localPosition;
+        scenceRootTransform.localRotation = cameraTransform.localRotation;
+    }
+
+    // Sends keystrokes of the virtual keyboard to TextMeshes.
+    // Try connecting the Receiver to a Sender when the user pressed the enter key.
+    private void AbsorbInput()
+    {
+        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.Tab))
+        {
+            SetInputState(inputState != InputState.IpAddress ? InputState.IpAddress : InputState.Port);
+        }
+        AbsorbKeyCode(KeyCode.Alpha0, '0');
+        AbsorbKeyCode(KeyCode.Keypad0, '0');
+        AbsorbKeyCode(KeyCode.Alpha1, '1');
+        AbsorbKeyCode(KeyCode.Keypad1, '1');
+        AbsorbKeyCode(KeyCode.Alpha2, '2');
+        AbsorbKeyCode(KeyCode.Keypad2, '2');
+        AbsorbKeyCode(KeyCode.Alpha3, '3');
+        AbsorbKeyCode(KeyCode.Keypad3, '3');
+        AbsorbKeyCode(KeyCode.Alpha4, '4');
+        AbsorbKeyCode(KeyCode.Keypad4, '4');
+        AbsorbKeyCode(KeyCode.Alpha5, '5');
+        AbsorbKeyCode(KeyCode.Keypad5, '5');
+        AbsorbKeyCode(KeyCode.Alpha6, '6');
+        AbsorbKeyCode(KeyCode.Keypad6, '6');
+        AbsorbKeyCode(KeyCode.Alpha7, '7');
+        AbsorbKeyCode(KeyCode.Keypad7, '7');
+        AbsorbKeyCode(KeyCode.Alpha8, '8');
+        AbsorbKeyCode(KeyCode.Keypad8, '8');
+        AbsorbKeyCode(KeyCode.Alpha9, '9');
+        AbsorbKeyCode(KeyCode.Keypad9, '9');
+        if (inputState == InputState.IpAddress)
+        {
+            AbsorbKeyCode(KeyCode.Period, '.');
+            AbsorbKeyCode(KeyCode.KeypadPeriod, '.');
+        }
+        if (Input.GetKeyDown(KeyCode.Backspace))
+        {
+            var text = ActiveInputField.text;
+            if (text.Length > 0)
+            {
+                ActiveInputField.text = text.Substring(0, text.Length - 1);
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
+        {
+            Ping();
+        }
+    }
+
+    // A helper method for AbsorbInput().
+    private void AbsorbKeyCode(KeyCode keyCode, char c)
+    {
+        if (Input.GetKeyDown(keyCode))
+        {
+            ActiveInputField.text += c;
+        }
+    }
+
+    // TODO: Make UI better.
+    private void Ping()
+    {
+        //UiVisibility = false;
+
+        // The default IP address is 127.0.0.1.
+        string ipAddress = ipAddressInputField.text;
+        if (ipAddress.Length == 0)
+            ipAddress = "127.0.0.1";
+
+        // The default port is 7777.
+        string portString = portInputField.text;
+        int port = portString.Length != 0 ? int.Parse(portString) : 7777;
+
+        string logString = $"Try connecting to {ipAddress}:{port}...";
+        Debug.Log(logString);
+        statusText.text = logString;
+
+        // TODO: This part should be greatly improved before actual usage...
+        // Especially, the way to figure out whether the receiver is ready
+        // is terrible...
+        receiver.Ping(IPAddress.Parse(ipAddress), port);
+    }
+
+    private void SetInputState(InputState inputState)
+    {
+        if (inputState == InputState.IpAddress)
+        {
+            ipAddressText.color = Color.yellow;
+            portText.color = Color.white;
+        }
+        else
+        {
+            ipAddressText.color = Color.white;
+            portText.color = Color.yellow;
+        }
+
+        this.inputState = inputState;
     }
 }

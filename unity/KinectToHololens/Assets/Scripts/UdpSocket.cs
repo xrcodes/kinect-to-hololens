@@ -62,8 +62,7 @@ public class UdpSocket
 
     public Tuple<int, SocketError> Receive(byte[] buffer, int offset, int length)
     {
-        SocketError socketError;
-        int size = socket.Receive(buffer, offset, length, SocketFlags.None, out socketError);
+        int size = socket.Receive(buffer, offset, length, SocketFlags.None, out SocketError socketError);
         return new Tuple<int, SocketError>(size, socketError);
     }
 

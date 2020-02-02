@@ -6,8 +6,16 @@ using System.Net.Sockets;
 public class ReceiverUdp
 {
     private UdpSocket socket;
-    private IPAddress address;
-    private int port;
+    public IPAddress Address { get; private set; }
+    public int Port { get; private set; }
+
+    public int Available
+    {
+        get
+        {
+            return socket.Available;
+        }
+    }
 
     public ReceiverUdp(int receiveBufferSize)
     {
@@ -16,8 +24,8 @@ public class ReceiverUdp
 
     public void Ping(IPAddress address, int port)
     {
-        this.address = address;
-        this.port = port;
+        Address = address;
+        Port = port;
 
         var bytes = new byte[1];
         bytes[0] = 1;
@@ -63,6 +71,6 @@ public class ReceiverUdp
         var ms = new MemoryStream();
         ms.WriteByte(0);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        socket.SendTo(ms.ToArray(), address, port);
+        socket.SendTo(ms.ToArray(), Address, Port);
     }
 }
