@@ -20,6 +20,8 @@ set(SOURCE_FILES
   kh_receiver_tcp.cpp
   kh_sender_udp.h
   kh_sender_udp.cpp
+  kh_receiver_udp.h
+  kh_receiver_udp.cpp
 )
 
 add_library(KinectToHololens ${SOURCE_FILES})
