@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using UnityEngine;
 
 
@@ -132,7 +134,12 @@ public class HololensDemoManagerUdp : MonoBehaviour
     public AzureKinectScreen azureKinectScreen;
 
     private TextureGroup textureGroup;
+
+    private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
+
+    private IPAddress address;
+    private int port;
 
     void Awake()
     {
@@ -145,8 +152,8 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
         Plugin.texture_group_reset();
 
-        var address = IPAddress.Parse("127.0.0.1");
-        int port = 7777;
+        address = IPAddress.Parse("127.0.0.1");
+        port = 7777;
         var bytes = new byte[1];
         bytes[0] = 1;
 
@@ -212,6 +219,7 @@ public class HololensDemoManagerUdp : MonoBehaviour
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);
                 PluginHelper.InitTextureGroup();
 
+                colorDecoder = new Vp8Decoder();
                 depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
 
                 azureKinectScreen.Setup(calibration);
@@ -282,41 +290,56 @@ public class HololensDemoManagerUdp : MonoBehaviour
             }
         }
 
-        FFmpegFrame ffmpegFrame;
+        FFmpegFrame ffmpegFrame = null;
+        TrvlFrame trvlFrame = null;
+        for(int i = beginIndex.Value; i < frameMessages.Count; ++i)
+        {
+            var frameMessage = frameMessages[i];
 
-        //std::optional<kh::FFmpegFrame> ffmpeg_frame;
-        //std::vector<short> depth_image;
-        //for (int i = *begin_index; i < frame_messages.size(); ++i)
-        //{
-        //    auto frame_message_ptr = &frame_messages[i];
+            lastFrameId = frameMessage.FrameId;
 
-        //    int frame_id = frame_message_ptr->frame_id();
-        //    bool keyframe = frame_message_ptr->keyframe();
+            var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
+            var depthEncoderFrame = frameMessage.GetDepthEncoderFrame();
 
-        //    last_frame_id = frame_id;
+            IntPtr colorEncoderFrameBytes = Marshal.AllocHGlobal(colorEncoderFrame.Length);
+            Marshal.Copy(colorEncoderFrame, 0, colorEncoderFrameBytes, colorEncoderFrame.Length);
+            ffmpegFrame = colorDecoder.Decode(colorEncoderFrameBytes, colorEncoderFrame.Length);
+            Marshal.FreeHGlobal(colorEncoderFrameBytes);
 
-        //    auto color_encoder_frame = frame_message_ptr->getColorEncoderFrame();
-        //    auto depth_encoder_frame = frame_message_ptr->getDepthEncoderFrame();
 
-        //     Decoding a Vp8Frame into color pixels.
-        //    ffmpeg_frame = color_decoder.decode(color_encoder_frame.data(), color_encoder_frame.size());
-
-        //     Decompressing a RVL frame into depth pixels.
-        //    depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
-        //}
+            IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrame.Length);
+            Marshal.Copy(depthEncoderFrame, 0, depthEncoderFrameBytes, depthEncoderFrame.Length);
+            trvlFrame = depthDecoder.Decode(depthEncoderFrameBytes, false);
+            Marshal.FreeHGlobal(depthEncoderFrameBytes);
+        }
 
         print($"frameMessages.Count: {frameMessages.Count}");
         // Reset frame_messages after they are displayed.
         frameMessages = new List<FrameMessage>();
+
+
+
+        // If a frame message was received.
+        if (ffmpegFrame != null)
+        {
+            var ms = new MemoryStream();
+            ms.WriteByte(0);
+            ms.Write(BitConverter.GetBytes(lastFrameId), 0, 4);
+
+            udpSocket.SendTo(ms.ToArray(), address, port);
+
+            // Invokes a function to be called in a render thread.
+            if (textureGroup != null)
+            {
+                Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
+                Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);
+                PluginHelper.UpdateTextureGroup();
+            }
+        }
     }
 
     void OnApplicationQuit()
     {
         udpSocket.Dispose();
-    }
-
-    int CompareFramePacketCollection(FramePacketCollection lhs, FramePacketCollection rhs)
-    {
-        return lhs.FrameId.CompareTo(rhs.FrameId);
     }
 }
