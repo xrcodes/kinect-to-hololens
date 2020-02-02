@@ -67,14 +67,14 @@ void _display_frames()
                                                                  transformed_color_image.get_height_pixels(),
                                                                  transformed_color_image.get_stride_bytes());
 
-        auto vp8_frame = vp8_encoder.encode(yuv_image);
+        auto vp8_frame = vp8_encoder.encode(yuv_image, false);
         auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()));
-        auto depth_pixels = depth_decoder.decode(depth_encoder_frame.data());
+        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), false);
+        auto depth_pixels = depth_decoder.decode(depth_encoder_frame.data(), false);
         auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), depth_image.get_width_pixels(), depth_image.get_height_pixels());
 
         // Displays the color and depth pixels.

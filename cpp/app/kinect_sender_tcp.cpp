@@ -140,11 +140,11 @@ void _send_frames(int port, bool binned_depth)
                                                                  transformed_color_image.get_width_pixels(),
                                                                  transformed_color_image.get_height_pixels(),
                                                                  transformed_color_image.get_stride_bytes());
-        auto vp8_frame = color_encoder.encode(yuv_image);
+        auto vp8_frame = color_encoder.encode(yuv_image, false);
 
         auto depth_compression_start = std::chrono::steady_clock::now();
         // Compress the depth pixels.
-        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()));
+        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), false);
 
         auto send_start = std::chrono::steady_clock::now();
 

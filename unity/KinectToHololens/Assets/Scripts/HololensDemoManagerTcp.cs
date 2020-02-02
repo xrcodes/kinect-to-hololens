@@ -6,7 +6,7 @@ using UnityEngine.Profiling;
 using UnityEngine.XR.WSA.Input;
 
 // The main script for the HololensDemo scene.
-public class HololensDemoManager : MonoBehaviour
+public class HololensDemoManagerTcp : MonoBehaviour
 {
     private enum InputState
     {
@@ -186,7 +186,7 @@ public class HololensDemoManager : MonoBehaviour
                 Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
-                var depthPixels = depthDecoder.Decode(depthEncoderFrameBytes);
+                var depthPixels = depthDecoder.Decode(depthEncoderFrameBytes, false);
                 Plugin.texture_group_set_depth_pixels(depthPixels);
                 Plugin.delete_depth_pixels(depthPixels);
                 Marshal.FreeHGlobal(depthEncoderFrameBytes);

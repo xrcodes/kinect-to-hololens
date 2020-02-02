@@ -769,7 +769,7 @@ GameObject:
   - component: {fileID: 1589323909}
   - component: {fileID: 1589323910}
   m_Layer: 0
-  m_Name: HololensDemoManager
+  m_Name: HololensDemoManagerTcp
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -812,6 +812,8 @@ MonoBehaviour:
   azureKinectScreenMaterial: {fileID: 2100000, guid: 49bd05b413c589b42841f51a8882f0a5,
     type: 2}
   azureKinectScreen: {fileID: 470315190}
+  inputState: 0
+  previousLastFrameTimeStamp: 0
 --- !u!1 &1681210200
 GameObject:
   m_ObjectHideFlags: 0

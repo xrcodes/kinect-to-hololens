@@ -70,7 +70,7 @@ public static class Plugin
     public static extern void delete_trvl_decoder(IntPtr ptr);
 
     [DllImport(DllName)]
-    public static extern IntPtr trvl_decoder_decode(IntPtr decoder_ptr, IntPtr frame_ptr);
+    public static extern IntPtr trvl_decoder_decode(IntPtr decoder_ptr, IntPtr frame_ptr, bool keyframe);
 
     [DllImport(DllName)]
     public static extern void delete_depth_pixels(IntPtr ptr);
