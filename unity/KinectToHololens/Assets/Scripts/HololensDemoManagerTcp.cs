@@ -114,6 +114,8 @@ public class HololensDemoManagerTcp : MonoBehaviour
 
         int? lastFrameId = null;
         float? lastFrameTime = null;
+        FFmpegFrame ffmpegFrame = null;
+        TrvlFrame trvlFrame = null;
 
         var stopWatch = System.Diagnostics.Stopwatch.StartNew();
         int frameMessageCount = 0;
@@ -174,8 +176,7 @@ public class HololensDemoManagerTcp : MonoBehaviour
                 Profiler.BeginSample("Color Decompression");
                 IntPtr vp8FrameBytes = Marshal.AllocHGlobal(vp8FrameSize);
                 Marshal.Copy(message, cursor, vp8FrameBytes, vp8FrameSize);
-                var ffmpegFrame = colorDecoder.Decode(vp8FrameBytes, vp8FrameSize);
-                Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
+                ffmpegFrame = colorDecoder.Decode(vp8FrameBytes, vp8FrameSize);
                 Marshal.FreeHGlobal(vp8FrameBytes);
                 cursor += vp8FrameSize;
                 Profiler.EndSample();
@@ -186,9 +187,7 @@ public class HololensDemoManagerTcp : MonoBehaviour
                 Profiler.BeginSample("Depth Decompression");
                 IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrameSize);
                 Marshal.Copy(message, cursor, depthEncoderFrameBytes, depthEncoderFrameSize);
-                var depthPixels = depthDecoder.Decode(depthEncoderFrameBytes, false);
-                Plugin.texture_group_set_depth_pixels(depthPixels);
-                Plugin.delete_depth_pixels(depthPixels);
+                trvlFrame = depthDecoder.Decode(depthEncoderFrameBytes, false);
                 Marshal.FreeHGlobal(depthEncoderFrameBytes);
                 Profiler.EndSample();
 
@@ -214,9 +213,9 @@ public class HololensDemoManagerTcp : MonoBehaviour
             // Invokes a function to be called in a render thread.
             if (textureGroup != null)
             {
-                Profiler.BeginSample("Update TextureGroup");
+                Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
+                Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);
                 PluginHelper.UpdateTextureGroup();
-                Profiler.EndSample();
             }
         }
 

@@ -282,7 +282,28 @@ public class HololensDemoManagerUdp : MonoBehaviour
             }
         }
 
+        FFmpegFrame ffmpegFrame;
 
+        //std::optional<kh::FFmpegFrame> ffmpeg_frame;
+        //std::vector<short> depth_image;
+        //for (int i = *begin_index; i < frame_messages.size(); ++i)
+        //{
+        //    auto frame_message_ptr = &frame_messages[i];
+
+        //    int frame_id = frame_message_ptr->frame_id();
+        //    bool keyframe = frame_message_ptr->keyframe();
+
+        //    last_frame_id = frame_id;
+
+        //    auto color_encoder_frame = frame_message_ptr->getColorEncoderFrame();
+        //    auto depth_encoder_frame = frame_message_ptr->getDepthEncoderFrame();
+
+        //     Decoding a Vp8Frame into color pixels.
+        //    ffmpeg_frame = color_decoder.decode(color_encoder_frame.data(), color_encoder_frame.size());
+
+        //     Decompressing a RVL frame into depth pixels.
+        //    depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
+        //}
 
         print($"frameMessages.Count: {frameMessages.Count}");
         // Reset frame_messages after they are displayed.

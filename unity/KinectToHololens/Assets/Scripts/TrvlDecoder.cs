@@ -15,8 +15,8 @@ public class TrvlDecoder
         Plugin.delete_trvl_decoder(ptr);
     }
 
-    public IntPtr Decode(IntPtr framePtr, bool keyframe)
+    public TrvlFrame Decode(IntPtr framePtr, bool keyframe)
     {
-        return Plugin.trvl_decoder_decode(ptr, framePtr, keyframe);
+        return new TrvlFrame(Plugin.trvl_decoder_decode(ptr, framePtr, keyframe));
     }
 }
