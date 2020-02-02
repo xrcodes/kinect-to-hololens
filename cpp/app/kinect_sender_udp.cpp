@@ -10,15 +10,15 @@
 
 namespace kh
 {
-int pow_of_two(int exp) {
-    assert(exp >= 0);
-
-    int res = 1;
-    for (int i = 0; i < exp; ++i) {
-        res *= 2;
-    }
-    return res;
-}
+//int pow_of_two(int exp) {
+//    assert(exp >= 0);
+//
+//    int res = 1;
+//    for (int i = 0; i < exp; ++i) {
+//        res *= 2;
+//    }
+//    return res;
+//}
 
 // For having an interface combining devices and playbacks one day in the future...
 class KinectDevice
@@ -145,13 +145,13 @@ void _send_frames(KinectDevice& device, int port)
         // Rounding assuming that the framerate is 30 Hz.
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
 
-        // Skip frame if the receiver is struggling.
-        // if frame_id_diff == 1 or 2 -> don't skip
-        // if frame_id_diff == n -> skip 2 ^ (n - 3) frames.
-        // Do not test for the first frame.
-        if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
-            continue;
-        }
+        //// Skip frame if the receiver is struggling.
+        //// if frame_id_diff == 1 or 2 -> don't skip
+        //// if frame_id_diff == n -> skip 2 ^ (n - 3) frames.
+        //// Do not test for the first frame.
+        //if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+        //    continue;
+        //}
 
         auto depth_image = capture->get_depth_image();
         if (!depth_image) {
@@ -163,7 +163,7 @@ void _send_frames(KinectDevice& device, int port)
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
-        bool keyframe = frame_id % 30 == 0;
+        bool keyframe = frame_id % 30 == 0 || frame_id_diff > 2;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),

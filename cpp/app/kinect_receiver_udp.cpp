@@ -50,11 +50,11 @@ public:
                             depth_encoder_frame_size);
     }
 
-    int frame_id() { return frame_id_; }
-    float frame_time_stamp() { return frame_time_stamp_; }
-    bool keyframe() { return keyframe_; }
-    int color_encoder_frame_size() { return color_encoder_frame_size_; }
-    int depth_encoder_frame_size() { return depth_encoder_frame_size_; }
+    int frame_id() const { return frame_id_; }
+    float frame_time_stamp() const { return frame_time_stamp_; }
+    bool keyframe() const { return keyframe_; }
+    int color_encoder_frame_size() const { return color_encoder_frame_size_; }
+    int depth_encoder_frame_size() const { return depth_encoder_frame_size_; }
 
     std::vector<uint8_t> getColorEncoderFrame()
     {
@@ -155,7 +155,7 @@ void _receive_frames(std::string ip_address, int port)
 
     int last_frame_id = -1;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
-    std::unordered_map<int, FrameMessage> frame_messages;
+    std::vector<FrameMessage> frame_messages;
 
     for (;;) {
         std::vector<std::vector<uint8_t>> packets;
@@ -166,9 +166,9 @@ void _receive_frames(std::string ip_address, int port)
             }
 
             // Simulate packet loss
-            //if (rand() % 100 == 0) {
-            //    continue;
-            //}
+            if (rand() % 200 == 0) {
+                continue;
+            }
 
             packets.push_back(*receive_result);
         }
@@ -204,10 +204,8 @@ void _receive_frames(std::string ip_address, int port)
                 memcpy(&packet_count, packet.data() + 9, 4);
 
                 auto it = frame_packet_collections.find(frame_id);
-                if (it == frame_packet_collections.end()) {
-                    std::cout << "add collection " << frame_id << std::endl;
+                if (it == frame_packet_collections.end())
                     frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
-                }
 
                 frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
             }
@@ -225,28 +223,50 @@ void _receive_frames(std::string ip_address, int port)
 
         // Extract messages from the full collections.
         for (int full_frame_id : full_frame_ids) {
-            frame_messages.insert({ full_frame_id, frame_packet_collections.at(full_frame_id).toMessage() });
-
+            frame_messages.push_back(frame_packet_collections.at(full_frame_id).toMessage());
             frame_packet_collections.erase(full_frame_id);
         }
+        std::sort(frame_messages.begin(), frame_messages.end(), [](const FrameMessage& lhs, const FrameMessage& rhs)
+        {
+            return lhs.frame_id() < rhs.frame_id();
+        });
+
+        if (frame_messages.empty())
+            continue;
+
+        std::optional<int> begin_index;
+        // If there is a key frame, use the most recent one.
+        for (int i = frame_messages.size() - 1; i >= 0; --i) {
+            if (frame_messages[i].keyframe()) {
+                begin_index = i;
+                break;
+            }
+        }
+
+        // When there is no key frame, go through all the frames if the first
+        // FrameMessage is the one right after the previously rendered one.
+        if (!begin_index) {
+            if (frame_messages[0].frame_id() == last_frame_id + 1) {
+                begin_index = 0;
+            } else {
+                // Wait for more frames if there is way to render without glitches.
+                continue;
+            }
+        }
+
+        int diff = frame_messages[*begin_index].frame_id() - last_frame_id;
+        if(diff > 0)
+            std::cout << "skipped " << (diff - 1) << std::endl;
 
         std::optional<kh::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
-
-        for (;;) {
-            auto find_iterator = frame_messages.find(last_frame_id + 1);
-            if (find_iterator == frame_messages.end()) {
-                break;
-            }
-            auto frame_message_ptr = &find_iterator->second;
+        for (int i = *begin_index; i < frame_messages.size(); ++i) {
+            auto frame_message_ptr = &frame_messages[i];
 
             int frame_id = frame_message_ptr->frame_id();
             bool keyframe = frame_message_ptr->keyframe();
 
             last_frame_id = frame_id;
-
-            std::cout << "frame_id: " << frame_id << std::endl;
-            std::cout << "keyframe: " << keyframe << std::endl;
 
             auto color_encoder_frame = frame_message_ptr->getColorEncoderFrame();
             auto depth_encoder_frame = frame_message_ptr->getDepthEncoderFrame();
@@ -258,9 +278,11 @@ void _receive_frames(std::string ip_address, int port)
             depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
         }
 
+        // Reset frame_messages after they are displayed.
+        frame_messages = std::vector<FrameMessage>();
+
         // If there was a frame meesage
         if (ffmpeg_frame) {
-            std::cout << "last_frame_id: " << last_frame_id << std::endl;
             receiver.send(last_frame_id);
 
             auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
@@ -272,6 +294,7 @@ void _receive_frames(std::string ip_address, int port)
             if (cv::waitKey(1) >= 0)
                 break;
         }
+
     }
 }
 
