@@ -82,6 +82,26 @@ void SenderUdp::send(int frame_id, float frame_time_stamp, bool keyframe, std::v
     }
 }
 
+std::optional<std::vector<uint8_t>> SenderUdp::receive()
+{
+    std::vector<uint8_t> packet(1500);
+    asio::ip::udp::endpoint sender_endpoint;
+    std::error_code error;
+    size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
+
+    if (error == asio::error::would_block) {
+        return std::nullopt;
+    }
+
+    if (error) {
+        std::cout << "Error from SenderUdp::receive(): " << error.message() << std::endl;
+        return std::nullopt;
+    }
+
+    packet.resize(packet_size);
+    return packet;
+}
+
 std::vector<uint8_t> SenderUdp::createFrameMessage(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                                         uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
@@ -149,25 +169,5 @@ void SenderUdp::sendPacket(const std::vector<uint8_t>& packet)
     socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
     if (error)
         std::cout << "Error from SenderUdp::send(): " << error.message() << std::endl;
-}
-
-std::optional<std::vector<uint8_t>> SenderUdp::receive()
-{
-    std::vector<uint8_t> packet(1500);
-    asio::ip::udp::endpoint sender_endpoint;
-    std::error_code error;
-    size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
-
-    if (error == asio::error::would_block) {
-        return std::nullopt;
-    }
-
-    if (error) {
-        std::cout << "Error from SenderUdp::receive(): " << error.message() << std::endl;
-        return std::nullopt;
-    }
-
-    packet.resize(packet_size);
-    return packet;
 }
 }

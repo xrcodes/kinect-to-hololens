@@ -20,7 +20,6 @@ public:
 
 private:
     std::vector<TrvlPixel> pixels_;
-    std::vector<short> prev_pixel_values_;
     short change_threshold_;
     int invalid_threshold_;
 };

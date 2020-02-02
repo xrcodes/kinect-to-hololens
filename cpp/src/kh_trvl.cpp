@@ -37,8 +37,7 @@ void update_pixel(TrvlPixel& pixel, short raw_value, short change_threshold, int
 }
 
 TrvlEncoder::TrvlEncoder(int frame_size, short change_threshold, int invalid_threshold)
-    : pixels_(frame_size), prev_pixel_values_(frame_size, 0), 
-    change_threshold_(change_threshold), invalid_threshold_(invalid_threshold)
+    : pixels_(frame_size), change_threshold_(change_threshold), invalid_threshold_(invalid_threshold)
 {
 }
 
@@ -47,9 +46,9 @@ std::vector<uint8_t> TrvlEncoder::encode(short* depth_buffer)
     auto frame_size = pixels_.size();
     std::vector<short> pixel_diffs(frame_size);
     for (int i = 0; i < frame_size; ++i) {
+        pixel_diffs[i] = pixels_[i].value;
         update_pixel(pixels_[i], depth_buffer[i], change_threshold_, invalid_threshold_);
-        pixel_diffs[i] = pixels_[i].value - prev_pixel_values_[i];
-        prev_pixel_values_[i] = pixels_[i].value;
+        pixel_diffs[i] = pixels_[i].value - pixel_diffs[i];
     }
 
     return rvl::compress(pixel_diffs.data(), frame_size);

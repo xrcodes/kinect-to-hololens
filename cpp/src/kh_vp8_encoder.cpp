@@ -6,7 +6,7 @@ namespace kh
 {
 // The keyframe_interval_ was chosen arbitrarily.
 Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
-    : codec_(), image_(), keyframe_interval_(30), frame_index_(0)
+    : codec_(), image_(), frame_index_(0)
 {
     vpx_codec_iface_t* (*const codec_interface)() = &vpx_codec_vp8_cx;
     vpx_codec_enc_cfg_t configuration;
@@ -56,7 +56,7 @@ Vp8Encoder::~Vp8Encoder()
 }
 
 // Encoding YuvImage with the color pixels with libvpx.
-std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image)
+std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
 {
     image_.planes[VPX_PLANE_Y] = yuv_image.y_channel().data();
     image_.planes[VPX_PLANE_U] = yuv_image.u_channel().data();
@@ -67,7 +67,7 @@ std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image)
     image_.stride[VPX_PLANE_V] = yuv_image.width() / 2;
 
     int flags = 0;
-    if (keyframe_interval_ > 0 && frame_index_ % keyframe_interval_ == 0)
+    if (keyframe)
         flags |= VPX_EFLAG_FORCE_KF;
 
     auto res = vpx_codec_encode(&codec_, &image_, frame_index_++, 1, flags, VPX_DL_REALTIME);
