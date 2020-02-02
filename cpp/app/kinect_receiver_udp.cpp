@@ -251,10 +251,6 @@ void _receive_frames(std::string ip_address, int port)
             }
         }
 
-        int diff = frame_messages[*begin_index].frame_id() - last_frame_id;
-        if(diff > 0)
-            std::cout << "skipped " << (diff - 1) << std::endl;
-
         std::optional<kh::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
         for (int i = *begin_index; i < frame_messages.size(); ++i) {

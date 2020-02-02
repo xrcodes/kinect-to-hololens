@@ -4,10 +4,13 @@
 
 namespace kh
 {
-SenderUdp::SenderUdp(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint)
+SenderUdp::SenderUdp(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint,
+                     int send_buffer_size)
     : socket_(std::move(socket)), remote_endpoint_(remote_endpoint)
 {
     socket_.non_blocking(true);
+    asio::socket_base::send_buffer_size option(send_buffer_size);
+    socket_.set_option(option);
 }
 
 // Sends a Kinect calibration information to a Receiver.
