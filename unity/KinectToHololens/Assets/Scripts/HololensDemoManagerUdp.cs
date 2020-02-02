@@ -127,12 +127,23 @@ public class HololensDemoManagerUdp : MonoBehaviour
     private List<FrameMessage> frameMessages;
     private int lastFrameId;
 
+    // For rendering the Kinect pixels in 3D.
+    public Material azureKinectScreenMaterial;
+    public AzureKinectScreen azureKinectScreen;
+
+    private TextureGroup textureGroup;
+    private TrvlDecoder depthDecoder;
+
     void Awake()
     {
         udpSocket = new UdpSocket(1024 * 1024);
         framePacketCollections = new Dictionary<int, FramePacketCollection>();
         frameMessages = new List<FrameMessage>();
         lastFrameId = -1;
+
+        textureGroup = null;
+
+        Plugin.texture_group_reset();
 
         var address = IPAddress.Parse("127.0.0.1");
         int port = 7777;
@@ -144,6 +155,26 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
     void Update()
     {
+        // If texture is not created, create and assign them to quads.
+        if (textureGroup == null)
+        {
+            // Check whether the native plugin has Direct3D textures that
+            // can be connected to Unity textures.
+            if (Plugin.texture_group_get_y_texture_view().ToInt64() != 0)
+            {
+                // TextureGroup includes Y, U, V, and a depth texture.
+                textureGroup = new TextureGroup(Plugin.texture_group_get_width(),
+                                                Plugin.texture_group_get_height());
+
+                azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.YTexture);
+                azureKinectScreenMaterial.SetTexture("_UTex", textureGroup.UTexture);
+                azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.VTexture);
+                azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.DepthTexture);
+
+                print("textureGroup intialized");
+            }
+        }
+
         float start = Time.time;
         var packets = new List<byte[]>();
         while (udpSocket.Available > 0)
@@ -175,7 +206,15 @@ public class HololensDemoManagerUdp : MonoBehaviour
             var packetType = packet[0];
             if (packetType == 0)
             {
-                print("Received calibration packet.");
+                var calibration = DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(packet);
+
+                Plugin.texture_group_set_width(calibration.DepthCamera.Width);
+                Plugin.texture_group_set_height(calibration.DepthCamera.Height);
+                PluginHelper.InitTextureGroup();
+
+                depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
+
+                azureKinectScreen.Setup(calibration);
             }
             else if (packetType == 1)
             {
@@ -242,6 +281,8 @@ public class HololensDemoManagerUdp : MonoBehaviour
                 return;
             }
         }
+
+
 
         print($"frameMessages.Count: {frameMessages.Count}");
         // Reset frame_messages after they are displayed.

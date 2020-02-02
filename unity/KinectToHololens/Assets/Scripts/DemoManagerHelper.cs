@@ -2,7 +2,7 @@
 
 public static class DemoManagerHelper
 {
-    public static void ReadAzureKinectCalibrationFromMessage(byte[] message, out AzureKinectCalibration calibraiton)
+    public static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message)
     {
         int cursor = 1;
 
@@ -146,8 +146,8 @@ public static class DemoManagerHelper
         var depthCamera = new AzureKinectCalibration.Camera(depthIntrinsics, depthWidth, depthHeight, depthMetricRadius);
         var colorCamera = new AzureKinectCalibration.Camera(colorIntrinsics, colorWidth, colorHeight, colorMetricRadius);
 
-        calibraiton = new AzureKinectCalibration(depthCamera: depthCamera,
-                                                 colorCamera: colorCamera,
-                                                 depthToColorExtrinsics: depthToColorExtrinsics);
+        return new AzureKinectCalibration(depthCamera: depthCamera,
+                                          colorCamera: colorCamera,
+                                          depthToColorExtrinsics: depthToColorExtrinsics);
     }
 }

@@ -139,7 +139,7 @@ public class HololensDemoManagerTcp : MonoBehaviour
             // Prepare the ScreenRenderer with calibration information of the Kinect.
             if (message[0] == 0)
             {
-                DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(message, out AzureKinectCalibration calibration);
+                var calibration = DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(message);
 
                 Plugin.texture_group_set_width(calibration.DepthCamera.Width);
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);
