@@ -295,7 +295,6 @@ public class HololensDemoManagerUdp : MonoBehaviour
         for(int i = beginIndex.Value; i < frameMessages.Count; ++i)
         {
             var frameMessage = frameMessages[i];
-
             lastFrameId = frameMessage.FrameId;
 
             var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
@@ -309,7 +308,7 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
             IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrame.Length);
             Marshal.Copy(depthEncoderFrame, 0, depthEncoderFrameBytes, depthEncoderFrame.Length);
-            trvlFrame = depthDecoder.Decode(depthEncoderFrameBytes, false);
+            trvlFrame = depthDecoder.Decode(depthEncoderFrameBytes, frameMessage.Keyframe);
             Marshal.FreeHGlobal(depthEncoderFrameBytes);
         }
 
