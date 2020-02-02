@@ -1,7 +1,9 @@
 #include <chrono>
+#include <filesystem>
 #include "kh_core.h"
 #include "kh_sender.h"
 #include "k4a/k4a.hpp"
+#include "k4arecord/playback.hpp"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "kh_sender_udp.h"
@@ -18,25 +20,54 @@ int pow_of_two(int exp) {
     return res;
 }
 
-class KinectDevice
+std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
+{
+    std::vector<std::string> filenames;
+    for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+        std::string filename = entry.path().filename().string();
+        if (filename == ".gitignore")
+            continue;
+        if (entry.is_directory())
+            continue;
+        filenames.push_back(filename);
+    }
+
+    return filenames;
+}
+
+class KinectInterface
+{
+public:
+    virtual k4a::calibration getCalibration() = 0;
+    virtual std::optional<k4a::capture> getCapture() = 0;
+};
+
+class KinectDevice : public KinectInterface
 {
 private:
-    KinectDevice(k4a::device&& device, std::chrono::milliseconds timeout)
-        : device_(std::move(device)), timeout_(timeout)
+    KinectDevice(k4a::device&& device,
+                 k4a_device_configuration_t configuration,
+                 std::chrono::milliseconds timeout)
+        : device_(std::move(device)), configuration_(configuration), timeout_(timeout)
     {
     }
 
 public:
-    static KinectDevice create(std::chrono::milliseconds time_out)
+    static std::optional<KinectDevice> create(k4a_device_configuration_t configuration,
+                               std::chrono::milliseconds time_out)
     {
-        auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
-        return KinectDevice(std::move(device), time_out);
+        try {
+            auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
+            return KinectDevice(std::move(device), configuration, time_out);
+        } catch (std::exception e) {
+            printf("Error opening k4a::device in KinectDevice: %s\n", e.what());
+            return std::nullopt;
+        }
     }
 
-    void start(k4a_device_configuration_t configuration)
+    void start()
     {
-        configuration_ = configuration;
-        device_.start_cameras(&configuration);
+        device_.start_cameras(&configuration_);
     }
 
     k4a::calibration getCalibration()
@@ -56,32 +87,65 @@ public:
 
 private:
     k4a::device device_;
-    std::chrono::milliseconds timeout_;
     k4a_device_configuration_t configuration_;
+    std::chrono::milliseconds timeout_;
+};
+
+class KinectPlayback : public KinectInterface
+{
+private:
+    KinectPlayback(std::string path, k4a::playback&& playback)
+        : path_(path), playback_(std::move(playback))
+    {
+    }
+
+public:
+    static std::optional<KinectPlayback> create(std::string path)
+    {
+        try {
+            auto playback = k4a::playback::open(path.c_str());
+            return KinectPlayback(path, std::move(playback));
+        } catch (std::exception e) {
+            printf("Error opening k4a::device in KinectDevice: %s\n", e.what());
+            return std::nullopt;
+        }
+    }
+
+    k4a::calibration getCalibration()
+    {
+        return playback_.get_calibration();
+    }
+
+    std::optional<k4a::capture> getCapture()
+    {
+        k4a::capture capture;
+        if (!playback_.get_next_capture(&capture)) {
+            playback_ = k4a::playback::open(path_.c_str());
+            if (playback_.get_next_capture(&capture)) {
+                printf("KinectPlayback::getCapture failed even after a reset...");
+                return std::nullopt;
+            }
+        }
+
+        return capture;
+    }
+
+private:
+    std::string path_;
+    k4a::playback playback_;
 };
 
 // Sends Azure Kinect frames through a TCP port.
-void _send_frames(int port, bool binned_depth)
+void _send_frames(KinectInterface& kinect_interface, int port)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
-    const auto TIMEOUT = std::chrono::milliseconds(1000);
 
-    printf("Start sending Frames (port: %d, binned_depth: %d)\n", port, binned_depth);
-
-    //auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
-    auto device = KinectDevice::create(TIMEOUT);
-
-    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    configuration.depth_mode = binned_depth ? K4A_DEPTH_MODE_NFOV_2X2BINNED : K4A_DEPTH_MODE_NFOV_UNBINNED;
-    //device.start_cameras(&configuration);
-    device.start(configuration);
+    printf("Start sending Frames (port: %d)\n", port);
 
     //auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
-    auto calibration = device.getCalibration();
+    auto calibration = kinect_interface.getCalibration();
     k4a::transformation transformation(calibration);
 
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -138,7 +202,7 @@ void _send_frames(int port, bool binned_depth)
         //    continue;
         //}
 
-        auto capture = device.getCapture();
+        auto capture = kinect_interface.getCapture();
         if (!capture)
             continue;
 
@@ -251,25 +315,81 @@ void _send_frames(int port, bool binned_depth)
 // Repeats collecting the port number from the user and calling _send_frames() with it.
 void send_frames()
 {
+    const std::string PLAYBACK_FOLDER_PATH = "../../../../playback/";
+
     for (;;) {
-        std::cout << "Enter a port number to start sending frames: ";
         std::string line;
+        printf("Press y to use a playback file (otherwise, device frames will be sent): ");
         std::getline(std::cin, line);
-        // The default port (the port when nothing is entered) is 7777.
-        int port = line.empty() ? 7777 : std::stoi(line);
+        if (line == "y" || line == "Y") {
+            std::vector<std::string> filenames(get_filenames_from_folder_path(PLAYBACK_FOLDER_PATH));
 
-        std::cout << "Choose depth resolution (1: Full, 2: Half): ";
-        std::getline(std::cin, line);
+            std::cout << "Input filenames inside the playback folder:" << std::endl;
+            for (int i = 0; i < filenames.size(); ++i) {
+                std::cout << "\t(" << i << ") " << filenames[i] << std::endl;
+            }
 
-        // The default type is TRVL.
-        bool binned_depth = false;
-        if (line == "2")
-            binned_depth = true;
+            int filename_index;
+            for (;;) {
+                std::cout << "Enter filename index: ";
+                std::cin >> filename_index;
+                if (filename_index >= 0 && filename_index < filenames.size())
+                    break;
 
-        try {
-            _send_frames(port, binned_depth);
-        } catch (std::exception & e) {
-            std::cout << e.what() << std::endl;
+                std::cout << "Invliad index." << std::endl;
+            }
+
+            std::string filename = filenames[filename_index];
+            std::string file_path = PLAYBACK_FOLDER_PATH + filename;
+
+            auto playback = KinectPlayback::create(file_path);
+            if (!playback) {
+                printf("Failed to create a KinectPlayback...\n");
+                continue;
+            }
+
+            std::cout << "Enter a port number to start sending frames: ";
+            std::getline(std::cin, line);
+            // The default port (the port when nothing is entered) is 7777.
+            int port = line.empty() ? 7777 : std::stoi(line);
+
+            try {
+                _send_frames(*playback, port);
+            } catch (std::exception & e) {
+                std::cout << e.what() << std::endl;
+            }
+        } else {
+            std::cout << "Choose depth resolution (1: Full, 2: Half): ";
+            std::getline(std::cin, line);
+
+            // The default type is TRVL.
+            bool binned_depth = false;
+            if (line == "2")
+                binned_depth = true;
+
+            k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+            configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+            configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
+            configuration.depth_mode = binned_depth ? K4A_DEPTH_MODE_NFOV_2X2BINNED : K4A_DEPTH_MODE_NFOV_UNBINNED;
+            auto timeout = std::chrono::milliseconds(1000);
+
+            auto device = KinectDevice::create(configuration, timeout);
+            if (!device) {
+                printf("Failed to create a KinectDevice...\n");
+                continue;
+            }
+            device->start();
+
+            std::cout << "Enter a port number to start sending frames: ";
+            std::getline(std::cin, line);
+            // The default port (the port when nothing is entered) is 7777.
+            int port = line.empty() ? 7777 : std::stoi(line);
+
+            try {
+                _send_frames(*device, port);
+            } catch (std::exception & e) {
+                std::cout << e.what() << std::endl;
+            }
         }
     }
 }
