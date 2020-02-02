@@ -73,7 +73,7 @@ void SenderUdp::send(k4a_calibration_t calibration)
 }
 
 void SenderUdp::send(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
-            uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
+                     uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     auto message = createFrameMessage(frame_id, frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
     auto packets = splitFrameMessage(frame_id, message);

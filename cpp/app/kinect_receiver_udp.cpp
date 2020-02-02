@@ -207,7 +207,7 @@ void _receive_frames(std::string ip_address, int port)
             ffmpeg_frame = color_decoder.decode(vp8_frame.data(), vp8_frame.size());
 
             // Decompressing a RVL frame into depth pixels.
-            depth_image = depth_decoder->decode(depth_encoder_frame.data());
+            depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
         }
 
         // If there was a frame meesage

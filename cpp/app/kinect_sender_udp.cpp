@@ -173,7 +173,7 @@ void _send_frames(KinectDevice& device, int port)
         auto vp8_frame = color_encoder.encode(yuv_image, keyframe);
 
         // Compress the depth pixels.
-        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()));
+        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
         sender.send(frame_id, frame_time_stamp, keyframe, vp8_frame,
                     reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());

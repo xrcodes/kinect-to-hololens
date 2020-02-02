@@ -41,9 +41,19 @@ TrvlEncoder::TrvlEncoder(int frame_size, short change_threshold, int invalid_thr
 {
 }
 
-std::vector<uint8_t> TrvlEncoder::encode(short* depth_buffer)
+std::vector<uint8_t> TrvlEncoder::encode(short* depth_buffer, bool keyframe)
 {
     auto frame_size = pixels_.size();
+    if (keyframe) {
+        for (int i = 0; i < frame_size; ++i) {
+            pixels_[i].value = depth_buffer[i];
+            // Not sure this is the best way to set invalid_count...
+            pixels_[i].invalid_count = depth_buffer[i] == 0 ? 1 : 0;
+        }
+
+        return rvl::compress(depth_buffer, frame_size);
+    }
+
     std::vector<short> pixel_diffs(frame_size);
     for (int i = 0; i < frame_size; ++i) {
         pixel_diffs[i] = pixels_[i].value;
@@ -58,9 +68,14 @@ TrvlDecoder::TrvlDecoder(int frame_size)
     : prev_pixel_values_(frame_size, 0)
 {
 }
-std::vector<short> TrvlDecoder::decode(uint8_t* trvl_frame)
+std::vector<short> TrvlDecoder::decode(uint8_t* trvl_frame, bool keyframe)
 {
     int frame_size = prev_pixel_values_.size();
+    if (keyframe) {
+        prev_pixel_values_ = rvl::decompress(trvl_frame, frame_size);
+        return prev_pixel_values_;
+    }
+
     auto pixel_diffs = rvl::decompress(trvl_frame, frame_size);
     for (int i = 0; i < frame_size; ++i)
         prev_pixel_values_[i] += pixel_diffs[i];
