@@ -124,7 +124,6 @@ class FramePacketCollection
 
 public class HololensDemoManagerUdp : MonoBehaviour
 {
-    private UdpSocket udpSocket;
     private Dictionary<int, FramePacketCollection> framePacketCollections;
     private List<FrameMessage> frameMessages;
     private int lastFrameId;
@@ -135,15 +134,16 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
     private TextureGroup textureGroup;
 
+    private ReceiverUdp receiver;
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
 
-    private IPAddress address;
-    private int port;
+    //private IPAddress address;
+    //private int port;
 
     void Awake()
     {
-        udpSocket = new UdpSocket(1024 * 1024);
+        receiver = new ReceiverUdp(1024 * 1024);
         framePacketCollections = new Dictionary<int, FramePacketCollection>();
         frameMessages = new List<FrameMessage>();
         lastFrameId = -1;
@@ -152,12 +152,7 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
         Plugin.texture_group_reset();
 
-        address = IPAddress.Parse("127.0.0.1");
-        port = 7777;
-        var bytes = new byte[1];
-        bytes[0] = 1;
-
-        udpSocket.SendTo(bytes, address, port);
+        receiver.Ping(IPAddress.Parse("127.0.0.1"), 7777);
     }
 
     void Update()
@@ -184,28 +179,13 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
         float start = Time.time;
         var packets = new List<byte[]>();
-        while (udpSocket.Available > 0)
+        while (true)
         {
-            var packet = new byte[1500];
-            var receiveResult = udpSocket.Receive(packet);
-            int packetSize = receiveResult.Item1;
-            var error = receiveResult.Item2;
-
-            if(error != SocketError.Success)
-            {
+            var packet = receiver.Receive();
+            if (packet == null)
                 break;
-            }
 
-            if (packetSize != packet.Length)
-            {
-                var resizedPacket = new byte[packetSize];
-                Array.Copy(packet, 0, resizedPacket, 0, packetSize);
-                packets.Add(resizedPacket);
-            }
-            else
-            {
-                packets.Add(packet);
-            }
+            packets.Add(packet);
         }
 
         foreach (var packet in packets)
@@ -321,11 +301,7 @@ public class HololensDemoManagerUdp : MonoBehaviour
         // If a frame message was received.
         if (ffmpegFrame != null)
         {
-            var ms = new MemoryStream();
-            ms.WriteByte(0);
-            ms.Write(BitConverter.GetBytes(lastFrameId), 0, 4);
-
-            udpSocket.SendTo(ms.ToArray(), address, port);
+            receiver.Send(lastFrameId);
 
             // Invokes a function to be called in a render thread.
             if (textureGroup != null)
@@ -335,10 +311,5 @@ public class HololensDemoManagerUdp : MonoBehaviour
                 PluginHelper.UpdateTextureGroup();
             }
         }
-    }
-
-    void OnApplicationQuit()
-    {
-        udpSocket.Dispose();
     }
 }
