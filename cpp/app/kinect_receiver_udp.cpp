@@ -153,9 +153,9 @@ void _receive_frames(std::string ip_address, int port)
     int depth_height;
     std::unique_ptr<TrvlDecoder> depth_decoder;
 
-    int last_frame_id = -1;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     std::vector<FrameMessage> frame_messages;
+    int last_frame_id = -1;
 
     for (;;) {
         std::vector<std::vector<uint8_t>> packets;
@@ -193,9 +193,7 @@ void _receive_frames(std::string ip_address, int port)
 
                 depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
                 continue;
-            }
-
-            if (packet_type == 1) {
+            } else if (packet_type == 1) {
                 int frame_id;
                 int packet_index;
                 int packet_count;

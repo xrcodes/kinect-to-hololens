@@ -36,7 +36,7 @@ public class HololensDemoManagerTcp : MonoBehaviour
     private InputState inputState;
     private TextureGroup textureGroup;
     // The Receiver which receives Kinect data over the network.
-    private Receiver receiver;
+    private ReceiverTcp receiver;
     // Decodes Kinect frames that were encoded before being sent over the network.
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
@@ -318,7 +318,7 @@ public class HololensDemoManagerTcp : MonoBehaviour
         string logString = $"Try connecting to {ipAddress}:{port}...";
         Debug.Log(logString);
         statusText.text = logString;
-        var receiver = new Receiver();
+        var receiver = new ReceiverTcp();
         if (await receiver.ConnectAsync(new IPEndPoint(IPAddress.Parse(ipAddress), port)))
         {
             this.receiver = receiver;
