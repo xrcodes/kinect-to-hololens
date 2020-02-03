@@ -1,10 +1,10 @@
-#include "kh_receiver_udp.h"
+#include "kh_receiver.h"
 
 #include <iostream>
 
 namespace kh
 {
-ReceiverUdp::ReceiverUdp(asio::io_context& io_context, int receive_buffer_size)
+Receiver::Receiver(asio::io_context& io_context, int receive_buffer_size)
     : socket_(io_context), remote_endpoint_()
 {
     socket_.open(asio::ip::udp::v4());
@@ -14,14 +14,14 @@ ReceiverUdp::ReceiverUdp(asio::io_context& io_context, int receive_buffer_size)
 }
 
 // Connects to a Sender with the Sender's IP address and port.
-void ReceiverUdp::ping(std::string ip_address, int port)
+void Receiver::ping(std::string ip_address, int port)
 {
     remote_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
     std::array<char, 1> send_buf = { { 0 } };
     socket_.send_to(asio::buffer(send_buf), remote_endpoint_);
 }
 
-std::optional<std::vector<uint8_t>> ReceiverUdp::receive()
+std::optional<std::vector<uint8_t>> Receiver::receive()
 {
     std::vector<uint8_t> packet(1500);
     std::error_code error;
@@ -38,7 +38,7 @@ std::optional<std::vector<uint8_t>> ReceiverUdp::receive()
     return packet;
 }
 
-void ReceiverUdp::send(int frame_id)
+void Receiver::send(int frame_id)
 {
     std::array<char, 5> frame_id_buffer;
     frame_id_buffer[0] = 1;

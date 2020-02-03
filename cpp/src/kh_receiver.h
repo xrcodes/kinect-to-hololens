@@ -5,10 +5,10 @@
 
 namespace kh
 {
-class ReceiverUdp
+class Receiver
 {
 public:
-    ReceiverUdp(asio::io_context& io_context, int receive_buffer_size);
+    Receiver(asio::io_context& io_context, int receive_buffer_size);
     void ping(std::string ip_address, int port);
     std::optional<std::vector<uint8_t>> receive();
     void send(int frame_id);

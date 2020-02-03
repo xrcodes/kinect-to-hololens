@@ -6,10 +6,10 @@
 
 namespace kh
 {
-class SenderUdp
+class Sender
 {
 public:
-    SenderUdp(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint, int send_buffer_size);
+    Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint, int send_buffer_size);
     void send(k4a_calibration_t calibration);
     void send(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
               uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size);

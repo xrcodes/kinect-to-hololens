@@ -4,7 +4,7 @@
 #include <asio.hpp>
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-#include "kh_receiver_udp.h"
+#include "kh_receiver.h"
 #include "helper/opencv_helper.h"
 
 namespace kh
@@ -144,7 +144,7 @@ private:
 void _receive_frames(std::string ip_address, int port)
 {
     asio::io_context io_context;
-    ReceiverUdp receiver(io_context, 1024 * 1024);
+    Receiver receiver(io_context, 1024 * 1024);
     receiver.ping(ip_address, port);
 
     std::cout << "sent endpoint" << std::endl;

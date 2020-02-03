@@ -4,7 +4,7 @@
 #include "kh_core.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-#include "kh_sender_udp.h"
+#include "kh_sender.h"
 
 namespace kh
 {
@@ -104,7 +104,7 @@ void _send_frames(KinectDevice& device, int port)
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    SenderUdp sender(std::move(socket), remote_endpoint, 1024 * 1024);
+    Sender sender(std::move(socket), remote_endpoint, 1024 * 1024);
     sender.send(calibration);
 
     // frame_id is the ID of the frame the sender sends.

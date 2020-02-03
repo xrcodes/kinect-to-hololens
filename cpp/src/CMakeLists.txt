@@ -12,10 +12,10 @@ set(SOURCE_FILES
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_sender_udp.h
-  kh_sender_udp.cpp
-  kh_receiver_udp.h
-  kh_receiver_udp.cpp
+  kh_sender.h
+  kh_sender.cpp
+  kh_receiver.h
+  kh_receiver.cpp
 )
 
 add_library(KinectToHololens ${SOURCE_FILES})
