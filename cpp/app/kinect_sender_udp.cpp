@@ -115,6 +115,7 @@ void _send_frames(KinectDevice& device, int port)
     // Variables for profiling the sender.
     auto summary_start = std::chrono::system_clock::now();
     int frame_count = 0;
+    int keyframe_count = 0;
     std::chrono::microseconds last_time_stamp;
 
     size_t frame_size = 0;
@@ -156,7 +157,7 @@ void _send_frames(KinectDevice& device, int port)
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
-        bool keyframe = frame_id_diff > 3;
+        bool keyframe = frame_id_diff > 4;
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
@@ -173,25 +174,30 @@ void _send_frames(KinectDevice& device, int port)
 
         last_time_stamp = time_stamp;
 
+        // Updating variables for profiling.
+        ++frame_count;
+        if (keyframe)
+            ++keyframe_count;
+
+        frame_size += vp8_frame.size() + depth_encoder_frame.size();
+
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
             auto summary_end = std::chrono::system_clock::now();
             std::chrono::duration<double> diff = summary_end - summary_start;
             std::stringstream ss;
             ss << "Summary for frame " << frame_id << ", "
-               << "FPS: " << frame_count / diff.count() << ", "
-               << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
+                << "FPS: " << frame_count / diff.count() << ", "
+                << "Keyframe Ratio: " << keyframe_count / (float) frame_count * 100.0f << "%, "
+                << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
             std::cout << ss.str() << std::endl;
             summary_start = summary_end;
             frame_count = 0;
+            keyframe_count = 0;
             frame_size = 0;
         }
 
         ++frame_id;
-
-        // Updating variables for profiling.
-        ++frame_count;
-        frame_size += vp8_frame.size() + depth_encoder_frame.size();
     }
 
     std::cout << "Stopped sending Kinect frames." << std::endl;
