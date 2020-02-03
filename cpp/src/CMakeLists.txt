@@ -12,12 +12,6 @@ set(SOURCE_FILES
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_message.h
-  kh_message.cpp
-  kh_sender_tcp.h
-  kh_sender_tcp.cpp
-  kh_receiver_tcp.h
-  kh_receiver_tcp.cpp
   kh_sender_udp.h
   kh_sender_udp.cpp
   kh_receiver_udp.h
