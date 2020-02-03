@@ -123,7 +123,15 @@ void _send_frames(KinectDevice& device, int port)
         auto receive_result = sender.receive();
         if (receive_result) {
             uint8_t message_type = (*receive_result)[0];
+            float packet_collection_ms;
+            float decoder_ms;
+            float frame_ms;
             memcpy(&receiver_frame_id, receive_result->data() + 1, 4);
+            memcpy(&packet_collection_ms, receive_result->data() + 5, 4);
+            memcpy(&decoder_ms, receive_result->data() + 9, 4);
+            memcpy(&frame_ms, receive_result->data() + 13, 4);
+
+            printf("id: %d, packet: %f, decoder: %f, frame: %f\n", frame_id, packet_collection_ms, decoder_ms, frame_ms);
         }
 
         auto capture = device.getCapture();

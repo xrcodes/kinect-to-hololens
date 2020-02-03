@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Runtime.InteropServices;
@@ -8,74 +8,12 @@ using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.XR.WSA.Input;
 
-class FrameMessage
-{
-    private byte[] message;
-    public int FrameId { get; private set; }
-    public float FrameTimeStamp { get; private set; }
-    public bool Keyframe { get; private set; }
-    public int ColorEncoderFrameSize { get; private set; }
-    public int DepthEncoderFrameSize { get; private set; }
-
-    private FrameMessage(byte[] message, int frameId, float frameTimeStamp,
-                         bool keyframe, int colorEncoderFrameSize, int depthEncoderFrameSize)
-    {
-        this.message = message;
-        FrameId = frameId;
-        FrameTimeStamp = frameTimeStamp;
-        Keyframe = keyframe;
-        ColorEncoderFrameSize = colorEncoderFrameSize;
-        DepthEncoderFrameSize = depthEncoderFrameSize;
-    }
-
-    public static FrameMessage Create(byte[] message)
-    {
-        int cursor = 0;
-        int frameId = BitConverter.ToInt32(message, cursor);
-        cursor += 4;
-
-        float frameTimeStamp = BitConverter.ToSingle(message, cursor);
-        cursor += 4;
-
-        bool keyframe = Convert.ToBoolean(message[cursor]);
-        cursor += 1;
-
-        // Parsing the bytes of the message into the VP8 and TRVL frames.
-        int colorEncoderFrameSize = BitConverter.ToInt32(message, cursor);
-        cursor += 4;
-
-        // Bytes of the color_encoder_frame.
-        cursor += colorEncoderFrameSize;
-
-        int depthEncoderFrameSize = BitConverter.ToInt32(message, cursor);
-
-        return new FrameMessage(message: message, frameId: frameId, frameTimeStamp: frameTimeStamp,
-                                keyframe: keyframe, colorEncoderFrameSize: colorEncoderFrameSize,
-                                depthEncoderFrameSize: depthEncoderFrameSize);
-    }
-
-    public byte[] GetColorEncoderFrame()
-    {
-        int cursor = 4 + 4 + 1 + 4;
-        byte[] colorEncoderFrame = new byte[ColorEncoderFrameSize];
-        Array.Copy(message, cursor, colorEncoderFrame, 0, ColorEncoderFrameSize);
-        return colorEncoderFrame;
-    }
-
-    public byte[] GetDepthEncoderFrame()
-    {
-        int cursor = 4 + 4 + 1 + 4 + ColorEncoderFrameSize + 4;
-        byte[] depthEncoderFrame = new byte[DepthEncoderFrameSize];
-        Array.Copy(message, cursor, depthEncoderFrame, 0, DepthEncoderFrameSize);
-        return depthEncoderFrame;
-    }
-};
-
 class FramePacketCollection
 {
     public int FrameId { get; private set; }
     public int PacketCount { get; private set; }
     private byte[][] packets;
+    private Stopwatch stopWatch;
 
     public FramePacketCollection(int frameId, int packetCount)
     {
@@ -86,6 +24,8 @@ class FramePacketCollection
         {
             packets[i] = new byte[0];
         }
+
+        stopWatch = Stopwatch.StartNew();
     }
 
     public void AddPacket(int packetIndex, byte[] packet)
@@ -119,7 +59,8 @@ class FramePacketCollection
             Array.Copy(packets[i], 13, message, cursor, packets[i].Length - 13);
         }
 
-        return FrameMessage.Create(message);
+        stopWatch.Stop();
+        return FrameMessage.Create(message, stopWatch.Elapsed);
     }
 };
 
@@ -159,6 +100,7 @@ public class KinectToHololensManager : MonoBehaviour
     private Dictionary<int, FramePacketCollection> framePacketCollections;
     private List<FrameMessage> frameMessages;
     private int lastFrameId;
+    private Stopwatch frameStopWatch;
 
     public TextMesh ActiveInputField
     {
@@ -190,6 +132,7 @@ public class KinectToHololensManager : MonoBehaviour
         framePacketCollections = new Dictionary<int, FramePacketCollection>();
         frameMessages = new List<FrameMessage>();
         lastFrameId = -1;
+        frameStopWatch = Stopwatch.StartNew();
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -238,7 +181,6 @@ public class KinectToHololensManager : MonoBehaviour
         //if (receiver == null)
         //    return;
 
-        Profiler.BeginSample("Receive Packets");
         var packets = new List<byte[]>();
         while (true)
         {
@@ -248,9 +190,7 @@ public class KinectToHololensManager : MonoBehaviour
 
             packets.Add(packet);
         }
-        Profiler.EndSample();
 
-        Profiler.BeginSample("Collect Frame Packets");
         foreach (var packet in packets)
         {
             var packetType = packet[0];
@@ -270,6 +210,10 @@ public class KinectToHololensManager : MonoBehaviour
             else if (packetType == 1)
             {
                 int frameId = BitConverter.ToInt32(packet, 1);
+                // No need to collect packets for previous frames.
+                if (frameId <= lastFrameId)
+                    continue;
+                
                 int packetIndex = BitConverter.ToInt32(packet, 5);
                 int packetCount = BitConverter.ToInt32(packet, 9);
 
@@ -281,9 +225,7 @@ public class KinectToHololensManager : MonoBehaviour
                 framePacketCollections[frameId].AddPacket(packetIndex, packet);
             }
         }
-        Profiler.EndSample();
 
-        Profiler.BeginSample("Create Frame Messages");
         // Find all full collections and their frame_ids.
         var fullFrameIds = new List<int>();
         foreach (var collectionPair in framePacketCollections)
@@ -303,7 +245,6 @@ public class KinectToHololensManager : MonoBehaviour
         }
 
         frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
-        Profiler.EndSample();
         
         if (frameMessages.Count == 0)
         {
@@ -336,15 +277,20 @@ public class KinectToHololensManager : MonoBehaviour
             }
         }
 
-        Profiler.BeginSample("Render");
         // ffmpegFrame and trvlFrame are guaranteed to be non-null
         // since the existence of beginIndex's value.
         FFmpegFrame ffmpegFrame = null;
         TrvlFrame trvlFrame = null;
-        for(int i = beginIndex.Value; i < frameMessages.Count; ++i)
+        TimeSpan packetCollectionTime;
+        TimeSpan decoderTime;
+
+        var decoderStopWatch = Stopwatch.StartNew();
+        for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
         {
             var frameMessage = frameMessages[i];
             lastFrameId = frameMessage.FrameId;
+
+            packetCollectionTime = frameMessage.PacketCollectionTime;
 
             var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
             var depthEncoderFrame = frameMessage.GetDepthEncoderFrame();
@@ -359,9 +305,19 @@ public class KinectToHololensManager : MonoBehaviour
             Marshal.Copy(depthEncoderFrame, 0, depthEncoderFrameBytes, depthEncoderFrame.Length);
             trvlFrame = depthDecoder.Decode(depthEncoderFrameBytes, frameMessage.Keyframe);
             Marshal.FreeHGlobal(depthEncoderFrameBytes);
-        }
 
-        receiver.Send(lastFrameId);
+        }
+        decoderStopWatch.Stop();
+        decoderTime = decoderStopWatch.Elapsed;
+        frameStopWatch.Stop();
+        var frameTime = frameStopWatch.Elapsed;
+        frameStopWatch = Stopwatch.StartNew();
+
+        print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}," +
+              $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
+
+        receiver.Send(lastFrameId, (float) packetCollectionTime.TotalMilliseconds, (float) decoderTime.TotalMilliseconds,
+            (float) frameTime.TotalMilliseconds);
 
         // Invokes a function to be called in a render thread.
         if (textureGroup != null)
@@ -388,7 +344,6 @@ public class KinectToHololensManager : MonoBehaviour
         }
 
         frameMessages = new List<FrameMessage>();
-        Profiler.EndSample();
     }
 
     private void OnTapped(TappedEventArgs args)
@@ -476,7 +431,7 @@ public class KinectToHololensManager : MonoBehaviour
         int port = portString.Length != 0 ? int.Parse(portString) : 7777;
 
         string logString = $"Try connecting to {ipAddress}:{port}...";
-        Debug.Log(logString);
+        print(logString);
         statusText.text = logString;
 
         // TODO: This part should be greatly improved before actual usage...

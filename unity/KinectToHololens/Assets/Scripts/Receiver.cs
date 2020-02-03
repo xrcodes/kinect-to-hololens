@@ -66,11 +66,14 @@ public class Receiver
     }
 
     // Sends a message to the Sender that a Kinect frame was received.
-    public void Send(int frameId)
+    public void Send(int frameId, float packetCollectionMs, float decoderMs, float frameMs)
     {
         var ms = new MemoryStream();
         ms.WriteByte(0);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
+        ms.Write(BitConverter.GetBytes(packetCollectionMs), 0, 4);
+        ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
+        ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
         socket.SendTo(ms.ToArray(), Address, Port);
     }
 }

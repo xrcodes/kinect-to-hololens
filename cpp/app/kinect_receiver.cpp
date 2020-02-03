@@ -198,12 +198,14 @@ void _receive_frames(std::string ip_address, int port)
                 cursor += 4;
 
                 depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
-                continue;
             } else if (packet_type == 1) {
                 int frame_id;
+                memcpy(&frame_id, packet.data() + 1, 4);
+                if (frame_id <= last_frame_id)
+                    continue;
+
                 int packet_index;
                 int packet_count;
-                memcpy(&frame_id, packet.data() + 1, 4);
                 memcpy(&packet_index, packet.data() + 5, 4);
                 memcpy(&packet_count, packet.data() + 9, 4);
 
