@@ -381,6 +381,22 @@ public class HololensDemoManagerUdp : MonoBehaviour
             PluginHelper.UpdateTextureGroup();
         }
 
+        // Clean up frame_packet_collections.
+        int endFrameId = frameMessages[frameMessages.Count - 1].FrameId;
+        var obsoleteFrameIds = new List<int>();
+        foreach (var collectionPair in framePacketCollections)
+        {
+            if(collectionPair.Key <= endFrameId)
+            {
+                obsoleteFrameIds.Add(collectionPair.Key);
+            }
+        }
+
+        foreach (int obsoleteFrameId in obsoleteFrameIds)
+        {
+            framePacketCollections.Remove(obsoleteFrameId);
+        }
+
         frameMessages = new List<FrameMessage>();
         Profiler.EndSample();
     }

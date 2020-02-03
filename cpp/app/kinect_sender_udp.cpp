@@ -142,9 +142,9 @@ void _send_frames(KinectDevice& device, int port)
         // Rounding assuming that the framerate is 30 Hz.
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
 
-        if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
-            continue;
-        }
+        //if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+        //    continue;
+        //}
 
         auto depth_image = capture->get_depth_image();
         if (!depth_image) {
@@ -179,8 +179,8 @@ void _send_frames(KinectDevice& device, int port)
             std::chrono::duration<double> diff = summary_end - summary_start;
             std::stringstream ss;
             ss << "Summary for frame " << frame_id << ", "
-                << "FPS: " << frame_count / diff.count() << ", "
-                << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
+               << "FPS: " << frame_count / diff.count() << ", "
+               << "Bandwidth: " << frame_size / (diff.count() * 131072) << " Mbps. "; // 131072 = 1024 * 1024 / 8
             std::cout << ss.str() << std::endl;
             summary_start = summary_end;
             frame_count = 0;

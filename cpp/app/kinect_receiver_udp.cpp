@@ -1,6 +1,7 @@
+#include <chrono>
 #include <iostream>
-#include <asio.hpp>
 #include <optional>
+#include <asio.hpp>
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "kh_receiver_udp.h"
@@ -157,7 +158,11 @@ void _receive_frames(std::string ip_address, int port)
     std::vector<FrameMessage> frame_messages;
     int last_frame_id = -1;
 
+    int summary_frame_count;
+    int summary_keyframe_count;
+
     for (;;) {
+        auto packet_receive_start = std::chrono::steady_clock::now();
         std::vector<std::vector<uint8_t>> packets;
         for (;;) {
             auto receive_result = receiver.receive();
@@ -166,13 +171,14 @@ void _receive_frames(std::string ip_address, int port)
             }
 
             // Simulate packet loss
-            if (rand() % 200 == 0) {
-                continue;
-            }
+            //if (rand() % 200 == 0) {
+            //    continue;
+            //}
 
             packets.push_back(*receive_result);
         }
 
+        auto packet_collection_start = std::chrono::steady_clock::now();
         for (auto packet : packets) {
             int cursor = 0;
             uint8_t packet_type = packet[0];
@@ -209,6 +215,7 @@ void _receive_frames(std::string ip_address, int port)
             }
         }
 
+        auto full_frame_start = std::chrono::steady_clock::now();
         // Find all full collections and their frame_ids.
         std::vector<int> full_frame_ids;
         for (auto collection_pair : frame_packet_collections) {
@@ -228,8 +235,16 @@ void _receive_frames(std::string ip_address, int port)
             return lhs.frame_id() < rhs.frame_id();
         });
 
-        if (frame_messages.empty())
+        if (frame_messages.empty()) {
+            int total_collected_packet_count = 0;
+            for (auto collection_pair : frame_packet_collections) {
+                total_collected_packet_count += collection_pair.second.getCollectedPacketCount();
+            }
+
+            auto total_time = std::chrono::steady_clock::now() - packet_receive_start;
+            printf("frame_messages empty packet: %d, time: %lld\n", total_collected_packet_count, total_time.count() / 1000000);
             continue;
+        }
 
         std::optional<int> begin_index;
         // If there is a key frame, use the most recent one.
@@ -251,6 +266,7 @@ void _receive_frames(std::string ip_address, int port)
             }
         }
 
+        auto decoder_start = std::chrono::steady_clock::now();
         std::optional<kh::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
         for (int i = *begin_index; i < frame_messages.size(); ++i) {
@@ -269,25 +285,48 @@ void _receive_frames(std::string ip_address, int port)
 
             // Decompressing a RVL frame into depth pixels.
             depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
+
+            if (keyframe)
+                ++summary_keyframe_count;
+            ++summary_frame_count;
+        }
+
+        // There will be frames. Otherwise, the program would not have reached the above for loop.
+        receiver.send(last_frame_id);
+
+        auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
+        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);
+
+        // Rendering the depth pixels.
+        cv::imshow("Color", color_mat);
+        cv::imshow("Depth", depth_mat);
+        if (cv::waitKey(1) >= 0)
+            break;
+
+        // Clean up frame_packet_collections.
+        int end_frame_id = frame_messages[frame_messages.size() - 1].frame_id();
+        std::vector<int> obsolete_frame_ids;
+        for (auto collection_pair : frame_packet_collections) {
+            if (collection_pair.first <= end_frame_id) {
+                obsolete_frame_ids.push_back(collection_pair.first);
+            }
+        }
+
+        for (int obsolete_frame_id : obsolete_frame_ids) {
+            frame_packet_collections.erase(obsolete_frame_id);
         }
 
         // Reset frame_messages after they are displayed.
         frame_messages = std::vector<FrameMessage>();
 
-        // If there was a frame meesage
-        if (ffmpeg_frame) {
-            receiver.send(last_frame_id);
+        auto receiver_end = std::chrono::steady_clock::now();
 
-            auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
-            auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);
+        //printf("summary frame_count: %d, keyframe_count: %d\n", summary_frame_count, summary_keyframe_count);
 
-            // Rendering the depth pixels.
-            cv::imshow("Color", color_mat);
-            cv::imshow("Depth", depth_mat);
-            if (cv::waitKey(1) >= 0)
-                break;
-        }
+        auto packet_receive_time = packet_collection_start - packet_receive_start;
+        auto total_time = receiver_end - packet_receive_start;
 
+        printf("packet_receive_time: %lld, total_time: %lld\n", packet_receive_time.count() / 1000000, total_time.count() / 1000000);
     }
 }
 
