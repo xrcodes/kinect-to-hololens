@@ -123,7 +123,7 @@ class FramePacketCollection
     }
 };
 
-public class HololensDemoManagerUdp : MonoBehaviour
+public class KinectToHololensManager : MonoBehaviour
 {
     private enum InputState
     {
