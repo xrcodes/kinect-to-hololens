@@ -159,8 +159,6 @@ public class HololensDemoManagerUdp : MonoBehaviour
     private Dictionary<int, FramePacketCollection> framePacketCollections;
     private List<FrameMessage> frameMessages;
     private int lastFrameId;
-    private bool stopPacketCollection;
-    private ConcurrentQueue<byte[]> packets;
 
     public TextMesh ActiveInputField
     {
@@ -200,12 +198,6 @@ public class HololensDemoManagerUdp : MonoBehaviour
         statusText.text = "Waiting for user input.";
 
         Plugin.texture_group_reset();
-
-        stopPacketCollection = false;
-        packets = new ConcurrentQueue<byte[]>();
-
-        Thread thread = new Thread(new ThreadStart(CollectPackets));
-        thread.Start();
     }
 
     void Update()
@@ -246,22 +238,20 @@ public class HololensDemoManagerUdp : MonoBehaviour
         //if (receiver == null)
         //    return;
 
-        //Profiler.BeginSample("Receive Packets");
-        //var packets = new List<byte[]>();
-        //while (true)
-        //{
-        //    var packet = receiver.Receive();
-        //    if (packet == null)
-        //        break;
+        Profiler.BeginSample("Receive Packets");
+        var packets = new List<byte[]>();
+        while (true)
+        {
+            var packet = receiver.Receive();
+            if (packet == null)
+                break;
 
-        //    packets.Add(packet);
-        //}
-        //Profiler.EndSample();
+            packets.Add(packet);
+        }
+        Profiler.EndSample();
 
         Profiler.BeginSample("Collect Frame Packets");
-        //foreach (var packet in packets)
-        byte[] packet;
-        while(packets.TryDequeue(out packet))
+        foreach (var packet in packets)
         {
             var packetType = packet[0];
             if (packetType == 0)
@@ -399,26 +389,6 @@ public class HololensDemoManagerUdp : MonoBehaviour
 
         frameMessages = new List<FrameMessage>();
         Profiler.EndSample();
-    }
-
-    void OnApplicationQuit()
-    {
-        stopPacketCollection = true;
-    }
-
-    private void CollectPackets()
-    {
-        while(!stopPacketCollection)
-        {
-            while (true)
-            {
-                var packet = receiver.Receive();
-                if (packet == null)
-                    break;
-
-                packets.Enqueue(packet);
-            }
-        }
     }
 
     private void OnTapped(TappedEventArgs args)

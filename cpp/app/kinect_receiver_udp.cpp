@@ -158,9 +158,9 @@ void _receive_frames(std::string ip_address, int port)
     std::vector<FrameMessage> frame_messages;
     int last_frame_id = -1;
 
+    auto previous_render = std::chrono::steady_clock::now();
     int summary_frame_count;
     int summary_keyframe_count;
-
     for (;;) {
         auto packet_receive_start = std::chrono::steady_clock::now();
         std::vector<std::vector<uint8_t>> packets;
@@ -236,13 +236,13 @@ void _receive_frames(std::string ip_address, int port)
         });
 
         if (frame_messages.empty()) {
-            int total_collected_packet_count = 0;
-            for (auto collection_pair : frame_packet_collections) {
-                total_collected_packet_count += collection_pair.second.getCollectedPacketCount();
-            }
+            //int total_collected_packet_count = 0;
+            //for (auto collection_pair : frame_packet_collections) {
+            //    total_collected_packet_count += collection_pair.second.getCollectedPacketCount();
+            //}
 
-            auto total_time = std::chrono::steady_clock::now() - packet_receive_start;
-            printf("frame_messages empty packet: %d, time: %lld\n", total_collected_packet_count, total_time.count() / 1000000);
+            //auto total_time = std::chrono::steady_clock::now() - packet_receive_start;
+            //printf("frame_messages empty packet: %d, time: %lld\n", total_collected_packet_count, total_time.count() / 1000000);
             continue;
         }
 
@@ -326,7 +326,11 @@ void _receive_frames(std::string ip_address, int port)
         auto packet_receive_time = packet_collection_start - packet_receive_start;
         auto total_time = receiver_end - packet_receive_start;
 
-        printf("packet_receive_time: %lld, total_time: %lld\n", packet_receive_time.count() / 1000000, total_time.count() / 1000000);
+        auto since_last_render = std::chrono::steady_clock::now() - previous_render;
+
+        printf("total_time: %lld, since last: %lld\n", total_time.count() / 1000000, since_last_render.count() / 1000000);
+
+        previous_render = std::chrono::steady_clock::now();
     }
 }
 
