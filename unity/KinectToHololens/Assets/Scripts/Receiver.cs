@@ -3,7 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
-public class ReceiverUdp
+public class Receiver
 {
     private UdpSocket socket;
     public IPAddress Address { get; private set; }
@@ -17,7 +17,7 @@ public class ReceiverUdp
         }
     }
 
-    public ReceiverUdp(int receiveBufferSize)
+    public Receiver(int receiveBufferSize)
     {
         socket = new UdpSocket(receiveBufferSize);
     }

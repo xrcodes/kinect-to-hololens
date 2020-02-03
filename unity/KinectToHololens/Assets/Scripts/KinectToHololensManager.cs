@@ -152,7 +152,7 @@ public class KinectToHololensManager : MonoBehaviour
     // Varaibles that represent states of the scene.
     private InputState inputState;
     private TextureGroup textureGroup;
-    private ReceiverUdp receiver;
+    private Receiver receiver;
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
 
@@ -182,7 +182,7 @@ public class KinectToHololensManager : MonoBehaviour
     void Awake()
     {
         gestureRecognizer = new GestureRecognizer();
-        receiver = new ReceiverUdp(1024 * 1024);
+        receiver = new Receiver(1024 * 1024);
         textureGroup = null;
         UiVisibility = true;
         SetInputState(InputState.IpAddress);
@@ -256,7 +256,7 @@ public class KinectToHololensManager : MonoBehaviour
             var packetType = packet[0];
             if (packetType == 0)
             {
-                var calibration = DemoManagerHelper.ReadAzureKinectCalibrationFromMessage(packet);
+                var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet);
 
                 Plugin.texture_group_set_width(calibration.DepthCamera.Width);
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);

@@ -1,6 +1,6 @@
 ﻿using System;
 
-public static class DemoManagerHelper
+public static class ManagerHelper
 {
     public static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message)
     {
