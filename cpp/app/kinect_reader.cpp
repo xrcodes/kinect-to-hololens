@@ -1,6 +1,6 @@
 #include <iostream>
-#include "k4a/k4a.hpp"
 #include "helper/opencv_helper.h"
+#include "k4a/k4a.hpp"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 

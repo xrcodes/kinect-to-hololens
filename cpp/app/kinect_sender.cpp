@@ -1,7 +1,7 @@
 #include <chrono>
 #include <iostream>
 #include <random>
-#include "k4a/k4a.hpp"
+#include "helper/kinect_helper.h"
 #include "kh_core.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
@@ -9,65 +9,6 @@
 
 namespace kh
 {
-int pow_of_two(int exp) {
-    assert(exp >= 0);
-
-    int res = 1;
-    for (int i = 0; i < exp; ++i) {
-        res *= 2;
-    }
-    return res;
-}
-
-// For having an interface combining devices and playbacks one day in the future...
-class KinectDevice
-{
-private:
-    KinectDevice(k4a::device&& device,
-                 k4a_device_configuration_t configuration,
-                 std::chrono::milliseconds timeout)
-        : device_(std::move(device)), configuration_(configuration), timeout_(timeout)
-    {
-    }
-
-public:
-    static std::optional<KinectDevice> create(k4a_device_configuration_t configuration,
-                               std::chrono::milliseconds time_out)
-    {
-        try {
-            auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
-            return KinectDevice(std::move(device), configuration, time_out);
-        } catch (std::exception e) {
-            printf("Error opening k4a::device in KinectDevice: %s\n", e.what());
-            return std::nullopt;
-        }
-    }
-
-    void start()
-    {
-        device_.start_cameras(&configuration_);
-    }
-
-    k4a::calibration getCalibration()
-    {
-        return device_.get_calibration(configuration_.depth_mode,
-                                       configuration_.color_resolution);
-    }
-
-    std::optional<k4a::capture> getCapture()
-    {
-        k4a::capture capture;
-        if (!device_.get_capture(&capture, timeout_))
-            return std::nullopt;
-
-        return capture;
-    }
-
-private:
-    k4a::device device_;
-    k4a_device_configuration_t configuration_;
-    std::chrono::milliseconds timeout_;
-};
 
 // Sends Azure Kinect frames through a TCP port.
 void _send_frames(int session_id, KinectDevice& device, int port)

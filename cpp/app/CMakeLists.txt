@@ -25,6 +25,7 @@ add_custom_command(TARGET KinectReader POST_BUILD
 
 add_executable(KinectSender
   kinect_sender.cpp
+  helper/kinect_helper.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -48,6 +49,7 @@ add_custom_command(TARGET KinectSender POST_BUILD
 
 add_executable(KinectReceiver
   kinect_receiver.cpp
+  helper/opencv_helper.h
 )
 target_link_libraries(KinectReceiver
   ${OpenCV_LIBS}
