@@ -42,19 +42,19 @@ void _display_frames()
     for (;;) {
         k4a::capture capture;
         if (!device.get_capture(&capture, TIMEOUT)) {
-            std::cout << "get_capture() timed out" << std::endl;
+            printf("get_capture() timed out...\n");
             continue;
         }
 
         auto color_image = capture.get_color_image();
         if (!color_image) {
-            std::cout << "no color_image" << std::endl;
+            printf("get_color_image() failed...\n");
             continue;
         }
 
         auto depth_image = capture.get_depth_image();
         if (!depth_image) {
-            std::cout << "no depth_image" << std::endl;
+            printf("get_depth_image() failed...\n");
             continue;
         }
 
