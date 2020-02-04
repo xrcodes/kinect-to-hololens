@@ -58,3 +58,13 @@ target_link_libraries(KinectReceiver
 set_target_properties(KinectReceiver PROPERTIES
   CXX_STANDARD 17
 )
+
+add_executable(KinectListener
+  kinect_listener.cpp
+)
+target_link_libraries(KinectListener
+  KinectToHololens
+)
+set_target_properties(KinectListener PROPERTIES
+  CXX_STANDARD 17
+)
