@@ -16,6 +16,10 @@ set(SOURCE_FILES
   kh_sender.cpp
   kh_receiver.h
   kh_receiver.cpp
+  kh_frame_message.h
+  kh_frame_message.cpp
+  kh_frame_packet_collection.h
+  kh_frame_packet_collection.cpp
 )
 
 add_library(KinectToHololens ${SOURCE_FILES})

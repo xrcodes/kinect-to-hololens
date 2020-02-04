@@ -2,143 +2,14 @@
 #include <iostream>
 #include <optional>
 #include <asio.hpp>
+#include "helper/opencv_helper.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "kh_receiver.h"
-#include "helper/opencv_helper.h"
+#include "kh_frame_packet_collection.h"
 
 namespace kh
 {
-class FrameMessage
-{
-private:
-    FrameMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
-                 bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size)
-        : message_(std::move(message)), frame_id_(frame_id), frame_time_stamp_(frame_time_stamp),
-        keyframe_(keyframe), color_encoder_frame_size_(color_encoder_frame_size),
-        depth_encoder_frame_size_(depth_encoder_frame_size)
-    {
-    }
-
-public:
-    static FrameMessage create(int frame_id, std::vector<uint8_t>&& message)
-    {
-        int cursor = 0;
-
-        float frame_time_stamp;
-        memcpy(&frame_time_stamp, message.data() + cursor, 4);
-        cursor += 4;
-
-        bool keyframe = message[cursor];
-        cursor += 1;
-
-        // Parsing the bytes of the message into the VP8 and RVL frames.
-        int color_encoder_frame_size;
-        memcpy(&color_encoder_frame_size, message.data() + cursor, 4);
-        cursor += 4;
-
-        // Bytes of the color_encoder_frame.
-        cursor += color_encoder_frame_size;
-
-        int depth_encoder_frame_size;
-        memcpy(&depth_encoder_frame_size, message.data() + cursor, 4);
-
-        return FrameMessage(std::move(message), frame_id, frame_time_stamp,
-                            keyframe, color_encoder_frame_size,
-                            depth_encoder_frame_size);
-    }
-
-    int frame_id() const { return frame_id_; }
-    float frame_time_stamp() const { return frame_time_stamp_; }
-    bool keyframe() const { return keyframe_; }
-    int color_encoder_frame_size() const { return color_encoder_frame_size_; }
-    int depth_encoder_frame_size() const { return depth_encoder_frame_size_; }
-
-    std::vector<uint8_t> getColorEncoderFrame()
-    {
-        int cursor = 4 + 1 + 4;
-        std::vector<uint8_t> color_encoder_frame(color_encoder_frame_size_);
-        memcpy(color_encoder_frame.data(), message_.data() + cursor, color_encoder_frame_size_);
-
-        return color_encoder_frame;
-    }
-
-    std::vector<uint8_t> getDepthEncoderFrame()
-    {
-        int cursor = 4 + 1 + 4 + color_encoder_frame_size_ + 4;
-        std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size_);
-        memcpy(depth_encoder_frame.data(), message_.data() + cursor, depth_encoder_frame_size_);
-
-        return depth_encoder_frame;
-    }
-
-private:
-    std::vector<uint8_t> message_;
-    int frame_id_;
-    float frame_time_stamp_;
-    bool keyframe_;
-    int color_encoder_frame_size_;
-    int depth_encoder_frame_size_;
-};
-
-class FramePacketCollection
-{
-public:
-    FramePacketCollection(int frame_id, int packet_count)
-        : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count_)
-    {
-    }
-
-    int frame_id() { return frame_id_; }
-    int packet_count() { return packet_count_; }
-
-    void addPacket(int packet_index, std::vector<uint8_t> packet)
-    {
-        packets_[packet_index] = packet;
-    }
-
-    bool isFull()
-    {
-        for (auto packet : packets_) {
-            if (packet.empty())
-                return false;
-        }
-
-        return true;
-    }
-
-    FrameMessage toMessage() {
-        const int HEADER_SIZE = 17;
-        int message_size = 0;
-        for (auto packet : packets_) {
-            message_size += packet.size() - HEADER_SIZE;
-        }
-
-        std::vector<uint8_t> message(message_size);
-        for (int i = 0; i < packets_.size(); ++i) {
-            int cursor = (1500 - HEADER_SIZE) * i;
-            memcpy(message.data() + cursor, packets_[i].data() + HEADER_SIZE, packets_[i].size() - HEADER_SIZE);
-        }
-
-        return FrameMessage::create(frame_id_, std::move(message));
-    }
-
-    int getCollectedPacketCount() {
-        int count = 0;
-        for (auto packet : packets_) {
-            if (!packet.empty())
-                ++count;
-        }
-
-        return count;
-    }
-
-private:
-    int frame_id_;
-    int packet_count_;
-    std::vector<std::vector<std::uint8_t>> packets_;
-};
-
 void _receive_frames(std::string ip_address, int port)
 {
     asio::io_context io_context;
@@ -336,7 +207,7 @@ void _receive_frames(std::string ip_address, int port)
 
         auto since_last_render = std::chrono::steady_clock::now() - previous_render;
 
-        printf("total_time: %lld, since last: %lld\n", total_time.count() / 1000000, since_last_render.count() / 1000000);
+        //printf("total_time: %lld, since last: %lld\n", total_time.count() / 1000000, since_last_render.count() / 1000000);
 
         previous_render = std::chrono::steady_clock::now();
     }
