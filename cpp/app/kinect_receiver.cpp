@@ -21,12 +21,9 @@ private:
     }
 
 public:
-    static FrameMessage create(std::vector<uint8_t>&& message)
+    static FrameMessage create(int frame_id, std::vector<uint8_t>&& message)
     {
         int cursor = 0;
-        int frame_id;
-        memcpy(&frame_id, message.data() + cursor, 4);
-        cursor += 4;
 
         float frame_time_stamp;
         memcpy(&frame_time_stamp, message.data() + cursor, 4);
@@ -59,7 +56,7 @@ public:
 
     std::vector<uint8_t> getColorEncoderFrame()
     {
-        int cursor = 4 + 4 + 1 + 4;
+        int cursor = 4 + 1 + 4;
         std::vector<uint8_t> color_encoder_frame(color_encoder_frame_size_);
         memcpy(color_encoder_frame.data(), message_.data() + cursor, color_encoder_frame_size_);
 
@@ -68,7 +65,7 @@ public:
 
     std::vector<uint8_t> getDepthEncoderFrame()
     {
-        int cursor = 4 + 4 + 1 + 4 + color_encoder_frame_size_ + 4;
+        int cursor = 4 + 1 + 4 + color_encoder_frame_size_ + 4;
         std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size_);
         memcpy(depth_encoder_frame.data(), message_.data() + cursor, depth_encoder_frame_size_);
 
@@ -122,7 +119,7 @@ public:
             memcpy(message.data() + cursor, packets_[i].data() + 13, packets_[i].size() - 13);
         }
 
-        return FrameMessage::create(std::move(message));
+        return FrameMessage::create(frame_id_, std::move(message));
     }
 
     int getCollectedPacketCount() {
@@ -285,8 +282,8 @@ void _receive_frames(std::string ip_address, int port)
             ++summary_frame_count;
         }
 
-        // There will be frames. Otherwise, the program would not have reached the above for loop.
-        receiver.send(last_frame_id);
+        // TODO: send the real measured time intervals.
+        receiver.send(last_frame_id, 0.0f, 0.0f, 0.0f);
 
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
         auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);

@@ -38,11 +38,15 @@ std::optional<std::vector<uint8_t>> Receiver::receive()
     return packet;
 }
 
-void Receiver::send(int frame_id)
+void Receiver::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+                    float frame_time_ms)
 {
-    std::array<char, 5> frame_id_buffer;
-    frame_id_buffer[0] = 1;
-    memcpy(frame_id_buffer.data() + 1, &frame_id, 4);
-    socket_.send_to(asio::buffer(frame_id_buffer), remote_endpoint_);
+    std::vector<uint8_t> packet(17);
+    packet[0] = 1;
+    memcpy(packet.data() + 1, &frame_id, 4);
+    memcpy(packet.data() + 5, &packet_collection_time_ms, 4);
+    memcpy(packet.data() + 9, &decoder_time_ms, 4);
+    memcpy(packet.data() + 13, &frame_time_ms, 4);
+    socket_.send_to(asio::buffer(packet), remote_endpoint_);
 }
 }
