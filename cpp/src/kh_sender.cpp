@@ -101,8 +101,8 @@ std::optional<std::vector<uint8_t>> Sender::receive()
     }
 
     if (error) {
-        std::cout << "Error from SenderUdp::receive(): " << error.message() << std::endl;
-        return std::nullopt;
+        printf("Error from Sender::receive(): %s\n", error.message().c_str());
+        throw std::system_error(error);
     }
 
     packet.resize(packet_size);
@@ -183,7 +183,9 @@ void Sender::sendPacket(const std::vector<uint8_t>& packet)
 {
     std::error_code error;
     socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
-    if (error)
-        std::cout << "Error from SenderUdp::send(): " << error.message() << std::endl;
+    if (error) {
+        printf("Error from Sender::send(): %s\n", error.message().c_str());
+        throw std::system_error(error);
+    }
 }
 }

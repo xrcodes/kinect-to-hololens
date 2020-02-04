@@ -100,6 +100,7 @@ public class KinectToHololensManager : MonoBehaviour
     private List<FrameMessage> frameMessages;
     private int lastFrameId;
     private Stopwatch frameStopWatch;
+    private int? serverSessionId;
 
     public TextMesh ActiveInputField
     {
@@ -132,6 +133,7 @@ public class KinectToHololensManager : MonoBehaviour
         frameMessages = new List<FrameMessage>();
         lastFrameId = -1;
         frameStopWatch = Stopwatch.StartNew();
+        serverSessionId = null;
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -198,8 +200,14 @@ public class KinectToHololensManager : MonoBehaviour
 
             var packetType = packet[cursor];
             cursor += 1;
+            // For an initialization packet.
             if (packetType == 0)
             {
+                // No need to have UI for connection after initialization.
+                UiVisibility = false;
+
+                serverSessionId = sessionId;
+
                 var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
 
                 Plugin.texture_group_set_width(calibration.DepthCamera.Width);
@@ -211,7 +219,13 @@ public class KinectToHololensManager : MonoBehaviour
 
                 azureKinectScreen.Setup(calibration);
             }
-            else if (packetType == 1)
+
+            // Block packets from before initilization and from a sender that
+            // was not the one that initialized this receiver.
+            if (!serverSessionId.HasValue || sessionId != serverSessionId)
+                continue;
+
+            if (packetType == 1)
             {
                 int frameId = BitConverter.ToInt32(packet, cursor);
                 cursor += 4;
@@ -424,28 +438,23 @@ public class KinectToHololensManager : MonoBehaviour
         }
     }
 
-    // TODO: Make UI better.
     private void Ping()
     {
-        //UiVisibility = false;
-
         // The default IP address is 127.0.0.1.
-        string ipAddress = ipAddressInputField.text;
-        if (ipAddress.Length == 0)
-            ipAddress = "127.0.0.1";
+        string ipAddressText = ipAddressInputField.text;
+        if (ipAddressText.Length == 0)
+            ipAddressText = "127.0.0.1";
 
         // The default port is 7777.
         string portString = portInputField.text;
         int port = portString.Length != 0 ? int.Parse(portString) : 7777;
 
-        string logString = $"Try connecting to {ipAddress}:{port}...";
+        string logString = $"Try connecting to {ipAddressText}:{port}...";
         print(logString);
         statusText.text = logString;
 
-        // TODO: This part should be greatly improved before actual usage...
-        // Especially, the way to figure out whether the receiver is ready
-        // is terrible...
-        receiver.Ping(IPAddress.Parse(ipAddress), port);
+        var ipAddress = IPAddress.Parse(ipAddressText);
+        receiver.Ping(ipAddress, port);
     }
 
     private void SetInputState(InputState inputState)
