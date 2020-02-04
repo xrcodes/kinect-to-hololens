@@ -155,6 +155,7 @@ void _receive_frames(std::string ip_address, int port)
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     std::vector<FrameMessage> frame_messages;
     int last_frame_id = -1;
+    std::optional<int> server_session_id = std::nullopt;
 
     auto previous_render = std::chrono::steady_clock::now();
     int summary_frame_count;
@@ -187,6 +188,8 @@ void _receive_frames(std::string ip_address, int port)
             cursor += 1;
 
             if (packet_type == 0) {
+                server_session_id = session_id;
+                
                 // for color width
                 cursor += 4;
                 // for color height
@@ -199,7 +202,12 @@ void _receive_frames(std::string ip_address, int port)
                 cursor += 4;
 
                 depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
-            } else if (packet_type == 1) {
+            }
+
+            if (!server_session_id || session_id != server_session_id)
+                continue;
+            
+            if (packet_type == 1) {
                 int frame_id;
                 memcpy(&frame_id, packet.data() + cursor, 4);
                 cursor += 4;

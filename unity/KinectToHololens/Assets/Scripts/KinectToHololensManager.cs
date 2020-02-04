@@ -178,10 +178,6 @@ public class KinectToHololensManager : MonoBehaviour
             }
         }
 
-        // Do not continue if there is no Receiever connected to a Sender.
-        //if (receiver == null)
-        //    return;
-
         var packets = new List<byte[]>();
         while (true)
         {
