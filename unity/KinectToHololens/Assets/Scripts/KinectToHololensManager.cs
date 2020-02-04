@@ -60,7 +60,7 @@ class FramePacketCollection
         }
 
         stopWatch.Stop();
-        return FrameMessage.Create(message, stopWatch.Elapsed);
+        return FrameMessage.Create(FrameId, message, stopWatch.Elapsed);
     }
 };
 

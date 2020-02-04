@@ -78,7 +78,7 @@ void Sender::send(k4a_calibration_t calibration)
 void Sender::send(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                      uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
-    auto message = createFrameMessage(frame_id, frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
+    auto message = createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
     auto packets = splitFrameMessage(frame_id, message);
     for (auto packet : packets) {
         sendPacket(packet);
@@ -105,16 +105,13 @@ std::optional<std::vector<uint8_t>> Sender::receive()
     return packet;
 }
 
-std::vector<uint8_t> Sender::createFrameMessage(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
+std::vector<uint8_t> Sender::createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                                         uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
-    uint32_t message_size = static_cast<uint32_t>(4 + 4 + 1 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
+    uint32_t message_size = static_cast<uint32_t>(4 + 1 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
 
     std::vector<uint8_t> message(message_size);
     size_t cursor = 0;
-
-    memcpy(message.data() + cursor, &frame_id, 4);
-    cursor += 4;
 
     memcpy(message.data() + cursor, &frame_time_stamp, 4);
     cursor += 4;

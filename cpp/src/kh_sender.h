@@ -16,7 +16,7 @@ public:
     std::optional<std::vector<uint8_t>> receive();
 
 private:
-    static std::vector<uint8_t> createFrameMessage(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
+    static std::vector<uint8_t> createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                                             uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size);
     static std::vector<std::vector<uint8_t>> splitFrameMessage(int frame_id, std::vector<uint8_t> frame_message);
     void sendPacket(const std::vector<uint8_t>& packet);

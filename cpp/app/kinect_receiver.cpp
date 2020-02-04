@@ -237,16 +237,8 @@ void _receive_frames(std::string ip_address, int port)
             return lhs.frame_id() < rhs.frame_id();
         });
 
-        if (frame_messages.empty()) {
-            //int total_collected_packet_count = 0;
-            //for (auto collection_pair : frame_packet_collections) {
-            //    total_collected_packet_count += collection_pair.second.getCollectedPacketCount();
-            //}
-
-            //auto total_time = std::chrono::steady_clock::now() - packet_receive_start;
-            //printf("frame_messages empty packet: %d, time: %lld\n", total_collected_packet_count, total_time.count() / 1000000);
+        if (frame_messages.empty())
             continue;
-        }
 
         std::optional<int> begin_index;
         // If there is a key frame, use the most recent one.
