@@ -2,10 +2,8 @@
 
 public static class ManagerHelper
 {
-    public static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message)
+    public static AzureKinectCalibration ReadAzureKinectCalibrationFromMessage(byte[] message, int cursor)
     {
-        int cursor = 1;
-
         int colorWidth = BitConverter.ToInt32(message, cursor);
         cursor += 4;
 

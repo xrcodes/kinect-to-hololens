@@ -108,15 +108,16 @@ public:
     }
 
     FrameMessage toMessage() {
+        const int HEADER_SIZE = 17;
         int message_size = 0;
         for (auto packet : packets_) {
-            message_size += packet.size() - 13;
+            message_size += packet.size() - HEADER_SIZE;
         }
 
         std::vector<uint8_t> message(message_size);
         for (int i = 0; i < packets_.size(); ++i) {
-            int cursor = (1500 - 13) * i;
-            memcpy(message.data() + cursor, packets_[i].data() + 13, packets_[i].size() - 13);
+            int cursor = (1500 - HEADER_SIZE) * i;
+            memcpy(message.data() + cursor, packets_[i].data() + HEADER_SIZE, packets_[i].size() - HEADER_SIZE);
         }
 
         return FrameMessage::create(frame_id_, std::move(message));
@@ -178,11 +179,14 @@ void _receive_frames(std::string ip_address, int port)
         auto packet_collection_start = std::chrono::steady_clock::now();
         for (auto packet : packets) {
             int cursor = 0;
-            uint8_t packet_type = packet[0];
-            cursor += 1;
-            if (packet_type == 0) {
-                std::cout << "Received a message for initialization." << std::endl;
+            int session_id;
+            memcpy(&session_id, packet.data() + cursor, 4);
+            cursor += 4;
 
+            uint8_t packet_type = packet[cursor];
+            cursor += 1;
+
+            if (packet_type == 0) {
                 // for color width
                 cursor += 4;
                 // for color height
@@ -197,14 +201,19 @@ void _receive_frames(std::string ip_address, int port)
                 depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
             } else if (packet_type == 1) {
                 int frame_id;
-                memcpy(&frame_id, packet.data() + 1, 4);
+                memcpy(&frame_id, packet.data() + cursor, 4);
+                cursor += 4;
+
                 if (frame_id <= last_frame_id)
                     continue;
 
                 int packet_index;
+                memcpy(&packet_index, packet.data() + cursor, 4);
+                cursor += 4;
+
                 int packet_count;
-                memcpy(&packet_index, packet.data() + 5, 4);
-                memcpy(&packet_count, packet.data() + 9, 4);
+                memcpy(&packet_count, packet.data() + cursor, 4);
+                cursor += 4;
 
                 auto it = frame_packet_collections.find(frame_id);
                 if (it == frame_packet_collections.end())

@@ -1,5 +1,6 @@
 #include <chrono>
 #include <iostream>
+#include <random>
 #include "k4a/k4a.hpp"
 #include "kh_core.h"
 #include "kh_vp8.h"
@@ -69,13 +70,13 @@ private:
 };
 
 // Sends Azure Kinect frames through a TCP port.
-void _send_frames(KinectDevice& device, int port)
+void _send_frames(int session_id, KinectDevice& device, int port)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
 
-    printf("Start Sending Frames (port: %d)\n", port);
+    printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
     auto calibration = device.getCalibration();
     k4a::transformation transformation(calibration);
@@ -104,7 +105,7 @@ void _send_frames(KinectDevice& device, int port)
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
     Sender sender(std::move(socket), remote_endpoint, 1024 * 1024);
-    sender.send(calibration);
+    sender.send(session_id, calibration);
 
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
@@ -214,7 +215,7 @@ void _send_frames(KinectDevice& device, int port)
 
         frame_start_times2[frame_id] = std::chrono::steady_clock::now();
 
-        sender.send(frame_id, frame_time_stamp, keyframe, vp8_frame,
+        sender.send(session_id, frame_id, frame_time_stamp, keyframe, vp8_frame,
                     reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
 
         last_time_stamp = time_stamp;
@@ -251,6 +252,8 @@ void _send_frames(KinectDevice& device, int port)
 // Repeats collecting the port number from the user and calling _send_frames() with it.
 void send_frames()
 {
+    std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+
     for (;;) {
         std::string line;
         std::cout << "Enter a port number to start sending frames: ";
@@ -271,8 +274,10 @@ void send_frames()
         }
         device->start();
 
+        int session_id = rng() % (INT_MAX + 1);
+
         try {
-            _send_frames(*device, port);
+            _send_frames(session_id, *device, port);
         } catch (std::exception & e) {
             std::cout << e.what() << std::endl;
         }
@@ -282,6 +287,7 @@ void send_frames()
 
 int main()
 {
+    srand(time(nullptr));
     kh::send_frames();
     return 0;
 }

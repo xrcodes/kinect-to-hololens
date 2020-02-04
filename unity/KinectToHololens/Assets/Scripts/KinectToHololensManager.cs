@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
-using System.Threading;
 using System.Runtime.InteropServices;
 using UnityEngine;
-using UnityEngine.Profiling;
 using UnityEngine.XR.WSA.Input;
 
 class FramePacketCollection
@@ -46,17 +44,18 @@ class FramePacketCollection
 
     public FrameMessage ToMessage()
     {
+        const int HEADER_SIZE = 17;
         int messageSize = 0;
         foreach (var packet in packets)
         {
-            messageSize += packet.Length - 13;
+            messageSize += packet.Length - HEADER_SIZE;
         }
 
         byte[] message = new byte[messageSize];
         for (int i = 0; i < packets.Length; ++i)
         {
-            int cursor = (1500 - 13) * i;
-            Array.Copy(packets[i], 13, message, cursor, packets[i].Length - 13);
+            int cursor = (1500 - HEADER_SIZE) * i;
+            Array.Copy(packets[i], HEADER_SIZE, message, cursor, packets[i].Length - HEADER_SIZE);
         }
 
         stopWatch.Stop();
@@ -193,10 +192,15 @@ public class KinectToHololensManager : MonoBehaviour
 
         foreach (var packet in packets)
         {
-            var packetType = packet[0];
+            int cursor = 0;
+            int sessionId = BitConverter.ToInt32(packet, cursor);
+            cursor += 4;
+
+            var packetType = packet[cursor];
+            cursor += 1;
             if (packetType == 0)
             {
-                var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet);
+                var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
 
                 Plugin.texture_group_set_width(calibration.DepthCamera.Width);
                 Plugin.texture_group_set_height(calibration.DepthCamera.Height);
@@ -209,13 +213,17 @@ public class KinectToHololensManager : MonoBehaviour
             }
             else if (packetType == 1)
             {
-                int frameId = BitConverter.ToInt32(packet, 1);
+                int frameId = BitConverter.ToInt32(packet, cursor);
+                cursor += 4;
+
                 // No need to collect packets for previous frames.
                 if (frameId <= lastFrameId)
                     continue;
                 
-                int packetIndex = BitConverter.ToInt32(packet, 5);
-                int packetCount = BitConverter.ToInt32(packet, 9);
+                int packetIndex = BitConverter.ToInt32(packet, cursor);
+                cursor += 4;
+                int packetCount = BitConverter.ToInt32(packet, cursor);
+                cursor += 4;
 
                 if (!framePacketCollections.ContainsKey(frameId))
                 {

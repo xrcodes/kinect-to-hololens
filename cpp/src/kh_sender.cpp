@@ -14,7 +14,7 @@ Sender::Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_en
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::send(k4a_calibration_t calibration)
+void Sender::send(int session_id, k4a_calibration_t calibration)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -28,22 +28,26 @@ void Sender::send(k4a_calibration_t calibration)
 
     auto depth_to_color_extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
 
-    uint32_t message_size = static_cast<uint32_t>(1 +
-                                                    sizeof(color_width) +
-                                                    sizeof(color_height) +
-                                                    sizeof(depth_width) +
-                                                    sizeof(depth_height) +
-                                                    sizeof(color_intrinsics) +
-                                                    sizeof(color_metric_radius) +
-                                                    sizeof(depth_intrinsics) +
-                                                    sizeof(depth_metric_radius) +
-                                                    sizeof(depth_to_color_extrinsics));
+    uint32_t message_size = static_cast<uint32_t>(sizeof(session_id) +
+                                                  1 +
+                                                  sizeof(color_width) +
+                                                  sizeof(color_height) +
+                                                  sizeof(depth_width) +
+                                                  sizeof(depth_height) +
+                                                  sizeof(color_intrinsics) +
+                                                  sizeof(color_metric_radius) +
+                                                  sizeof(depth_intrinsics) +
+                                                  sizeof(depth_metric_radius) +
+                                                  sizeof(depth_to_color_extrinsics));
 
     std::vector<uint8_t> message(message_size);
     size_t cursor = 0;
 
     // Message type
-    message[0] = static_cast<uint8_t>(0);
+    memcpy(message.data() + cursor, &session_id, sizeof(color_width));
+    cursor += sizeof(session_id);
+
+    message[cursor] = static_cast<uint8_t>(0);
     cursor += 1;
 
     memcpy(message.data() + cursor, &color_width, sizeof(color_width));
@@ -75,11 +79,11 @@ void Sender::send(k4a_calibration_t calibration)
     sendPacket(message);
 }
 
-void Sender::send(int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
+void Sender::send(int session_id, int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                      uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     auto message = createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
-    auto packets = splitFrameMessage(frame_id, message);
+    auto packets = splitFrameMessage(session_id, frame_id, message);
     for (auto packet : packets) {
         sendPacket(packet);
     }
@@ -134,10 +138,10 @@ std::vector<uint8_t> Sender::createFrameMessage(float frame_time_stamp, bool key
     return message;
 }
 
-std::vector<std::vector<uint8_t>> Sender::splitFrameMessage(int frame_id, std::vector<uint8_t> frame_message)
+std::vector<std::vector<uint8_t>> Sender::splitFrameMessage(int session_id, int frame_id, std::vector<uint8_t> frame_message)
 {
     const int MAX_UDP_PACKET_SIZE = 1500;
-    const int FRAME_PACKET_HEADER_SIZE = 13;
+    const int FRAME_PACKET_HEADER_SIZE = 17;
     const int MAX_FRAME_PACKET_CONTENT_SIZE = MAX_UDP_PACKET_SIZE - FRAME_PACKET_HEADER_SIZE;
 
     int packet_count = (frame_message.size() - 1) / MAX_FRAME_PACKET_CONTENT_SIZE + 1;
@@ -152,11 +156,23 @@ std::vector<std::vector<uint8_t>> Sender::splitFrameMessage(int frame_id, std::v
 
         std::vector<uint8_t> packet(packet_content_size + FRAME_PACKET_HEADER_SIZE);
         uint8_t message_type = 1;
-        memcpy(packet.data() + 0, &message_type, 1);
-        memcpy(packet.data() + 1, &frame_id, 4);
-        memcpy(packet.data() + 5, &packet_index, 4);
-        memcpy(packet.data() + 9, &packet_count, 4);
-        memcpy(packet.data() + 13, frame_message.data() + message_cursor, packet_content_size);
+        int cursor = 0;
+        memcpy(packet.data() + cursor, &session_id, 4);
+        cursor += 4;
+
+        memcpy(packet.data() + cursor, &message_type, 1);
+        cursor += 1;
+
+        memcpy(packet.data() + cursor, &frame_id, 4);
+        cursor += 4;
+
+        memcpy(packet.data() + cursor, &packet_index, 4);
+        cursor += 4;
+
+        memcpy(packet.data() + cursor, &packet_count, 4);
+        cursor += 4;
+
+        memcpy(packet.data() + cursor, frame_message.data() + message_cursor, packet_content_size);
         packets.push_back(packet);
     }
 
