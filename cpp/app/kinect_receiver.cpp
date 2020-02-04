@@ -145,7 +145,7 @@ void _receive_frames(std::string ip_address, int port)
     Receiver receiver(io_context, 1024 * 1024);
     receiver.ping(ip_address, port);
 
-    std::cout << "sent endpoint" << std::endl;
+    printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
     Vp8Decoder color_decoder;
     int depth_width;
@@ -158,8 +158,8 @@ void _receive_frames(std::string ip_address, int port)
     std::optional<int> server_session_id = std::nullopt;
 
     auto previous_render = std::chrono::steady_clock::now();
-    int summary_frame_count;
-    int summary_keyframe_count;
+    int summary_frame_count = 0;
+    int summary_keyframe_count = 0;
     for (;;) {
         auto packet_receive_start = std::chrono::steady_clock::now();
         std::vector<std::vector<uint8_t>> packets;
@@ -346,7 +346,7 @@ void receive_frames()
 {
     for (;;) {
         // Receive IP address from the user.
-        std::cout << "Enter an IP address to start receiving frames: ";
+        printf("Enter an IP address to start receiving frames: ");
         std::string ip_address;
         std::getline(std::cin, ip_address);
         // The default IP address is 127.0.0.1.
@@ -354,15 +354,16 @@ void receive_frames()
             ip_address = "127.0.0.1";
 
         // Receive port from the user.
-        std::cout << "Enter a port number to start receiving frames: ";
+        printf("Enter a port number to start receiving frames: ");
         std::string port_line;
         std::getline(std::cin, port_line);
         // The default port is 7777.
         int port = port_line.empty() ? 7777 : std::stoi(port_line);
+
         try {
             _receive_frames(ip_address, port);
         } catch (std::exception & e) {
-            std::cout << e.what() << std::endl;
+            printf("Error from _receive_frames: %s\n", e.what());
         }
     }
 }

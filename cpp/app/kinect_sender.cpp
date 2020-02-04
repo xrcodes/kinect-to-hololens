@@ -133,7 +133,8 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
         sender.send(session_id, frame_id, frame_time_stamp, keyframe, vp8_frame,
-                    reinterpret_cast<uint8_t*>(depth_encoder_frame.data()), depth_encoder_frame.size());
+                    reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
+                    static_cast<uint32_t>(depth_encoder_frame.size()));
 
         last_time_stamp = time_stamp;
 
@@ -145,7 +146,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
             std::chrono::duration<double> summary_time_interval = std::chrono::steady_clock::now() - summary_start;
-            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%, Bandwidth: %lf Mbps\n",
+            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
                    frame_id, 100 / summary_time_interval.count(), summary_keyframe_count,
                    summary_frame_size_sum / (summary_time_interval.count() * 131072));
             summary_start = std::chrono::steady_clock::now();
@@ -155,8 +156,6 @@ void _send_frames(int session_id, KinectDevice& device, int port)
 
         ++frame_id;
     }
-
-    printf("Stopped sending Kinect frames.\n");
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.
@@ -189,7 +188,7 @@ void send_frames()
         try {
             _send_frames(session_id, *device, port);
         } catch (std::exception & e) {
-            printf("Error from _send_frames: %s", e.what());
+            printf("Error from _send_frames: %s\n", e.what());
         }
     }
 }
