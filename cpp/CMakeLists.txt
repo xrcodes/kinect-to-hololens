@@ -30,7 +30,6 @@ find_package(OpenCV REQUIRED)
 
 # For libsoundio
 find_package(libsoundio CONFIG REQUIRED)
-#target_link_libraries(main PRIVATE libsoundio::libsoundio)
 
 # The directory for general source files.
 add_subdirectory(src)

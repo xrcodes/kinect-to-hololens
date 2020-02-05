@@ -64,6 +64,7 @@ add_executable(KinectListener
 )
 target_link_libraries(KinectListener
   KinectToHololens
+  libsoundio::libsoundio
 )
 set_target_properties(KinectListener PROPERTIES
   CXX_STANDARD 17
