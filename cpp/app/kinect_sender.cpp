@@ -8,6 +8,15 @@
 
 namespace kh
 {
+int pow_of_two(int exp) {
+    assert(exp >= 0);
+
+    int res = 1;
+    for (int i = 0; i < exp; ++i) {
+        res *= 2;
+    }
+    return res;
+}
 
 // Sends Azure Kinect frames through a TCP port.
 void _send_frames(int session_id, KinectDevice& device, int port)
@@ -60,6 +69,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_start_times;
     auto summary_start = std::chrono::steady_clock::now();
     size_t summary_frame_size_sum = 0;
+    int summary_receiver_frame_count = 0;
     for (;;) {
         auto receive_result = sender.receive();
         if (receive_result) {
@@ -95,6 +105,8 @@ void _send_frames(int session_id, KinectDevice& device, int port)
 
             for (int obsolete_frame_id : obsolete_frame_ids)
                 frame_start_times.erase(obsolete_frame_id);
+
+            ++summary_receiver_frame_count;
         }
 
         frame_start_times[frame_id] = std::chrono::steady_clock::now();
@@ -109,6 +121,16 @@ void _send_frames(int session_id, KinectDevice& device, int port)
             continue;
         }
 
+        auto time_stamp = color_image.get_device_timestamp();
+        auto time_diff = time_stamp - last_time_stamp;
+        float frame_time_stamp = time_stamp.count() / 1000.0f;
+
+        int frame_id_diff = frame_id - receiver_frame_id;
+
+        int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
+        //if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+        //    continue;
+        //}
 
         auto depth_image = capture->get_depth_image();
         if (!depth_image) {
@@ -116,9 +138,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
             continue;
         }
 
-        auto time_stamp = color_image.get_device_timestamp();
-        float frame_time_stamp = time_stamp.count() / 1000.0f;
-        bool keyframe = (frame_id - receiver_frame_id) > 4;
+        bool keyframe = frame_id_diff > 4;
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 
@@ -146,12 +166,14 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
             std::chrono::duration<double> summary_time_interval = std::chrono::steady_clock::now() - summary_start;
-            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
+            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps, Receiver FPS: %lf\n",
                    frame_id, 100 / summary_time_interval.count(), summary_keyframe_count,
-                   summary_frame_size_sum / (summary_time_interval.count() * 131072));
+                   summary_frame_size_sum / (summary_time_interval.count() * 131072),
+                   summary_receiver_frame_count / summary_time_interval.count());
             summary_start = std::chrono::steady_clock::now();
             summary_keyframe_count = 0;
             summary_frame_size_sum = 0;
+            summary_receiver_frame_count = 0;
         }
 
         ++frame_id;
