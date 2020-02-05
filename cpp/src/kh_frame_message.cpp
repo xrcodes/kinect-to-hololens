@@ -3,14 +3,17 @@
 namespace kh
 {
 FrameMessage::FrameMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
-                 bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size)
-        : message_(std::move(message)), frame_id_(frame_id), frame_time_stamp_(frame_time_stamp),
-        keyframe_(keyframe), color_encoder_frame_size_(color_encoder_frame_size),
-        depth_encoder_frame_size_(depth_encoder_frame_size)
+                           bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size,
+                           std::chrono::steady_clock::duration packet_collection_time)
+    : message_(std::move(message)), frame_id_(frame_id), frame_time_stamp_(frame_time_stamp),
+    keyframe_(keyframe), color_encoder_frame_size_(color_encoder_frame_size),
+    depth_encoder_frame_size_(depth_encoder_frame_size),
+    packet_collection_time_(packet_collection_time)
 {
 }
 
-FrameMessage FrameMessage::create(int frame_id, std::vector<uint8_t>&& message)
+FrameMessage FrameMessage::create(int frame_id, std::vector<uint8_t>&& message,
+                                  std::chrono::steady_clock::duration packet_collection_time)
 {
     int cursor = 0;
 
@@ -34,7 +37,7 @@ FrameMessage FrameMessage::create(int frame_id, std::vector<uint8_t>&& message)
 
     return FrameMessage(std::move(message), frame_id, frame_time_stamp,
                         keyframe, color_encoder_frame_size,
-                        depth_encoder_frame_size);
+                        depth_encoder_frame_size, packet_collection_time);
 }
 
 std::vector<uint8_t> FrameMessage::getColorEncoderFrame()

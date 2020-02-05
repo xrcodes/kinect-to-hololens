@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include "kh_frame_message.h"
 
 namespace kh
@@ -19,5 +20,6 @@ private:
     int frame_id_;
     int packet_count_;
     std::vector<std::vector<std::uint8_t>> packets_;
+    std::chrono::time_point<std::chrono::steady_clock> construction_time_;
 };
 }

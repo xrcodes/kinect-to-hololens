@@ -243,7 +243,6 @@ public class KinectToHololensManager : MonoBehaviour
         FFmpegFrame ffmpegFrame = null;
         TrvlFrame trvlFrame = null;
         TimeSpan packetCollectionTime;
-        TimeSpan decoderTime;
 
         var decoderStopWatch = Stopwatch.StartNew();
         for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
@@ -269,7 +268,7 @@ public class KinectToHololensManager : MonoBehaviour
 
         }
         decoderStopWatch.Stop();
-        decoderTime = decoderStopWatch.Elapsed;
+        var decoderTime = decoderStopWatch.Elapsed;
         frameStopWatch.Stop();
         var frameTime = frameStopWatch.Elapsed;
         frameStopWatch = Stopwatch.StartNew();

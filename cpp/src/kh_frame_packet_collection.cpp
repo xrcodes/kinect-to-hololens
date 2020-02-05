@@ -3,7 +3,8 @@
 namespace kh
 {
 FramePacketCollection::FramePacketCollection(int frame_id, int packet_count)
-    : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count_)
+    : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count_),
+    construction_time_(std::chrono::steady_clock::now())
 {
 }
 
@@ -35,7 +36,8 @@ FrameMessage FramePacketCollection::toMessage() {
         memcpy(message.data() + cursor, packets_[i].data() + HEADER_SIZE, packets_[i].size() - HEADER_SIZE);
     }
 
-    return FrameMessage::create(frame_id_, std::move(message));
+    auto packet_collection_time = std::chrono::steady_clock::now() - construction_time_;
+    return FrameMessage::create(frame_id_, std::move(message), packet_collection_time);
 }
 
 int FramePacketCollection::getCollectedPacketCount() {
