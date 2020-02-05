@@ -14,39 +14,159 @@
 
 namespace kh
 {
+class AudioDevice;
 // I will name the c++ wrapper of SoundIo as Audio.
 class Audio
 {
 private:
-    Audio(SoundIo* sound_io)
-        : sound_io_(sound_io)
+    Audio(SoundIo* ptr)
+        : ptr_(ptr)
     {
     }
 public:
     Audio(Audio&& other) noexcept
     {
-        sound_io_ = other.sound_io_;
-        other.sound_io_ = nullptr;
+        ptr_ = other.ptr_;
+        other.ptr_ = nullptr;
     }
     ~Audio()
     {
-        if (sound_io_)
-            soundio_destroy(sound_io_);
+        if (ptr_)
+            soundio_destroy(ptr_);
     }
     static std::optional<Audio> create()
     {
-        struct SoundIo* sound_io = soundio_create();
-        if (!sound_io) {
+        SoundIo* ptr = soundio_create();
+        if (!ptr) {
             printf("Failed to Create Audio...");
             return std::nullopt;
         }
-
-        return Audio(sound_io);
+        return Audio(ptr);
     }
-    struct SoundIo* sound_io() { return sound_io_; }
+    // Defined below since it needs the constructor of AudioDevice.
+    std::optional<AudioDevice> getInputDevice(int device_index);
+    std::optional<AudioDevice> getOutputDevice(int device_index);
+
+    int connect()
+    {
+        return soundio_connect(ptr_);
+    }
+    void flushEvents()
+    {
+        soundio_flush_events(ptr_);
+    }
+    SoundIo* ptr() { return ptr_; }
 
 private:
-    struct SoundIo* sound_io_;
+    SoundIo* ptr_;
+};
+
+class AudioDevice
+{
+public:
+    AudioDevice(SoundIoDevice* ptr)
+        : ptr_(ptr)
+    {
+    }
+    AudioDevice(AudioDevice&& other) noexcept
+    {
+        ptr_ = other.ptr_;
+        other.ptr_ = nullptr;
+    }
+    ~AudioDevice()
+    {
+        if (ptr_)
+            soundio_device_unref(ptr_);
+    }
+    SoundIoDevice* ptr() { return ptr_; }
+
+private:
+    SoundIoDevice* ptr_;
+};
+
+// Declarations are inside the declaration of class Audio above.
+std::optional<AudioDevice> Audio::getInputDevice(int device_index)
+{
+    SoundIoDevice* device_ptr = soundio_get_input_device(ptr_, device_index);
+    if (!device_ptr) {
+        printf("Failed to get input AudioDevice...");
+        return std::nullopt;
+    }
+    return AudioDevice(device_ptr);
+}
+
+std::optional<AudioDevice> Audio::getOutputDevice(int device_index)
+{
+    SoundIoDevice* device_ptr = soundio_get_output_device(ptr_, device_index);
+    if (!device_ptr) {
+        printf("Failed to get output AudioDevice...");
+        return std::nullopt;
+    }
+    return AudioDevice(device_ptr);
+}
+
+class AudioInStream
+{
+private:
+    AudioInStream(SoundIoInStream* ptr)
+        : ptr_(ptr)
+    {
+    }
+public:
+    AudioInStream(AudioInStream&& other) noexcept
+    {
+        ptr_ = other.ptr_;
+        other.ptr_ = nullptr;
+    }
+    ~AudioInStream()
+    {
+        if (ptr_)
+            soundio_instream_destroy(ptr_);
+    }
+    static std::optional<AudioInStream> create(AudioDevice& device)
+    {
+        SoundIoInStream* ptr = soundio_instream_create(device.ptr());
+        if (!ptr) {
+            printf("Failed to Create AudioInStream...");
+            return std::nullopt;
+        }
+        return AudioInStream(ptr);
+    }
+    SoundIoInStream* ptr() { return ptr_; }
+private:
+    SoundIoInStream* ptr_;
+};
+
+class AudioOutStream
+{
+private:
+    AudioOutStream(SoundIoOutStream* ptr)
+        : ptr_(ptr)
+    {
+    }
+public:
+    AudioOutStream(AudioOutStream&& other) noexcept
+    {
+        ptr_ = other.ptr_;
+        other.ptr_ = nullptr;
+    }
+    ~AudioOutStream()
+    {
+        if (ptr_)
+            soundio_outstream_destroy(ptr_);
+    }
+    static std::optional<AudioOutStream> create(AudioDevice& device)
+    {
+        SoundIoOutStream* ptr = soundio_outstream_create(device.ptr());
+        if (!ptr) {
+            printf("Failed to Create AudioOutStream...");
+            return std::nullopt;
+        }
+        return AudioOutStream(ptr);
+    }
+    SoundIoOutStream* ptr() { return ptr_; }
+private:
+    SoundIoOutStream* ptr_;
 };
 
 struct SoundIoRingBuffer* ring_buffer = NULL;
@@ -184,21 +304,8 @@ static void underflow_callback(struct SoundIoOutStream* outstream) {
     static int count = 0;
     fprintf(stderr, "underflow %d\n", ++count);
 }
-static int usage(char* exe) {
-    fprintf(stderr, "Usage: %s [options]\n"
-            "Options:\n"
-            "  [--backend dummy|alsa|pulseaudio|jack|coreaudio|wasapi]\n"
-            "  [--in-device id]\n"
-            "  [--in-raw]\n"
-            "  [--out-device id]\n"
-            "  [--out-raw]\n"
-            "  [--latency seconds]\n"
-            , exe);
-    return 1;
-}
 
 int _main() {
-    enum SoundIoBackend backend = SoundIoBackendNone;
     char* in_device_id = NULL;
     char* out_device_id = NULL;
     bool in_raw = false;
@@ -207,25 +314,23 @@ int _main() {
 
     //struct SoundIo* soundio = soundio_create();
     auto audio = Audio::create();
-    printf("??\n");
     if (!audio)
         panic("out of memory");
-    int err = (backend == SoundIoBackendNone) ?
-        soundio_connect(audio->sound_io()) : soundio_connect_backend(audio->sound_io(), backend);
+    int err = audio->connect();
     if (err)
         panic("error connecting: %s", soundio_strerror(err));
-    soundio_flush_events(audio->sound_io());
-    int default_out_device_index = soundio_default_output_device_index(audio->sound_io());
+    audio->flushEvents();
+    int default_out_device_index = soundio_default_output_device_index(audio->ptr());
     if (default_out_device_index < 0)
         panic("no output device found");
-    int default_in_device_index = soundio_default_input_device_index(audio->sound_io());
+    int default_in_device_index = soundio_default_input_device_index(audio->ptr());
     if (default_in_device_index < 0)
         panic("no input device found");
     int in_device_index = default_in_device_index;
     if (in_device_id) {
         bool found = false;
-        for (int i = 0; i < soundio_input_device_count(audio->sound_io()); i += 1) {
-            struct SoundIoDevice* device = soundio_get_input_device(audio->sound_io(), i);
+        for (int i = 0; i < soundio_input_device_count(audio->ptr()); i += 1) {
+            struct SoundIoDevice* device = soundio_get_input_device(audio->ptr(), i);
             if (device->is_raw == in_raw && strcmp(device->id, in_device_id) == 0) {
                 in_device_index = i;
                 found = true;
@@ -240,8 +345,8 @@ int _main() {
     int out_device_index = default_out_device_index;
     if (out_device_id) {
         bool found = false;
-        for (int i = 0; i < soundio_output_device_count(audio->sound_io()); i += 1) {
-            struct SoundIoDevice* device = soundio_get_output_device(audio->sound_io(), i);
+        for (int i = 0; i < soundio_output_device_count(audio->ptr()); i += 1) {
+            struct SoundIoDevice* device = soundio_get_output_device(audio->ptr(), i);
             if (device->is_raw == out_raw && strcmp(device->id, out_device_id) == 0) {
                 out_device_index = i;
                 found = true;
@@ -253,24 +358,26 @@ int _main() {
         if (!found)
             panic("invalid output device id: %s", out_device_id);
     }
-    struct SoundIoDevice* out_device = soundio_get_output_device(audio->sound_io(), out_device_index);
+    //struct SoundIoDevice* out_device = soundio_get_output_device(audio->sound_io(), out_device_index);
+    auto out_device = audio->getOutputDevice(out_device_index);
     if (!out_device)
         panic("could not get output device: out of memory");
-    struct SoundIoDevice* in_device = soundio_get_input_device(audio->sound_io(), in_device_index);
+    //struct SoundIoDevice* in_device = soundio_get_input_device(audio->sound_io(), in_device_index);
+    auto in_device = audio->getInputDevice(in_device_index);
     if (!in_device)
         panic("could not get input device: out of memory");
-    fprintf(stderr, "Input device: %s\n", in_device->name);
-    fprintf(stderr, "Output device: %s\n", out_device->name);
-    soundio_device_sort_channel_layouts(out_device);
+    fprintf(stderr, "Input device: %s\n", in_device->ptr()->name);
+    fprintf(stderr, "Output device: %s\n", out_device->ptr()->name);
+    soundio_device_sort_channel_layouts(out_device->ptr());
     const struct SoundIoChannelLayout* layout = soundio_best_matching_channel_layout(
-        out_device->layouts, out_device->layout_count,
-        in_device->layouts, in_device->layout_count);
+        out_device->ptr()->layouts, out_device->ptr()->layout_count,
+        in_device->ptr()->layouts, in_device->ptr()->layout_count);
     if (!layout)
         panic("channel layouts not compatible");
     int* sample_rate;
     for (sample_rate = prioritized_sample_rates; *sample_rate; sample_rate += 1) {
-        if (soundio_device_supports_sample_rate(in_device, *sample_rate) &&
-            soundio_device_supports_sample_rate(out_device, *sample_rate))
+        if (soundio_device_supports_sample_rate(in_device->ptr(), *sample_rate) &&
+            soundio_device_supports_sample_rate(out_device->ptr(), *sample_rate))
         {
             break;
         }
@@ -279,57 +386,56 @@ int _main() {
         panic("incompatible sample rates");
     enum SoundIoFormat* fmt;
     for (fmt = prioritized_formats; *fmt != SoundIoFormatInvalid; fmt += 1) {
-        if (soundio_device_supports_format(in_device, *fmt) &&
-            soundio_device_supports_format(out_device, *fmt))
+        if (soundio_device_supports_format(in_device->ptr(), *fmt) &&
+            soundio_device_supports_format(out_device->ptr(), *fmt))
         {
             break;
         }
     }
     if (*fmt == SoundIoFormatInvalid)
         panic("incompatible sample formats");
-    struct SoundIoInStream* instream = soundio_instream_create(in_device);
-    if (!instream)
+    //struct SoundIoInStream* instream = soundio_instream_create(in_device->device());
+    auto in_stream = AudioInStream::create(*in_device);
+    if (!in_stream)
         panic("out of memory");
-    instream->format = *fmt;
-    instream->sample_rate = *sample_rate;
-    instream->layout = *layout;
-    instream->software_latency = microphone_latency;
-    instream->read_callback = read_callback;
-    if ((err = soundio_instream_open(instream))) {
+    in_stream->ptr()->format = *fmt;
+    in_stream->ptr()->sample_rate = *sample_rate;
+    in_stream->ptr()->layout = *layout;
+    in_stream->ptr()->software_latency = microphone_latency;
+    in_stream->ptr()->read_callback = read_callback;
+    if ((err = soundio_instream_open(in_stream->ptr()))) {
         fprintf(stderr, "unable to open input stream: %s", soundio_strerror(err));
         return 1;
     }
-    struct SoundIoOutStream* outstream = soundio_outstream_create(out_device);
-    if (!outstream)
+    //struct SoundIoOutStream* outstream = soundio_outstream_create(out_device->device());
+    auto out_stream = AudioOutStream::create(*out_device);
+    if (!out_stream)
         panic("out of memory");
-    outstream->format = *fmt;
-    outstream->sample_rate = *sample_rate;
-    outstream->layout = *layout;
-    outstream->software_latency = microphone_latency;
-    outstream->write_callback = write_callback;
-    outstream->underflow_callback = underflow_callback;
-    if ((err = soundio_outstream_open(outstream))) {
+    out_stream->ptr()->format = *fmt;
+    out_stream->ptr()->sample_rate = *sample_rate;
+    out_stream->ptr()->layout = *layout;
+    out_stream->ptr()->software_latency = microphone_latency;
+    out_stream->ptr()->write_callback = write_callback;
+    out_stream->ptr()->underflow_callback = underflow_callback;
+    if ((err = soundio_outstream_open(out_stream->ptr()))) {
         fprintf(stderr, "unable to open output stream: %s", soundio_strerror(err));
         return 1;
     }
-    int capacity = microphone_latency * 2 * instream->sample_rate * instream->bytes_per_frame;
-    ring_buffer = soundio_ring_buffer_create(audio->sound_io(), capacity);
+    int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
+    ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
     if (!ring_buffer)
         panic("unable to create ring buffer: out of memory");
     char* buf = soundio_ring_buffer_write_ptr(ring_buffer);
-    int fill_count = microphone_latency * outstream->sample_rate * outstream->bytes_per_frame;
+    int fill_count = microphone_latency * out_stream->ptr()->sample_rate * out_stream->ptr()->bytes_per_frame;
     memset(buf, 0, fill_count);
     soundio_ring_buffer_advance_write_ptr(ring_buffer, fill_count);
-    if ((err = soundio_instream_start(instream)))
+    if ((err = soundio_instream_start(in_stream->ptr())))
         panic("unable to start input device: %s", soundio_strerror(err));
-    if ((err = soundio_outstream_start(outstream)))
+    if ((err = soundio_outstream_start(out_stream->ptr())))
         panic("unable to start output device: %s", soundio_strerror(err));
     for (;;)
-        soundio_wait_events(audio->sound_io());
-    soundio_outstream_destroy(outstream);
-    soundio_instream_destroy(instream);
-    soundio_device_unref(in_device);
-    soundio_device_unref(out_device);
+        soundio_wait_events(audio->ptr());
+    soundio_outstream_destroy(out_stream->ptr());
     return 0;
 }
 }
