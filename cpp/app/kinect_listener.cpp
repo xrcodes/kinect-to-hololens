@@ -11,6 +11,9 @@
 #include <string.h>
 #include <math.h>
 #include <optional>
+#include <thread>
+#include <windows.h>
+#include <iostream>
 
 namespace kh
 {
@@ -210,7 +213,13 @@ static void panic(const char* format, ...) {
 static int min_int(int a, int b) {
     return (a < b) ? a : b;
 }
+
+// Each callback runs in its own thread.
+// Main thread != read_callback's thread != write_callback's thread
 static void read_callback(struct SoundIoInStream* instream, int frame_count_min, int frame_count_max) {
+    std::thread::id this_id = std::this_thread::get_id();
+    std::cout << "read_callback thread id: " << this_id << std::endl;
+
     struct SoundIoChannelArea* areas;
     int err;
     char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
@@ -250,6 +259,9 @@ static void read_callback(struct SoundIoInStream* instream, int frame_count_min,
     soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
 }
 static void write_callback(struct SoundIoOutStream* outstream, int frame_count_min, int frame_count_max) {
+    std::thread::id this_id = std::this_thread::get_id();
+    std::cout << "write_callback thread id: " << this_id << std::endl;
+
     struct SoundIoChannelArea* areas;
     int frames_left;
     int frame_count;
@@ -433,8 +445,13 @@ int _main() {
         panic("unable to start input device: %s", soundio_strerror(err));
     if ((err = soundio_outstream_start(out_stream->ptr())))
         panic("unable to start output device: %s", soundio_strerror(err));
-    for (;;)
-        soundio_wait_events(audio->ptr());
+    for (;;) {
+        //soundio_wait_events is not what calls the io callbacks.
+        //soundio_wait_events(audio->ptr());
+        std::thread::id this_id = std::this_thread::get_id();
+        std::cout << "main thread id: " << this_id << std::endl;
+        Sleep(1);
+    }
     return 0;
 }
 }
