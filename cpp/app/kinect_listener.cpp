@@ -327,37 +327,37 @@ int _main() {
     if (default_in_device_index < 0)
         panic("no input device found");
     int in_device_index = default_in_device_index;
-    if (in_device_id) {
-        bool found = false;
-        for (int i = 0; i < soundio_input_device_count(audio->ptr()); i += 1) {
-            struct SoundIoDevice* device = soundio_get_input_device(audio->ptr(), i);
-            if (device->is_raw == in_raw && strcmp(device->id, in_device_id) == 0) {
-                in_device_index = i;
-                found = true;
-                soundio_device_unref(device);
-                break;
-            }
-            soundio_device_unref(device);
-        }
-        if (!found)
-            panic("invalid input device id: %s", in_device_id);
-    }
+    //if (in_device_id) {
+    //    bool found = false;
+    //    for (int i = 0; i < soundio_input_device_count(audio->ptr()); i += 1) {
+    //        struct SoundIoDevice* device = soundio_get_input_device(audio->ptr(), i);
+    //        if (device->is_raw == in_raw && strcmp(device->id, in_device_id) == 0) {
+    //            in_device_index = i;
+    //            found = true;
+    //            soundio_device_unref(device);
+    //            break;
+    //        }
+    //        soundio_device_unref(device);
+    //    }
+    //    if (!found)
+    //        panic("invalid input device id: %s", in_device_id);
+    //}
     int out_device_index = default_out_device_index;
-    if (out_device_id) {
-        bool found = false;
-        for (int i = 0; i < soundio_output_device_count(audio->ptr()); i += 1) {
-            struct SoundIoDevice* device = soundio_get_output_device(audio->ptr(), i);
-            if (device->is_raw == out_raw && strcmp(device->id, out_device_id) == 0) {
-                out_device_index = i;
-                found = true;
-                soundio_device_unref(device);
-                break;
-            }
-            soundio_device_unref(device);
-        }
-        if (!found)
-            panic("invalid output device id: %s", out_device_id);
-    }
+    //if (out_device_id) {
+    //    bool found = false;
+    //    for (int i = 0; i < soundio_output_device_count(audio->ptr()); i += 1) {
+    //        struct SoundIoDevice* device = soundio_get_output_device(audio->ptr(), i);
+    //        if (device->is_raw == out_raw && strcmp(device->id, out_device_id) == 0) {
+    //            out_device_index = i;
+    //            found = true;
+    //            soundio_device_unref(device);
+    //            break;
+    //        }
+    //        soundio_device_unref(device);
+    //    }
+    //    if (!found)
+    //        panic("invalid output device id: %s", out_device_id);
+    //}
     //struct SoundIoDevice* out_device = soundio_get_output_device(audio->sound_io(), out_device_index);
     auto out_device = audio->getOutputDevice(out_device_index);
     if (!out_device)
@@ -435,7 +435,6 @@ int _main() {
         panic("unable to start output device: %s", soundio_strerror(err));
     for (;;)
         soundio_wait_events(audio->ptr());
-    soundio_outstream_destroy(out_stream->ptr());
     return 0;
 }
 }
