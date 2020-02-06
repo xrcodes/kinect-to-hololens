@@ -2,6 +2,10 @@
 
 namespace kh
 {
+FrameMessage::FrameMessage()
+{
+}
+
 FrameMessage::FrameMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
                            bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size,
                            std::chrono::steady_clock::duration packet_collection_time)

@@ -11,7 +11,7 @@ public:
     FramePacketCollection(int frame_id, int packet_count);
     int frame_id() { return frame_id_; }
     int packet_count() { return packet_count_; }
-    void addPacket(int packet_index, std::vector<uint8_t> packet);
+    void addPacket(int packet_index, std::vector<uint8_t>&& packet);
     bool isFull();
     FrameMessage toMessage();
     int getCollectedPacketCount();

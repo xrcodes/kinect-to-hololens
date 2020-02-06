@@ -15,10 +15,14 @@ namespace kh
 void run_receiver_thread(bool& stop_receiver_thread,
                          Receiver& receiver,
                          moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
-                         moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& frame_packet_queue,
+                         moodycamel::ReaderWriterQueue<FrameMessage>& frame_message_queue,
+                         int& last_frame_id,
                          int& summary_packet_count)
 {
+    std::optional<int> server_session_id = std::nullopt;
+    std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     while (!stop_receiver_thread) {
+        std::vector<std::vector<uint8_t>> frame_packets;
         for (;;) {
             auto packet = receiver.receive();
             if (!packet) {
@@ -30,14 +34,73 @@ void run_receiver_thread(bool& stop_receiver_thread,
             //    continue;
             //}
 
+            int session_id;
+            memcpy(&session_id, packet->data(), 4);
             uint8_t packet_type = (*packet)[4];
 
             if (packet_type == 0) {
+                server_session_id = session_id;
                 init_packet_queue.enqueue(*packet);
             } else if (packet_type == 1) {
-                frame_packet_queue.enqueue(*packet);
+                if (!server_session_id || session_id != server_session_id)
+                    continue;
+
+                frame_packets.push_back(std::move(*packet));
             }
             ++summary_packet_count;
+        }
+
+        for (auto& frame_packet : frame_packets) {
+            int cursor = 5;
+
+            int frame_id;
+            memcpy(&frame_id, frame_packet.data() + cursor, 4);
+            cursor += 4;
+
+            if (frame_id <= last_frame_id)
+                continue;
+
+            int packet_index;
+            memcpy(&packet_index, frame_packet.data() + cursor, 4);
+            cursor += 4;
+
+            int packet_count;
+            memcpy(&packet_count, frame_packet.data() + cursor, 4);
+            cursor += 4;
+
+            auto it = frame_packet_collections.find(frame_id);
+            if (it == frame_packet_collections.end())
+                frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+
+            frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet));
+        }
+
+        // Find all full collections and their frame_ids.
+        std::vector<int> full_frame_ids;
+        for (auto& collection_pair : frame_packet_collections) {
+            if (collection_pair.second.isFull()) {
+                int frame_id = collection_pair.first;
+                full_frame_ids.push_back(frame_id);
+            }
+        }
+
+        // Extract messages from the full collections.
+        for (int full_frame_id : full_frame_ids) {
+            //frame_messages.push_back(frame_packet_collections.at(full_frame_id).toMessage());
+            frame_message_queue.enqueue(std::move(frame_packet_collections.at(full_frame_id).toMessage()));
+            frame_packet_collections.erase(full_frame_id);
+        }
+
+        // Clean up frame_packet_collections.
+        std::vector<int> obsolete_frame_ids;
+        for (auto& collection_pair : frame_packet_collections) {
+            if (collection_pair.first <= last_frame_id) {
+                obsolete_frame_ids.push_back(collection_pair.first);
+            }
+        }
+
+        for (int obsolete_frame_id : obsolete_frame_ids) {
+            frame_packet_collections.erase(obsolete_frame_id);
         }
     }
 }
@@ -54,78 +117,25 @@ void receive_frames(std::string ip_address, int port)
 
     bool stop_receiver_thread = false;
     moodycamel::ReaderWriterQueue<std::vector<uint8_t>> init_packet_queue;
-    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> frame_packet_queue;
+    moodycamel::ReaderWriterQueue<FrameMessage> frame_message_queue;
+    int last_frame_id = -1;
     int summary_packet_count = 0;
     std::thread receiver_thread(run_receiver_thread, std::ref(stop_receiver_thread), std::ref(receiver),
-                                std::ref(init_packet_queue), std::ref(frame_packet_queue),
-                                std::ref(summary_packet_count));
+                                std::ref(init_packet_queue), std::ref(frame_message_queue),
+                                std::ref(last_frame_id), std::ref(summary_packet_count));
 
     Vp8Decoder color_decoder;
     int depth_width;
     int depth_height;
     std::unique_ptr<TrvlDecoder> depth_decoder;
 
-    std::unordered_map<int, FramePacketCollection> frame_packet_collections;
+    //std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     std::vector<FrameMessage> frame_messages;
-    int last_frame_id = -1;
-    std::optional<int> server_session_id = std::nullopt;
+    //std::optional<int> server_session_id = std::nullopt;
 
     auto frame_start = std::chrono::steady_clock::now();
     for (;;) {
         std::vector<uint8_t> packet;
-        //while(packet_queue.try_dequeue(packet)) {
-        //    int cursor = 0;
-        //    int session_id;
-        //    memcpy(&session_id, packet.data() + cursor, 4);
-        //    cursor += 4;
-
-        //    uint8_t packet_type = packet[cursor];
-        //    cursor += 1;
-
-        //    if (packet_type == 0) {
-        //        server_session_id = session_id;
-        //        
-        //        // for color width
-        //        cursor += 4;
-        //        // for color height
-        //        cursor += 4;
-
-        //        memcpy(&depth_width, packet.data() + cursor, 4);
-        //        cursor += 4;
-
-        //        memcpy(&depth_height, packet.data() + cursor, 4);
-        //        cursor += 4;
-
-        //        depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
-        //    }
-
-        //    if (!server_session_id || session_id != server_session_id)
-        //        continue;
-        //    
-        //    if (packet_type == 1) {
-        //        int frame_id;
-        //        memcpy(&frame_id, packet.data() + cursor, 4);
-        //        cursor += 4;
-
-        //        if (frame_id <= last_frame_id)
-        //            continue;
-
-        //        int packet_index;
-        //        memcpy(&packet_index, packet.data() + cursor, 4);
-        //        cursor += 4;
-
-        //        int packet_count;
-        //        memcpy(&packet_count, packet.data() + cursor, 4);
-        //        cursor += 4;
-
-        //        auto it = frame_packet_collections.find(frame_id);
-        //        if (it == frame_packet_collections.end())
-        //            frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
-
-        //        frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
-        //    }
-        //}
-
         while (init_packet_queue.try_dequeue(packet)) {
             int cursor = 0;
             int session_id;
@@ -136,7 +146,7 @@ void receive_frames(std::string ip_address, int port)
             cursor += 1;
 
             //if (packet_type == 0) {
-            server_session_id = session_id;
+            //server_session_id = session_id;
 
             // for color width
             cursor += 4;
@@ -150,58 +160,62 @@ void receive_frames(std::string ip_address, int port)
             cursor += 4;
 
             depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
-            //}
         }
 
-        while (frame_packet_queue.try_dequeue(packet)) {
-            int cursor = 0;
-            int session_id;
-            memcpy(&session_id, packet.data() + cursor, 4);
-            cursor += 4;
+        //while (frame_packet_queue.try_dequeue(packet)) {
+        //    //int cursor = 0;
+        //    //int session_id;
+        //    //memcpy(&session_id, packet.data() + cursor, 4);
+        //    //cursor += 4;
 
-            cursor += 1;
+        //    //cursor += 1;
 
-            if (!server_session_id || session_id != server_session_id)
-                continue;
+        //    //if (!server_session_id || session_id != server_session_id)
+        //    //    continue;
+        //    int cursor = 5;
 
-            //if (packet_type == 1) {
-            int frame_id;
-            memcpy(&frame_id, packet.data() + cursor, 4);
-            cursor += 4;
+        //    int frame_id;
+        //    memcpy(&frame_id, packet.data() + cursor, 4);
+        //    cursor += 4;
 
-            if (frame_id <= last_frame_id)
-                continue;
+        //    if (frame_id <= last_frame_id)
+        //        continue;
 
-            int packet_index;
-            memcpy(&packet_index, packet.data() + cursor, 4);
-            cursor += 4;
+        //    int packet_index;
+        //    memcpy(&packet_index, packet.data() + cursor, 4);
+        //    cursor += 4;
 
-            int packet_count;
-            memcpy(&packet_count, packet.data() + cursor, 4);
-            cursor += 4;
+        //    int packet_count;
+        //    memcpy(&packet_count, packet.data() + cursor, 4);
+        //    cursor += 4;
 
-            auto it = frame_packet_collections.find(frame_id);
-            if (it == frame_packet_collections.end())
-                frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+        //    auto it = frame_packet_collections.find(frame_id);
+        //    if (it == frame_packet_collections.end())
+        //        frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
 
-            frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
-            //}
-        }
+        //    frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
+        //}
 
-        // Find all full collections and their frame_ids.
-        std::vector<int> full_frame_ids;
-        for (auto& collection_pair : frame_packet_collections) {
-            if (collection_pair.second.isFull()) {
-                int frame_id = collection_pair.first;
-                full_frame_ids.push_back(frame_id);
-            }
-        }
+        //// Find all full collections and their frame_ids.
+        //std::vector<int> full_frame_ids;
+        //for (auto& collection_pair : frame_packet_collections) {
+        //    if (collection_pair.second.isFull()) {
+        //        int frame_id = collection_pair.first;
+        //        full_frame_ids.push_back(frame_id);
+        //    }
+        //}
 
         // Extract messages from the full collections.
-        for (int full_frame_id : full_frame_ids) {
-            frame_messages.push_back(frame_packet_collections.at(full_frame_id).toMessage());
-            frame_packet_collections.erase(full_frame_id);
+        //for (int full_frame_id : full_frame_ids) {
+        //    frame_messages.push_back(frame_packet_collections.at(full_frame_id).toMessage());
+        //    frame_packet_collections.erase(full_frame_id);
+        //}
+        
+        FrameMessage frame_message;
+        while (frame_message_queue.try_dequeue(frame_message)) {
+            frame_messages.push_back(frame_message);
         }
+
         std::sort(frame_messages.begin(), frame_messages.end(), [](const FrameMessage& lhs, const FrameMessage& rhs)
         {
             return lhs.frame_id() < rhs.frame_id();
@@ -290,16 +304,16 @@ void receive_frames(std::string ip_address, int port)
             break;
 
         // Clean up frame_packet_collections.
-        std::vector<int> obsolete_frame_ids;
-        for (auto& collection_pair : frame_packet_collections) {
-            if (collection_pair.first <= last_frame_id) {
-                obsolete_frame_ids.push_back(collection_pair.first);
-            }
-        }
+        //std::vector<int> obsolete_frame_ids;
+        //for (auto& collection_pair : frame_packet_collections) {
+        //    if (collection_pair.first <= last_frame_id) {
+        //        obsolete_frame_ids.push_back(collection_pair.first);
+        //    }
+        //}
 
-        for (int obsolete_frame_id : obsolete_frame_ids) {
-            frame_packet_collections.erase(obsolete_frame_id);
-        }
+        //for (int obsolete_frame_id : obsolete_frame_ids) {
+        //    frame_packet_collections.erase(obsolete_frame_id);
+        //}
 
         // Reset frame_messages after they are displayed.
         frame_messages = std::vector<FrameMessage>();

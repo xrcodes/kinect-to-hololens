@@ -8,9 +8,9 @@ FramePacketCollection::FramePacketCollection(int frame_id, int packet_count)
 {
 }
 
-void FramePacketCollection::addPacket(int packet_index, std::vector<uint8_t> packet)
+void FramePacketCollection::addPacket(int packet_index, std::vector<uint8_t>&& packet)
 {
-    packets_[packet_index] = packet;
+    packets_[packet_index] = std::move(packet);
 }
 
 bool FramePacketCollection::isFull()
