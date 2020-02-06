@@ -147,15 +147,12 @@ void receive_frames(std::string ip_address, int port)
         std::vector<uint8_t> packet;
         while (init_packet_queue.try_dequeue(packet)) {
             int cursor = 0;
-            int session_id;
-            memcpy(&session_id, packet.data() + cursor, 4);
+            //int session_id;
+            //memcpy(&session_id, packet.data() + cursor, 4);
             cursor += 4;
 
             //uint8_t packet_type = packet[cursor];
             cursor += 1;
-
-            //if (packet_type == 0) {
-            //server_session_id = session_id;
 
             // for color width
             cursor += 4;

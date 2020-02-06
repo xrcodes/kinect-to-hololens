@@ -41,15 +41,16 @@ public class KinectToHololensManager : MonoBehaviour
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
 
-    private Dictionary<int, FramePacketCollection> framePacketCollections;
+    //private Dictionary<int, FramePacketCollection> framePacketCollections;
     private List<FrameMessage> frameMessages;
     private int lastFrameId;
     private Stopwatch frameStopWatch;
-    private int? serverSessionId;
+    //private int? serverSessionId;
     private int summaryPacketCount;
 
     private bool stopReceiverThread;
-    private ConcurrentQueue<byte[]> packetQueue;
+    private ConcurrentQueue<byte[]> initPacketQueue;
+    private ConcurrentQueue<FrameMessage> frameMessageQueue;
 
     public TextMesh ActiveInputField
     {
@@ -83,15 +84,15 @@ public class KinectToHololensManager : MonoBehaviour
         UiVisibility = true;
         SetInputState(InputState.IpAddress);
 
-        framePacketCollections = new Dictionary<int, FramePacketCollection>();
         frameMessages = new List<FrameMessage>();
         lastFrameId = -1;
         frameStopWatch = Stopwatch.StartNew();
-        serverSessionId = null;
+        //serverSessionId = null;
         summaryPacketCount = 0;
 
         stopReceiverThread = false;
-        packetQueue = new ConcurrentQueue<byte[]>();
+        initPacketQueue = new ConcurrentQueue<byte[]>();
+        frameMessageQueue = new ConcurrentQueue<FrameMessage>();
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -136,93 +137,30 @@ public class KinectToHololensManager : MonoBehaviour
         if (receiver == null)
             return;
 
-        //var packets = new List<byte[]>();
-        //while (true)
-        //{
-        //    var packet = receiver.Receive();
-        //    if (packet == null)
-        //        break;
-
-        //    packets.Add(packet);
-        //}
-        //if (packets.Count == 0)
-        //    return;
-
-        //summaryPacketCount += packets.Count;
-
-        //foreach (var packet in packets)
-        while(packetQueue.TryDequeue(out byte[] packet))
+        while (initPacketQueue.TryDequeue(out byte[] packet))
         {
             int cursor = 0;
-            int sessionId = BitConverter.ToInt32(packet, cursor);
+            //int sessionId = BitConverter.ToInt32(packet, cursor);
             cursor += 4;
 
-            var packetType = packet[cursor];
+            //var packetType = packet[cursor];
             cursor += 1;
-            // For an initialization packet.
-            if (packetType == 0)
-            {
-                // No need to have UI for connection after initialization.
-                UiVisibility = false;
 
-                serverSessionId = sessionId;
+            var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
 
-                var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
+            Plugin.texture_group_set_width(calibration.DepthCamera.Width);
+            Plugin.texture_group_set_height(calibration.DepthCamera.Height);
+            PluginHelper.InitTextureGroup();
 
-                Plugin.texture_group_set_width(calibration.DepthCamera.Width);
-                Plugin.texture_group_set_height(calibration.DepthCamera.Height);
-                PluginHelper.InitTextureGroup();
+            colorDecoder = new Vp8Decoder();
+            depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
 
-                colorDecoder = new Vp8Decoder();
-                depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
-
-                azureKinectScreen.Setup(calibration);
-            }
-
-            // Block packets from before initilization and from a sender that
-            // was not the one that initialized this receiver.
-            if (!serverSessionId.HasValue || sessionId != serverSessionId)
-                continue;
-
-            if (packetType == 1)
-            {
-                int frameId = BitConverter.ToInt32(packet, cursor);
-                cursor += 4;
-
-                // No need to collect packets for previous frames.
-                if (frameId <= lastFrameId)
-                    continue;
-                
-                int packetIndex = BitConverter.ToInt32(packet, cursor);
-                cursor += 4;
-                int packetCount = BitConverter.ToInt32(packet, cursor);
-                cursor += 4;
-
-                if (!framePacketCollections.ContainsKey(frameId))
-                {
-                    framePacketCollections[frameId] = new FramePacketCollection(frameId, packetCount);
-                }
-
-                framePacketCollections[frameId].AddPacket(packetIndex, packet);
-            }
+            azureKinectScreen.Setup(calibration);
         }
 
-        // Find all full collections and their frame_ids.
-        var fullFrameIds = new List<int>();
-        foreach (var collectionPair in framePacketCollections)
+        while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
         {
-            if (collectionPair.Value.IsFull())
-            {
-                int frameId = collectionPair.Key;
-                fullFrameIds.Add(frameId);
-            }
-        }
-
-        // Extract messages from the full collections.
-        foreach (int fullFrameId in fullFrameIds)
-        {
-            frameMessages.Add(framePacketCollections[fullFrameId].ToMessage());
-            framePacketCollections.Remove(fullFrameId);
+            frameMessages.Add(frameMessage);
         }
 
         frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
@@ -309,20 +247,20 @@ public class KinectToHololensManager : MonoBehaviour
         }
 
         // Clean up frame_packet_collections.
-        int endFrameId = frameMessages[frameMessages.Count - 1].FrameId;
-        var obsoleteFrameIds = new List<int>();
-        foreach (var collectionPair in framePacketCollections)
-        {
-            if(collectionPair.Key <= endFrameId)
-            {
-                obsoleteFrameIds.Add(collectionPair.Key);
-            }
-        }
+        //int endFrameId = frameMessages[frameMessages.Count - 1].FrameId;
+        //var obsoleteFrameIds = new List<int>();
+        //foreach (var collectionPair in framePacketCollections)
+        //{
+        //    if(collectionPair.Key <= endFrameId)
+        //    {
+        //        obsoleteFrameIds.Add(collectionPair.Key);
+        //    }
+        //}
 
-        foreach (int obsoleteFrameId in obsoleteFrameIds)
-        {
-            framePacketCollections.Remove(obsoleteFrameId);
-        }
+        //foreach (int obsoleteFrameId in obsoleteFrameIds)
+        //{
+        //    framePacketCollections.Remove(obsoleteFrameId);
+        //}
 
         frameMessages = new List<FrameMessage>();
     }
@@ -453,17 +391,89 @@ public class KinectToHololensManager : MonoBehaviour
 
     private void RunReceiverThread()
     {
+        int? senderSessionId = null;
+        var framePacketCollections = new Dictionary<int, FramePacketCollection>();
         print("Start Receiver Thread");
         while (!stopReceiverThread)
         {
+            var framePackets = new List<byte[]>();
             while (true)
             {
                 var packet = receiver.Receive();
                 if (packet == null)
                     break;
 
-                packetQueue.Enqueue(packet);
+                int sessionId = BitConverter.ToInt32(packet, 0);
+                var packetType = packet[4];
+
+                if(packetType == 0)
+                {
+                    senderSessionId = sessionId;
+                    initPacketQueue.Enqueue(packet);
+                }
+                else if(packetType == 1)
+                {
+                    if(!senderSessionId.HasValue || sessionId != senderSessionId.Value)
+                        continue;
+
+                    framePackets.Add(packet);
+                }
                 ++summaryPacketCount;
+            }
+
+            foreach (var framePacket in framePackets)
+            {
+                int cursor = 5;
+
+                int frameId = BitConverter.ToInt32(framePacket, cursor);
+                cursor += 4;
+
+                if (frameId <= lastFrameId)
+                    continue;
+
+                int packetIndex = BitConverter.ToInt32(framePacket, cursor);
+                cursor += 4;
+
+                int packetCount = BitConverter.ToInt32(framePacket, cursor);
+                cursor += 4;
+
+                if(!framePacketCollections.ContainsKey(frameId))
+                    framePacketCollections[frameId] = new FramePacketCollection(frameId, packetCount);
+
+                framePacketCollections[frameId].AddPacket(packetIndex, framePacket);
+            }
+
+            // Find all full collections and their frame_ids.
+            var fullFrameIds = new List<int>();
+            foreach (var collectionPair in framePacketCollections)
+            {
+                if (collectionPair.Value.IsFull())
+                {
+                    int frameId = collectionPair.Key;
+                    fullFrameIds.Add(frameId);
+                }
+            }
+
+            // Extract messages from the full collections.
+            foreach (int fullFrameId in fullFrameIds)
+            {
+                frameMessageQueue.Enqueue(framePacketCollections[fullFrameId].ToMessage());
+                framePacketCollections.Remove(fullFrameId);
+            }
+
+            // Clean up frame_packet_collections.
+            var obsoleteFrameIds = new List<int>();
+            foreach (var collectionPair in framePacketCollections)
+            {
+                if (collectionPair.Key <= lastFrameId)
+                {
+                    obsoleteFrameIds.Add(collectionPair.Key);
+                }
+            }
+
+            foreach (int obsoleteFrameId in obsoleteFrameIds)
+            {
+                framePacketCollections.Remove(obsoleteFrameId);
             }
         }
         print("Receiver Thread Dead");
