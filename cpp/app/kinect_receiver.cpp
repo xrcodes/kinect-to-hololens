@@ -31,7 +31,7 @@ void _receive_frames(std::string ip_address, int port)
     std::optional<int> server_session_id = std::nullopt;
 
     auto frame_start = std::chrono::steady_clock::now();
-    int packet_count = 0;
+    int summary_packet_count = 0;
     for (;;) {
         auto packet_receive_start = std::chrono::steady_clock::now();
         std::vector<std::vector<uint8_t>> packets;
@@ -51,7 +51,7 @@ void _receive_frames(std::string ip_address, int port)
         if (packets.empty())
             continue;
 
-        packet_count += packets.size();
+        summary_packet_count += packets.size();
 
         auto packet_collection_start = std::chrono::steady_clock::now();
         for (auto& packet : packets) {
@@ -196,8 +196,8 @@ void _receive_frames(std::string ip_address, int port)
                       packet_collection_time.count() / 1000000.0f,
                       decoder_time.count() / 1000000.0f,
                       frame_time.count() / 1000000.0f,
-                      packet_count);
-        packet_count = 0;
+                      summary_packet_count);
+        summary_packet_count = 0;
 
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
         auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()),

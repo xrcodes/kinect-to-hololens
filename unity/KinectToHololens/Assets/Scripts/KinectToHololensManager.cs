@@ -44,6 +44,7 @@ public class KinectToHololensManager : MonoBehaviour
     private int lastFrameId;
     private Stopwatch frameStopWatch;
     private int? serverSessionId;
+    private int summaryPacketCount;
 
     public TextMesh ActiveInputField
     {
@@ -77,6 +78,7 @@ public class KinectToHololensManager : MonoBehaviour
         lastFrameId = -1;
         frameStopWatch = Stopwatch.StartNew();
         serverSessionId = null;
+        summaryPacketCount = 0;
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -130,6 +132,10 @@ public class KinectToHololensManager : MonoBehaviour
 
             packets.Add(packet);
         }
+        if (packets.Count == 0)
+            return;
+
+        summaryPacketCount += packets.Count;
 
         foreach (var packet in packets)
         {
@@ -277,7 +283,8 @@ public class KinectToHololensManager : MonoBehaviour
               $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
         receiver.Send(lastFrameId, (float) packetCollectionTime.TotalMilliseconds, (float) decoderTime.TotalMilliseconds,
-            (float) frameTime.TotalMilliseconds);
+            (float) frameTime.TotalMilliseconds, summaryPacketCount);
+        summaryPacketCount = 0;
 
         // Invokes a function to be called in a render thread.
         if (textureGroup != null)
