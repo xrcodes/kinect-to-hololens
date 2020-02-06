@@ -9,6 +9,25 @@
 
 namespace kh
 {
+class FramePacketSet
+{
+public:
+    FramePacketSet()
+        : frame_id_(0), packets_()
+    {
+    }
+    FramePacketSet(int frame_id, std::vector<std::vector<uint8_t> >&& packets)
+        : frame_id_(frame_id), packets_(std::move(packets))
+    {
+    }
+    int frame_id() { return frame_id_; }
+    std::vector<std::vector<uint8_t>>& packets() { return packets_; }
+
+private:
+    int frame_id_;
+    std::vector<std::vector<uint8_t>> packets_;
+};
+
 int pow_of_two(int exp) {
     assert(exp >= 0);
 
@@ -21,17 +40,65 @@ int pow_of_two(int exp) {
 
 void run_sender_thread(bool& stop_sender_thread,
                        Sender& sender,
-                       moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& packet_queue,
-                       int& test)
+                       moodycamel::ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
+                       int& receiver_frame_id,
+                       int& send_summary_receiver_frame_count,
+                       int& send_summary_receiver_packet_count,
+                       int& send_summary_packet_count)
 {
-    printf("test: %d\n", test);
-    std::vector<uint8_t> packet;
+    std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_start_times;
+    FramePacketSet frame_packet_set;
     while (!stop_sender_thread) {
-        while (packet_queue.try_dequeue(packet)) {
-            sender.sendPacket(packet);
+        auto receive_result = sender.receive();
+        if (receive_result) {
+            int cursor = 0;
+            uint8_t message_type = (*receive_result)[cursor];
+            cursor += 1;
+
+            memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            float packet_collection_time_ms;
+            memcpy(&packet_collection_time_ms, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            float decoder_time_ms;
+            memcpy(&decoder_time_ms, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            float frame_time_ms;
+            memcpy(&frame_time_ms, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            int receiver_packet_count;
+            memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
+
+            std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_start_times[receiver_frame_id];
+
+            printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
+                   receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
+                   round_trip_time.count() * 1000.0f);
+
+            std::vector<int> obsolete_frame_ids;
+            for (auto frame_start_time_pair : frame_start_times) {
+                if (frame_start_time_pair.first <= receiver_frame_id)
+                    obsolete_frame_ids.push_back(frame_start_time_pair.first);
+            }
+
+            for (int obsolete_frame_id : obsolete_frame_ids)
+                frame_start_times.erase(obsolete_frame_id);
+
+            ++send_summary_receiver_frame_count;
+            send_summary_receiver_packet_count += receiver_packet_count;
+        }
+
+        while (frame_packet_queue.try_dequeue(frame_packet_set)) {
+            frame_start_times[frame_packet_set.frame_id()] = std::chrono::steady_clock::now();
+            for (auto packet : frame_packet_set.packets()) {
+                sender.sendPacket(packet);
+            }
         }
     }
-    printf("run_sender_thread end\n");
 }
 
 // Sends Azure Kinect frames through a TCP port.
@@ -75,71 +142,28 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     sender.send(session_id, calibration);
 
     bool stop_sender_thread = false;
-    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> packet_queue;
-    int test = 1023;
-    std::thread sender_thread(run_sender_thread, std::ref(stop_sender_thread), std::ref(sender), std::ref(packet_queue), std::ref(test));
+    moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
+    // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
+    int receiver_frame_id = 0;
+    int send_summary_receiver_frame_count = 0;
+    int send_summary_receiver_packet_count = 0;
+    int send_summary_packet_count = 0;
+    std::thread sender_thread(run_sender_thread, std::ref(stop_sender_thread), std::ref(sender),
+                              std::ref(frame_packet_queue), std::ref(receiver_frame_id),
+                              std::ref(send_summary_receiver_frame_count),
+                              std::ref(send_summary_receiver_packet_count),
+                              std::ref(send_summary_packet_count));
     
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
-    // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
-    int receiver_frame_id = 0;
 
     // Variables for profiling the sender.
-    int summary_keyframe_count = 0;
+    int main_summary_keyframe_count = 0;
     std::chrono::microseconds last_time_stamp;
 
-    std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_start_times;
-    auto summary_start = std::chrono::steady_clock::now();
-    size_t summary_frame_size_sum = 0;
-    int summary_receiver_frame_count = 0;
-    int summary_packet_count = 0;
-    int summary_receiver_packet_count = 0;
+    auto main_summary_start = std::chrono::steady_clock::now();
+    size_t main_summary_frame_size_sum = 0;
     for (;;) {
-        auto receive_result = sender.receive();
-        if (receive_result) {
-            int cursor = 0;
-            uint8_t message_type = (*receive_result)[cursor];
-            cursor += 1;
-
-            memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            float packet_collection_time_ms;
-            memcpy(&packet_collection_time_ms, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            float decoder_time_ms;
-            memcpy(&decoder_time_ms, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            float frame_time_ms;
-            memcpy(&frame_time_ms, receive_result->data() + cursor, 4);
-            cursor += 4;
-
-            int receiver_packet_count;
-            memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
-
-            std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_start_times[receiver_frame_id];
-
-            printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
-                   receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
-                   round_trip_time.count() * 1000.0f);
-
-            std::vector<int> obsolete_frame_ids;
-            for (auto frame_start_time_pair : frame_start_times) {
-                if (frame_start_time_pair.first <= receiver_frame_id)
-                    obsolete_frame_ids.push_back(frame_start_time_pair.first);
-            }
-
-            for (int obsolete_frame_id : obsolete_frame_ids)
-                frame_start_times.erase(obsolete_frame_id);
-
-            ++summary_receiver_frame_count;
-            summary_receiver_packet_count += receiver_packet_count;
-        }
-
-        frame_start_times[frame_id] = std::chrono::steady_clock::now();
-
         auto capture = device.getCapture();
         if (!capture)
             continue;
@@ -182,18 +206,12 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
         try {
-            //sender.send(session_id, frame_id, frame_time_stamp, keyframe, vp8_frame,
-            //            reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
-            //            static_cast<uint32_t>(depth_encoder_frame.size()));
             auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
                                                       reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
                                                       static_cast<uint32_t>(depth_encoder_frame.size()));
             auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
-            for (auto& packet : packets) {
-                //sender.sendPacket(packet);
-                packet_queue.enqueue(std::move(packet));
-                ++summary_packet_count;
-            }
+            send_summary_packet_count += packets.size();
+            frame_packet_queue.enqueue(FramePacketSet(frame_id, std::move(packets)));
         } catch (std::system_error e) {
             if (e.code() == asio::error::would_block) {
                 printf("Failed to send frame as the buffer was full...\n");
@@ -206,24 +224,30 @@ void _send_frames(int session_id, KinectDevice& device, int port)
 
         // Updating variables for profiling.
         if (keyframe)
-            ++summary_keyframe_count;
-        summary_frame_size_sum += (vp8_frame.size() + depth_encoder_frame.size());
+            ++main_summary_keyframe_count;
+        main_summary_frame_size_sum += (vp8_frame.size() + depth_encoder_frame.size());
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
-            std::chrono::duration<double> summary_time_interval = std::chrono::steady_clock::now() - summary_start;
-            float packet_loss = 1.0f - summary_receiver_packet_count / (float)summary_packet_count;
-            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps, Receiver FPS: %lf, Packet Loss: %f%%\n",
-                   frame_id, 100 / summary_time_interval.count(), summary_keyframe_count,
-                   summary_frame_size_sum / (summary_time_interval.count() * 131072),
-                   summary_receiver_frame_count / summary_time_interval.count(),
+            std::chrono::duration<double> main_summary_time_interval = std::chrono::steady_clock::now() - main_summary_start;
+            float packet_loss = 1.0f - send_summary_receiver_packet_count / (float)send_summary_packet_count;
+            printf("Main Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
+                   frame_id,
+                   100 / main_summary_time_interval.count(),
+                   main_summary_keyframe_count,
+                   main_summary_frame_size_sum / (main_summary_time_interval.count() * 131072));
+
+            printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
+                   send_summary_receiver_frame_count / main_summary_time_interval.count(),
                    packet_loss * 100.0f);
-            summary_start = std::chrono::steady_clock::now();
-            summary_keyframe_count = 0;
-            summary_frame_size_sum = 0;
-            summary_receiver_frame_count = 0;
-            summary_packet_count = 0;
-            summary_receiver_packet_count = 0;
+
+            main_summary_start = std::chrono::steady_clock::now();
+            main_summary_keyframe_count = 0;
+            main_summary_frame_size_sum = 0;
+
+            send_summary_receiver_frame_count = 0;
+            send_summary_packet_count = 0;
+            send_summary_receiver_packet_count = 0;
         }
 
         ++frame_id;
