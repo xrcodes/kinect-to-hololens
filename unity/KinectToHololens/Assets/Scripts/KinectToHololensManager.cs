@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Threading;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.XR.WSA.Input;
@@ -46,6 +48,9 @@ public class KinectToHololensManager : MonoBehaviour
     private int? serverSessionId;
     private int summaryPacketCount;
 
+    private bool stopReceiverThread;
+    private ConcurrentQueue<byte[]> packetQueue;
+
     public TextMesh ActiveInputField
     {
         get
@@ -64,7 +69,12 @@ public class KinectToHololensManager : MonoBehaviour
             portInputField.gameObject.SetActive(value);
             instructionText.gameObject.SetActive(value);
         }
+        get
+        {
+            return ipAddressText.gameObject.activeSelf;
+        }
     }
+
     void Awake()
     {
         gestureRecognizer = new GestureRecognizer();
@@ -79,6 +89,9 @@ public class KinectToHololensManager : MonoBehaviour
         frameStopWatch = Stopwatch.StartNew();
         serverSessionId = null;
         summaryPacketCount = 0;
+
+        stopReceiverThread = false;
+        packetQueue = new ConcurrentQueue<byte[]>();
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -123,21 +136,22 @@ public class KinectToHololensManager : MonoBehaviour
         if (receiver == null)
             return;
 
-        var packets = new List<byte[]>();
-        while (true)
-        {
-            var packet = receiver.Receive();
-            if (packet == null)
-                break;
+        //var packets = new List<byte[]>();
+        //while (true)
+        //{
+        //    var packet = receiver.Receive();
+        //    if (packet == null)
+        //        break;
 
-            packets.Add(packet);
-        }
-        if (packets.Count == 0)
-            return;
+        //    packets.Add(packet);
+        //}
+        //if (packets.Count == 0)
+        //    return;
 
-        summaryPacketCount += packets.Count;
+        //summaryPacketCount += packets.Count;
 
-        foreach (var packet in packets)
+        //foreach (var packet in packets)
+        while(packetQueue.TryDequeue(out byte[] packet))
         {
             int cursor = 0;
             int sessionId = BitConverter.ToInt32(packet, cursor);
@@ -313,6 +327,27 @@ public class KinectToHololensManager : MonoBehaviour
         frameMessages = new List<FrameMessage>();
     }
 
+    void OnDestroy()
+    {
+        stopReceiverThread = true;
+    }
+
+    private void SetInputState(InputState inputState)
+    {
+        if (inputState == InputState.IpAddress)
+        {
+            ipAddressText.color = Color.yellow;
+            portText.color = Color.white;
+        }
+        else
+        {
+            ipAddressText.color = Color.white;
+            portText.color = Color.yellow;
+        }
+
+        this.inputState = inputState;
+    }
+
     private void OnTapped(TappedEventArgs args)
     {
         // Place the scene in front of the camera when the user taps.
@@ -387,6 +422,12 @@ public class KinectToHololensManager : MonoBehaviour
     // there should be only one chance to send a ping.
     private void Ping()
     {
+        if(!UiVisibility)
+        {
+            print("No more than one ping at a time.");
+            return;
+        }
+
         UiVisibility = false;
 
         // The default IP address is 127.0.0.1.
@@ -405,21 +446,26 @@ public class KinectToHololensManager : MonoBehaviour
         var ipAddress = IPAddress.Parse(ipAddressText);
         receiver = new Receiver(1024 * 1024);
         receiver.Ping(ipAddress, port);
+
+        Thread receiverThread = new Thread(RunReceiverThread);
+        receiverThread.Start();
     }
 
-    private void SetInputState(InputState inputState)
+    private void RunReceiverThread()
     {
-        if (inputState == InputState.IpAddress)
+        print("Start Receiver Thread");
+        while (!stopReceiverThread)
         {
-            ipAddressText.color = Color.yellow;
-            portText.color = Color.white;
-        }
-        else
-        {
-            ipAddressText.color = Color.white;
-            portText.color = Color.yellow;
-        }
+            while (true)
+            {
+                var packet = receiver.Receive();
+                if (packet == null)
+                    break;
 
-        this.inputState = inputState;
+                packetQueue.Enqueue(packet);
+                ++summaryPacketCount;
+            }
+        }
+        print("Receiver Thread Dead");
     }
 }
