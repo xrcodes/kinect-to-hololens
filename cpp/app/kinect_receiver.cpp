@@ -14,7 +14,8 @@ namespace kh
 {
 void run_receiver_thread(bool& stop_receiver_thread,
                          Receiver& receiver,
-                         moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& packet_queue,
+                         moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
+                         moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& frame_packet_queue,
                          int& summary_packet_count)
 {
     while (!stop_receiver_thread) {
@@ -29,7 +30,13 @@ void run_receiver_thread(bool& stop_receiver_thread,
             //    continue;
             //}
 
-            packet_queue.enqueue(*packet);
+            uint8_t packet_type = (*packet)[4];
+
+            if (packet_type == 0) {
+                init_packet_queue.enqueue(*packet);
+            } else if (packet_type == 1) {
+                frame_packet_queue.enqueue(*packet);
+            }
             ++summary_packet_count;
         }
     }
@@ -46,10 +53,12 @@ void receive_frames(std::string ip_address, int port)
     printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
     bool stop_receiver_thread = false;
-    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> packet_queue;
+    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> init_packet_queue;
+    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> frame_packet_queue;
     int summary_packet_count = 0;
     std::thread receiver_thread(run_receiver_thread, std::ref(stop_receiver_thread), std::ref(receiver),
-                                std::ref(packet_queue), std::ref(summary_packet_count));
+                                std::ref(init_packet_queue), std::ref(frame_packet_queue),
+                                std::ref(summary_packet_count));
 
     Vp8Decoder color_decoder;
     int depth_width;
@@ -63,88 +72,121 @@ void receive_frames(std::string ip_address, int port)
 
     auto frame_start = std::chrono::steady_clock::now();
     for (;;) {
-        //std::vector<std::vector<uint8_t>> packets;
-        //for (;;) {
-        //    auto receive_result = receiver.receive();
-        //    if (!receive_result) {
-        //        break;
+        std::vector<uint8_t> packet;
+        //while(packet_queue.try_dequeue(packet)) {
+        //    int cursor = 0;
+        //    int session_id;
+        //    memcpy(&session_id, packet.data() + cursor, 4);
+        //    cursor += 4;
+
+        //    uint8_t packet_type = packet[cursor];
+        //    cursor += 1;
+
+        //    if (packet_type == 0) {
+        //        server_session_id = session_id;
+        //        
+        //        // for color width
+        //        cursor += 4;
+        //        // for color height
+        //        cursor += 4;
+
+        //        memcpy(&depth_width, packet.data() + cursor, 4);
+        //        cursor += 4;
+
+        //        memcpy(&depth_height, packet.data() + cursor, 4);
+        //        cursor += 4;
+
+        //        depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
         //    }
 
-        //    // Simulate packet loss
-        //    //if (rand() % 100 == 0) {
-        //    //    continue;
-        //    //}
+        //    if (!server_session_id || session_id != server_session_id)
+        //        continue;
+        //    
+        //    if (packet_type == 1) {
+        //        int frame_id;
+        //        memcpy(&frame_id, packet.data() + cursor, 4);
+        //        cursor += 4;
 
-        //    packets.push_back(*receive_result);
+        //        if (frame_id <= last_frame_id)
+        //            continue;
+
+        //        int packet_index;
+        //        memcpy(&packet_index, packet.data() + cursor, 4);
+        //        cursor += 4;
+
+        //        int packet_count;
+        //        memcpy(&packet_count, packet.data() + cursor, 4);
+        //        cursor += 4;
+
+        //        auto it = frame_packet_collections.find(frame_id);
+        //        if (it == frame_packet_collections.end())
+        //            frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+
+        //        frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
+        //    }
         //}
-        //if (packets.empty())
-        //    continue;
 
-        //summary_packet_count += packets.size();
-
-        //for (auto& packet : packets) {
-        std::vector<uint8_t> packet;
-        while(packet_queue.try_dequeue(packet)) {
+        while (init_packet_queue.try_dequeue(packet)) {
             int cursor = 0;
             int session_id;
             memcpy(&session_id, packet.data() + cursor, 4);
             cursor += 4;
 
-            uint8_t packet_type = packet[cursor];
+            //uint8_t packet_type = packet[cursor];
             cursor += 1;
 
-            if (packet_type == 0) {
-                server_session_id = session_id;
-                
-                // for color width
-                cursor += 4;
-                // for color height
-                cursor += 4;
+            //if (packet_type == 0) {
+            server_session_id = session_id;
 
-                memcpy(&depth_width, packet.data() + cursor, 4);
-                cursor += 4;
+            // for color width
+            cursor += 4;
+            // for color height
+            cursor += 4;
 
-                memcpy(&depth_height, packet.data() + cursor, 4);
-                cursor += 4;
+            memcpy(&depth_width, packet.data() + cursor, 4);
+            cursor += 4;
 
-                depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
-            }
+            memcpy(&depth_height, packet.data() + cursor, 4);
+            cursor += 4;
+
+            depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
+            //}
+        }
+
+        while (frame_packet_queue.try_dequeue(packet)) {
+            int cursor = 0;
+            int session_id;
+            memcpy(&session_id, packet.data() + cursor, 4);
+            cursor += 4;
+
+            cursor += 1;
 
             if (!server_session_id || session_id != server_session_id)
                 continue;
-            
-            if (packet_type == 1) {
-                int frame_id;
-                memcpy(&frame_id, packet.data() + cursor, 4);
-                cursor += 4;
 
-                if (frame_id <= last_frame_id)
-                    continue;
+            //if (packet_type == 1) {
+            int frame_id;
+            memcpy(&frame_id, packet.data() + cursor, 4);
+            cursor += 4;
 
-                int packet_index;
-                memcpy(&packet_index, packet.data() + cursor, 4);
-                cursor += 4;
+            if (frame_id <= last_frame_id)
+                continue;
 
-                int packet_count;
-                memcpy(&packet_count, packet.data() + cursor, 4);
-                cursor += 4;
+            int packet_index;
+            memcpy(&packet_index, packet.data() + cursor, 4);
+            cursor += 4;
 
-                auto it = frame_packet_collections.find(frame_id);
-                if (it == frame_packet_collections.end())
-                    frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+            int packet_count;
+            memcpy(&packet_count, packet.data() + cursor, 4);
+            cursor += 4;
 
-                frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
-            }
+            auto it = frame_packet_collections.find(frame_id);
+            if (it == frame_packet_collections.end())
+                frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+
+            frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
+            //}
         }
-
-        //printf("Collection Status:\n");
-        //for (auto collection_pair : frame_packet_collections) {
-        //    int frame_id = collection_pair.first;
-        //    auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
-        //    auto total_packet_count = collection_pair.second.packet_count();
-        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-        //           collected_packet_count, total_packet_count);
-        //}
 
         // Find all full collections and their frame_ids.
         std::vector<int> full_frame_ids;
@@ -165,12 +207,21 @@ void receive_frames(std::string ip_address, int port)
             return lhs.frame_id() < rhs.frame_id();
         });
 
+        //printf("Collection Status:\n");
+        //for (auto collection_pair : frame_packet_collections) {
+        //    int frame_id = collection_pair.first;
+        //    auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
+        //    auto total_packet_count = collection_pair.second.packet_count();
+        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+        //           collected_packet_count, total_packet_count);
+        //}
+
+        //for (auto& frame_message : frame_messages) {
+        //    printf("frame_message: %d\n", frame_message.frame_id());
+        //}
+
         if (frame_messages.empty())
             continue;
-
-        for (auto& frame_message : frame_messages) {
-            printf("frame_message: %d\n", frame_message.frame_id());
-        }
 
         std::optional<int> begin_index;
         // If there is a key frame, use the most recent one.
@@ -197,7 +248,6 @@ void receive_frames(std::string ip_address, int port)
         std::chrono::steady_clock::duration packet_collection_time;
 
         auto decoder_start = std::chrono::steady_clock::now();
-        //printf("begin decode\n");
         for (int i = *begin_index; i < frame_messages.size(); ++i) {
             auto frame_message_ptr = &frame_messages[i];
 
