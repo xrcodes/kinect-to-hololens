@@ -68,7 +68,7 @@ public class KinectToHololensManager : MonoBehaviour
     void Awake()
     {
         gestureRecognizer = new GestureRecognizer();
-        receiver = new Receiver(1024 * 1024);
+        receiver = null;
         textureGroup = null;
         UiVisibility = true;
         SetInputState(InputState.IpAddress);
@@ -117,11 +117,11 @@ public class KinectToHololensManager : MonoBehaviour
                 azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.DepthTexture);
 
                 print("textureGroup intialized");
-                // TODO: Ideally, this part should move into somewhere like Ping().
-                UiVisibility = false;
-                statusText.text = $"Connected to {receiver.Address.ToString()}:{receiver.Port}!";
             }
         }
+
+        if (receiver == null)
+            return;
 
         var packets = new List<byte[]>();
         while (true)
@@ -383,8 +383,12 @@ public class KinectToHololensManager : MonoBehaviour
         }
     }
 
+    // To copy the c++ receiver, for easier development,
+    // there should be only one chance to send a ping.
     private void Ping()
     {
+        UiVisibility = false;
+
         // The default IP address is 127.0.0.1.
         string ipAddressText = ipAddressInputField.text;
         if (ipAddressText.Length == 0)
@@ -399,6 +403,7 @@ public class KinectToHololensManager : MonoBehaviour
         statusText.text = logString;
 
         var ipAddress = IPAddress.Parse(ipAddressText);
+        receiver = new Receiver(1024 * 1024);
         receiver.Ping(ipAddress, port);
     }
 
