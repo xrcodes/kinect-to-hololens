@@ -16,7 +16,7 @@ public:
         : frame_id_(0), packets_()
     {
     }
-    FramePacketSet(int frame_id, std::vector<std::vector<uint8_t> >&& packets)
+    FramePacketSet(int frame_id, std::vector<std::vector<uint8_t>>&& packets)
         : frame_id_(frame_id), packets_(std::move(packets))
     {
     }
@@ -126,8 +126,7 @@ void run_sender_thread(bool& stop_sender_thread,
     }
 }
 
-// Sends Azure Kinect frames through a TCP port.
-void _send_frames(int session_id, KinectDevice& device, int port)
+void send_frames(int session_id, KinectDevice& device, int port)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -255,8 +254,9 @@ void _send_frames(int session_id, KinectDevice& device, int port)
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.
-void send_frames()
+void main()
 {
+    srand(time(nullptr));
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
     for (;;) {
@@ -282,7 +282,7 @@ void send_frames()
         int session_id = rng() % (INT_MAX + 1);
 
         try {
-            _send_frames(session_id, *device, port);
+            send_frames(session_id, *device, port);
         } catch (std::exception & e) {
             printf("Error from _send_frames: %s\n", e.what());
         }
@@ -292,7 +292,6 @@ void send_frames()
 
 int main()
 {
-    srand(time(nullptr));
-    kh::send_frames();
+    kh::main();
     return 0;
 }

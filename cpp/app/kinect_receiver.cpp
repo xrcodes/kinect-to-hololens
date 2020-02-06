@@ -1,7 +1,9 @@
 #include <chrono>
 #include <iostream>
 #include <optional>
+#include <thread>
 #include <asio.hpp>
+#include <readerwriterqueue/readerwriterqueue.h>
 #include "helper/opencv_helper.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
@@ -10,7 +12,30 @@
 
 namespace kh
 {
-void _receive_frames(std::string ip_address, int port)
+void run_receiver_thread(bool& stop_receiver_thread,
+                         Receiver& receiver,
+                         moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& packet_queue,
+                         int& summary_packet_count)
+{
+    while (!stop_receiver_thread) {
+        for (;;) {
+            auto packet = receiver.receive();
+            if (!packet) {
+                break;
+            }
+
+            // Simulate packet loss
+            //if (rand() % 100 == 0) {
+            //    continue;
+            //}
+
+            packet_queue.enqueue(*packet);
+            ++summary_packet_count;
+        }
+    }
+}
+
+void receive_frames(std::string ip_address, int port)
 {
     const int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
     //const int RECEIVER_RECEIVE_BUFFER_SIZE = 64 * 1024;
@@ -19,6 +44,12 @@ void _receive_frames(std::string ip_address, int port)
     receiver.ping(ip_address, port);
 
     printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
+
+    bool stop_receiver_thread = false;
+    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> packet_queue;
+    int summary_packet_count = 0;
+    std::thread receiver_thread(run_receiver_thread, std::ref(stop_receiver_thread), std::ref(receiver),
+                                std::ref(packet_queue), std::ref(summary_packet_count));
 
     Vp8Decoder color_decoder;
     int depth_width;
@@ -31,30 +62,29 @@ void _receive_frames(std::string ip_address, int port)
     std::optional<int> server_session_id = std::nullopt;
 
     auto frame_start = std::chrono::steady_clock::now();
-    int summary_packet_count = 0;
     for (;;) {
-        //auto packet_receive_start = std::chrono::steady_clock::now();
-        std::vector<std::vector<uint8_t>> packets;
-        for (;;) {
-            auto receive_result = receiver.receive();
-            if (!receive_result) {
-                break;
-            }
+        //std::vector<std::vector<uint8_t>> packets;
+        //for (;;) {
+        //    auto receive_result = receiver.receive();
+        //    if (!receive_result) {
+        //        break;
+        //    }
 
-            // Simulate packet loss
-            //if (rand() % 100 == 0) {
-            //    continue;
-            //}
+        //    // Simulate packet loss
+        //    //if (rand() % 100 == 0) {
+        //    //    continue;
+        //    //}
 
-            packets.push_back(*receive_result);
-        }
-        if (packets.empty())
-            continue;
+        //    packets.push_back(*receive_result);
+        //}
+        //if (packets.empty())
+        //    continue;
 
-        summary_packet_count += packets.size();
+        //summary_packet_count += packets.size();
 
-        //auto packet_collection_start = std::chrono::steady_clock::now();
-        for (auto& packet : packets) {
+        //for (auto& packet : packets) {
+        std::vector<uint8_t> packet;
+        while(packet_queue.try_dequeue(packet)) {
             int cursor = 0;
             int session_id;
             memcpy(&session_id, packet.data() + cursor, 4);
@@ -224,9 +254,12 @@ void _receive_frames(std::string ip_address, int port)
         // Reset frame_messages after they are displayed.
         frame_messages = std::vector<FrameMessage>();
     }
+
+    stop_receiver_thread = true;
+    receiver_thread.join();
 }
 
-void receive_frames()
+void main()
 {
     for (;;) {
         // Receive IP address from the user.
@@ -245,7 +278,7 @@ void receive_frames()
         int port = port_line.empty() ? 7777 : std::stoi(port_line);
 
         try {
-            _receive_frames(ip_address, port);
+            receive_frames(ip_address, port);
         } catch (std::exception & e) {
             printf("Error from _receive_frames: %s\n", e.what());
         }
@@ -253,7 +286,8 @@ void receive_frames()
 }
 }
 
-void main()
+int main()
 {
-    kh::receive_frames();
+    kh::main();
+    return 0;
 }
