@@ -19,7 +19,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
-    std::optional<int> server_session_id = std::nullopt;
+    std::optional<int> sender_session_id = std::nullopt;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     while (!stop_receiver_thread) {
         std::vector<std::vector<uint8_t>> frame_packets;
@@ -30,19 +30,19 @@ void run_receiver_thread(bool& stop_receiver_thread,
             }
 
             // Simulate packet loss
-            //if (rand() % 100 == 0) {
-            //    continue;
-            //}
+            if (rand() % 100 == 0) {
+                continue;
+            }
 
             int session_id;
             memcpy(&session_id, packet->data(), 4);
             uint8_t packet_type = (*packet)[4];
 
             if (packet_type == 0) {
-                server_session_id = session_id;
+                sender_session_id = session_id;
                 init_packet_queue.enqueue(*packet);
             } else if (packet_type == 1) {
-                if (!server_session_id || session_id != server_session_id)
+                if (!sender_session_id || session_id != sender_session_id)
                     continue;
 
                 frame_packets.push_back(std::move(*packet));
@@ -91,6 +91,17 @@ void run_receiver_thread(bool& stop_receiver_thread,
             frame_packet_collections.erase(full_frame_id);
         }
 
+        if(!frame_packet_collections.empty())
+            printf("Collection Status:\n");
+
+        for (auto collection_pair : frame_packet_collections) {
+            int frame_id = collection_pair.first;
+            auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
+            auto total_packet_count = collection_pair.second.packet_count();
+            printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+                   collected_packet_count, total_packet_count);
+        }
+
         // Clean up frame_packet_collections.
         std::vector<int> obsolete_frame_ids;
         for (auto& collection_pair : frame_packet_collections) {
@@ -129,9 +140,7 @@ void receive_frames(std::string ip_address, int port)
     int depth_height;
     std::unique_ptr<TrvlDecoder> depth_decoder;
 
-    //std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     std::vector<FrameMessage> frame_messages;
-    //std::optional<int> server_session_id = std::nullopt;
 
     auto frame_start = std::chrono::steady_clock::now();
     for (;;) {
@@ -161,55 +170,6 @@ void receive_frames(std::string ip_address, int port)
 
             depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
         }
-
-        //while (frame_packet_queue.try_dequeue(packet)) {
-        //    //int cursor = 0;
-        //    //int session_id;
-        //    //memcpy(&session_id, packet.data() + cursor, 4);
-        //    //cursor += 4;
-
-        //    //cursor += 1;
-
-        //    //if (!server_session_id || session_id != server_session_id)
-        //    //    continue;
-        //    int cursor = 5;
-
-        //    int frame_id;
-        //    memcpy(&frame_id, packet.data() + cursor, 4);
-        //    cursor += 4;
-
-        //    if (frame_id <= last_frame_id)
-        //        continue;
-
-        //    int packet_index;
-        //    memcpy(&packet_index, packet.data() + cursor, 4);
-        //    cursor += 4;
-
-        //    int packet_count;
-        //    memcpy(&packet_count, packet.data() + cursor, 4);
-        //    cursor += 4;
-
-        //    auto it = frame_packet_collections.find(frame_id);
-        //    if (it == frame_packet_collections.end())
-        //        frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
-
-        //    frame_packet_collections.at(frame_id).addPacket(packet_index, packet);
-        //}
-
-        //// Find all full collections and their frame_ids.
-        //std::vector<int> full_frame_ids;
-        //for (auto& collection_pair : frame_packet_collections) {
-        //    if (collection_pair.second.isFull()) {
-        //        int frame_id = collection_pair.first;
-        //        full_frame_ids.push_back(frame_id);
-        //    }
-        //}
-
-        // Extract messages from the full collections.
-        //for (int full_frame_id : full_frame_ids) {
-        //    frame_messages.push_back(frame_packet_collections.at(full_frame_id).toMessage());
-        //    frame_packet_collections.erase(full_frame_id);
-        //}
         
         FrameMessage frame_message;
         while (frame_message_queue.try_dequeue(frame_message)) {
@@ -220,15 +180,6 @@ void receive_frames(std::string ip_address, int port)
         {
             return lhs.frame_id() < rhs.frame_id();
         });
-
-        //printf("Collection Status:\n");
-        //for (auto collection_pair : frame_packet_collections) {
-        //    int frame_id = collection_pair.first;
-        //    auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
-        //    auto total_packet_count = collection_pair.second.packet_count();
-        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-        //           collected_packet_count, total_packet_count);
-        //}
 
         //for (auto& frame_message : frame_messages) {
         //    printf("frame_message: %d\n", frame_message.frame_id());
@@ -302,18 +253,6 @@ void receive_frames(std::string ip_address, int port)
         cv::imshow("Depth", depth_mat);
         if (cv::waitKey(1) >= 0)
             break;
-
-        // Clean up frame_packet_collections.
-        //std::vector<int> obsolete_frame_ids;
-        //for (auto& collection_pair : frame_packet_collections) {
-        //    if (collection_pair.first <= last_frame_id) {
-        //        obsolete_frame_ids.push_back(collection_pair.first);
-        //    }
-        //}
-
-        //for (int obsolete_frame_id : obsolete_frame_ids) {
-        //    frame_packet_collections.erase(obsolete_frame_id);
-        //}
 
         // Reset frame_messages after they are displayed.
         frame_messages = std::vector<FrameMessage>();
