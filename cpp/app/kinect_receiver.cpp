@@ -47,6 +47,9 @@ void _receive_frames(std::string ip_address, int port)
 
             packets.push_back(*receive_result);
         }
+        if (packets.empty())
+            continue;
+
         packet_count += packets.size();
 
         auto packet_collection_start = std::chrono::steady_clock::now();
@@ -103,6 +106,15 @@ void _receive_frames(std::string ip_address, int port)
             }
         }
 
+        printf("Collection Status:\n");
+        for (auto collection_pair : frame_packet_collections) {
+            int frame_id = collection_pair.first;
+            auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
+            auto total_packet_count = collection_pair.second.packet_count();
+            printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+                   collected_packet_count, total_packet_count);
+        }
+
         // Find all full collections and their frame_ids.
         std::vector<int> full_frame_ids;
         for (auto collection_pair : frame_packet_collections) {
@@ -124,6 +136,10 @@ void _receive_frames(std::string ip_address, int port)
 
         if (frame_messages.empty())
             continue;
+
+        for (auto frame_message : frame_messages) {
+            printf("frame_message: %d\n", frame_message.frame_id());
+        }
 
         std::optional<int> begin_index;
         // If there is a key frame, use the most recent one.

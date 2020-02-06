@@ -24,8 +24,9 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
-    //const int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
-    const int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
+    const int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
+    //const int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
+    const int FRAME_SEND_REDUNDANCY = 2;
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
@@ -168,9 +169,11 @@ void _send_frames(int session_id, KinectDevice& device, int port)
                                                       reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
                                                       static_cast<uint32_t>(depth_encoder_frame.size()));
             auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
-            for (auto packet : packets) {
-                sender.sendPacket(packet);
-                ++summary_packet_count;
+            for (int i = 0; i < FRAME_SEND_REDUNDANCY; ++i) {
+                for (auto packet : packets) {
+                    sender.sendPacket(packet);
+                    ++summary_packet_count;
+                }
             }
         } catch (std::system_error e) {
             if (e.code() == asio::error::would_block) {
@@ -185,7 +188,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Updating variables for profiling.
         if (keyframe)
             ++summary_keyframe_count;
-        summary_frame_size_sum += vp8_frame.size() + depth_encoder_frame.size();
+        summary_frame_size_sum += (vp8_frame.size() + depth_encoder_frame.size()) * FRAME_SEND_REDUNDANCY;
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
