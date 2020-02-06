@@ -41,13 +41,15 @@ int pow_of_two(int exp) {
 void run_sender_thread(bool& stop_sender_thread,
                        Sender& sender,
                        moodycamel::ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
-                       int& receiver_frame_id,
-                       int& send_summary_receiver_frame_count,
-                       int& send_summary_receiver_packet_count,
-                       int& send_summary_packet_count)
+                       int& receiver_frame_id)
 {
-    std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_start_times;
+    std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_send_times;
     FramePacketSet frame_packet_set;
+    int last_receiver_frame_id = 0;
+    auto send_summary_start = std::chrono::steady_clock::now();
+    int send_summary_receiver_frame_count = 0;
+    int send_summary_receiver_packet_count = 0;
+    int send_summary_packet_count = 0;
     while (!stop_sender_thread) {
         auto receive_result = sender.receive();
         if (receive_result) {
@@ -73,31 +75,54 @@ void run_sender_thread(bool& stop_sender_thread,
             int receiver_packet_count;
             memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
 
-            std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_start_times[receiver_frame_id];
+            std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_send_times[receiver_frame_id];
 
             printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
                    receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
                    round_trip_time.count() * 1000.0f);
 
             std::vector<int> obsolete_frame_ids;
-            for (auto frame_start_time_pair : frame_start_times) {
-                if (frame_start_time_pair.first <= receiver_frame_id)
-                    obsolete_frame_ids.push_back(frame_start_time_pair.first);
+            for (auto frame_send_time_pair : frame_send_times) {
+                if (frame_send_time_pair.first <= receiver_frame_id)
+                    obsolete_frame_ids.push_back(frame_send_time_pair.first);
             }
 
             for (int obsolete_frame_id : obsolete_frame_ids)
-                frame_start_times.erase(obsolete_frame_id);
+                frame_send_times.erase(obsolete_frame_id);
 
             ++send_summary_receiver_frame_count;
             send_summary_receiver_packet_count += receiver_packet_count;
         }
 
         while (frame_packet_queue.try_dequeue(frame_packet_set)) {
-            frame_start_times[frame_packet_set.frame_id()] = std::chrono::steady_clock::now();
+            frame_send_times[frame_packet_set.frame_id()] = std::chrono::steady_clock::now();
             for (auto packet : frame_packet_set.packets()) {
-                sender.sendPacket(packet);
+                try {
+                    sender.sendPacket(packet);
+                    ++send_summary_packet_count;
+                } catch (std::system_error e) {
+                    if (e.code() == asio::error::would_block) {
+                        printf("Failed to send frame as the buffer was full...\n");
+                    } else {
+                        throw e;
+                    }
+                }
             }
         }
+
+        if ((receiver_frame_id / 100) > (last_receiver_frame_id / 100)) {
+            std::chrono::duration<double> send_summary_time_interval = std::chrono::steady_clock::now() - send_summary_start;
+            float packet_loss = 1.0f - send_summary_receiver_packet_count / (float)send_summary_packet_count;
+            printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
+                   send_summary_receiver_frame_count / send_summary_time_interval.count(),
+                   packet_loss * 100.0f);
+
+            send_summary_start = std::chrono::steady_clock::now();
+            send_summary_receiver_frame_count = 0;
+            send_summary_packet_count = 0;
+            send_summary_receiver_packet_count = 0;
+        }
+        last_receiver_frame_id = receiver_frame_id;
     }
 }
 
@@ -145,14 +170,8 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id = 0;
-    int send_summary_receiver_frame_count = 0;
-    int send_summary_receiver_packet_count = 0;
-    int send_summary_packet_count = 0;
     std::thread sender_thread(run_sender_thread, std::ref(stop_sender_thread), std::ref(sender),
-                              std::ref(frame_packet_queue), std::ref(receiver_frame_id),
-                              std::ref(send_summary_receiver_frame_count),
-                              std::ref(send_summary_receiver_packet_count),
-                              std::ref(send_summary_packet_count));
+                              std::ref(frame_packet_queue), std::ref(receiver_frame_id));
     
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
@@ -177,9 +196,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         auto time_stamp = color_image.get_device_timestamp();
         auto time_diff = time_stamp - last_time_stamp;
         float frame_time_stamp = time_stamp.count() / 1000.0f;
-
         int frame_id_diff = frame_id - receiver_frame_id;
-
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
         //if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
         //    continue;
@@ -205,20 +222,11 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
-        try {
-            auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
-                                                      reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
-                                                      static_cast<uint32_t>(depth_encoder_frame.size()));
-            auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
-            send_summary_packet_count += packets.size();
-            frame_packet_queue.enqueue(FramePacketSet(frame_id, std::move(packets)));
-        } catch (std::system_error e) {
-            if (e.code() == asio::error::would_block) {
-                printf("Failed to send frame as the buffer was full...\n");
-            } else {
-                throw e;
-            }
-        }
+        auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
+                                                    reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
+                                                    static_cast<uint32_t>(depth_encoder_frame.size()));
+        auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
+        frame_packet_queue.enqueue(FramePacketSet(frame_id, std::move(packets)));
 
         last_time_stamp = time_stamp;
 
@@ -230,26 +238,16 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
             std::chrono::duration<double> main_summary_time_interval = std::chrono::steady_clock::now() - main_summary_start;
-            float packet_loss = 1.0f - send_summary_receiver_packet_count / (float)send_summary_packet_count;
             printf("Main Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
                    frame_id,
                    100 / main_summary_time_interval.count(),
                    main_summary_keyframe_count,
                    main_summary_frame_size_sum / (main_summary_time_interval.count() * 131072));
 
-            printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
-                   send_summary_receiver_frame_count / main_summary_time_interval.count(),
-                   packet_loss * 100.0f);
-
             main_summary_start = std::chrono::steady_clock::now();
             main_summary_keyframe_count = 0;
             main_summary_frame_size_sum = 0;
-
-            send_summary_receiver_frame_count = 0;
-            send_summary_packet_count = 0;
-            send_summary_receiver_packet_count = 0;
         }
-
         ++frame_id;
     }
     stop_sender_thread = true;
