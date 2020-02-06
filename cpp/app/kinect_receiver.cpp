@@ -14,6 +14,7 @@ void _receive_frames(std::string ip_address, int port)
 {
     asio::io_context io_context;
     Receiver receiver(io_context, 1024 * 1024);
+    //Receiver receiver(io_context, 64 * 1024);
     receiver.ping(ip_address, port);
 
     printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
@@ -29,9 +30,7 @@ void _receive_frames(std::string ip_address, int port)
     std::optional<int> server_session_id = std::nullopt;
 
     auto frame_start = std::chrono::steady_clock::now();
-    int summary_frame_count = 0;
-    int summary_keyframe_count = 0;
-
+    int packet_count = 0;
     for (;;) {
         auto packet_receive_start = std::chrono::steady_clock::now();
         std::vector<std::vector<uint8_t>> packets;
@@ -48,6 +47,7 @@ void _receive_frames(std::string ip_address, int port)
 
             packets.push_back(*receive_result);
         }
+        packet_count += packets.size();
 
         auto packet_collection_start = std::chrono::steady_clock::now();
         for (auto packet : packets) {
@@ -150,10 +150,12 @@ void _receive_frames(std::string ip_address, int port)
         std::chrono::steady_clock::duration packet_collection_time;
 
         auto decoder_start = std::chrono::steady_clock::now();
+        //printf("begin decode\n");
         for (int i = *begin_index; i < frame_messages.size(); ++i) {
             auto frame_message_ptr = &frame_messages[i];
 
             int frame_id = frame_message_ptr->frame_id();
+            //printf("frame id: %d\n", frame_id);
             bool keyframe = frame_message_ptr->keyframe();
 
             last_frame_id = frame_id;
@@ -168,10 +170,6 @@ void _receive_frames(std::string ip_address, int port)
 
             // Decompressing a RVL frame into depth pixels.
             depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
-
-            if (keyframe)
-                ++summary_keyframe_count;
-            ++summary_frame_count;
         }
         auto decoder_time = std::chrono::steady_clock::now() - decoder_start;
         auto frame_time = std::chrono::steady_clock::now() - frame_start;
@@ -180,10 +178,13 @@ void _receive_frames(std::string ip_address, int port)
         receiver.send(last_frame_id,
                       packet_collection_time.count() / 1000000.0f,
                       decoder_time.count() / 1000000.0f,
-                      frame_time.count() / 1000000.0f);
+                      frame_time.count() / 1000000.0f,
+                      packet_count);
+        packet_count = 0;
 
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
-        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()), depth_width, depth_height);
+        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()),
+                                                         depth_width, depth_height);
 
         // Rendering the depth pixels.
         cv::imshow("Color", color_mat);
@@ -208,8 +209,6 @@ void _receive_frames(std::string ip_address, int port)
         frame_messages = std::vector<FrameMessage>();
 
         auto receiver_end = std::chrono::steady_clock::now();
-
-        //printf("summary frame_count: %d, keyframe_count: %d\n", summary_frame_count, summary_keyframe_count);
 
         auto packet_receive_time = packet_collection_start - packet_receive_start;
         auto total_time = receiver_end - packet_receive_start;

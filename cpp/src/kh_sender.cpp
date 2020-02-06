@@ -79,15 +79,15 @@ void Sender::send(int session_id, k4a_calibration_t calibration)
     sendPacket(message);
 }
 
-void Sender::send(int session_id, int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
-                     uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
-{
-    auto message = createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
-    auto packets = splitFrameMessage(session_id, frame_id, message);
-    for (auto packet : packets) {
-        sendPacket(packet);
-    }
-}
+//void Sender::send(int session_id, int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
+//                     uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
+//{
+//    auto message = createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
+//    auto packets = splitFrameMessage(session_id, frame_id, message);
+//    for (auto packet : packets) {
+//        sendPacket(packet);
+//    }
+//}
 
 std::optional<std::vector<uint8_t>> Sender::receive()
 {

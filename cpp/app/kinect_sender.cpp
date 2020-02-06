@@ -24,7 +24,8 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
     const int INVALID_THRESHOLD = 2;
-    const int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
+    //const int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
+    const int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
@@ -70,6 +71,8 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     auto summary_start = std::chrono::steady_clock::now();
     size_t summary_frame_size_sum = 0;
     int summary_receiver_frame_count = 0;
+    int summary_packet_count = 0;
+    int summary_receiver_packet_count = 0;
     for (;;) {
         auto receive_result = sender.receive();
         if (receive_result) {
@@ -90,6 +93,10 @@ void _send_frames(int session_id, KinectDevice& device, int port)
 
             float frame_time_ms;
             memcpy(&frame_time_ms, receive_result->data() + cursor, 4);
+            cursor += 4;
+
+            int receiver_packet_count;
+            memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
 
             std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_start_times[receiver_frame_id];
 
@@ -107,6 +114,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
                 frame_start_times.erase(obsolete_frame_id);
 
             ++summary_receiver_frame_count;
+            summary_receiver_packet_count += receiver_packet_count;
         }
 
         frame_start_times[frame_id] = std::chrono::steady_clock::now();
@@ -152,9 +160,25 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
-        sender.send(session_id, frame_id, frame_time_stamp, keyframe, vp8_frame,
-                    reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
-                    static_cast<uint32_t>(depth_encoder_frame.size()));
+        try {
+            //sender.send(session_id, frame_id, frame_time_stamp, keyframe, vp8_frame,
+            //            reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
+            //            static_cast<uint32_t>(depth_encoder_frame.size()));
+            auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
+                                                      reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
+                                                      static_cast<uint32_t>(depth_encoder_frame.size()));
+            auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
+            for (auto packet : packets) {
+                sender.sendPacket(packet);
+                ++summary_packet_count;
+            }
+        } catch (std::system_error e) {
+            if (e.code() == asio::error::would_block) {
+                printf("Failed to send frame as the buffer was full...\n");
+            } else {
+                throw e;
+            }
+        }
 
         last_time_stamp = time_stamp;
 
@@ -166,14 +190,18 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
             std::chrono::duration<double> summary_time_interval = std::chrono::steady_clock::now() - summary_start;
-            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps, Receiver FPS: %lf\n",
+            float packet_loss = 1.0f - summary_receiver_packet_count / (float)summary_packet_count;
+            printf("Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps, Receiver FPS: %lf, Packet Loss: %f%%\n",
                    frame_id, 100 / summary_time_interval.count(), summary_keyframe_count,
                    summary_frame_size_sum / (summary_time_interval.count() * 131072),
-                   summary_receiver_frame_count / summary_time_interval.count());
+                   summary_receiver_frame_count / summary_time_interval.count(),
+                   packet_loss * 100.0f);
             summary_start = std::chrono::steady_clock::now();
             summary_keyframe_count = 0;
             summary_frame_size_sum = 0;
             summary_receiver_frame_count = 0;
+            summary_packet_count = 0;
+            summary_receiver_packet_count = 0;
         }
 
         ++frame_id;

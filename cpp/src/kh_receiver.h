@@ -12,7 +12,7 @@ public:
     void ping(std::string ip_address, int port);
     std::optional<std::vector<uint8_t>> receive();
     void send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
-              float frame_time_ms);
+              float frame_time_ms, int packet_count);
 
 private:
     asio::ip::udp::socket socket_;
