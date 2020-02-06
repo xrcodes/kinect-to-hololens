@@ -33,7 +33,7 @@ void _receive_frames(std::string ip_address, int port)
     auto frame_start = std::chrono::steady_clock::now();
     int summary_packet_count = 0;
     for (;;) {
-        auto packet_receive_start = std::chrono::steady_clock::now();
+        //auto packet_receive_start = std::chrono::steady_clock::now();
         std::vector<std::vector<uint8_t>> packets;
         for (;;) {
             auto receive_result = receiver.receive();
@@ -53,7 +53,7 @@ void _receive_frames(std::string ip_address, int port)
 
         summary_packet_count += packets.size();
 
-        auto packet_collection_start = std::chrono::steady_clock::now();
+        //auto packet_collection_start = std::chrono::steady_clock::now();
         for (auto& packet : packets) {
             int cursor = 0;
             int session_id;
@@ -108,13 +108,13 @@ void _receive_frames(std::string ip_address, int port)
         }
 
         //printf("Collection Status:\n");
-        for (auto collection_pair : frame_packet_collections) {
-            int frame_id = collection_pair.first;
-            auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
-            auto total_packet_count = collection_pair.second.packet_count();
-            //printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-            //       collected_packet_count, total_packet_count);
-        }
+        //for (auto collection_pair : frame_packet_collections) {
+        //    int frame_id = collection_pair.first;
+        //    auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
+        //    auto total_packet_count = collection_pair.second.packet_count();
+        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+        //           collected_packet_count, total_packet_count);
+        //}
 
         // Find all full collections and their frame_ids.
         std::vector<int> full_frame_ids;
@@ -210,10 +210,9 @@ void _receive_frames(std::string ip_address, int port)
             break;
 
         // Clean up frame_packet_collections.
-        int end_frame_id = frame_messages[frame_messages.size() - 1].frame_id();
         std::vector<int> obsolete_frame_ids;
         for (auto& collection_pair : frame_packet_collections) {
-            if (collection_pair.first <= end_frame_id) {
+            if (collection_pair.first <= last_frame_id) {
                 obsolete_frame_ids.push_back(collection_pair.first);
             }
         }
@@ -224,11 +223,6 @@ void _receive_frames(std::string ip_address, int port)
 
         // Reset frame_messages after they are displayed.
         frame_messages = std::vector<FrameMessage>();
-
-        auto receiver_end = std::chrono::steady_clock::now();
-
-        auto packet_receive_time = packet_collection_start - packet_receive_start;
-        auto total_time = receiver_end - packet_receive_start;
     }
 }
 
