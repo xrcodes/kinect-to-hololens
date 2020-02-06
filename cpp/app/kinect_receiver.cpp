@@ -12,9 +12,10 @@ namespace kh
 {
 void _receive_frames(std::string ip_address, int port)
 {
+    const int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
+    //const int RECEIVER_RECEIVE_BUFFER_SIZE = 64 * 1024;
     asio::io_context io_context;
-    Receiver receiver(io_context, 1024 * 1024);
-    //Receiver receiver(io_context, 64 * 1024);
+    Receiver receiver(io_context, RECEIVER_RECEIVE_BUFFER_SIZE);
     receiver.ping(ip_address, port);
 
     printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
@@ -41,7 +42,7 @@ void _receive_frames(std::string ip_address, int port)
             }
 
             // Simulate packet loss
-            //if (rand() % 200 == 0) {
+            //if (rand() % 100 == 0) {
             //    continue;
             //}
 
@@ -53,7 +54,7 @@ void _receive_frames(std::string ip_address, int port)
         packet_count += packets.size();
 
         auto packet_collection_start = std::chrono::steady_clock::now();
-        for (auto packet : packets) {
+        for (auto& packet : packets) {
             int cursor = 0;
             int session_id;
             memcpy(&session_id, packet.data() + cursor, 4);
@@ -106,18 +107,18 @@ void _receive_frames(std::string ip_address, int port)
             }
         }
 
-        printf("Collection Status:\n");
+        //printf("Collection Status:\n");
         for (auto collection_pair : frame_packet_collections) {
             int frame_id = collection_pair.first;
             auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
             auto total_packet_count = collection_pair.second.packet_count();
-            printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-                   collected_packet_count, total_packet_count);
+            //printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+            //       collected_packet_count, total_packet_count);
         }
 
         // Find all full collections and their frame_ids.
         std::vector<int> full_frame_ids;
-        for (auto collection_pair : frame_packet_collections) {
+        for (auto& collection_pair : frame_packet_collections) {
             if (collection_pair.second.isFull()) {
                 int frame_id = collection_pair.first;
                 full_frame_ids.push_back(frame_id);
@@ -137,7 +138,7 @@ void _receive_frames(std::string ip_address, int port)
         if (frame_messages.empty())
             continue;
 
-        for (auto frame_message : frame_messages) {
+        for (auto& frame_message : frame_messages) {
             printf("frame_message: %d\n", frame_message.frame_id());
         }
 
@@ -211,7 +212,7 @@ void _receive_frames(std::string ip_address, int port)
         // Clean up frame_packet_collections.
         int end_frame_id = frame_messages[frame_messages.size() - 1].frame_id();
         std::vector<int> obsolete_frame_ids;
-        for (auto collection_pair : frame_packet_collections) {
+        for (auto& collection_pair : frame_packet_collections) {
             if (collection_pair.first <= end_frame_id) {
                 obsolete_frame_ids.push_back(collection_pair.first);
             }

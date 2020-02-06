@@ -15,7 +15,7 @@ For installing the HoloLens application, see https://docs.microsoft.com/en-us/ho
 1. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens
 3. Using vcpkg, install these libraries: asio, ffmpeg, libvpx, and opencv.
 ```powershell
-.\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows libvpx:x86-windows libvpx:x64-windows opencv:x86-windows opencv:x64-windows
+.\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows libvpx:x86-windows libvpx:x64-windows opencv:x86-windows opencv:x64-windows readerwriterqueue:x86-windows readerwriterqueue:x64-windows
 ```
 4. Install Kinect for Azure Kinect Sensor SDK 1.3.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download).
 - Not through vcpkg since, currently, vcpkg does not support azure-kinect-sensor-sdk as a static library (i.e. x64-windows-static).

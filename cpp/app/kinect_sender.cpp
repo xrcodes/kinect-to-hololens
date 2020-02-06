@@ -1,6 +1,7 @@
 #include <chrono>
 #include <iostream>
 #include <random>
+#include "readerwriterqueue/readerwriterqueue.h"
 #include "helper/kinect_helper.h"
 #include "kh_sender.h"
 #include "kh_trvl.h"
@@ -18,6 +19,21 @@ int pow_of_two(int exp) {
     return res;
 }
 
+void run_sender_thread(bool& stop_sender_thread,
+                       Sender& sender,
+                       moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& packet_queue,
+                       int& test)
+{
+    printf("test: %d\n", test);
+    std::vector<uint8_t> packet;
+    while (!stop_sender_thread) {
+        while (packet_queue.try_dequeue(packet)) {
+            sender.sendPacket(packet);
+        }
+    }
+    printf("run_sender_thread end\n");
+}
+
 // Sends Azure Kinect frames through a TCP port.
 void _send_frames(int session_id, KinectDevice& device, int port)
 {
@@ -26,7 +42,6 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     const int INVALID_THRESHOLD = 2;
     const int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
     //const int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
-    const int FRAME_SEND_REDUNDANCY = 2;
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
@@ -59,6 +74,11 @@ void _send_frames(int session_id, KinectDevice& device, int port)
     Sender sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
     sender.send(session_id, calibration);
 
+    bool stop_sender_thread = false;
+    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> packet_queue;
+    int test = 1023;
+    std::thread sender_thread(run_sender_thread, std::ref(stop_sender_thread), std::ref(sender), std::ref(packet_queue), std::ref(test));
+    
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
@@ -169,11 +189,10 @@ void _send_frames(int session_id, KinectDevice& device, int port)
                                                       reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
                                                       static_cast<uint32_t>(depth_encoder_frame.size()));
             auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
-            for (int i = 0; i < FRAME_SEND_REDUNDANCY; ++i) {
-                for (auto packet : packets) {
-                    sender.sendPacket(packet);
-                    ++summary_packet_count;
-                }
+            for (auto& packet : packets) {
+                //sender.sendPacket(packet);
+                packet_queue.enqueue(std::move(packet));
+                ++summary_packet_count;
             }
         } catch (std::system_error e) {
             if (e.code() == asio::error::would_block) {
@@ -188,7 +207,7 @@ void _send_frames(int session_id, KinectDevice& device, int port)
         // Updating variables for profiling.
         if (keyframe)
             ++summary_keyframe_count;
-        summary_frame_size_sum += (vp8_frame.size() + depth_encoder_frame.size()) * FRAME_SEND_REDUNDANCY;
+        summary_frame_size_sum += (vp8_frame.size() + depth_encoder_frame.size());
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
@@ -209,6 +228,8 @@ void _send_frames(int session_id, KinectDevice& device, int port)
 
         ++frame_id;
     }
+    stop_sender_thread = true;
+    sender_thread.join();
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.
