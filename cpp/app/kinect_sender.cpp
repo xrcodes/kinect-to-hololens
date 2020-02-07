@@ -44,7 +44,7 @@ void run_sender_thread(bool& stop_sender_thread,
                        int& receiver_frame_id)
 {
     std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_send_times;
-    FramePacketSet frame_packet_set;
+    std::unordered_map<int, FramePacketSet> frame_packet_sets;
     int last_receiver_frame_id = 0;
     auto send_summary_start = std::chrono::steady_clock::now();
     int send_summary_receiver_frame_count = 0;
@@ -57,43 +57,70 @@ void run_sender_thread(bool& stop_sender_thread,
             uint8_t message_type = (*receive_result)[cursor];
             cursor += 1;
 
-            memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
-            cursor += 4;
+            if (message_type == 1) {
+                memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
+                cursor += 4;
 
-            float packet_collection_time_ms;
-            memcpy(&packet_collection_time_ms, receive_result->data() + cursor, 4);
-            cursor += 4;
+                float packet_collection_time_ms;
+                memcpy(&packet_collection_time_ms, receive_result->data() + cursor, 4);
+                cursor += 4;
 
-            float decoder_time_ms;
-            memcpy(&decoder_time_ms, receive_result->data() + cursor, 4);
-            cursor += 4;
+                float decoder_time_ms;
+                memcpy(&decoder_time_ms, receive_result->data() + cursor, 4);
+                cursor += 4;
 
-            float frame_time_ms;
-            memcpy(&frame_time_ms, receive_result->data() + cursor, 4);
-            cursor += 4;
+                float frame_time_ms;
+                memcpy(&frame_time_ms, receive_result->data() + cursor, 4);
+                cursor += 4;
 
-            int receiver_packet_count;
-            memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
+                int receiver_packet_count;
+                memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
 
-            std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_send_times[receiver_frame_id];
+                std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_send_times[receiver_frame_id];
 
-            printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
-                   receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
-                   round_trip_time.count() * 1000.0f);
+                printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
+                       receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
+                       round_trip_time.count() * 1000.0f);
 
-            std::vector<int> obsolete_frame_ids;
-            for (auto frame_send_time_pair : frame_send_times) {
-                if (frame_send_time_pair.first <= receiver_frame_id)
-                    obsolete_frame_ids.push_back(frame_send_time_pair.first);
+                std::vector<int> obsolete_frame_ids;
+                for (auto& frame_send_time_pair : frame_send_times) {
+                    if (frame_send_time_pair.first <= receiver_frame_id)
+                        obsolete_frame_ids.push_back(frame_send_time_pair.first);
+                }
+
+                for (int obsolete_frame_id : obsolete_frame_ids)
+                    frame_send_times.erase(obsolete_frame_id);
+
+                ++send_summary_receiver_frame_count;
+                send_summary_receiver_packet_count += receiver_packet_count;
+            } else if (message_type == 2) {
+                int requested_frame_id;
+                memcpy(&requested_frame_id, receive_result->data() + cursor, 4);
+                cursor += 4;
+                
+                int missing_packet_count;
+                memcpy(&missing_packet_count, receive_result->data() + cursor, 4);
+                cursor += 4;
+                
+                //std::vector<int> missing_packet_ids;
+                for (int i = 0; i < missing_packet_count; ++i) {
+                    //printf("filling up frame: %d, packet: %d\n", requested_frame_id, missing_packet_count);
+                    int missing_packet_id;
+                    memcpy(&missing_packet_id, receive_result->data() + cursor, 4);
+                    cursor += 4;
+
+                    //missing_packet_ids.push_back(missing_packet_id);
+                    auto it = frame_packet_sets.find(requested_frame_id);
+                    if (it == frame_packet_sets.end())
+                        continue;
+
+                    sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_id]);
+                    //printf("filled up\n");
+                }
             }
-
-            for (int obsolete_frame_id : obsolete_frame_ids)
-                frame_send_times.erase(obsolete_frame_id);
-
-            ++send_summary_receiver_frame_count;
-            send_summary_receiver_packet_count += receiver_packet_count;
         }
 
+        FramePacketSet frame_packet_set;
         while (frame_packet_queue.try_dequeue(frame_packet_set)) {
             frame_send_times[frame_packet_set.frame_id()] = std::chrono::steady_clock::now();
             for (auto packet : frame_packet_set.packets()) {
@@ -108,7 +135,19 @@ void run_sender_thread(bool& stop_sender_thread,
                     }
                 }
             }
+            frame_packet_sets[frame_packet_set.frame_id()] = std::move(frame_packet_set);
         }
+
+        // Remove elements of frame_packet_sets reserved for filling up missing packets
+        // if they are already used from the receiver side.
+        std::vector<int> obsolete_frame_ids;
+        for (auto& frame_packet_set_pair : frame_packet_sets) {
+            if (frame_packet_set_pair.first <= receiver_frame_id)
+                obsolete_frame_ids.push_back(frame_packet_set_pair.first);
+        }
+
+        for (int obsolete_frame_id : obsolete_frame_ids)
+            frame_packet_sets.erase(obsolete_frame_id);
 
         if ((receiver_frame_id / 100) > (last_receiver_frame_id / 100)) {
             std::chrono::duration<double> send_summary_time_interval = std::chrono::steady_clock::now() - send_summary_start;

@@ -50,4 +50,26 @@ void Receiver::send(int frame_id, float packet_collection_time_ms, float decoder
     memcpy(packet.data() + 17, &packet_count, 4);
     socket_.send_to(asio::buffer(packet), remote_endpoint_);
 }
+
+void Receiver::send(int frame_id, const std::vector<int>& missing_packet_ids)
+{
+    std::vector<uint8_t> packet(1 + 4 + 4 + 4 * missing_packet_ids.size());
+    int cursor = 0;
+    packet[cursor] = 2;
+    cursor += 1;
+
+    memcpy(packet.data() + cursor, &frame_id, 4);
+    cursor += 4;
+    
+    int missing_packet_count = missing_packet_ids.size();
+    memcpy(packet.data() + cursor, &missing_packet_count, 4);
+    cursor += 4;
+
+    for (int i = 0; i < missing_packet_ids.size(); ++i) {
+        memcpy(packet.data() + cursor, &missing_packet_ids[i], 4);
+        cursor += 4;
+    }
+
+    socket_.send_to(asio::buffer(packet), remote_endpoint_);
+}
 }

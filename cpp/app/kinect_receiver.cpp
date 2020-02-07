@@ -29,11 +29,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
                 break;
             }
 
-            // Simulate packet loss
-            if (rand() % 100 == 0) {
-                continue;
-            }
-
             int session_id;
             memcpy(&session_id, packet->data(), 4);
             uint8_t packet_type = (*packet)[4];
@@ -69,8 +64,16 @@ void run_receiver_thread(bool& stop_receiver_thread,
             cursor += 4;
 
             auto it = frame_packet_collections.find(frame_id);
-            if (it == frame_packet_collections.end())
+            if (it == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+
+                for (auto& collection_pair : frame_packet_collections) {
+                    if (collection_pair.first < frame_id) {
+                        auto missing_packet_ids = collection_pair.second.getMissingPacketIds();
+                        receiver.send(collection_pair.first, missing_packet_ids);
+                    }
+                }
+            }
 
             frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet));
         }
@@ -91,16 +94,16 @@ void run_receiver_thread(bool& stop_receiver_thread,
             frame_packet_collections.erase(full_frame_id);
         }
 
-        if(!frame_packet_collections.empty())
-            printf("Collection Status:\n");
+        //if(!frame_packet_collections.empty())
+        //    printf("Collection Status:\n");
 
-        for (auto collection_pair : frame_packet_collections) {
-            int frame_id = collection_pair.first;
-            auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
-            auto total_packet_count = collection_pair.second.packet_count();
-            printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-                   collected_packet_count, total_packet_count);
-        }
+        //for (auto collection_pair : frame_packet_collections) {
+        //    int frame_id = collection_pair.first;
+        //    auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
+        //    auto total_packet_count = collection_pair.second.packet_count();
+        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+        //           collected_packet_count, total_packet_count);
+        //}
 
         // Clean up frame_packet_collections.
         std::vector<int> obsolete_frame_ids;

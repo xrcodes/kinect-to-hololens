@@ -49,4 +49,14 @@ int FramePacketCollection::getCollectedPacketCount() {
 
     return count;
 }
+
+std::vector<int> FramePacketCollection::getMissingPacketIds()
+{
+    std::vector<int> missing_packet_ids;
+    for (int i = 0; i < packets_.size(); ++i) {
+        if (packets_[i].empty())
+            missing_packet_ids.push_back(i);
+    }
+    return missing_packet_ids;
+}
 }
