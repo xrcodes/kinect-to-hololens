@@ -8,6 +8,38 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.XR.WSA.Input;
 
+class XorPacketCollection
+{
+    public int FrameId { get; private set; }
+    public int PacketCount { get; private set; }
+    private byte[][] packets;
+    public XorPacketCollection(int frameId, int packetCount)
+    {
+        FrameId = frameId;
+        PacketCount = packetCount;
+        packets = new byte[packetCount][];
+        for (int i = 0; i < packetCount; ++i)
+        {
+            packets[i] = new byte[0];
+        }
+    }
+
+    public void AddPacket(int packetIndex, byte[] packet)
+    {
+        packets[packetIndex] = packet;
+    }
+
+    public byte[] TryGetPacket(int packetIndex)
+    {
+        if(packets[packetIndex].Length == 0)
+        {
+            return null;
+        }
+
+        return packets[packetIndex];
+    }
+};
+
 public class KinectToHololensManager : MonoBehaviour
 {
     private enum InputState
@@ -375,65 +407,198 @@ public class KinectToHololensManager : MonoBehaviour
 
     private void RunReceiverThread()
     {
+        const int XOR_MAX_GROUP_SIZE = 5;
+
         int? senderSessionId = null;
         var framePacketCollections = new Dictionary<int, FramePacketCollection>();
+        var xorPacketCollections = new Dictionary<int, XorPacketCollection>();
         print("Start Receiver Thread");
         while (!stopReceiverThread)
         {
             var framePackets = new List<byte[]>();
+            var xorPackets = new List<byte[]>();
             while (true)
             {
                 var packet = receiver.Receive();
                 if (packet == null)
                     break;
 
+                ++summaryPacketCount;
+
                 int sessionId = BitConverter.ToInt32(packet, 0);
                 var packetType = packet[4];
 
-                if(packetType == 0)
+                if (packetType == 0)
                 {
                     senderSessionId = sessionId;
                     initPacketQueue.Enqueue(packet);
                 }
-                else if(packetType == 1)
-                {
-                    if(!senderSessionId.HasValue || sessionId != senderSessionId.Value)
-                        continue;
 
+                if (!senderSessionId.HasValue || sessionId != senderSessionId.Value)
+                    continue;
+
+                if (packetType == 1)
+                {
                     framePackets.Add(packet);
                 }
-                ++summaryPacketCount;
+                else if (packetType == 2)
+                {
+                    xorPackets.Add(packet);
+                }
             }
 
-            foreach (var framePacket in framePackets)
+            // The logic for XOR FEC packets are almost the same to frame packets.
+            // The operations for XOR FEC packets should happen before the frame packets
+            // so that frame packet can be created with XOR FEC packets when a missing
+            // frame packet is detected.
+            foreach (var xorPacket in xorPackets)
             {
                 int cursor = 5;
 
-                int frameId = BitConverter.ToInt32(framePacket, cursor);
+                int frameId = BitConverter.ToInt32(xorPacket, cursor);
                 cursor += 4;
 
                 if (frameId <= lastFrameId)
                     continue;
 
-                int packetIndex = BitConverter.ToInt32(framePacket, cursor);
+                int packetIndex = BitConverter.ToInt32(xorPacket, cursor);
                 cursor += 4;
 
-                int packetCount = BitConverter.ToInt32(framePacket, cursor);
-                cursor += 4;
+                int packetCount = BitConverter.ToInt32(xorPacket, cursor);
+                //cursor += 4;
+
+                if (!xorPacketCollections.ContainsKey(frameId))
+                {
+                    xorPacketCollections[frameId] = new XorPacketCollection(frameId, packetCount);
+                }
+
+                xorPacketCollections[frameId].AddPacket(packetIndex, xorPacket);
+            }
+
+            foreach (var framePacket in framePackets)
+            {
+                // Rewrote with out using cursor since it causes a conflict with another cursor
+                // below used for frame packet creation in foward error correction.
+                //int cursor = 5;
+
+                //int frameId = BitConverter.ToInt32(framePacket, cursor);
+                //cursor += 4;
+
+                //if (frameId <= lastFrameId)
+                //    continue;
+
+                //int packetIndex = BitConverter.ToInt32(framePacket, cursor);
+                //cursor += 4;
+
+                //int packetCount = BitConverter.ToInt32(framePacket, cursor);
+                //cursor += 4;
+
+                int frameId = BitConverter.ToInt32(framePacket, 5);
+
+                if (frameId <= lastFrameId)
+                    continue;
+
+                int packetIndex = BitConverter.ToInt32(framePacket, 9);
+                int packetCount = BitConverter.ToInt32(framePacket, 13);
 
                 if (!framePacketCollections.ContainsKey(frameId))
                 {
                     framePacketCollections[frameId] = new FramePacketCollection(frameId, packetCount);
 
+                    ///////////////////////////////////
+                    // Forward Error Correction Start//
+                    ///////////////////////////////////
                     // Request missing packets of the previous frames.
                     foreach (var collectionPair in framePacketCollections)
                     {
                         if(collectionPair.Key < frameId)
                         {
-                            var missingPacketIds = collectionPair.Value.GetMissingPacketIds();
-                            receiver.Send(collectionPair.Key, missingPacketIds);
+                            int missingFrameId = collectionPair.Key;
+                            var missingPacketIndices = collectionPair.Value.GetMissingPacketIds();
+
+                            // Try correction using XOR FEC packets.
+                            var fecFailedPacketIndices = new List<int>();
+
+                            // missing_packet_index cannot get error corrected if there is another missing_packet_index
+                            // that belongs to the same XOR FEC packet...
+                            foreach (int i in missingPacketIndices)
+                            {
+                                foreach(int j in missingPacketIndices)
+                                {
+                                    if (i == j)
+                                        continue;
+
+                                    if((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
+                                        fecFailedPacketIndices.Add(i);
+                                }
+                            }
+
+                            foreach (int missingPacketIndex in missingPacketIndices)
+                            {
+                                // If fec_failed_packet_indices already contains missing_packet_index, skip.
+                                if (fecFailedPacketIndices.Contains(missingPacketIndex))
+                                {
+                                    continue;
+                                }
+
+                                // Try getting the XOR FEC packet for correction.
+                                int xorPacketIndex = missingPacketIndex / XOR_MAX_GROUP_SIZE;
+                                var xorPacket = xorPacketCollections[missingFrameId].TryGetPacket(xorPacketIndex);
+                                // Give up if there is no xor packet yet.
+                                if (xorPacket == null)
+                                {
+                                    fecFailedPacketIndices.Add(missingPacketIndex);
+                                    continue;
+                                }
+
+                                const int PACKET_SIZE = 1500;
+                                const int PACKET_HEADER_SIZE = 17;
+                                const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
+                                byte[] fecFramePacket = new byte[PACKET_SIZE];
+
+                                byte packetType = 1;
+                                int cursor = 0;
+                                Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId.Value), 0, fecFramePacket, cursor, 4);
+                                cursor += 4;
+
+                                fecFramePacket[cursor] = packetType;
+                                cursor += 1;
+
+                                Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, cursor, 4);
+                                cursor += 4;
+
+                                Buffer.BlockCopy(BitConverter.GetBytes(packetIndex), 0, fecFramePacket, cursor, 4);
+                                cursor += 4;
+
+                                Buffer.BlockCopy(BitConverter.GetBytes(packetCount), 0, fecFramePacket, cursor, 4);
+                                cursor += 4;
+
+                                Buffer.BlockCopy(xorPacket, cursor, fecFramePacket, cursor, MAX_PACKET_CONTENT_SIZE);
+
+                                int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;
+                                int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.PacketCount);
+
+                                // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
+                                for (int i = beginFramePacketIndex; i < endFramePacketIndex; ++i)
+                                {
+                                    if (i == missingPacketIndex)
+                                        continue;
+
+                                    for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j)
+                                        fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
+                                }
+
+                                //print($"restored {missingFrameId} {missingPacketIndex}");
+                                framePacketCollections[missingFrameId].AddPacket(missingPacketIndex, fecFramePacket);
+                            } // end of foreach (int missingPacketIndex in missingPacketIndices)
+
+                            //foreach (int fecFailedPacketIndex in fecFailedPacketIndices)
+                            //{
+                            //    print($"request {missingFrameId} {fecFailedPacketIndex}");
+                            //}
+                            receiver.Send(collectionPair.Key, fecFailedPacketIndices);
                         }
-                    }
+                    } // Forward Error Correction End
                 }
 
                 framePacketCollections[frameId].AddPacket(packetIndex, framePacket);

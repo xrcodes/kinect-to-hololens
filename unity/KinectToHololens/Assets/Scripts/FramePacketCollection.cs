@@ -6,17 +6,17 @@ class FramePacketCollection
 {
     public int FrameId { get; private set; }
     public int PacketCount { get; private set; }
-    private byte[][] packets;
+    public byte[][] Packets { get; private set; }
     private Stopwatch stopWatch;
 
     public FramePacketCollection(int frameId, int packetCount)
     {
         FrameId = frameId;
         PacketCount = packetCount;
-        packets = new byte[packetCount][];
+        Packets = new byte[packetCount][];
         for (int i = 0; i < packetCount; ++i)
         {
-            packets[i] = new byte[0];
+            Packets[i] = new byte[0];
         }
 
         stopWatch = Stopwatch.StartNew();
@@ -24,12 +24,12 @@ class FramePacketCollection
 
     public void AddPacket(int packetIndex, byte[] packet)
     {
-        packets[packetIndex] = packet;
+        Packets[packetIndex] = packet;
     }
 
     public bool IsFull()
     {
-        foreach (var packet in packets)
+        foreach (var packet in Packets)
         {
             if (packet.Length == 0)
                 return false;
@@ -42,16 +42,16 @@ class FramePacketCollection
     {
         const int HEADER_SIZE = 17;
         int messageSize = 0;
-        foreach (var packet in packets)
+        foreach (var packet in Packets)
         {
             messageSize += packet.Length - HEADER_SIZE;
         }
 
         byte[] message = new byte[messageSize];
-        for (int i = 0; i < packets.Length; ++i)
+        for (int i = 0; i < Packets.Length; ++i)
         {
             int cursor = (1500 - HEADER_SIZE) * i;
-            Array.Copy(packets[i], HEADER_SIZE, message, cursor, packets[i].Length - HEADER_SIZE);
+            Array.Copy(Packets[i], HEADER_SIZE, message, cursor, Packets[i].Length - HEADER_SIZE);
         }
 
         stopWatch.Stop();
@@ -61,9 +61,9 @@ class FramePacketCollection
     public List<int> GetMissingPacketIds()
     {
         var missingPacketIds = new List<int>();
-        for(int i = 0; i < packets.Length; ++i)
+        for(int i = 0; i < Packets.Length; ++i)
         {
-            if(packets[i].Length == 0)
+            if(Packets[i].Length == 0)
             {
                 missingPacketIds.Add(i);
             }

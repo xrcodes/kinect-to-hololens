@@ -292,7 +292,8 @@ void send_frames(int session_id, KinectDevice& device, int port)
             continue;
         }
 
-        bool keyframe = frame_id_diff > 4;
+        //bool keyframe = frame_id_diff > 4;
+        bool keyframe = frame_id_diff > 5;
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
 

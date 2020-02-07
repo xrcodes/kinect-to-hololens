@@ -67,6 +67,8 @@ void run_receiver_thread(bool& stop_receiver_thread,
                 break;
             }
 
+            ++summary_packet_count;
+
             int session_id;
             memcpy(&session_id, packet->data(), 4);
             uint8_t packet_type = (*packet)[4];
@@ -85,7 +87,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
                 xor_packets.push_back(std::move(*packet));
             }
 
-            ++summary_packet_count;
         }
 
         // The logic for XOR FEC packets are almost the same to frame packets.
@@ -158,10 +159,9 @@ void run_receiver_thread(bool& stop_receiver_thread,
                             for (int j : missing_packet_indices) {
                                 if (i == j)
                                     continue;
-                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE)) {
+
+                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
                                     fec_failed_packet_indices.push_back(i);
-                                    continue;
-                                }
                             }
                         }
 
@@ -210,13 +210,11 @@ void run_receiver_thread(bool& stop_receiver_thread,
                             int end_frame_packet_index = int_min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE, collection_pair.second.packet_count());
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                             for (int i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
-                                if (i == missing_packet_index) {
+                                if (i == missing_packet_index)
                                     continue;
-                                }
 
-                                for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j) {
+                                for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j)
                                     fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
-                                }
                             }
 
                             auto fec_time = std::chrono::steady_clock::now() - fec_start;
