@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 class FramePacketCollection
@@ -55,5 +56,18 @@ class FramePacketCollection
 
         stopWatch.Stop();
         return FrameMessage.Create(FrameId, message, stopWatch.Elapsed);
+    }
+
+    public List<int> GetMissingPacketIds()
+    {
+        var missingPacketIds = new List<int>();
+        for(int i = 0; i < packets.Length; ++i)
+        {
+            if(packets[i].Length == 0)
+            {
+                missingPacketIds.Add(i);
+            }
+        }
+        return missingPacketIds;
     }
 };

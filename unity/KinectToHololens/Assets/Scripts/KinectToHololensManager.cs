@@ -421,8 +421,20 @@ public class KinectToHololensManager : MonoBehaviour
                 int packetCount = BitConverter.ToInt32(framePacket, cursor);
                 cursor += 4;
 
-                if(!framePacketCollections.ContainsKey(frameId))
+                if (!framePacketCollections.ContainsKey(frameId))
+                {
                     framePacketCollections[frameId] = new FramePacketCollection(frameId, packetCount);
+
+                    // Request missing packets of the previous frames.
+                    foreach (var collectionPair in framePacketCollections)
+                    {
+                        if(collectionPair.Key < frameId)
+                        {
+                            var missingPacketIds = collectionPair.Value.GetMissingPacketIds();
+                            receiver.Send(collectionPair.Key, missingPacketIds);
+                        }
+                    }
+                }
 
                 framePacketCollections[frameId].AddPacket(packetIndex, framePacket);
             }

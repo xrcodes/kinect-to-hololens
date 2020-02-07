@@ -67,6 +67,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
             if (it == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
 
+                // Request missing packets of the previous frames.
                 for (auto& collection_pair : frame_packet_collections) {
                     if (collection_pair.first < frame_id) {
                         auto missing_packet_ids = collection_pair.second.getMissingPacketIds();

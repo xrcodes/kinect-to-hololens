@@ -102,9 +102,7 @@ void run_sender_thread(bool& stop_sender_thread,
                 memcpy(&missing_packet_count, receive_result->data() + cursor, 4);
                 cursor += 4;
                 
-                //std::vector<int> missing_packet_ids;
                 for (int i = 0; i < missing_packet_count; ++i) {
-                    //printf("filling up frame: %d, packet: %d\n", requested_frame_id, missing_packet_count);
                     int missing_packet_id;
                     memcpy(&missing_packet_id, receive_result->data() + cursor, 4);
                     cursor += 4;
@@ -115,7 +113,7 @@ void run_sender_thread(bool& stop_sender_thread,
                         continue;
 
                     sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_id]);
-                    //printf("filled up\n");
+                    ++send_summary_packet_count;
                 }
             }
         }

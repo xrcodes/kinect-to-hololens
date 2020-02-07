@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -28,7 +29,7 @@ public class Receiver
         Port = port;
 
         var bytes = new byte[1];
-        bytes[0] = 1;
+        bytes[0] = 0;
         socket.SendTo(bytes, address, port);
     }
 
@@ -69,12 +70,25 @@ public class Receiver
     public void Send(int frameId, float packetCollectionMs, float decoderMs, float frameMs, int packetCount)
     {
         var ms = new MemoryStream();
-        ms.WriteByte(0);
+        ms.WriteByte(1);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         ms.Write(BitConverter.GetBytes(packetCollectionMs), 0, 4);
         ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
         ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
         ms.Write(BitConverter.GetBytes(packetCount), 0, 4);
+        socket.SendTo(ms.ToArray(), Address, Port);
+    }
+
+    public void Send(int frameId, List<int> missingPacketIds)
+    {
+        var ms = new MemoryStream();
+        ms.WriteByte(2);
+        ms.Write(BitConverter.GetBytes(frameId), 0, 4);
+        ms.Write(BitConverter.GetBytes(missingPacketIds.Count), 0, 4);
+        foreach(int missingPacketId in missingPacketIds)
+        {
+            ms.Write(BitConverter.GetBytes(missingPacketId), 0, 4);
+        }
         socket.SendTo(ms.ToArray(), Address, Port);
     }
 }
