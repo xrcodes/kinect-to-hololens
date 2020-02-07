@@ -38,11 +38,14 @@ int pow_of_two(int exp) {
     return res;
 }
 
-void run_sender_thread(bool& stop_sender_thread,
+void run_sender_thread(int session_id,
+                       bool& stop_sender_thread,
                        Sender& sender,
                        moodycamel::ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
                        int& receiver_frame_id)
 {
+    const int XOR_MAX_GROUP_SIZE = 10;
+
     std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_send_times;
     std::unordered_map<int, FramePacketSet> frame_packet_sets;
     int last_receiver_frame_id = 0;
@@ -112,14 +115,24 @@ void run_sender_thread(bool& stop_sender_thread,
                     if (it == frame_packet_sets.end())
                         continue;
 
-                    sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_id]);
-                    ++send_summary_packet_count;
+                    try {
+                        sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_id]);
+                        ++send_summary_packet_count;
+                    } catch (std::system_error e) {
+                        if (e.code() == asio::error::would_block) {
+                            printf("Failed to fill in a packet as the buffer was full...\n");
+                        } else {
+                            throw e;
+                        }
+                    }
                 }
             }
         }
 
         FramePacketSet frame_packet_set;
         while (frame_packet_queue.try_dequeue(frame_packet_set)) {
+            auto xor_packets = Sender::createXorPackets(session_id, frame_packet_set.frame_id(), frame_packet_set.packets(), XOR_MAX_GROUP_SIZE);
+
             frame_send_times[frame_packet_set.frame_id()] = std::chrono::steady_clock::now();
             for (auto packet : frame_packet_set.packets()) {
                 try {
@@ -127,7 +140,20 @@ void run_sender_thread(bool& stop_sender_thread,
                     ++send_summary_packet_count;
                 } catch (std::system_error e) {
                     if (e.code() == asio::error::would_block) {
-                        printf("Failed to send frame as the buffer was full...\n");
+                        printf("Failed to send a frame packet as the buffer was full...\n");
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+
+            for (auto packet : xor_packets) {
+                try {
+                    sender.sendPacket(packet);
+                    ++send_summary_packet_count;
+                } catch (std::system_error e) {
+                    if (e.code() == asio::error::would_block) {
+                        printf("Failed to send an xor packet as the buffer was full...\n");
                     } else {
                         throw e;
                     }
@@ -200,13 +226,13 @@ void send_frames(int session_id, KinectDevice& device, int port)
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
     Sender sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
-    sender.send(session_id, calibration);
+    sender.sendInitPacket(session_id, calibration);
 
     bool stop_sender_thread = false;
     moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id = 0;
-    std::thread sender_thread(run_sender_thread, std::ref(stop_sender_thread), std::ref(sender),
+    std::thread sender_thread(run_sender_thread, session_id, std::ref(stop_sender_thread), std::ref(sender),
                               std::ref(frame_packet_queue), std::ref(receiver_frame_id));
     
     // frame_id is the ID of the frame the sender sends.
@@ -234,9 +260,9 @@ void send_frames(int session_id, KinectDevice& device, int port)
         float frame_time_stamp = time_stamp.count() / 1000.0f;
         int frame_id_diff = frame_id - receiver_frame_id;
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
-        //if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
-        //    continue;
-        //}
+        if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+            continue;
+        }
 
         auto depth_image = capture->get_depth_image();
         if (!depth_image) {
@@ -261,7 +287,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
         auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
                                                     reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
                                                     static_cast<uint32_t>(depth_encoder_frame.size()));
-        auto packets = Sender::splitFrameMessage(session_id, frame_id, message);
+        auto packets = Sender::createFramePackets(session_id, frame_id, message);
         frame_packet_queue.enqueue(FramePacketSet(frame_id, std::move(packets)));
 
         last_time_stamp = time_stamp;

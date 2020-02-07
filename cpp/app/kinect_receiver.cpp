@@ -42,6 +42,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
                 frame_packets.push_back(std::move(*packet));
             }
+
             ++summary_packet_count;
         }
 

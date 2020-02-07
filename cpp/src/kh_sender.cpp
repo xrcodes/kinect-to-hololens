@@ -14,7 +14,7 @@ Sender::Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_en
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::send(int session_id, k4a_calibration_t calibration)
+void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -28,66 +28,56 @@ void Sender::send(int session_id, k4a_calibration_t calibration)
 
     auto depth_to_color_extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
 
-    uint32_t message_size = static_cast<uint32_t>(sizeof(session_id) +
-                                                  1 +
-                                                  sizeof(color_width) +
-                                                  sizeof(color_height) +
-                                                  sizeof(depth_width) +
-                                                  sizeof(depth_height) +
-                                                  sizeof(color_intrinsics) +
-                                                  sizeof(color_metric_radius) +
-                                                  sizeof(depth_intrinsics) +
-                                                  sizeof(depth_metric_radius) +
-                                                  sizeof(depth_to_color_extrinsics));
+    uint32_t packet_size = static_cast<uint32_t>(sizeof(session_id) +
+                                                 1 +
+                                                 sizeof(color_width) +
+                                                 sizeof(color_height) +
+                                                 sizeof(depth_width) +
+                                                 sizeof(depth_height) +
+                                                 sizeof(color_intrinsics) +
+                                                 sizeof(color_metric_radius) +
+                                                 sizeof(depth_intrinsics) +
+                                                 sizeof(depth_metric_radius) +
+                                                 sizeof(depth_to_color_extrinsics));
 
-    std::vector<uint8_t> message(message_size);
+    std::vector<uint8_t> packet(packet_size);
     size_t cursor = 0;
 
     // Message type
-    memcpy(message.data() + cursor, &session_id, sizeof(color_width));
+    memcpy(packet.data() + cursor, &session_id, sizeof(color_width));
     cursor += sizeof(session_id);
 
-    message[cursor] = static_cast<uint8_t>(0);
+    packet[cursor] = static_cast<uint8_t>(0);
     cursor += 1;
 
-    memcpy(message.data() + cursor, &color_width, sizeof(color_width));
+    memcpy(packet.data() + cursor, &color_width, sizeof(color_width));
     cursor += sizeof(color_width);
 
-    memcpy(message.data() + cursor, &color_height, sizeof(color_height));
+    memcpy(packet.data() + cursor, &color_height, sizeof(color_height));
     cursor += sizeof(color_height);
 
-    memcpy(message.data() + cursor, &depth_width, sizeof(depth_width));
+    memcpy(packet.data() + cursor, &depth_width, sizeof(depth_width));
     cursor += sizeof(depth_width);
 
-    memcpy(message.data() + cursor, &depth_height, sizeof(depth_height));
+    memcpy(packet.data() + cursor, &depth_height, sizeof(depth_height));
     cursor += sizeof(depth_height);
 
-    memcpy(message.data() + cursor, &color_intrinsics, sizeof(color_intrinsics));
+    memcpy(packet.data() + cursor, &color_intrinsics, sizeof(color_intrinsics));
     cursor += sizeof(color_intrinsics);
 
-    memcpy(message.data() + cursor, &color_metric_radius, sizeof(color_metric_radius));
+    memcpy(packet.data() + cursor, &color_metric_radius, sizeof(color_metric_radius));
     cursor += sizeof(color_metric_radius);
 
-    memcpy(message.data() + cursor, &depth_intrinsics, sizeof(depth_intrinsics));
+    memcpy(packet.data() + cursor, &depth_intrinsics, sizeof(depth_intrinsics));
     cursor += sizeof(depth_intrinsics);
 
-    memcpy(message.data() + cursor, &depth_metric_radius, sizeof(depth_metric_radius));
+    memcpy(packet.data() + cursor, &depth_metric_radius, sizeof(depth_metric_radius));
     cursor += sizeof(depth_metric_radius);
 
-    memcpy(message.data() + cursor, &depth_to_color_extrinsics, sizeof(depth_to_color_extrinsics));
+    memcpy(packet.data() + cursor, &depth_to_color_extrinsics, sizeof(depth_to_color_extrinsics));
 
-    sendPacket(message);
+    sendPacket(packet);
 }
-
-//void Sender::send(int session_id, int frame_id, float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
-//                     uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
-//{
-//    auto message = createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, depth_encoder_frame_size);
-//    auto packets = splitFrameMessage(session_id, frame_id, message);
-//    for (auto packet : packets) {
-//        sendPacket(packet);
-//    }
-//}
 
 std::optional<std::vector<uint8_t>> Sender::receive()
 {
@@ -138,29 +128,28 @@ std::vector<uint8_t> Sender::createFrameMessage(float frame_time_stamp, bool key
     return message;
 }
 
-std::vector<std::vector<uint8_t>> Sender::splitFrameMessage(int session_id, int frame_id, std::vector<uint8_t> frame_message)
+std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int frame_id, const std::vector<uint8_t>& frame_message)
 {
-    const int MAX_UDP_PACKET_SIZE = 1500;
-    const int FRAME_PACKET_HEADER_SIZE = 17;
-    const int MAX_FRAME_PACKET_CONTENT_SIZE = MAX_UDP_PACKET_SIZE - FRAME_PACKET_HEADER_SIZE;
+    // The size of frame packets is defined to match the upper limit for udp packets.
+    const int PACKET_SIZE = 1500;
+    const int PACKET_HEADER_SIZE = 17;
+    const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
 
-    int packet_count = (frame_message.size() - 1) / MAX_FRAME_PACKET_CONTENT_SIZE + 1;
+    int packet_count = (frame_message.size() - 1) / MAX_PACKET_CONTENT_SIZE + 1;
     std::vector<std::vector<uint8_t>> packets;
     for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
-        int message_cursor = MAX_FRAME_PACKET_CONTENT_SIZE * packet_index;
+        int message_cursor = MAX_PACKET_CONTENT_SIZE * packet_index;
 
-        int packet_content_size = MAX_FRAME_PACKET_CONTENT_SIZE;
-        if ((packet_index + 1) == packet_count) {
-            packet_content_size = frame_message.size() - message_cursor;
-        }
+        bool last = (packet_index + 1) == packet_count;
+        int packet_content_size = last ? (frame_message.size() - message_cursor) : MAX_PACKET_CONTENT_SIZE;
 
-        std::vector<uint8_t> packet(packet_content_size + FRAME_PACKET_HEADER_SIZE);
-        uint8_t message_type = 1;
+        std::vector<uint8_t> packet(PACKET_SIZE);
+        uint8_t packet_type = 1;
         int cursor = 0;
         memcpy(packet.data() + cursor, &session_id, 4);
         cursor += 4;
 
-        memcpy(packet.data() + cursor, &message_type, 1);
+        memcpy(packet.data() + cursor, &packet_type, 1);
         cursor += 1;
 
         memcpy(packet.data() + cursor, &frame_id, 4);
@@ -173,10 +162,61 @@ std::vector<std::vector<uint8_t>> Sender::splitFrameMessage(int session_id, int 
         cursor += 4;
 
         memcpy(packet.data() + cursor, frame_message.data() + message_cursor, packet_content_size);
-        packets.push_back(packet);
+        // For the last packet, there will be meaningless
+        // (MAX_PACKET_CONTENT_SIZE - packet_content_size) bits after the content.
+
+        packets.push_back(std::move(packet));
     }
 
     return packets;
+}
+
+// This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
+// is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
+// packets to restore the packet.
+std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int frame_id,
+                                                           const std::vector<std::vector<uint8_t>>& frame_packets, int max_group_size)
+{
+    const int PACKET_SIZE = 1500;
+    const int PACKET_HEADER_SIZE = 17;
+    
+    // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
+    int xor_packet_count = (frame_packets.size() - 1) / max_group_size + 1;
+
+    std::vector<std::vector<uint8_t>> xor_packets;
+    for (int xor_packet_index = 0; xor_packet_index < xor_packet_count; ++xor_packet_index) {
+        int begin_index = xor_packet_index * max_group_size;
+        int end_index = (xor_packet_index + 1) * max_group_size - 1;
+        end_index = end_index >= frame_packets.size() ? frame_packets.size() - 1 : end_index;
+
+        // Copy packets[begin_index] instead of filling in everything zero
+        // to reduce an XOR operation for contents once.
+        std::vector<uint8_t> xor_packet(frame_packets[begin_index]);
+        uint8_t packet_type = 2;
+        int cursor = 0;
+        memcpy(xor_packet.data() + cursor, &session_id, 4);
+        cursor += 4;
+
+        memcpy(xor_packet.data() + cursor, &packet_type, 1);
+        cursor += 1;
+
+        memcpy(xor_packet.data() + cursor, &frame_id, 4);
+        cursor += 4;
+
+        memcpy(xor_packet.data() + cursor, &xor_packet_index, 4);
+        cursor += 4;
+
+        memcpy(xor_packet.data() + cursor, &xor_packet_count, 4);
+        //cursor += 4;
+
+        for (int j = begin_index + 1; j < begin_index; ++j) {
+            for (int k = PACKET_HEADER_SIZE; k < PACKET_SIZE; ++k) {
+                xor_packet[k] ^= frame_packets[j][k];
+            }
+        }
+        xor_packets.push_back(std::move(xor_packet));
+    }
+    return xor_packets;
 }
 
 void Sender::sendPacket(const std::vector<uint8_t>& packet)
