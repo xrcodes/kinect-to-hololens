@@ -180,6 +180,8 @@ void run_receiver_thread(bool& stop_receiver_thread,
                                 continue;
                             }
 
+                            auto fec_start = std::chrono::steady_clock::now();
+
                             const int PACKET_SIZE = 1500;
                             const int PACKET_HEADER_SIZE = 17;
                             const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
@@ -217,7 +219,9 @@ void run_receiver_thread(bool& stop_receiver_thread,
                                 }
                             }
 
-                            printf("restored %d %d\n", missing_frame_id, missing_packet_index);
+                            auto fec_time = std::chrono::steady_clock::now() - fec_start;
+
+                            printf("restored %d %d %lf\n", missing_frame_id, missing_packet_index, fec_time.count() / 1000000.0f);
                             frame_packet_collections.at(missing_frame_id).addPacket(missing_packet_index, std::move(fec_frame_packet));
                         } // end of for (int missing_packet_index : missing_packet_indices)
 
@@ -247,16 +251,16 @@ void run_receiver_thread(bool& stop_receiver_thread,
             frame_packet_collections.erase(full_frame_id);
         }
 
-        //if(!frame_packet_collections.empty())
-        //    printf("Collection Status:\n");
+        if(!frame_packet_collections.empty())
+            printf("Collection Status:\n");
 
-        //for (auto collection_pair : frame_packet_collections) {
-        //    int frame_id = collection_pair.first;
-        //    auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
-        //    auto total_packet_count = collection_pair.second.packet_count();
-        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-        //           collected_packet_count, total_packet_count);
-        //}
+        for (auto collection_pair : frame_packet_collections) {
+            int frame_id = collection_pair.first;
+            auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
+            auto total_packet_count = collection_pair.second.packet_count();
+            printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+                   collected_packet_count, total_packet_count);
+        }
 
         // Clean up frame_packet_collections.
         {

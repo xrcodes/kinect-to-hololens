@@ -55,7 +55,14 @@ void run_sender_thread(int session_id,
     int send_summary_receiver_packet_count = 0;
     int send_summary_packet_count = 0;
     while (!stop_sender_thread) {
-        auto receive_result = sender.receive();
+        std::optional<std::vector<uint8_t>> receive_result;
+        try {
+            receive_result = sender.receive();
+        } catch (std::system_error e) {
+            printf("Error receving a packet: %s\n", e.what());
+            goto run_sender_thread_end;
+        }
+
         if (receive_result) {
             int cursor = 0;
             uint8_t message_type = (*receive_result)[cursor];
@@ -123,7 +130,9 @@ void run_sender_thread(int session_id,
                         if (e.code() == asio::error::would_block) {
                             printf("Failed to fill in a packet as the buffer was full...\n");
                         } else {
-                            throw e;
+                            //throw e;
+                            printf("Error while filling in a packet: %s\n", e.what());
+                            goto run_sender_thread_end;
                         }
                     }
                 }
@@ -143,7 +152,9 @@ void run_sender_thread(int session_id,
                     if (e.code() == asio::error::would_block) {
                         printf("Failed to send a frame packet as the buffer was full...\n");
                     } else {
-                        throw e;
+                        //throw e;
+                        printf("Error from sending a frame packet: %s\n", e.what());
+                        goto run_sender_thread_end;
                     }
                 }
             }
@@ -156,7 +167,9 @@ void run_sender_thread(int session_id,
                     if (e.code() == asio::error::would_block) {
                         printf("Failed to send an xor packet as the buffer was full...\n");
                     } else {
-                        throw e;
+                        //throw e;
+                        printf("Error from sending an xor packet: %s\n", e.what());
+                        goto run_sender_thread_end;
                     }
                 }
             }
@@ -188,6 +201,10 @@ void run_sender_thread(int session_id,
         }
         last_receiver_frame_id = receiver_frame_id;
     }
+
+run_sender_thread_end:
+    stop_sender_thread = true;
+    return;
 }
 
 void send_frames(int session_id, KinectDevice& device, int port)
@@ -246,6 +263,10 @@ void send_frames(int session_id, KinectDevice& device, int port)
     auto main_summary_start = std::chrono::steady_clock::now();
     size_t main_summary_frame_size_sum = 0;
     for (;;) {
+        // Stop if the sender thread stopped.
+        if (stop_sender_thread)
+            break;
+
         auto capture = device.getCapture();
         if (!capture)
             continue;
