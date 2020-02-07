@@ -38,13 +38,14 @@ int pow_of_two(int exp) {
     return res;
 }
 
+// TODO: Handle disconection from the receiver.
 void run_sender_thread(int session_id,
                        bool& stop_sender_thread,
                        Sender& sender,
                        moodycamel::ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
                        int& receiver_frame_id)
 {
-    const int XOR_MAX_GROUP_SIZE = 10;
+    const int XOR_MAX_GROUP_SIZE = 5;
 
     std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_send_times;
     std::unordered_map<int, FramePacketSet> frame_packet_sets;

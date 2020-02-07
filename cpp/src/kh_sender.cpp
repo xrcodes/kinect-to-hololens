@@ -4,6 +4,11 @@
 
 namespace kh
 {
+int int_min(int x, int y)
+{
+    return x < y ? x : y;
+}
+
 Sender::Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint,
                      int send_buffer_size)
     : socket_(std::move(socket)), remote_endpoint_(remote_endpoint)
@@ -186,9 +191,8 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
     std::vector<std::vector<uint8_t>> xor_packets;
     for (int xor_packet_index = 0; xor_packet_index < xor_packet_count; ++xor_packet_index) {
         int begin_index = xor_packet_index * max_group_size;
-        int end_index = (xor_packet_index + 1) * max_group_size - 1;
-        end_index = end_index >= frame_packets.size() ? frame_packets.size() - 1 : end_index;
-
+        int end_index = int_min(begin_index + max_group_size, frame_packets.size());
+        
         // Copy packets[begin_index] instead of filling in everything zero
         // to reduce an XOR operation for contents once.
         std::vector<uint8_t> xor_packet(frame_packets[begin_index]);
@@ -209,9 +213,9 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
         memcpy(xor_packet.data() + cursor, &xor_packet_count, 4);
         //cursor += 4;
 
-        for (int j = begin_index + 1; j < begin_index; ++j) {
-            for (int k = PACKET_HEADER_SIZE; k < PACKET_SIZE; ++k) {
-                xor_packet[k] ^= frame_packets[j][k];
+        for (int i = begin_index + 1; i < end_index; ++i) {
+            for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j) {
+                xor_packet[j] ^= frame_packets[i][j];
             }
         }
         xor_packets.push_back(std::move(xor_packet));

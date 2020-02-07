@@ -12,6 +12,40 @@
 
 namespace kh
 {
+int int_min(int x, int y)
+{
+    return x < y ? x : y;
+}
+
+class XorPacketCollection
+{
+public:
+    XorPacketCollection(int frame_id, int packet_count)
+        : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count)
+    {
+    }
+    int frame_id() { return frame_id_; }
+    int packet_count() { return packet_count_; }
+    void addPacket(int packet_index, std::vector<uint8_t>&& packet)
+    {
+        packets_[packet_index] = std::move(packet);
+    }
+    std::vector<std::uint8_t>* TryGetPacket(int packet_index)
+    {
+        if (packets_[packet_index].empty())
+        {
+            return nullptr;
+        }
+
+        return &packets_[packet_index];
+    }
+
+private:
+    int frame_id_;
+    int packet_count_;
+    std::vector<std::vector<std::uint8_t>> packets_;
+};
+
 void run_receiver_thread(bool& stop_receiver_thread,
                          Receiver& receiver,
                          moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
@@ -19,10 +53,14 @@ void run_receiver_thread(bool& stop_receiver_thread,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
+    const int XOR_MAX_GROUP_SIZE = 5;
+
     std::optional<int> sender_session_id = std::nullopt;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
+    std::unordered_map<int, XorPacketCollection> xor_packet_collections;
     while (!stop_receiver_thread) {
         std::vector<std::vector<uint8_t>> frame_packets;
+        std::vector<std::vector<uint8_t>> xor_packets;
         for (;;) {
             auto packet = receiver.receive();
             if (!packet) {
@@ -36,14 +74,48 @@ void run_receiver_thread(bool& stop_receiver_thread,
             if (packet_type == 0) {
                 sender_session_id = session_id;
                 init_packet_queue.enqueue(*packet);
-            } else if (packet_type == 1) {
-                if (!sender_session_id || session_id != sender_session_id)
-                    continue;
+            }
+            
+            if (!sender_session_id || session_id != sender_session_id)
+                continue;
 
+            if (packet_type == 1) {
                 frame_packets.push_back(std::move(*packet));
+            } else if (packet_type == 2) {
+                xor_packets.push_back(std::move(*packet));
             }
 
             ++summary_packet_count;
+        }
+
+        // The logic for XOR FEC packets are almost the same to frame packets.
+        // The operations for XOR FEC packets should happen before the frame packets
+        // so that frame packet can be created with XOR FEC packets when a missing
+        // frame packet is detected.
+        for (auto& xor_packet : xor_packets) {
+            int cursor = 5;
+
+            int frame_id;
+            memcpy(&frame_id, xor_packet.data() + cursor, 4);
+            cursor += 4;
+
+            if (frame_id <= last_frame_id)
+                continue;
+
+            int packet_index;
+            memcpy(&packet_index, xor_packet.data() + cursor, 4);
+            cursor += 4;
+
+            int packet_count;
+            memcpy(&packet_count, xor_packet.data() + cursor, 4);
+            //cursor += 4;
+
+            auto it = xor_packet_collections.find(frame_id);
+            if (it == xor_packet_collections.end()) {
+                xor_packet_collections.insert({ frame_id, XorPacketCollection(frame_id, packet_count) });
+            }
+
+            xor_packet_collections.at(frame_id).addPacket(packet_index, std::move(xor_packet));
         }
 
         for (auto& frame_packet : frame_packets) {
@@ -62,19 +134,99 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
             int packet_count;
             memcpy(&packet_count, frame_packet.data() + cursor, 4);
-            cursor += 4;
+            //cursor += 4;
 
             auto it = frame_packet_collections.find(frame_id);
             if (it == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
 
+                ///////////////////////////////////
+                // Forward Error Correction Start//
+                ///////////////////////////////////
                 // Request missing packets of the previous frames.
                 for (auto& collection_pair : frame_packet_collections) {
                     if (collection_pair.first < frame_id) {
-                        auto missing_packet_ids = collection_pair.second.getMissingPacketIds();
-                        receiver.send(collection_pair.first, missing_packet_ids);
+                        int missing_frame_id = collection_pair.first;
+                        auto missing_packet_indices = collection_pair.second.getMissingPacketIds();
+
+                        // Try correction using XOR FEC packets.
+                        std::vector<int> fec_failed_packet_indices;
+                        
+                        // missing_packet_index cannot get error corrected if there is another missing_packet_index
+                        // that belongs to the same XOR FEC packet...
+                        for (int i : missing_packet_indices) {
+                            for (int j : missing_packet_indices) {
+                                if (i == j)
+                                    continue;
+                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE)) {
+                                    fec_failed_packet_indices.push_back(i);
+                                    continue;
+                                }
+                            }
+                        }
+
+                        for (int missing_packet_index : missing_packet_indices) {
+                            // If fec_failed_packet_indices already contains missing_packet_index, skip.
+                            if (std::find(fec_failed_packet_indices.begin(), fec_failed_packet_indices.end(), missing_packet_index) != fec_failed_packet_indices.end()) {
+                                continue;
+                            }
+
+                            // Try getting the XOR FEC packet for correction.
+                            int xor_packet_index = missing_packet_index / XOR_MAX_GROUP_SIZE;
+                            auto xor_packet_ptr = xor_packet_collections.at(missing_frame_id).TryGetPacket(xor_packet_index);
+                            // Give up if there is no xor packet yet.
+                            if (!xor_packet_ptr) {
+                                fec_failed_packet_indices.push_back(missing_packet_index);
+                                continue;
+                            }
+
+                            const int PACKET_SIZE = 1500;
+                            const int PACKET_HEADER_SIZE = 17;
+                            const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
+                            std::vector<uint8_t> fec_frame_packet(PACKET_SIZE);
+
+                            uint8_t packet_type = 1;
+                            int cursor = 0;
+                            memcpy(fec_frame_packet.data() + cursor, &(*sender_session_id), 4);
+                            cursor += 4;
+
+                            memcpy(fec_frame_packet.data() + cursor, &packet_type, 1);
+                            cursor += 1;
+
+                            memcpy(fec_frame_packet.data() + cursor, &missing_frame_id, 4);
+                            cursor += 4;
+
+                            memcpy(fec_frame_packet.data() + cursor, &packet_index, 4);
+                            cursor += 4;
+
+                            memcpy(fec_frame_packet.data() + cursor, &packet_count, 4);
+                            cursor += 4;
+
+                            memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, MAX_PACKET_CONTENT_SIZE);
+
+                            int begin_frame_packet_index = xor_packet_index * XOR_MAX_GROUP_SIZE;
+                            int end_frame_packet_index = int_min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE, collection_pair.second.packet_count());
+                            // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
+                            for (int i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
+                                if (i == missing_packet_index) {
+                                    continue;
+                                }
+
+                                for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j) {
+                                    fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
+                                }
+                            }
+
+                            printf("restored %d %d\n", missing_frame_id, missing_packet_index);
+                            frame_packet_collections.at(missing_frame_id).addPacket(missing_packet_index, std::move(fec_frame_packet));
+                        } // end of for (int missing_packet_index : missing_packet_indices)
+
+                        for (int fec_failed_packet_index : fec_failed_packet_indices) {
+                            printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
+                        }
+                        receiver.send(missing_frame_id, fec_failed_packet_indices);
                     }
-                }
+                } // Forward Error Correction End
             }
 
             frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet));
@@ -91,7 +243,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
         // Extract messages from the full collections.
         for (int full_frame_id : full_frame_ids) {
-            //frame_messages.push_back(frame_packet_collections.at(full_frame_id).toMessage());
             frame_message_queue.enqueue(std::move(frame_packet_collections.at(full_frame_id).toMessage()));
             frame_packet_collections.erase(full_frame_id);
         }
@@ -108,15 +259,31 @@ void run_receiver_thread(bool& stop_receiver_thread,
         //}
 
         // Clean up frame_packet_collections.
-        std::vector<int> obsolete_frame_ids;
-        for (auto& collection_pair : frame_packet_collections) {
-            if (collection_pair.first <= last_frame_id) {
-                obsolete_frame_ids.push_back(collection_pair.first);
+        {
+            std::vector<int> obsolete_frame_ids;
+            for (auto& collection_pair : frame_packet_collections) {
+                if (collection_pair.first <= last_frame_id) {
+                    obsolete_frame_ids.push_back(collection_pair.first);
+                }
+            }
+
+            for (int obsolete_frame_id : obsolete_frame_ids) {
+                frame_packet_collections.erase(obsolete_frame_id);
             }
         }
 
-        for (int obsolete_frame_id : obsolete_frame_ids) {
-            frame_packet_collections.erase(obsolete_frame_id);
+        // Clean up xor_packet_collections.
+        {
+            std::vector<int> obsolete_frame_ids;
+            for (auto& collection_pair : xor_packet_collections) {
+                if (collection_pair.first <= last_frame_id) {
+                    obsolete_frame_ids.push_back(collection_pair.first);
+                }
+            }
+
+            for (int obsolete_frame_id : obsolete_frame_ids) {
+                xor_packet_collections.erase(obsolete_frame_id);
+            }
         }
     }
 }
