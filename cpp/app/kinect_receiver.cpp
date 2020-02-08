@@ -9,6 +9,7 @@
 #include "kh_trvl.h"
 #include "kh_receiver.h"
 #include "kh_frame_packet_collection.h"
+#include "kh_xor_packet_collection.h"
 
 namespace kh
 {
@@ -16,35 +17,6 @@ int int_min(int x, int y)
 {
     return x < y ? x : y;
 }
-
-class XorPacketCollection
-{
-public:
-    XorPacketCollection(int frame_id, int packet_count)
-        : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count)
-    {
-    }
-    int frame_id() { return frame_id_; }
-    int packet_count() { return packet_count_; }
-    void addPacket(int packet_index, std::vector<uint8_t>&& packet)
-    {
-        packets_[packet_index] = std::move(packet);
-    }
-    std::vector<std::uint8_t>* TryGetPacket(int packet_index)
-    {
-        if (packets_[packet_index].empty())
-        {
-            return nullptr;
-        }
-
-        return &packets_[packet_index];
-    }
-
-private:
-    int frame_id_;
-    int packet_count_;
-    std::vector<std::vector<std::uint8_t>> packets_;
-};
 
 void run_receiver_thread(bool& stop_receiver_thread,
                          Receiver& receiver,
@@ -86,7 +58,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
             } else if (packet_type == 2) {
                 xor_packets.push_back(std::move(*packet));
             }
-
         }
 
         // The logic for XOR FEC packets are almost the same to frame packets.
@@ -111,8 +82,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
             memcpy(&packet_count, xor_packet.data() + cursor, 4);
             //cursor += 4;
 
-            auto it = xor_packet_collections.find(frame_id);
-            if (it == xor_packet_collections.end()) {
+            if (xor_packet_collections.find(frame_id) == xor_packet_collections.end()) {
                 xor_packet_collections.insert({ frame_id, XorPacketCollection(frame_id, packet_count) });
             }
 
@@ -137,8 +107,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
             memcpy(&packet_count, frame_packet.data() + cursor, 4);
             //cursor += 4;
 
-            auto it = frame_packet_collections.find(frame_id);
-            if (it == frame_packet_collections.end()) {
+            if (frame_packet_collections.find(frame_id) == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
 
                 ///////////////////////////////////
@@ -261,30 +230,20 @@ void run_receiver_thread(bool& stop_receiver_thread,
         }
 
         // Clean up frame_packet_collections.
-        {
-            std::vector<int> obsolete_frame_ids;
-            for (auto& collection_pair : frame_packet_collections) {
-                if (collection_pair.first <= last_frame_id) {
-                    obsolete_frame_ids.push_back(collection_pair.first);
-                }
-            }
-
-            for (int obsolete_frame_id : obsolete_frame_ids) {
-                frame_packet_collections.erase(obsolete_frame_id);
+        for (auto it = frame_packet_collections.begin(); it != frame_packet_collections.end();) {
+            if (it->first <= last_frame_id) {
+                it = frame_packet_collections.erase(it);
+            } else {
+                ++it;
             }
         }
 
         // Clean up xor_packet_collections.
-        {
-            std::vector<int> obsolete_frame_ids;
-            for (auto& collection_pair : xor_packet_collections) {
-                if (collection_pair.first <= last_frame_id) {
-                    obsolete_frame_ids.push_back(collection_pair.first);
-                }
-            }
-
-            for (int obsolete_frame_id : obsolete_frame_ids) {
-                xor_packet_collections.erase(obsolete_frame_id);
+        for (auto it = xor_packet_collections.begin(); it != xor_packet_collections.end();) {
+            if (it->first <= last_frame_id) {
+                it = xor_packet_collections.erase(it);
+            } else {
+                ++it;
             }
         }
     }
