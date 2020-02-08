@@ -71,9 +71,8 @@ void run_receiver_thread(bool& stop_receiver_thread,
             int packet_index = copy_from_packet<int>(xor_packet, cursor);
             int packet_count = copy_from_packet<int>(xor_packet, cursor);
 
-            if (xor_packet_collections.find(frame_id) == xor_packet_collections.end()) {
+            if (xor_packet_collections.find(frame_id) == xor_packet_collections.end())
                 xor_packet_collections.insert({ frame_id, XorPacketCollection(frame_id, packet_count) });
-            }
 
             xor_packet_collections.at(frame_id).addPacket(packet_index, std::move(xor_packet));
         }
@@ -88,7 +87,9 @@ void run_receiver_thread(bool& stop_receiver_thread,
             int packet_index = copy_from_packet<int>(frame_packet, cursor);
             int packet_count = copy_from_packet<int>(frame_packet, cursor);
 
-            // When a packet for a new frame is found.
+            // If there is a packet for a new frame, check the previous frames, and if
+            // there is a frame with missing packets, try to create them using xor packets.
+            // If using the xor packets fails, request the sender to retransmit the packets.
             if (frame_packet_collections.find(frame_id) == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
 
@@ -110,6 +111,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
                         for (int i : missing_packet_indices) {
                             bool found = false;
                             for (int j : missing_packet_indices) {
+                                // Only compare for i < j.
                                 if (i == j)
                                     continue;
 
@@ -126,11 +128,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
                         }
 
                         for (int fec_packet_index : fec_packet_indices) {
-                            // If fec_failed_packet_indices already contains missing_packet_index, skip.
-                            if (std::find(fec_failed_packet_indices.begin(), fec_failed_packet_indices.end(), fec_packet_index) != fec_failed_packet_indices.end()) {
-                                continue;
-                            }
-
                             // Try getting the XOR FEC packet for correction.
                             int xor_packet_index = fec_packet_index / XOR_MAX_GROUP_SIZE;
                             auto xor_packet_ptr = xor_packet_collections.at(missing_frame_id).TryGetPacket(xor_packet_index);
@@ -178,8 +175,13 @@ void run_receiver_thread(bool& stop_receiver_thread,
                         }
                         receiver.send(missing_frame_id, fec_failed_packet_indices);
                     }
-                } // Forward Error Correction End
+                }
+                /////////////////////////////////
+                // Forward Error Correction End//
+                /////////////////////////////////
             }
+            // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
+            // which was for reacting to a packet for a new frame.
 
             frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet));
         }
@@ -256,23 +258,14 @@ void receive_frames(std::string ip_address, int port)
         std::vector<uint8_t> packet;
         while (init_packet_queue.try_dequeue(packet)) {
             int cursor = 0;
-            //int session_id;
-            //memcpy(&session_id, packet.data() + cursor, 4);
-            cursor += 4;
+            //int session_id = copy_from_packet<int>(packet, cursor);
+            //uint8_t packet_tye = copy_from_packet<uint8_t>(packet, cursor);
+            //int color_width = copy_from_packet<int>(packet, cursor);
+            //int color_height = copy_from_packet<int>(packet, cursor);
+            cursor += 13;
 
-            //uint8_t packet_type = packet[cursor];
-            cursor += 1;
-
-            // for color width
-            cursor += 4;
-            // for color height
-            cursor += 4;
-
-            memcpy(&depth_width, packet.data() + cursor, 4);
-            cursor += 4;
-
-            memcpy(&depth_height, packet.data() + cursor, 4);
-            cursor += 4;
+            depth_width = copy_from_packet<int>(packet, cursor);
+            depth_height = copy_from_packet<int>(packet, cursor);
 
             depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
         }

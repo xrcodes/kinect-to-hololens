@@ -241,9 +241,9 @@ void send_frames(int session_id, KinectDevice& device, int port)
         float frame_time_stamp = time_stamp.count() / 1000.0f;
         int frame_id_diff = frame_id - receiver_frame_id;
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
-        if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3))) {
+        if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3)))
             continue;
-        }
+        
         last_time_stamp = time_stamp;
 
         bool keyframe = frame_id_diff > 5;
