@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <optional>
@@ -10,6 +11,7 @@
 #include "kh_receiver.h"
 #include "kh_frame_packet_collection.h"
 #include "kh_xor_packet_collection.h"
+#include "kh_packet_helper.h"
 
 namespace kh
 {
@@ -33,24 +35,20 @@ void run_receiver_thread(bool& stop_receiver_thread,
     while (!stop_receiver_thread) {
         std::vector<std::vector<uint8_t>> frame_packets;
         std::vector<std::vector<uint8_t>> xor_packets;
-        for (;;) {
-            auto packet = receiver.receive();
-            if (!packet) {
-                break;
-            }
 
+        while (auto packet = receiver.receive()) {
             ++summary_packet_count;
 
-            int session_id;
-            memcpy(&session_id, packet->data(), 4);
-            uint8_t packet_type = (*packet)[4];
-
+            int cursor = 0;
+            int session_id = copy_from_packet<int>(*packet, cursor);
+            uint8_t packet_type = (*packet)[cursor];
             if (packet_type == 0) {
                 sender_session_id = session_id;
                 init_packet_queue.enqueue(*packet);
             }
             
-            if (!sender_session_id || session_id != sender_session_id)
+            // This also skips sender_session_id being null.
+            if (session_id != sender_session_id)
                 continue;
 
             if (packet_type == 1) {
@@ -65,22 +63,15 @@ void run_receiver_thread(bool& stop_receiver_thread,
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
         for (auto& xor_packet : xor_packets) {
+            // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
             int cursor = 5;
-
-            int frame_id;
-            memcpy(&frame_id, xor_packet.data() + cursor, 4);
-            cursor += 4;
+            int frame_id = copy_from_packet<int>(xor_packet, cursor);
 
             if (frame_id <= last_frame_id)
                 continue;
 
-            int packet_index;
-            memcpy(&packet_index, xor_packet.data() + cursor, 4);
-            cursor += 4;
-
-            int packet_count;
-            memcpy(&packet_count, xor_packet.data() + cursor, 4);
-            //cursor += 4;
+            int packet_index = copy_from_packet<int>(xor_packet, cursor);
+            int packet_count = copy_from_packet<int>(xor_packet, cursor);
 
             if (xor_packet_collections.find(frame_id) == xor_packet_collections.end()) {
                 xor_packet_collections.insert({ frame_id, XorPacketCollection(frame_id, packet_count) });
@@ -91,21 +82,13 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
         for (auto& frame_packet : frame_packets) {
             int cursor = 5;
-
-            int frame_id;
-            memcpy(&frame_id, frame_packet.data() + cursor, 4);
-            cursor += 4;
+            int frame_id = copy_from_packet<int>(frame_packet, cursor);
 
             if (frame_id <= last_frame_id)
                 continue;
 
-            int packet_index;
-            memcpy(&packet_index, frame_packet.data() + cursor, 4);
-            cursor += 4;
-
-            int packet_count;
-            memcpy(&packet_count, frame_packet.data() + cursor, 4);
-            //cursor += 4;
+            int packet_index = copy_from_packet<int>(frame_packet, cursor);
+            int packet_count = copy_from_packet<int>(frame_packet, cursor);
 
             if (frame_packet_collections.find(frame_id) == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
@@ -151,45 +134,35 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
                             auto fec_start = std::chrono::steady_clock::now();
 
-                            const int PACKET_SIZE = 1500;
-                            const int PACKET_HEADER_SIZE = 17;
-                            const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
-                            std::vector<uint8_t> fec_frame_packet(PACKET_SIZE);
+                            std::vector<uint8_t> fec_frame_packet(KH_PACKET_SIZE);
 
                             uint8_t packet_type = 1;
                             int cursor = 0;
-                            memcpy(fec_frame_packet.data() + cursor, &(*sender_session_id), 4);
-                            cursor += 4;
+                            copy_to_packet<int>(*sender_session_id, fec_frame_packet, cursor);
+                            copy_to_packet<uint8_t>(packet_type, fec_frame_packet, cursor);
+                            copy_to_packet<int>(missing_frame_id, fec_frame_packet, cursor);
+                            copy_to_packet<int>(packet_index, fec_frame_packet, cursor);
+                            copy_to_packet<int>(packet_count, fec_frame_packet, cursor);
 
-                            memcpy(fec_frame_packet.data() + cursor, &packet_type, 1);
-                            cursor += 1;
-
-                            memcpy(fec_frame_packet.data() + cursor, &missing_frame_id, 4);
-                            cursor += 4;
-
-                            memcpy(fec_frame_packet.data() + cursor, &packet_index, 4);
-                            cursor += 4;
-
-                            memcpy(fec_frame_packet.data() + cursor, &packet_count, 4);
-                            cursor += 4;
-
-                            memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, MAX_PACKET_CONTENT_SIZE);
+                            memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, KH_MAX_PACKET_CONTENT_SIZE);
 
                             int begin_frame_packet_index = xor_packet_index * XOR_MAX_GROUP_SIZE;
-                            int end_frame_packet_index = int_min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE, collection_pair.second.packet_count());
+                            int end_frame_packet_index = std::min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE,
+                                                                  collection_pair.second.packet_count());
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                             for (int i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
                                 if (i == missing_packet_index)
                                     continue;
 
-                                for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j)
+                                for (int j = KH_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j)
                                     fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
                             }
 
                             auto fec_time = std::chrono::steady_clock::now() - fec_start;
 
                             printf("restored %d %d %lf\n", missing_frame_id, missing_packet_index, fec_time.count() / 1000000.0f);
-                            frame_packet_collections.at(missing_frame_id).addPacket(missing_packet_index, std::move(fec_frame_packet));
+                            frame_packet_collections.at(missing_frame_id)
+                                                    .addPacket(missing_packet_index, std::move(fec_frame_packet));
                         } // end of for (int missing_packet_index : missing_packet_indices)
 
                         for (int fec_failed_packet_index : fec_failed_packet_indices) {
@@ -204,24 +177,34 @@ void run_receiver_thread(bool& stop_receiver_thread,
         }
 
         // Find all full collections and their frame_ids.
-        std::vector<int> full_frame_ids;
-        for (auto& collection_pair : frame_packet_collections) {
-            if (collection_pair.second.isFull()) {
-                int frame_id = collection_pair.first;
-                full_frame_ids.push_back(frame_id);
-            }
-        }
+        //std::vector<int> full_frame_ids;
+        //for (auto& collection_pair : frame_packet_collections) {
+        //    if (collection_pair.second.isFull()) {
+        //        int frame_id = collection_pair.first;
+        //        full_frame_ids.push_back(frame_id);
+        //    }
+        //}
 
-        // Extract messages from the full collections.
-        for (int full_frame_id : full_frame_ids) {
-            frame_message_queue.enqueue(std::move(frame_packet_collections.at(full_frame_id).toMessage()));
-            frame_packet_collections.erase(full_frame_id);
+        //// Extract messages from the full collections.
+        //for (int full_frame_id : full_frame_ids) {
+        //    frame_message_queue.enqueue(std::move(frame_packet_collections.at(full_frame_id).toMessage()));
+        //    frame_packet_collections.erase(full_frame_id);
+        //}
+
+        // Find all full collections and extract messages from them.
+        for (auto it = frame_packet_collections.begin(); it != frame_packet_collections.end();) {
+            if (it->second.isFull()) {
+                frame_message_queue.enqueue(it->second.toMessage());
+                it = frame_packet_collections.erase(it);
+            } else {
+                ++it;
+            }
         }
 
         if(!frame_packet_collections.empty())
             printf("Collection Status:\n");
 
-        for (auto collection_pair : frame_packet_collections) {
+        for (auto& collection_pair : frame_packet_collections) {
             int frame_id = collection_pair.first;
             auto collected_packet_count = collection_pair.second.getCollectedPacketCount();
             auto total_packet_count = collection_pair.second.packet_count();

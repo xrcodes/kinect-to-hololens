@@ -22,6 +22,7 @@ set(SOURCE_FILES
   kh_frame_packet_collection.cpp
   kh_xor_packet_collection.h
   kh_xor_packet_collection.cpp
+  kh_packet_helper.h
 )
 
 add_library(KinectToHololens ${SOURCE_FILES})
