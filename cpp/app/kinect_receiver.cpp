@@ -15,11 +15,6 @@
 
 namespace kh
 {
-int int_min(int x, int y)
-{
-    return x < y ? x : y;
-}
-
 void run_receiver_thread(bool& stop_receiver_thread,
                          Receiver& receiver,
                          moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
@@ -175,21 +170,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
             frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet));
         }
-
-        // Find all full collections and their frame_ids.
-        //std::vector<int> full_frame_ids;
-        //for (auto& collection_pair : frame_packet_collections) {
-        //    if (collection_pair.second.isFull()) {
-        //        int frame_id = collection_pair.first;
-        //        full_frame_ids.push_back(frame_id);
-        //    }
-        //}
-
-        //// Extract messages from the full collections.
-        //for (int full_frame_id : full_frame_ids) {
-        //    frame_message_queue.enqueue(std::move(frame_packet_collections.at(full_frame_id).toMessage()));
-        //    frame_packet_collections.erase(full_frame_id);
-        //}
 
         // Find all full collections and extract messages from them.
         for (auto it = frame_packet_collections.begin(); it != frame_packet_collections.end();) {

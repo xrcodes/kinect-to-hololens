@@ -6,6 +6,7 @@
 #include "kh_sender.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
+#include "kh_packet_helper.h"
 
 namespace kh
 {
@@ -38,7 +39,6 @@ int pow_of_two(int exp) {
     return res;
 }
 
-// TODO: Handle disconection from the receiver.
 void run_sender_thread(int session_id,
                        bool& stop_sender_thread,
                        Sender& sender,
@@ -65,27 +65,14 @@ void run_sender_thread(int session_id,
 
         if (receive_result) {
             int cursor = 0;
-            uint8_t message_type = (*receive_result)[cursor];
-            cursor += 1;
+            uint8_t message_type = copy_from_packet<uint8_t>(*receive_result, cursor);
 
             if (message_type == 1) {
-                memcpy(&receiver_frame_id, receive_result->data() + cursor, 4);
-                cursor += 4;
-
-                float packet_collection_time_ms;
-                memcpy(&packet_collection_time_ms, receive_result->data() + cursor, 4);
-                cursor += 4;
-
-                float decoder_time_ms;
-                memcpy(&decoder_time_ms, receive_result->data() + cursor, 4);
-                cursor += 4;
-
-                float frame_time_ms;
-                memcpy(&frame_time_ms, receive_result->data() + cursor, 4);
-                cursor += 4;
-
-                int receiver_packet_count;
-                memcpy(&receiver_packet_count, receive_result->data() + cursor, 4);
+                receiver_frame_id = copy_from_packet<int>(*receive_result, cursor);
+                float packet_collection_time_ms = copy_from_packet<float>(*receive_result, cursor);
+                float decoder_time_ms = copy_from_packet<float>(*receive_result, cursor);
+                float frame_time_ms = copy_from_packet<float>(*receive_result, cursor);
+                int receiver_packet_count = copy_from_packet<int>(*receive_result, cursor);
 
                 std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_send_times[receiver_frame_id];
 
@@ -105,32 +92,22 @@ void run_sender_thread(int session_id,
                 ++send_summary_receiver_frame_count;
                 send_summary_receiver_packet_count += receiver_packet_count;
             } else if (message_type == 2) {
-                int requested_frame_id;
-                memcpy(&requested_frame_id, receive_result->data() + cursor, 4);
-                cursor += 4;
-                
-                int missing_packet_count;
-                memcpy(&missing_packet_count, receive_result->data() + cursor, 4);
-                cursor += 4;
+                int requested_frame_id = copy_from_packet<int>(*receive_result, cursor);
+                int missing_packet_count = copy_from_packet<int>(*receive_result, cursor);
                 
                 for (int i = 0; i < missing_packet_count; ++i) {
-                    int missing_packet_id;
-                    memcpy(&missing_packet_id, receive_result->data() + cursor, 4);
-                    cursor += 4;
+                    int missing_packet_index = copy_from_packet<int>(*receive_result, cursor);
 
-                    //missing_packet_ids.push_back(missing_packet_id);
-                    auto it = frame_packet_sets.find(requested_frame_id);
-                    if (it == frame_packet_sets.end())
+                    if (frame_packet_sets.find(requested_frame_id) == frame_packet_sets.end())
                         continue;
 
                     try {
-                        sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_id]);
+                        sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_index]);
                         ++send_summary_packet_count;
                     } catch (std::system_error e) {
                         if (e.code() == asio::error::would_block) {
                             printf("Failed to fill in a packet as the buffer was full...\n");
                         } else {
-                            //throw e;
                             printf("Error while filling in a packet: %s\n", e.what());
                             goto run_sender_thread_end;
                         }
@@ -152,7 +129,6 @@ void run_sender_thread(int session_id,
                     if (e.code() == asio::error::would_block) {
                         printf("Failed to send a frame packet as the buffer was full...\n");
                     } else {
-                        //throw e;
                         printf("Error from sending a frame packet: %s\n", e.what());
                         goto run_sender_thread_end;
                     }
@@ -167,7 +143,6 @@ void run_sender_thread(int session_id,
                     if (e.code() == asio::error::would_block) {
                         printf("Failed to send an xor packet as the buffer was full...\n");
                     } else {
-                        //throw e;
                         printf("Error from sending an xor packet: %s\n", e.what());
                         goto run_sender_thread_end;
                     }
