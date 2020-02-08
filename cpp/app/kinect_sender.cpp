@@ -10,34 +10,8 @@
 
 namespace kh
 {
-class FramePacketSet
-{
-public:
-    FramePacketSet()
-        : frame_id_(0), packets_()
-    {
-    }
-    FramePacketSet(int frame_id, std::vector<std::vector<uint8_t>>&& packets)
-        : frame_id_(frame_id), packets_(std::move(packets))
-    {
-    }
-    int frame_id() { return frame_id_; }
-    std::vector<std::vector<uint8_t>>& packets() { return packets_; }
-
-private:
-    int frame_id_;
-    std::vector<std::vector<uint8_t>> packets_;
-};
-
-int pow_of_two(int exp) {
-    assert(exp >= 0);
-
-    int res = 1;
-    for (int i = 0; i < exp; ++i) {
-        res *= 2;
-    }
-    return res;
-}
+// Pair of the frame's id and its packets.
+typedef std::pair<int, std::vector<std::vector<uint8_t>>> FramePacketSet;
 
 void run_sender_thread(int session_id,
                        bool& stop_sender_thread,
@@ -102,7 +76,7 @@ void run_sender_thread(int session_id,
                         continue;
 
                     try {
-                        sender.sendPacket(frame_packet_sets[requested_frame_id].packets()[missing_packet_index]);
+                        sender.sendPacket(frame_packet_sets[requested_frame_id].second[missing_packet_index]);
                         ++send_summary_packet_count;
                     } catch (std::system_error e) {
                         if (e.code() == asio::error::would_block) {
@@ -118,10 +92,10 @@ void run_sender_thread(int session_id,
 
         FramePacketSet frame_packet_set;
         while (frame_packet_queue.try_dequeue(frame_packet_set)) {
-            auto xor_packets = Sender::createXorPackets(session_id, frame_packet_set.frame_id(), frame_packet_set.packets(), XOR_MAX_GROUP_SIZE);
+            auto xor_packets = Sender::createXorPackets(session_id, frame_packet_set.first, frame_packet_set.second, XOR_MAX_GROUP_SIZE);
 
-            frame_send_times[frame_packet_set.frame_id()] = std::chrono::steady_clock::now();
-            for (auto packet : frame_packet_set.packets()) {
+            frame_send_times[frame_packet_set.first] = std::chrono::steady_clock::now();
+            for (auto packet : frame_packet_set.second) {
                 try {
                     sender.sendPacket(packet);
                     ++send_summary_packet_count;
@@ -148,7 +122,7 @@ void run_sender_thread(int session_id,
                     }
                 }
             }
-            frame_packet_sets[frame_packet_set.frame_id()] = std::move(frame_packet_set);
+            frame_packet_sets[frame_packet_set.first] = std::move(frame_packet_set);
         }
 
         // Remove elements of frame_packet_sets reserved for filling up missing packets
@@ -257,7 +231,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
         float frame_time_stamp = time_stamp.count() / 1000.0f;
         int frame_id_diff = frame_id - receiver_frame_id;
         int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
-        if (frame_id != 0 && device_frame_diff < pow_of_two(frame_id_diff - 1) / 4) {
+        if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3))) {
             continue;
         }
 
@@ -267,7 +241,6 @@ void send_frames(int session_id, KinectDevice& device, int port)
             continue;
         }
 
-        //bool keyframe = frame_id_diff > 4;
         bool keyframe = frame_id_diff > 5;
 
         auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
