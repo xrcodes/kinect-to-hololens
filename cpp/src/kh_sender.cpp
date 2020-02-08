@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include "kh_packet_helper.h"
 
 namespace kh
 {
@@ -88,14 +89,6 @@ std::optional<std::vector<uint8_t>> Sender::receive(std::error_code& error)
 
     if (error)
         return std::nullopt;
-    //if (error == asio::error::would_block) {
-    //    return std::nullopt;
-    //}
-
-    //if (error) {
-    //    printf("Error from Sender::receive(): %s\n", error.message().c_str());
-    //    throw std::system_error(error);
-    //}
 
     packet.resize(packet_size);
     return packet;
@@ -133,19 +126,16 @@ std::vector<uint8_t> Sender::createFrameMessage(float frame_time_stamp, bool key
 std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int frame_id, const std::vector<uint8_t>& frame_message)
 {
     // The size of frame packets is defined to match the upper limit for udp packets.
-    const int PACKET_SIZE = 1500;
-    const int PACKET_HEADER_SIZE = 17;
-    const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
 
-    int packet_count = (frame_message.size() - 1) / MAX_PACKET_CONTENT_SIZE + 1;
+    int packet_count = (frame_message.size() - 1) / KH_MAX_PACKET_CONTENT_SIZE + 1;
     std::vector<std::vector<uint8_t>> packets;
     for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
-        int message_cursor = MAX_PACKET_CONTENT_SIZE * packet_index;
+        int message_cursor = KH_MAX_PACKET_CONTENT_SIZE * packet_index;
 
         bool last = (packet_index + 1) == packet_count;
-        int packet_content_size = last ? (frame_message.size() - message_cursor) : MAX_PACKET_CONTENT_SIZE;
+        int packet_content_size = last ? (frame_message.size() - message_cursor) : KH_MAX_PACKET_CONTENT_SIZE;
 
-        std::vector<uint8_t> packet(PACKET_SIZE);
+        std::vector<uint8_t> packet(KH_PACKET_SIZE);
         uint8_t packet_type = 1;
         int cursor = 0;
         memcpy(packet.data() + cursor, &session_id, 4);
@@ -179,9 +169,6 @@ std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int
 std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int frame_id,
                                                            const std::vector<std::vector<uint8_t>>& frame_packets, int max_group_size)
 {
-    const int PACKET_SIZE = 1500;
-    const int PACKET_HEADER_SIZE = 17;
-    
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
     int xor_packet_count = (frame_packets.size() - 1) / max_group_size + 1;
 
@@ -211,7 +198,7 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
         //cursor += 4;
 
         for (int i = begin_index + 1; i < end_index; ++i) {
-            for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j) {
+            for (int j = KH_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j) {
                 xor_packet[j] ^= frame_packets[i][j];
             }
         }

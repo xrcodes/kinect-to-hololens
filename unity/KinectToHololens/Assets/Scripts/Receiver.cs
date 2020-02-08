@@ -10,14 +10,6 @@ public class Receiver
     public IPAddress Address { get; private set; }
     public int Port { get; private set; }
 
-    public int Available
-    {
-        get
-        {
-            return socket.Available;
-        }
-    }
-
     public Receiver(int receiveBufferSize)
     {
         socket = new UdpSocket(receiveBufferSize);
@@ -33,21 +25,12 @@ public class Receiver
         socket.SendTo(bytes, address, port);
     }
 
-    public byte[] Receive()
+    public byte[] Receive(out SocketError error)
     {
-        // Not sure this is the best way but
-        // even when the socket is non-blocking,
-        // it takes to much time to receive then
-        // leave by a WouldBlock error.
-        if(socket.Available == 0)
-        {
-            return null;
-        }
-
         var packet = new byte[1500];
         var receiveResult = socket.Receive(packet);
         int packetSize = receiveResult.Item1;
-        var error = receiveResult.Item2;
+        error = receiveResult.Item2;
 
         if (error != SocketError.Success)
         {

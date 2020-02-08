@@ -34,7 +34,8 @@ void run_receiver_thread(bool& stop_receiver_thread,
         std::vector<std::vector<uint8_t>> frame_packets;
         std::vector<std::vector<uint8_t>> xor_packets;
 
-        while (auto packet = receiver.receive()) {
+        std::error_code error;
+        while (auto packet = receiver.receive(error)) {
             ++summary_packet_count;
 
             int cursor = 0;
@@ -45,8 +46,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
                 init_packet_queue.enqueue(*packet);
             }
             
-            // This also skips sender_session_id being null.
-            if (session_id != sender_session_id)
+            if (!sender_session_id || session_id != sender_session_id)
                 continue;
 
             if (packet_type == 1) {
@@ -55,6 +55,9 @@ void run_receiver_thread(bool& stop_receiver_thread,
                 xor_packets.push_back(std::move(*packet));
             }
         }
+
+        if (error != asio::error::would_block)
+            printf("Error from receiving packets: %s\n", error.message().c_str());
 
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
@@ -111,7 +114,6 @@ void run_receiver_thread(bool& stop_receiver_thread,
                         for (int i : missing_packet_indices) {
                             bool found = false;
                             for (int j : missing_packet_indices) {
-                                // Only compare for i < j.
                                 if (i == j)
                                     continue;
 
@@ -173,7 +175,12 @@ void run_receiver_thread(bool& stop_receiver_thread,
                         for (int fec_failed_packet_index : fec_failed_packet_indices) {
                             printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
                         }
-                        receiver.send(missing_frame_id, fec_failed_packet_indices);
+                        
+                        std::error_code error;
+                        receiver.send(missing_frame_id, fec_failed_packet_indices, error);
+
+                        if (error && error != asio::error::would_block)
+                            printf("Error requesting missing packets: %s\n", error.message().c_str());
                     }
                 }
                 /////////////////////////////////
@@ -252,7 +259,6 @@ void receive_frames(std::string ip_address, int port)
     std::unique_ptr<TrvlDecoder> depth_decoder;
 
     std::vector<FrameMessage> frame_messages;
-
     auto frame_start = steady_clock::now();
     for (;;) {
         std::vector<uint8_t> packet;
@@ -337,11 +343,17 @@ void receive_frames(std::string ip_address, int port)
         auto frame_time = steady_clock::now() - frame_start;
         frame_start = steady_clock::now();
 
+        std::error_code error;
         receiver.send(last_frame_id,
                       packet_collection_time.count() / 1000000.0f,
                       decoder_time.count() / 1000000.0f,
                       frame_time.count() / 1000000.0f,
-                      summary_packet_count);
+                      summary_packet_count,
+                      error);
+
+        if (error && error != asio::error::would_block)
+            printf("Error sending receiver status: %s\n", error.message().c_str();
+
         summary_packet_count = 0;
 
         auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame->av_frame()));
@@ -379,12 +391,7 @@ void main()
         std::getline(std::cin, port_line);
         // The default port is 7777.
         int port = port_line.empty() ? 7777 : std::stoi(port_line);
-
-        try {
-            receive_frames(ip_address, port);
-        } catch (std::exception & e) {
-            printf("Error from _receive_frames: %s\n", e.what());
-        }
+        receive_frames(ip_address, port);
     }
 }
 }

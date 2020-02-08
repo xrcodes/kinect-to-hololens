@@ -21,25 +21,20 @@ void Receiver::ping(std::string ip_address, int port)
     socket_.send_to(asio::buffer(send_buf), remote_endpoint_);
 }
 
-std::optional<std::vector<uint8_t>> Receiver::receive()
+std::optional<std::vector<uint8_t>> Receiver::receive(std::error_code& error)
 {
     std::vector<uint8_t> packet(1500);
-    std::error_code error;
     size_t packet_size = socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error);
 
-    if (error == asio::error::would_block) {
+    if (error)
         return std::nullopt;
-    } else if (error) {
-        std::cout << "Error from ReceiverUdp: " << error.message() << std::endl;
-        return std::nullopt;
-    }
 
     packet.resize(packet_size);
     return packet;
 }
 
 void Receiver::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
-                    float frame_time_ms, int packet_count)
+                    float frame_time_ms, int packet_count, std::error_code& error)
 {
     std::vector<uint8_t> packet(21);
     packet[0] = 1;
@@ -48,10 +43,10 @@ void Receiver::send(int frame_id, float packet_collection_time_ms, float decoder
     memcpy(packet.data() + 9, &decoder_time_ms, 4);
     memcpy(packet.data() + 13, &frame_time_ms, 4);
     memcpy(packet.data() + 17, &packet_count, 4);
-    socket_.send_to(asio::buffer(packet), remote_endpoint_);
+    socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
 }
 
-void Receiver::send(int frame_id, const std::vector<int>& missing_packet_ids)
+void Receiver::send(int frame_id, const std::vector<int>& missing_packet_ids, std::error_code& error)
 {
     std::vector<uint8_t> packet(1 + 4 + 4 + 4 * missing_packet_ids.size());
     int cursor = 0;
@@ -70,6 +65,6 @@ void Receiver::send(int frame_id, const std::vector<int>& missing_packet_ids)
         cursor += 4;
     }
 
-    socket_.send_to(asio::buffer(packet), remote_endpoint_);
+    socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
 }
 }

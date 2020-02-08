@@ -8,14 +8,6 @@ public class UdpSocket
     public bool Disposed { get; private set; }
     private Socket socket;
 
-    public int Available
-    {
-        get
-        {
-            return socket.Available;
-        }
-    }
-
     public UdpSocket(int receiveBufferSize)
     {
         Disposed = false;

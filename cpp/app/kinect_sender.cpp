@@ -21,7 +21,7 @@ void run_sender_thread(int session_id,
                        bool& stop_sender_thread,
                        Sender& sender,
                        ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
-                       int& receiver_frame_id) noexcept
+                       int& receiver_frame_id)
 {
     const int XOR_MAX_GROUP_SIZE = 5;
 
@@ -161,7 +161,7 @@ run_sender_thread_end:
     return;
 }
 
-void send_frames(int session_id, KinectDevice& device, int port) noexcept
+void send_frames(int session_id, KinectDevice& device, int port)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -322,7 +322,6 @@ void main()
         device->start();
 
         int session_id = rng() % (INT_MAX + 1);
-
         send_frames(session_id, *device, port);
     }
 }

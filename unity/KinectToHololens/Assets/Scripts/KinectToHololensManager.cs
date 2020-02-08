@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -40,12 +41,13 @@ class XorPacketCollection
     }
 };
 
+public enum InputState
+{
+    IpAddress, Port
+}
+
 public class KinectToHololensManager : MonoBehaviour
 {
-    private enum InputState
-    {
-        IpAddress, Port
-    }
 
     // The main camera's Transform.
     public Transform cameraTransform;
@@ -68,23 +70,41 @@ public class KinectToHololensManager : MonoBehaviour
     private GestureRecognizer gestureRecognizer;
     // Varaibles that represent states of the scene.
     private InputState inputState;
-    private TextureGroup textureGroup;
+
     private Receiver receiver;
-    private Vp8Decoder colorDecoder;
-    private TrvlDecoder depthDecoder;
-
-    //private Dictionary<int, FramePacketCollection> framePacketCollections;
-    private List<FrameMessage> frameMessages;
-    private int lastFrameId;
-    private Stopwatch frameStopWatch;
-    //private int? serverSessionId;
-    private int summaryPacketCount;
-
     private bool stopReceiverThread;
     private ConcurrentQueue<byte[]> initPacketQueue;
     private ConcurrentQueue<FrameMessage> frameMessageQueue;
+    private int lastFrameId;
+    private int summaryPacketCount;
 
-    public TextMesh ActiveInputField
+    private Vp8Decoder colorDecoder;
+    private TrvlDecoder depthDecoder;
+    private TextureGroup textureGroup;
+
+    private List<FrameMessage> frameMessages;
+    private Stopwatch frameStopWatch;
+
+    private InputState InputState
+    {
+        set
+        {
+            if (value == InputState.IpAddress)
+            {
+                ipAddressText.color = Color.yellow;
+                portText.color = Color.white;
+            }
+            else
+            {
+                ipAddressText.color = Color.white;
+                portText.color = Color.yellow;
+            }
+
+            inputState = value;
+        }
+    }
+
+    private TextMesh ActiveInputField
     {
         get
         {
@@ -92,7 +112,7 @@ public class KinectToHololensManager : MonoBehaviour
         }
     }
 
-    public bool UiVisibility
+    private bool UiVisibility
     {
         set
         {
@@ -110,21 +130,24 @@ public class KinectToHololensManager : MonoBehaviour
 
     void Awake()
     {
-        gestureRecognizer = new GestureRecognizer();
-        receiver = null;
-        textureGroup = null;
+        InputState = InputState.IpAddress;
         UiVisibility = true;
-        SetInputState(InputState.IpAddress);
 
-        frameMessages = new List<FrameMessage>();
-        lastFrameId = -1;
-        frameStopWatch = Stopwatch.StartNew();
-        //serverSessionId = null;
-        summaryPacketCount = 0;
+        gestureRecognizer = new GestureRecognizer();
 
+        receiver = null;
         stopReceiverThread = false;
         initPacketQueue = new ConcurrentQueue<byte[]>();
         frameMessageQueue = new ConcurrentQueue<FrameMessage>();
+        lastFrameId = -1;
+        summaryPacketCount = 0;
+
+        colorDecoder = null;
+        depthDecoder = null;
+        textureGroup = null;
+
+        frameMessages = new List<FrameMessage>();
+        frameStopWatch = Stopwatch.StartNew();
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -286,21 +309,21 @@ public class KinectToHololensManager : MonoBehaviour
         stopReceiverThread = true;
     }
 
-    private void SetInputState(InputState inputState)
-    {
-        if (inputState == InputState.IpAddress)
-        {
-            ipAddressText.color = Color.yellow;
-            portText.color = Color.white;
-        }
-        else
-        {
-            ipAddressText.color = Color.white;
-            portText.color = Color.yellow;
-        }
+    //private void SetInputState(InputState inputState)
+    //{
+    //    if (inputState == InputState.IpAddress)
+    //    {
+    //        ipAddressText.color = Color.yellow;
+    //        portText.color = Color.white;
+    //    }
+    //    else
+    //    {
+    //        ipAddressText.color = Color.white;
+    //        portText.color = Color.yellow;
+    //    }
 
-        this.inputState = inputState;
-    }
+    //    this.inputState = inputState;
+    //}
 
     private void OnTapped(TappedEventArgs args)
     {
@@ -322,7 +345,7 @@ public class KinectToHololensManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.Tab))
         {
-            SetInputState(inputState != InputState.IpAddress ? InputState.IpAddress : InputState.Port);
+            InputState = inputState != InputState.IpAddress ? InputState.IpAddress : InputState.Port;
         }
         AbsorbKeyCode(KeyCode.Alpha0, '0');
         AbsorbKeyCode(KeyCode.Keypad0, '0');
@@ -417,17 +440,19 @@ public class KinectToHololensManager : MonoBehaviour
         {
             var framePackets = new List<byte[]>();
             var xorPackets = new List<byte[]>();
+            SocketError error = SocketError.WouldBlock;
             while (true)
             {
-                var packet = receiver.Receive();
+                var packet = receiver.Receive(out error);
                 if (packet == null)
                     break;
 
                 ++summaryPacketCount;
 
-                int sessionId = BitConverter.ToInt32(packet, 0);
-                var packetType = packet[4];
-
+                int cursor = 0;
+                int sessionId = BitConverter.ToInt32(packet, cursor);
+                cursor += 4;
+                var packetType = packet[cursor];
                 if (packetType == 0)
                 {
                     senderSessionId = sessionId;
@@ -447,14 +472,19 @@ public class KinectToHololensManager : MonoBehaviour
                 }
             }
 
+            if(error != SocketError.WouldBlock)
+            {
+                print($"Error from receiving packets: {error.ToString()}");
+            }
+
             // The logic for XOR FEC packets are almost the same to frame packets.
             // The operations for XOR FEC packets should happen before the frame packets
             // so that frame packet can be created with XOR FEC packets when a missing
             // frame packet is detected.
             foreach (var xorPacket in xorPackets)
             {
+                // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
                 int cursor = 5;
-
                 int frameId = BitConverter.ToInt32(xorPacket, cursor);
                 cursor += 4;
 
@@ -463,7 +493,6 @@ public class KinectToHololensManager : MonoBehaviour
 
                 int packetIndex = BitConverter.ToInt32(xorPacket, cursor);
                 cursor += 4;
-
                 int packetCount = BitConverter.ToInt32(xorPacket, cursor);
                 //cursor += 4;
 
@@ -477,30 +506,21 @@ public class KinectToHololensManager : MonoBehaviour
 
             foreach (var framePacket in framePackets)
             {
-                // Rewrote with out using cursor since it causes a conflict with another cursor
-                // below used for frame packet creation in foward error correction.
-                //int cursor = 5;
-
-                //int frameId = BitConverter.ToInt32(framePacket, cursor);
-                //cursor += 4;
-
-                //if (frameId <= lastFrameId)
-                //    continue;
-
-                //int packetIndex = BitConverter.ToInt32(framePacket, cursor);
-                //cursor += 4;
-
-                //int packetCount = BitConverter.ToInt32(framePacket, cursor);
-                //cursor += 4;
-
-                int frameId = BitConverter.ToInt32(framePacket, 5);
+                int framePacketCursor = 5;
+                int frameId = BitConverter.ToInt32(framePacket, framePacketCursor);
+                framePacketCursor += 4;
 
                 if (frameId <= lastFrameId)
                     continue;
 
-                int packetIndex = BitConverter.ToInt32(framePacket, 9);
-                int packetCount = BitConverter.ToInt32(framePacket, 13);
+                int packetIndex = BitConverter.ToInt32(framePacket, framePacketCursor);
+                framePacketCursor += 4;
+                int packetCount = BitConverter.ToInt32(framePacket, framePacketCursor);
+                //framePacketCursor += 4;
 
+                // If there is a packet for a new frame, check the previous frames, and if
+                // there is a frame with missing packets, try to create them using xor packets.
+                // If using the xor packets fails, request the sender to retransmit the packets.
                 if (!framePacketCollections.ContainsKey(frameId))
                 {
                     framePacketCollections[frameId] = new FramePacketCollection(frameId, packetCount);
@@ -518,36 +538,44 @@ public class KinectToHololensManager : MonoBehaviour
 
                             // Try correction using XOR FEC packets.
                             var fecFailedPacketIndices = new List<int>();
+                            var fecPacketIndices = new List<int>();
 
                             // missing_packet_index cannot get error corrected if there is another missing_packet_index
                             // that belongs to the same XOR FEC packet...
                             foreach (int i in missingPacketIndices)
                             {
+                                bool found = false;
                                 foreach(int j in missingPacketIndices)
                                 {
                                     if (i == j)
                                         continue;
 
-                                    if((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
-                                        fecFailedPacketIndices.Add(i);
+                                    if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
+                                    {
+                                        //fecFailedPacketIndices.Add(i);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if(found)
+                                {
+                                    fecFailedPacketIndices.Add(i);
+                                }
+                                else
+                                {
+                                    fecPacketIndices.Add(i);
                                 }
                             }
 
-                            foreach (int missingPacketIndex in missingPacketIndices)
+                            foreach (int fecPacketIndex in fecPacketIndices)
                             {
-                                // If fec_failed_packet_indices already contains missing_packet_index, skip.
-                                if (fecFailedPacketIndices.Contains(missingPacketIndex))
-                                {
-                                    continue;
-                                }
-
                                 // Try getting the XOR FEC packet for correction.
-                                int xorPacketIndex = missingPacketIndex / XOR_MAX_GROUP_SIZE;
+                                int xorPacketIndex = fecPacketIndex / XOR_MAX_GROUP_SIZE;
                                 var xorPacket = xorPacketCollections[missingFrameId].TryGetPacket(xorPacketIndex);
                                 // Give up if there is no xor packet yet.
                                 if (xorPacket == null)
                                 {
-                                    fecFailedPacketIndices.Add(missingPacketIndex);
+                                    fecFailedPacketIndices.Add(fecPacketIndex);
                                     continue;
                                 }
 
@@ -557,23 +585,19 @@ public class KinectToHololensManager : MonoBehaviour
                                 byte[] fecFramePacket = new byte[PACKET_SIZE];
 
                                 byte packetType = 1;
-                                int cursor = 0;
-                                Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId.Value), 0, fecFramePacket, cursor, 4);
-                                cursor += 4;
+                                int fecPacketCursor = 0;
+                                Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId.Value), 0, fecFramePacket, fecPacketCursor, 4);
+                                fecPacketCursor += 4;
+                                fecFramePacket[fecPacketCursor] = packetType;
+                                fecPacketCursor += 1;
+                                Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, fecPacketCursor, 4);
+                                fecPacketCursor += 4;
+                                Buffer.BlockCopy(BitConverter.GetBytes(packetIndex), 0, fecFramePacket, fecPacketCursor, 4);
+                                fecPacketCursor += 4;
+                                Buffer.BlockCopy(BitConverter.GetBytes(packetCount), 0, fecFramePacket, fecPacketCursor, 4);
+                                fecPacketCursor += 4;
 
-                                fecFramePacket[cursor] = packetType;
-                                cursor += 1;
-
-                                Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, cursor, 4);
-                                cursor += 4;
-
-                                Buffer.BlockCopy(BitConverter.GetBytes(packetIndex), 0, fecFramePacket, cursor, 4);
-                                cursor += 4;
-
-                                Buffer.BlockCopy(BitConverter.GetBytes(packetCount), 0, fecFramePacket, cursor, 4);
-                                cursor += 4;
-
-                                Buffer.BlockCopy(xorPacket, cursor, fecFramePacket, cursor, MAX_PACKET_CONTENT_SIZE);
+                                Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, MAX_PACKET_CONTENT_SIZE);
 
                                 int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;
                                 int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.PacketCount);
@@ -581,25 +605,25 @@ public class KinectToHololensManager : MonoBehaviour
                                 // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                                 for (int i = beginFramePacketIndex; i < endFramePacketIndex; ++i)
                                 {
-                                    if (i == missingPacketIndex)
+                                    if (i == fecPacketIndex)
                                         continue;
 
                                     for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j)
                                         fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
                                 }
 
-                                //print($"restored {missingFrameId} {missingPacketIndex}");
-                                framePacketCollections[missingFrameId].AddPacket(missingPacketIndex, fecFramePacket);
+                                framePacketCollections[missingFrameId].AddPacket(fecPacketIndex, fecFramePacket);
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
-                            //foreach (int fecFailedPacketIndex in fecFailedPacketIndices)
-                            //{
-                            //    print($"request {missingFrameId} {fecFailedPacketIndex}");
-                            //}
                             receiver.Send(collectionPair.Key, fecFailedPacketIndices);
                         }
-                    } // Forward Error Correction End
+                    }
+                    /////////////////////////////////
+                    // Forward Error Correction End//
+                    /////////////////////////////////
                 }
+                // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
+                // which was for reacting to a packet for a new frame.
 
                 framePacketCollections[frameId].AddPacket(packetIndex, framePacket);
             }
