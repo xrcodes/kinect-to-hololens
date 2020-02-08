@@ -15,10 +15,13 @@
 
 namespace kh
 {
+template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
+using steady_clock = std::chrono::steady_clock;
+
 void run_receiver_thread(bool& stop_receiver_thread,
                          Receiver& receiver,
-                         moodycamel::ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
-                         moodycamel::ReaderWriterQueue<FrameMessage>& frame_message_queue,
+                         ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
+                         ReaderWriterQueue<FrameMessage>& frame_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
@@ -85,6 +88,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
             int packet_index = copy_from_packet<int>(frame_packet, cursor);
             int packet_count = copy_from_packet<int>(frame_packet, cursor);
 
+            // When a packet for a new frame is found.
             if (frame_packet_collections.find(frame_id) == frame_packet_collections.end()) {
                 frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
 
@@ -95,39 +99,48 @@ void run_receiver_thread(bool& stop_receiver_thread,
                 for (auto& collection_pair : frame_packet_collections) {
                     if (collection_pair.first < frame_id) {
                         int missing_frame_id = collection_pair.first;
-                        auto missing_packet_indices = collection_pair.second.getMissingPacketIds();
+                        auto missing_packet_indices = collection_pair.second.getMissingPacketIndices();
 
                         // Try correction using XOR FEC packets.
                         std::vector<int> fec_failed_packet_indices;
+                        std::vector<int> fec_packet_indices;
                         
                         // missing_packet_index cannot get error corrected if there is another missing_packet_index
                         // that belongs to the same XOR FEC packet...
                         for (int i : missing_packet_indices) {
+                            bool found = false;
                             for (int j : missing_packet_indices) {
                                 if (i == j)
                                     continue;
 
-                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
-                                    fec_failed_packet_indices.push_back(i);
+                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (found) {
+                                fec_failed_packet_indices.push_back(i);
+                            } else {
+                                fec_packet_indices.push_back(i);
                             }
                         }
 
-                        for (int missing_packet_index : missing_packet_indices) {
+                        for (int fec_packet_index : fec_packet_indices) {
                             // If fec_failed_packet_indices already contains missing_packet_index, skip.
-                            if (std::find(fec_failed_packet_indices.begin(), fec_failed_packet_indices.end(), missing_packet_index) != fec_failed_packet_indices.end()) {
+                            if (std::find(fec_failed_packet_indices.begin(), fec_failed_packet_indices.end(), fec_packet_index) != fec_failed_packet_indices.end()) {
                                 continue;
                             }
 
                             // Try getting the XOR FEC packet for correction.
-                            int xor_packet_index = missing_packet_index / XOR_MAX_GROUP_SIZE;
+                            int xor_packet_index = fec_packet_index / XOR_MAX_GROUP_SIZE;
                             auto xor_packet_ptr = xor_packet_collections.at(missing_frame_id).TryGetPacket(xor_packet_index);
                             // Give up if there is no xor packet yet.
                             if (!xor_packet_ptr) {
-                                fec_failed_packet_indices.push_back(missing_packet_index);
+                                fec_failed_packet_indices.push_back(fec_packet_index);
                                 continue;
                             }
 
-                            auto fec_start = std::chrono::steady_clock::now();
+                            auto fec_start = steady_clock::now();
 
                             std::vector<uint8_t> fec_frame_packet(KH_PACKET_SIZE);
 
@@ -146,18 +159,18 @@ void run_receiver_thread(bool& stop_receiver_thread,
                                                                   collection_pair.second.packet_count());
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                             for (int i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
-                                if (i == missing_packet_index)
+                                if (i == fec_packet_index)
                                     continue;
 
                                 for (int j = KH_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j)
                                     fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
                             }
 
-                            auto fec_time = std::chrono::steady_clock::now() - fec_start;
+                            auto fec_time = steady_clock::now() - fec_start;
 
-                            printf("restored %d %d %lf\n", missing_frame_id, missing_packet_index, fec_time.count() / 1000000.0f);
+                            printf("restored %d %d %lf\n", missing_frame_id, fec_packet_index, fec_time.count() / 1000000.0f);
                             frame_packet_collections.at(missing_frame_id)
-                                                    .addPacket(missing_packet_index, std::move(fec_frame_packet));
+                                                    .addPacket(fec_packet_index, std::move(fec_frame_packet));
                         } // end of for (int missing_packet_index : missing_packet_indices)
 
                         for (int fec_failed_packet_index : fec_failed_packet_indices) {
@@ -238,7 +251,7 @@ void receive_frames(std::string ip_address, int port)
 
     std::vector<FrameMessage> frame_messages;
 
-    auto frame_start = std::chrono::steady_clock::now();
+    auto frame_start = steady_clock::now();
     for (;;) {
         std::vector<uint8_t> packet;
         while (init_packet_queue.try_dequeue(packet)) {
@@ -303,9 +316,9 @@ void receive_frames(std::string ip_address, int port)
 
         std::optional<kh::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
-        std::chrono::steady_clock::duration packet_collection_time;
+        steady_clock::duration packet_collection_time;
 
-        auto decoder_start = std::chrono::steady_clock::now();
+        auto decoder_start = steady_clock::now();
         for (int i = *begin_index; i < frame_messages.size(); ++i) {
             auto frame_message_ptr = &frame_messages[i];
 
@@ -326,9 +339,9 @@ void receive_frames(std::string ip_address, int port)
             // Decompressing a RVL frame into depth pixels.
             depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
         }
-        auto decoder_time = std::chrono::steady_clock::now() - decoder_start;
-        auto frame_time = std::chrono::steady_clock::now() - frame_start;
-        frame_start = std::chrono::steady_clock::now();
+        auto decoder_time = steady_clock::now() - decoder_start;
+        auto frame_time = steady_clock::now() - frame_start;
+        frame_start = steady_clock::now();
 
         receiver.send(last_frame_id,
                       packet_collection_time.count() / 1000000.0f,

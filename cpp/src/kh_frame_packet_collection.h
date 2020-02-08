@@ -16,7 +16,7 @@ public:
     bool isFull();
     FrameMessage toMessage();
     int getCollectedPacketCount();
-    std::vector<int> getMissingPacketIds();
+    std::vector<int> getMissingPacketIndices();
 
 private:
     int frame_id_;

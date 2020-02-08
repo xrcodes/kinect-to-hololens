@@ -50,13 +50,13 @@ int FramePacketCollection::getCollectedPacketCount() {
     return count;
 }
 
-std::vector<int> FramePacketCollection::getMissingPacketIds()
+std::vector<int> FramePacketCollection::getMissingPacketIndices()
 {
-    std::vector<int> missing_packet_ids;
+    std::vector<int> missing_packet_indices;
     for (int i = 0; i < packets_.size(); ++i) {
         if (packets_[i].empty())
-            missing_packet_ids.push_back(i);
+            missing_packet_indices.push_back(i);
     }
-    return missing_packet_ids;
+    return missing_packet_indices;
 }
 }

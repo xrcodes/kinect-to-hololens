@@ -11,44 +11,48 @@
 namespace kh
 {
 // Pair of the frame's id and its packets.
-typedef std::pair<int, std::vector<std::vector<uint8_t>>> FramePacketSet;
+using steady_clock = std::chrono::steady_clock;
+template<class T> using duration = std::chrono::duration<T>;
+template<class T> using time_point = std::chrono::time_point<T>;
+using FramePacketSet = std::pair<int, std::vector<std::vector<uint8_t>>>;
+template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
 
 void run_sender_thread(int session_id,
                        bool& stop_sender_thread,
                        Sender& sender,
-                       moodycamel::ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
+                       ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
                        int& receiver_frame_id)
 {
     const int XOR_MAX_GROUP_SIZE = 5;
 
-    std::unordered_map<int, std::chrono::time_point<std::chrono::steady_clock>> frame_send_times;
+    std::unordered_map<int, time_point<steady_clock>> frame_send_times;
     std::unordered_map<int, FramePacketSet> frame_packet_sets;
     int last_receiver_frame_id = 0;
-    auto send_summary_start = std::chrono::steady_clock::now();
+    auto send_summary_start = steady_clock::now();
     int send_summary_receiver_frame_count = 0;
     int send_summary_receiver_packet_count = 0;
     int send_summary_packet_count = 0;
     while (!stop_sender_thread) {
-        std::optional<std::vector<uint8_t>> receive_result;
+        std::optional<std::vector<uint8_t>> received_packet;
         try {
-            receive_result = sender.receive();
+            received_packet = sender.receive();
         } catch (std::system_error e) {
             printf("Error receving a packet: %s\n", e.what());
             goto run_sender_thread_end;
         }
 
-        if (receive_result) {
+        if (received_packet) {
             int cursor = 0;
-            uint8_t message_type = copy_from_packet<uint8_t>(*receive_result, cursor);
+            uint8_t message_type = copy_from_packet<uint8_t>(*received_packet, cursor);
 
             if (message_type == 1) {
-                receiver_frame_id = copy_from_packet<int>(*receive_result, cursor);
-                float packet_collection_time_ms = copy_from_packet<float>(*receive_result, cursor);
-                float decoder_time_ms = copy_from_packet<float>(*receive_result, cursor);
-                float frame_time_ms = copy_from_packet<float>(*receive_result, cursor);
-                int receiver_packet_count = copy_from_packet<int>(*receive_result, cursor);
+                receiver_frame_id = copy_from_packet<int>(*received_packet, cursor);
+                float packet_collection_time_ms = copy_from_packet<float>(*received_packet, cursor);
+                float decoder_time_ms = copy_from_packet<float>(*received_packet, cursor);
+                float frame_time_ms = copy_from_packet<float>(*received_packet, cursor);
+                int receiver_packet_count = copy_from_packet<int>(*received_packet, cursor);
 
-                std::chrono::duration<double> round_trip_time = std::chrono::steady_clock::now() - frame_send_times[receiver_frame_id];
+                duration<double> round_trip_time = steady_clock::now() - frame_send_times[receiver_frame_id];
 
                 printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
                        receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
@@ -66,11 +70,11 @@ void run_sender_thread(int session_id,
                 ++send_summary_receiver_frame_count;
                 send_summary_receiver_packet_count += receiver_packet_count;
             } else if (message_type == 2) {
-                int requested_frame_id = copy_from_packet<int>(*receive_result, cursor);
-                int missing_packet_count = copy_from_packet<int>(*receive_result, cursor);
+                int requested_frame_id = copy_from_packet<int>(*received_packet, cursor);
+                int missing_packet_count = copy_from_packet<int>(*received_packet, cursor);
                 
                 for (int i = 0; i < missing_packet_count; ++i) {
-                    int missing_packet_index = copy_from_packet<int>(*receive_result, cursor);
+                    int missing_packet_index = copy_from_packet<int>(*received_packet, cursor);
 
                     if (frame_packet_sets.find(requested_frame_id) == frame_packet_sets.end())
                         continue;
@@ -94,7 +98,7 @@ void run_sender_thread(int session_id,
         while (frame_packet_queue.try_dequeue(frame_packet_set)) {
             auto xor_packets = Sender::createXorPackets(session_id, frame_packet_set.first, frame_packet_set.second, XOR_MAX_GROUP_SIZE);
 
-            frame_send_times[frame_packet_set.first] = std::chrono::steady_clock::now();
+            frame_send_times[frame_packet_set.first] = steady_clock::now();
             for (auto packet : frame_packet_set.second) {
                 try {
                     sender.sendPacket(packet);
@@ -137,13 +141,13 @@ void run_sender_thread(int session_id,
             frame_packet_sets.erase(obsolete_frame_id);
 
         if ((receiver_frame_id / 100) > (last_receiver_frame_id / 100)) {
-            std::chrono::duration<double> send_summary_time_interval = std::chrono::steady_clock::now() - send_summary_start;
+            duration<double> send_summary_time_interval = steady_clock::now() - send_summary_start;
             float packet_loss = 1.0f - send_summary_receiver_packet_count / (float)send_summary_packet_count;
             printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
                    send_summary_receiver_frame_count / send_summary_time_interval.count(),
                    packet_loss * 100.0f);
 
-            send_summary_start = std::chrono::steady_clock::now();
+            send_summary_start = steady_clock::now();
             send_summary_receiver_frame_count = 0;
             send_summary_packet_count = 0;
             send_summary_receiver_packet_count = 0;
@@ -209,7 +213,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
     int main_summary_keyframe_count = 0;
     std::chrono::microseconds last_time_stamp;
 
-    auto main_summary_start = std::chrono::steady_clock::now();
+    auto main_summary_start = steady_clock::now();
     size_t main_summary_frame_size_sum = 0;
     for (;;) {
         // Stop if the sender thread stopped.
@@ -226,6 +230,12 @@ void send_frames(int session_id, KinectDevice& device, int port)
             continue;
         }
 
+        auto depth_image = capture->get_depth_image();
+        if (!depth_image) {
+            printf("get_depth_image() failed...\n");
+            continue;
+        }
+
         auto time_stamp = color_image.get_device_timestamp();
         auto time_diff = time_stamp - last_time_stamp;
         float frame_time_stamp = time_stamp.count() / 1000.0f;
@@ -234,12 +244,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
         if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3))) {
             continue;
         }
-
-        auto depth_image = capture->get_depth_image();
-        if (!depth_image) {
-            printf("get_depth_image() failed...\n");
-            continue;
-        }
+        last_time_stamp = time_stamp;
 
         bool keyframe = frame_id_diff > 5;
 
@@ -261,7 +266,6 @@ void send_frames(int session_id, KinectDevice& device, int port)
         auto packets = Sender::createFramePackets(session_id, frame_id, message);
         frame_packet_queue.enqueue(FramePacketSet(frame_id, std::move(packets)));
 
-        last_time_stamp = time_stamp;
 
         // Updating variables for profiling.
         if (keyframe)
@@ -270,14 +274,14 @@ void send_frames(int session_id, KinectDevice& device, int port)
 
         // Print profile measures every 100 frames.
         if (frame_id % 100 == 0) {
-            std::chrono::duration<double> main_summary_time_interval = std::chrono::steady_clock::now() - main_summary_start;
+            duration<double> main_summary_time_interval = steady_clock::now() - main_summary_start;
             printf("Main Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
                    frame_id,
                    100 / main_summary_time_interval.count(),
                    main_summary_keyframe_count,
                    main_summary_frame_size_sum / (main_summary_time_interval.count() * 131072));
 
-            main_summary_start = std::chrono::steady_clock::now();
+            main_summary_start = steady_clock::now();
             main_summary_keyframe_count = 0;
             main_summary_frame_size_sum = 0;
         }
@@ -291,7 +295,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
 void main()
 {
     srand(time(nullptr));
-    std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+    std::mt19937 rng(steady_clock::now().time_since_epoch().count());
 
     for (;;) {
         std::string line;
