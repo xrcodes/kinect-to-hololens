@@ -21,7 +21,7 @@ void run_sender_thread(int session_id,
                        bool& stop_sender_thread,
                        Sender& sender,
                        ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
-                       int& receiver_frame_id)
+                       int& receiver_frame_id) noexcept
 {
     const int XOR_MAX_GROUP_SIZE = 5;
 
@@ -33,15 +33,18 @@ void run_sender_thread(int session_id,
     int send_summary_receiver_packet_count = 0;
     int send_summary_packet_count = 0;
     while (!stop_sender_thread) {
-        std::optional<std::vector<uint8_t>> received_packet;
-        try {
-            received_packet = sender.receive();
-        } catch (std::system_error e) {
-            printf("Error receving a packet: %s\n", e.what());
-            goto run_sender_thread_end;
-        }
+        for (;;) {
+            std::error_code error;
+            std::optional<std::vector<uint8_t>> received_packet = sender.receive(error);
 
-        if (received_packet) {
+            if (!received_packet) {
+                if (error == asio::error::would_block) {
+                    break;
+                } else {
+                    printf("Error receving a packet: %s\n", error.message().c_str());
+                    goto run_sender_thread_end;
+                }
+            }
             int cursor = 0;
             uint8_t message_type = copy_from_packet<uint8_t>(*received_packet, cursor);
 
@@ -55,8 +58,8 @@ void run_sender_thread(int session_id,
                 duration<double> round_trip_time = steady_clock::now() - frame_send_times[receiver_frame_id];
 
                 printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
-                       receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
-                       round_trip_time.count() * 1000.0f);
+                        receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
+                        round_trip_time.count() * 1000.0f);
 
                 std::vector<int> obsolete_frame_ids;
                 for (auto& frame_send_time_pair : frame_send_times) {
@@ -72,24 +75,23 @@ void run_sender_thread(int session_id,
             } else if (message_type == 2) {
                 int requested_frame_id = copy_from_packet<int>(*received_packet, cursor);
                 int missing_packet_count = copy_from_packet<int>(*received_packet, cursor);
-                
+
                 for (int i = 0; i < missing_packet_count; ++i) {
                     int missing_packet_index = copy_from_packet<int>(*received_packet, cursor);
 
                     if (frame_packet_sets.find(requested_frame_id) == frame_packet_sets.end())
                         continue;
 
-                    try {
-                        sender.sendPacket(frame_packet_sets[requested_frame_id].second[missing_packet_index]);
-                        ++send_summary_packet_count;
-                    } catch (std::system_error e) {
-                        if (e.code() == asio::error::would_block) {
-                            printf("Failed to fill in a packet as the buffer was full...\n");
-                        } else {
-                            printf("Error while filling in a packet: %s\n", e.what());
-                            goto run_sender_thread_end;
-                        }
+                    std::error_code error;
+                    sender.sendPacket(frame_packet_sets[requested_frame_id].second[missing_packet_index], error);
+                    if (error == asio::error::would_block) {
+                        printf("Failed to fill in a packet as the buffer was full...\n");
+                    } else if (error) {
+                        printf("Error while filling in a packet: %s\n", error.message().c_str());
+                        goto run_sender_thread_end;
                     }
+
+                    ++send_summary_packet_count;
                 }
             }
         }
@@ -100,31 +102,31 @@ void run_sender_thread(int session_id,
 
             frame_send_times[frame_packet_set.first] = steady_clock::now();
             for (auto packet : frame_packet_set.second) {
-                try {
-                    sender.sendPacket(packet);
-                    ++send_summary_packet_count;
-                } catch (std::system_error e) {
-                    if (e.code() == asio::error::would_block) {
-                        printf("Failed to send a frame packet as the buffer was full...\n");
-                    } else {
-                        printf("Error from sending a frame packet: %s\n", e.what());
-                        goto run_sender_thread_end;
-                    }
+                std::error_code error;
+                sender.sendPacket(packet, error);
+
+                if (error == asio::error::would_block) {
+                    printf("Failed to send a frame packet as the buffer was full...\n");
+                } else if (error) {
+                    printf("Error from sending a frame packet: %s\n", error.message().c_str());
+                    goto run_sender_thread_end;
                 }
+
+                ++send_summary_packet_count;
             }
 
             for (auto packet : xor_packets) {
-                try {
-                    sender.sendPacket(packet);
-                    ++send_summary_packet_count;
-                } catch (std::system_error e) {
-                    if (e.code() == asio::error::would_block) {
-                        printf("Failed to send an xor packet as the buffer was full...\n");
-                    } else {
-                        printf("Error from sending an xor packet: %s\n", e.what());
-                        goto run_sender_thread_end;
-                    }
+                std::error_code error;
+                sender.sendPacket(packet, error);
+
+                if (error == asio::error::would_block) {
+                    printf("Failed to send an xor packet as the buffer was full...\n");
+                } else if (error) {
+                    printf("Error from sending an xor packet: %s\n", error.message().c_str());
+                    goto run_sender_thread_end;
                 }
+
+                ++send_summary_packet_count;
             }
             frame_packet_sets[frame_packet_set.first] = std::move(frame_packet_set);
         }
@@ -154,13 +156,12 @@ void run_sender_thread(int session_id,
         }
         last_receiver_frame_id = receiver_frame_id;
     }
-
 run_sender_thread_end:
     stop_sender_thread = true;
     return;
 }
 
-void send_frames(int session_id, KinectDevice& device, int port)
+void send_frames(int session_id, KinectDevice& device, int port) noexcept
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -187,17 +188,20 @@ void send_frames(int session_id, KinectDevice& device, int port)
     asio::ip::udp::endpoint remote_endpoint;
     std::error_code error;
     socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0, error);
-
     if (error) {
         printf("Error receiving ping: %s\n", error.message().c_str());
-        throw std::system_error(error);
+        return;
     }
 
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
     Sender sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
-    sender.sendInitPacket(session_id, calibration);
+    sender.sendInitPacket(session_id, calibration, error);
+    if (error) {
+        printf("Error sending init packet: %s\n", error.message().c_str());
+        return;
+    }
 
     bool stop_sender_thread = false;
     moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
@@ -319,11 +323,7 @@ void main()
 
         int session_id = rng() % (INT_MAX + 1);
 
-        try {
-            send_frames(session_id, *device, port);
-        } catch (std::exception & e) {
-            printf("Error from _send_frames: %s\n", e.what());
-        }
+        send_frames(session_id, *device, port);
     }
 }
 }

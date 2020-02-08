@@ -15,7 +15,7 @@ Sender::Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_en
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration)
+void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration, std::error_code& error)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -77,24 +77,25 @@ void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration)
 
     memcpy(packet.data() + cursor, &depth_to_color_extrinsics, sizeof(depth_to_color_extrinsics));
 
-    sendPacket(packet);
+    sendPacket(packet, error);
 }
 
-std::optional<std::vector<uint8_t>> Sender::receive()
+std::optional<std::vector<uint8_t>> Sender::receive(std::error_code& error)
 {
     std::vector<uint8_t> packet(1500);
     asio::ip::udp::endpoint sender_endpoint;
-    std::error_code error;
     size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
 
-    if (error == asio::error::would_block) {
+    if (error)
         return std::nullopt;
-    }
+    //if (error == asio::error::would_block) {
+    //    return std::nullopt;
+    //}
 
-    if (error) {
-        printf("Error from Sender::receive(): %s\n", error.message().c_str());
-        throw std::system_error(error);
-    }
+    //if (error) {
+    //    printf("Error from Sender::receive(): %s\n", error.message().c_str());
+    //    throw std::system_error(error);
+    //}
 
     packet.resize(packet_size);
     return packet;
@@ -219,13 +220,8 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
     return xor_packets;
 }
 
-void Sender::sendPacket(const std::vector<uint8_t>& packet)
+void Sender::sendPacket(const std::vector<uint8_t>& packet, std::error_code& error)
 {
-    std::error_code error;
     socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
-    if (error) {
-        printf("Error from Sender::send(): %s\n", error.message().c_str());
-        throw std::system_error(error);
-    }
 }
 }

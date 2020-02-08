@@ -258,8 +258,9 @@ void receive_frames(std::string ip_address, int port)
         std::vector<uint8_t> packet;
         while (init_packet_queue.try_dequeue(packet)) {
             int cursor = 0;
+            // These are not needed for the c++ application.
             //int session_id = copy_from_packet<int>(packet, cursor);
-            //uint8_t packet_tye = copy_from_packet<uint8_t>(packet, cursor);
+            //uint8_t packet_type = copy_from_packet<uint8_t>(packet, cursor);
             //int color_width = copy_from_packet<int>(packet, cursor);
             //int color_height = copy_from_packet<int>(packet, cursor);
             cursor += 13;
