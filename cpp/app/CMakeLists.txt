@@ -61,6 +61,7 @@ set_target_properties(KinectReceiver PROPERTIES
 
 add_executable(KinectListener
   kinect_listener.cpp
+  helper/soundio_helper.h
 )
 target_link_libraries(KinectListener
   KinectToHololens
