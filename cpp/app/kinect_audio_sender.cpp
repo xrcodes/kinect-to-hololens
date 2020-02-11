@@ -147,8 +147,10 @@ int main(int port)
             memcpy(packet.data(), read_ptr, packet_size);
             socket.send_to(asio::buffer(packet), remote_endpoint, 0, error);
 
+            read_ptr += packet_size;
             left_bytes -= packet_size;
         }
+
         soundio_ring_buffer_advance_read_ptr(libsoundio::helper::ring_buffer, fill_bytes);
     }
     return 0;

@@ -129,7 +129,25 @@ int main(std::string ip_address, int port)
     printf("start for loop\n");
     for (;;) {
         audio->flushEvents();
-        Sleep(1);
+        char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
+        int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
+        int left_bytes = free_bytes;
+
+        int cursor = 0;
+        std::error_code error;
+        while(left_bytes > 0) {
+            std::vector<uint8_t> packet(1500);
+            size_t packet_size = socket.receive_from(asio::buffer(packet), remote_endpoint, 0, error);
+
+            if (error)
+                break;
+
+            memcpy(write_ptr + cursor, packet.data(), packet_size);
+
+            cursor += packet_size;
+            left_bytes -= packet_size;
+        }
+        soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
     }
     return 0;
 }
