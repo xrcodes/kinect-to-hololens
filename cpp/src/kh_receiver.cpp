@@ -1,6 +1,7 @@
 #include "kh_receiver.h"
 
 #include <iostream>
+#include "kh_packet_helper.h"
 
 namespace kh
 {
@@ -23,7 +24,7 @@ void Receiver::ping(std::string ip_address, int port)
 
 std::optional<std::vector<uint8_t>> Receiver::receive(std::error_code& error)
 {
-    std::vector<uint8_t> packet(1500);
+    std::vector<uint8_t> packet(KH_PACKET_SIZE);
     size_t packet_size = socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error);
 
     if (error)

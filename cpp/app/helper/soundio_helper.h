@@ -32,8 +32,9 @@ static void azure_kinect_read_callback(SoundIoInStream* instream, int frame_coun
     int free_count = free_bytes / bytes_per_stereo_frame;
 
     if (frame_count_min > free_count) {
-        printf("ring buffer overflow");
-        abort();
+        printf("ring buffer overflow\n");
+        //abort();
+        return;
     }
 
     int write_frames = std::min<int>(free_count, frame_count_max);
@@ -207,6 +208,11 @@ static void underflow_callback(struct SoundIoOutStream* outstream) {
     static int count = 0;
     printf("underflow %d\n", ++count);
 }
+
+static void overflow_callback(struct SoundIoInStream* instream) {
+    static int count = 0;
+    printf("overflow %d\n", ++count);
+}
 }
 
 class AudioDevice;
@@ -350,6 +356,10 @@ public:
     void set_read_callback(void (*read_callback)(SoundIoInStream*, int, int))
     {
         ptr_->read_callback = read_callback;
+    }
+    void set_overflow_callback(void (*overflow_callback)(SoundIoInStream*))
+    {
+        ptr_->overflow_callback = overflow_callback;
     }
     int bytes_per_sample() { return ptr_->bytes_per_sample; }
     int bytes_per_frame() { return ptr_->bytes_per_frame; }

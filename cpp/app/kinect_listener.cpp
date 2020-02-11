@@ -74,6 +74,7 @@ int main()
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
     in_stream->set_read_callback(libsoundio::helper::azure_kinect_read_callback);
+    in_stream->set_overflow_callback(libsoundio::helper::overflow_callback);
     if (err = in_stream->open()) {
         printf("unable to open input stream: %s\n", soundio_strerror(err));
         return 1;

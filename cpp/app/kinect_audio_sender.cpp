@@ -73,6 +73,7 @@ int main(int port)
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
     in_stream->set_read_callback(libsoundio::helper::azure_kinect_read_callback);
+    in_stream->set_overflow_callback(libsoundio::helper::overflow_callback);
     if (err = in_stream->open()) {
         printf("unable to open input stream: %s\n", soundio_strerror(err));
         return 1;
@@ -138,6 +139,17 @@ int main(int port)
         char* read_ptr = soundio_ring_buffer_read_ptr(libsoundio::helper::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
         printf("fill_bytes: %d\n", fill_bytes);
+        int left_bytes = fill_bytes;
+
+        while (left_bytes > 0) {
+            int packet_size = std::min<int>(left_bytes, 1500);
+            std::vector<uint8_t> packet(packet_size);
+            memcpy(packet.data(), read_ptr, packet_size);
+            socket.send_to(asio::buffer(packet), remote_endpoint, 0, error);
+
+            left_bytes -= packet_size;
+        }
+        soundio_ring_buffer_advance_read_ptr(libsoundio::helper::ring_buffer, fill_bytes);
     }
     return 0;
 }
