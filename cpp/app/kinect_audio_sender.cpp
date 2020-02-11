@@ -1,14 +1,18 @@
 #include <algorithm>
 #include <iostream>
 #include <asio.hpp>
+#include <opus/opus.h>
 #include "helper/soundio_helper.h"
+#include "kh_packet_helper.h"
 
 namespace kh
 {
 int main(int port)
 {
+    const int AZURE_KINECT_SAMPLE_RATE = 48000;
     const double MICROPHONE_LATENCY = 0.2; // seconds
-
+    const int FRAME_SIZE = 960;
+    
     auto audio = Audio::create();
     if (!audio) {
         printf("out of memory\n");
@@ -56,9 +60,8 @@ int main(int port)
         return 1;
     }
     // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
-    const int K4AMicrophoneSampleRate = 48000;
-    in_stream->set_format(SoundIoFormatFloat32LE);
-    in_stream->set_sample_rate(K4AMicrophoneSampleRate);
+    in_stream->set_format(SoundIoFormatS16LE);
+    in_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
     in_stream->set_read_callback(libsoundio::helper::azure_kinect_read_callback);
@@ -98,16 +101,26 @@ int main(int port)
 
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
+    OpusEncoder* opus_encoder = opus_encoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, OPUS_APPLICATION_VOIP, &err);
+    if (err < 0) {
+        printf("failed to create an encoder: %s\n", opus_strerror(err));
+        return 1;
+    }
+
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
         char* read_ptr = soundio_ring_buffer_read_ptr(libsoundio::helper::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
+
+        if (fill_bytes <= 0)
+            continue;
+
         int left_bytes = fill_bytes;
 
         while (left_bytes > 0) {
-            int packet_size = std::min<int>(left_bytes, 1500);
+            int packet_size = std::min<int>(left_bytes, KH_PACKET_SIZE);
             std::vector<uint8_t> packet(packet_size);
             memcpy(packet.data(), read_ptr, packet_size);
             socket.send_to(asio::buffer(packet), remote_endpoint, 0, error);
@@ -127,6 +140,40 @@ int main(int port)
             summary_time = std::chrono::steady_clock::now();
         }
     }
+    
+    //int sent_byte_count = 0;
+    //auto summary_time = std::chrono::steady_clock::now();
+    //for (;;) {
+    //    audio->flushEvents();
+    //    char* read_ptr = soundio_ring_buffer_read_ptr(libsoundio::helper::ring_buffer);
+    //    int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
+
+    //    if (fill_bytes <= 0)
+    //        continue;
+
+    //    int frame_byte_size = in_stream->bytes_per_sample() * FRAME_SIZE * STEREO_CHANNEL_COUNT;
+    //    std::vector<uint8_t> frame_bytes(frame_byte_size);
+
+    //    int left_bytes = fill_bytes;
+
+    //    while (left_bytes < frame_byte_size) {
+    //        memcpy(frame_bytes.data(), read_ptr, frame_byte_size);
+    //        opus_encode(opus_encoder, frame_bytes, FRAME_SIZE, cbits, MAX_PACKET_SIZE);
+    //    }
+
+
+
+    //    soundio_ring_buffer_advance_read_ptr(libsoundio::helper::ring_buffer, fill_bytes);
+
+    //    sent_byte_count += fill_bytes;
+    //    auto summary_diff = std::chrono::steady_clock::now() - summary_time;
+    //    if (summary_diff > std::chrono::seconds(5))
+    //    {
+    //        printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
+    //        sent_byte_count = 0;
+    //        summary_time = std::chrono::steady_clock::now();
+    //    }
+    //}
     return 0;
 }
 }

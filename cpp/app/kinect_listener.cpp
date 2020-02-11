@@ -69,7 +69,8 @@ int main()
     }
     // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
     const int K4AMicrophoneSampleRate = 48000;
-    in_stream->set_format(SoundIoFormatFloat32LE);
+    //in_stream->set_format(SoundIoFormatFloat32LE);
+    in_stream->set_format(SoundIoFormatS16LE);
     in_stream->set_sample_rate(K4AMicrophoneSampleRate);
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
@@ -87,7 +88,8 @@ int main()
     }
     // These settings are those generic and similar to Azure Kinect's.
     // It is set to be Stereo, which is the default setting of Unity3D.
-    out_stream->set_format(SoundIoFormatFloat32LE);
+    //out_stream->set_format(SoundIoFormatFloat32LE);
+    out_stream->set_format(SoundIoFormatS16LE);
     out_stream->set_sample_rate(K4AMicrophoneSampleRate);
     out_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
     out_stream->set_software_latency(MICROPHONE_LATENCY);

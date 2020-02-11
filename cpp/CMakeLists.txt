@@ -28,8 +28,8 @@ endforeach()
 # Set ${OpenCV_LIBS} for OpenCV.
 find_package(OpenCV REQUIRED)
 
-# For libsoundio
 find_package(libsoundio CONFIG REQUIRED)
+find_package(Opus CONFIG REQUIRED)
 
 # The directory for general source files.
 add_subdirectory(src)

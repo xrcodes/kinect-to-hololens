@@ -8,6 +8,7 @@ namespace kh
 {
 int main(std::string ip_address, int port)
 {
+    const int AZURE_KINECT_SAMPLE_RATE = 48000;
     const double MICROPHONE_LATENCY = 0.2; // seconds
 
     auto audio = Audio::create();
@@ -41,8 +42,6 @@ int main(std::string ip_address, int port)
         return 1;
     }
 
-    const int K4AMicrophoneSampleRate = 48000;
-
     auto out_stream = AudioOutStream::create(*out_device);
     if (!out_stream) {
         printf("out of memory\n");
@@ -50,8 +49,8 @@ int main(std::string ip_address, int port)
     }
     // These settings are those generic and similar to Azure Kinect's.
     // It is set to be Stereo, which is the default setting of Unity3D.
-    out_stream->set_format(SoundIoFormatFloat32LE);
-    out_stream->set_sample_rate(K4AMicrophoneSampleRate);
+    out_stream->set_format(SoundIoFormatS16LE);
+    out_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
     out_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
     out_stream->set_software_latency(MICROPHONE_LATENCY);
     out_stream->set_write_callback(libsoundio::helper::write_callback);
@@ -85,6 +84,8 @@ int main(std::string ip_address, int port)
     receiver.ping(ip_address, port);
 
     printf("start for loop\n");
+    int sent_byte_count = 0;
+    auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
         char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
@@ -108,6 +109,15 @@ int main(std::string ip_address, int port)
         //printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
 
         soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
+
+        sent_byte_count += cursor;
+        auto summary_diff = std::chrono::steady_clock::now() - summary_time;
+        if (summary_diff > std::chrono::seconds(5))
+        {
+            printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
+            sent_byte_count = 0;
+            summary_time = std::chrono::steady_clock::now();
+        }
     }
     return 0;
 }
