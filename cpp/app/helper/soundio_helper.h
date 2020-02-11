@@ -15,6 +15,35 @@ namespace kh
 // The functions inside this namesapce are from sio_microphone.c example of libsoundio.
 namespace libsoundio::example
 {
+static enum SoundIoFormat prioritized_formats[] = {
+    SoundIoFormatFloat32NE,
+    SoundIoFormatFloat32FE,
+    SoundIoFormatS32NE,
+    SoundIoFormatS32FE,
+    SoundIoFormatS24NE,
+    SoundIoFormatS24FE,
+    SoundIoFormatS16NE,
+    SoundIoFormatS16FE,
+    SoundIoFormatFloat64NE,
+    SoundIoFormatFloat64FE,
+    SoundIoFormatU32NE,
+    SoundIoFormatU32FE,
+    SoundIoFormatU24NE,
+    SoundIoFormatU24FE,
+    SoundIoFormatU16NE,
+    SoundIoFormatU16FE,
+    SoundIoFormatS8,
+    SoundIoFormatU8,
+    SoundIoFormatInvalid,
+};
+static int prioritized_sample_rates[] = {
+    48000,
+    44100,
+    96000,
+    24000,
+    0,
+};
+
 struct SoundIoRingBuffer* ring_buffer = NULL;
 
 static void panic(const char* format, ...) {
@@ -261,6 +290,14 @@ public:
         return AudioInStream(ptr);
     }
     SoundIoInStream* ptr() { return ptr_; }
+    int open()
+    {
+        return soundio_instream_open(ptr_);
+    }
+    int start()
+    {
+        return soundio_instream_start(ptr_);
+    }
 private:
     SoundIoInStream* ptr_;
 };
@@ -293,6 +330,14 @@ public:
         return AudioOutStream(ptr);
     }
     SoundIoOutStream* ptr() { return ptr_; }
+    int open()
+    {
+        return soundio_outstream_open(ptr_);
+    }
+    int start()
+    {
+        return soundio_outstream_start(ptr_);
+    }
 private:
     SoundIoOutStream* ptr_;
 };

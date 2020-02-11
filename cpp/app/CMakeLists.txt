@@ -63,7 +63,11 @@ add_executable(KinectListener
   kinect_listener.cpp
   helper/soundio_helper.h
 )
+target_include_directories(KinectListener PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
 target_link_libraries(KinectListener
+  "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
   KinectToHololens
   libsoundio::libsoundio
 )
