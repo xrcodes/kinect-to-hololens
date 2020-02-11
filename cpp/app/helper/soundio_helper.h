@@ -56,11 +56,13 @@ static void panic(const char* format, ...) {
 }
 
 static void read_callback(struct SoundIoInStream* instream, int frame_count_min, int frame_count_max) {
+    printf("read_callback %d %d\n", frame_count_min, frame_count_max);
     struct SoundIoChannelArea* areas;
     int err;
     char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
     int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
-    int free_count = free_bytes / instream->bytes_per_frame;
+    int adjusted_bytes_per_frame = instream->bytes_per_frame / 7 * 2;
+    int free_count = free_bytes / adjusted_bytes_per_frame;
 
     if (frame_count_min > free_count)
         panic("ring buffer overflow");
@@ -68,6 +70,9 @@ static void read_callback(struct SoundIoInStream* instream, int frame_count_min,
     int write_frames = std::min<int>(free_count, frame_count_max);
     int frames_left = write_frames;
 
+    printf("instream->instream->layout.channel_count: %d\n", instream->layout.channel_count);
+    printf("instream->bytes_per_frame: %d\n", instream->bytes_per_frame);
+    printf("adjusted_bytes_per_frame: %d\n", adjusted_bytes_per_frame);
     for (;;) {
         int frame_count = frames_left;
 
@@ -80,12 +85,14 @@ static void read_callback(struct SoundIoInStream* instream, int frame_count_min,
         if (!areas) {
             // Due to an overflow there is a hole. Fill the ring buffer with
             // silence for the size of the hole.
-            memset(write_ptr, 0, frame_count * instream->bytes_per_frame);
+            memset(write_ptr, 0, frame_count * adjusted_bytes_per_frame);
             fprintf(stderr, "Dropped %d frames due to internal overflow\n", frame_count);
         } else {
             for (int frame = 0; frame < frame_count; frame += 1) {
-                for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
+                //for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
+                for (int ch = 0; ch < 2; ch += 1) {
+                    //memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
+                    memcpy(write_ptr, areas[ch].ptr, adjusted_bytes_per_frame);
                     areas[ch].ptr += areas[ch].step;
                     write_ptr += instream->bytes_per_sample;
                 }
@@ -100,10 +107,11 @@ static void read_callback(struct SoundIoInStream* instream, int frame_count_min,
             break;
     }
 
-    int advance_bytes = write_frames * instream->bytes_per_frame;
+    int advance_bytes = write_frames * adjusted_bytes_per_frame;
     soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
 }
 static void write_callback(struct SoundIoOutStream* outstream, int frame_count_min, int frame_count_max) {
+    printf("write_callback %d %d\n", frame_count_min, frame_count_max);
     struct SoundIoChannelArea* areas;
     int frames_left;
     int frame_count;
@@ -113,6 +121,7 @@ static void write_callback(struct SoundIoOutStream* outstream, int frame_count_m
     int fill_bytes = soundio_ring_buffer_fill_count(ring_buffer);
     int fill_count = fill_bytes / outstream->bytes_per_frame;
 
+    printf("outstream->bytes_per_frame: %d\n", outstream->bytes_per_frame);
     if (frame_count_min > fill_count) {
         // Ring buffer does not have enough data, fill with zeroes.
         frames_left = frame_count_min;
@@ -162,6 +171,7 @@ static void write_callback(struct SoundIoOutStream* outstream, int frame_count_m
         frames_left -= frame_count;
     }
 
+    printf("wrote\n");
     soundio_ring_buffer_advance_read_ptr(ring_buffer, read_count * outstream->bytes_per_frame);
 }
 

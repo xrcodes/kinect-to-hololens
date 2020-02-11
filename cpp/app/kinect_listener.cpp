@@ -84,6 +84,7 @@ int main()
     //}
     
     // This layout is from Azure-Kinect-Sensor-SDK/tools/k4aviewer/k4amicrophone.cpp.
+    //const SoundIoChannelLayout* in_layout = soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
     const SoundIoChannelLayout* in_layout = soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
     printf("in_layout channel_count: %d\n", in_layout->channel_count);
 
@@ -98,6 +99,8 @@ int main()
         printf("incompatible sample rates\n");
         return 1;
     }
+
+    printf("sample_rate: %d\n", *sample_rate);
 
     //SoundIoFormat* fmt;
     //for (fmt = libsoundio::example::prioritized_formats; *fmt != SoundIoFormatInvalid; ++fmt) {
