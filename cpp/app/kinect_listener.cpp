@@ -13,6 +13,7 @@
 
 namespace kh
 {
+
 int main()
 {
     double microphone_latency = 0.2; // seconds
@@ -130,6 +131,8 @@ int main()
         return 1;
     }
 
+    int test = 213;
+
     const int K4AMicrophoneSampleRate = 48000;
 
     //in_stream->ptr()->format = *fmt;
@@ -138,7 +141,7 @@ int main()
     in_stream->ptr()->sample_rate = K4AMicrophoneSampleRate;
     in_stream->ptr()->layout = *in_layout;
     in_stream->ptr()->software_latency = microphone_latency;
-    in_stream->ptr()->read_callback = libsoundio::example::read_callback;
+    in_stream->ptr()->read_callback = libsoundio::example::azure_kinect_read_callback;
     if (err = in_stream->open()) {
         printf("unable to open input stream: %s\n", soundio_strerror(err));
         return 1;
