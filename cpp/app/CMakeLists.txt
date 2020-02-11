@@ -67,10 +67,39 @@ target_include_directories(KinectListener PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectListener
-  "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
   KinectToHololens
   libsoundio::libsoundio
 )
 set_target_properties(KinectListener PROPERTIES
+  CXX_STANDARD 17
+)
+
+add_executable(KinectAudioSender
+  kinect_audio_sender.cpp
+  helper/soundio_helper.h
+)
+target_include_directories(KinectAudioSender PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
+target_link_libraries(KinectAudioSender
+  KinectToHololens
+  libsoundio::libsoundio
+)
+set_target_properties(KinectAudioSender PROPERTIES
+  CXX_STANDARD 17
+)
+
+add_executable(KinectAudioReceiver
+  kinect_audio_receiver.cpp
+  helper/soundio_helper.h
+)
+target_include_directories(KinectAudioReceiver PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
+target_link_libraries(KinectAudioReceiver
+  KinectToHololens
+  libsoundio::libsoundio
+)
+set_target_properties(KinectAudioReceiver PROPERTIES
   CXX_STANDARD 17
 )

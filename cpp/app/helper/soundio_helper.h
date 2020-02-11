@@ -13,50 +13,22 @@
 namespace kh
 {
 // The functions inside this namesapce are from sio_microphone.c example of libsoundio.
-namespace libsoundio::example
+namespace libsoundio::helper
 {
-static enum SoundIoFormat prioritized_formats[] = {
-    SoundIoFormatFloat32NE,
-    SoundIoFormatFloat32FE,
-    SoundIoFormatS32NE,
-    SoundIoFormatS32FE,
-    SoundIoFormatS24NE,
-    SoundIoFormatS24FE,
-    SoundIoFormatS16NE,
-    SoundIoFormatS16FE,
-    SoundIoFormatFloat64NE,
-    SoundIoFormatFloat64FE,
-    SoundIoFormatU32NE,
-    SoundIoFormatU32FE,
-    SoundIoFormatU24NE,
-    SoundIoFormatU24FE,
-    SoundIoFormatU16NE,
-    SoundIoFormatU16FE,
-    SoundIoFormatS8,
-    SoundIoFormatU8,
-    SoundIoFormatInvalid,
-};
-static int prioritized_sample_rates[] = {
-    48000,
-    44100,
-    96000,
-    24000,
-    0,
-};
-
 static SoundIoRingBuffer* ring_buffer = NULL;
 
 static void azure_kinect_read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max) {
-    const int AZURE_KINECT_CHANNEL_COUNT = 7;
+    //const int AZURE_KINECT_CHANNEL_COUNT = 7;
     // Stereo is the default setup of Unity3D, so...
     const int STEREO_CHANNEL_COUNT = 2;
 
     SoundIoChannelArea* areas;
     int err;
-    char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::example::ring_buffer);
-    int free_bytes = soundio_ring_buffer_free_count(libsoundio::example::ring_buffer);
+    char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
+    int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
     // Using only the first two channels of Azure Kinect...
-    int bytes_per_stereo_frame = instream->bytes_per_frame / AZURE_KINECT_CHANNEL_COUNT * STEREO_CHANNEL_COUNT;
+    //int bytes_per_stereo_frame = instream->bytes_per_sample / AZURE_KINECT_CHANNEL_COUNT * STEREO_CHANNEL_COUNT;
+    int bytes_per_stereo_frame = instream->bytes_per_sample * STEREO_CHANNEL_COUNT;
     int free_count = free_bytes / bytes_per_stereo_frame;
 
     if (frame_count_min > free_count) {
@@ -103,7 +75,7 @@ static void azure_kinect_read_callback(SoundIoInStream* instream, int frame_coun
     }
 
     int advance_bytes = write_frames * bytes_per_stereo_frame;
-    soundio_ring_buffer_advance_write_ptr(libsoundio::example::ring_buffer, advance_bytes);
+    soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, advance_bytes);
 }
 
 static void read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max) {
@@ -278,6 +250,18 @@ public:
     {
         soundio_flush_events(ptr_);
     }
+    int getInputDeviceCount()
+    {
+        return soundio_input_device_count(ptr_);
+    }
+    int getOutputDeviceCount()
+    {
+        return soundio_output_device_count(ptr_);
+    }
+    int getDefaultOutputDeviceIndex()
+    {
+        return soundio_default_output_device_index(ptr_);
+    }
     SoundIo* ptr() { return ptr_; }
 
 private:
@@ -302,6 +286,8 @@ public:
             soundio_device_unref(ptr_);
     }
     SoundIoDevice* ptr() { return ptr_; }
+    char* name() { return ptr_->name; }
+    bool is_raw() { return ptr_->is_raw; }
 
 private:
     SoundIoDevice* ptr_;
@@ -356,6 +342,17 @@ public:
         return AudioInStream(ptr);
     }
     SoundIoInStream* ptr() { return ptr_; }
+    void set_format(SoundIoFormat format) { ptr_->format = format; }
+    int sample_rate() { return ptr_->sample_rate; }
+    void set_sample_rate(int sample_rate) { ptr_->sample_rate = sample_rate; }
+    void set_layout(SoundIoChannelLayout layout) { ptr_->layout = layout; }
+    void set_software_latency(double software_latency) { ptr_->software_latency = software_latency; }
+    void set_read_callback(void (*read_callback)(SoundIoInStream*, int, int))
+    {
+        ptr_->read_callback = read_callback;
+    }
+    int bytes_per_sample() { return ptr_->bytes_per_sample; }
+    int bytes_per_frame() { return ptr_->bytes_per_frame; }
     int open()
     {
         return soundio_instream_open(ptr_);
@@ -396,6 +393,21 @@ public:
         return AudioOutStream(ptr);
     }
     SoundIoOutStream* ptr() { return ptr_; }
+    void set_format(SoundIoFormat format) { ptr_->format = format; }
+    int sample_rate() { return ptr_->sample_rate; }
+    void set_sample_rate(int sample_rate) { ptr_->sample_rate = sample_rate; }
+    void set_layout(SoundIoChannelLayout layout) { ptr_->layout = layout; }
+    void set_software_latency(double software_latency) { ptr_->software_latency = software_latency; }
+    void set_write_callback(void (*write_callback)(SoundIoOutStream*, int, int))
+    {
+        ptr_->write_callback = write_callback;
+    }
+    void set_underflow_callback(void (*underflow_callback)(SoundIoOutStream*))
+    {
+        ptr_->underflow_callback = underflow_callback;
+    }
+    int bytes_per_sample() { return ptr_->bytes_per_sample; }
+    int bytes_per_frame() { return ptr_->bytes_per_frame; }
     int open()
     {
         return soundio_outstream_open(ptr_);
