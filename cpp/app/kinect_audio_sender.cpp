@@ -98,11 +98,12 @@ int main(int port)
 
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
+    int sent_byte_count = 0;
+    auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
         char* read_ptr = soundio_ring_buffer_read_ptr(libsoundio::helper::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
-        printf("fill_bytes: %d\n", fill_bytes);
         int left_bytes = fill_bytes;
 
         while (left_bytes > 0) {
@@ -116,6 +117,15 @@ int main(int port)
         }
 
         soundio_ring_buffer_advance_read_ptr(libsoundio::helper::ring_buffer, fill_bytes);
+
+        sent_byte_count += fill_bytes;
+        auto summary_diff = std::chrono::steady_clock::now() - summary_time;
+        if (summary_diff > std::chrono::seconds(5))
+        {
+            printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
+            sent_byte_count = 0;
+            summary_time = std::chrono::steady_clock::now();
+        }
     }
     return 0;
 }

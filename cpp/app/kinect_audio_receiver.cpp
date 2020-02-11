@@ -2,6 +2,7 @@
 #include <iostream>
 #include <asio.hpp>
 #include "helper/soundio_helper.h"
+#include "kh_receiver.h"
 
 namespace kh
 {
@@ -80,12 +81,8 @@ int main(std::string ip_address, int port)
     }
 
     asio::io_context io_context;
-    asio::ip::udp::socket socket(io_context);
-    socket.open(asio::ip::udp::v4());
-    socket.non_blocking(true);
-    asio::ip::udp::endpoint remote_endpoint(asio::ip::address::from_string(ip_address), port);
-    std::array<char, 1> send_buf = { { 0 } };
-    socket.send_to(asio::buffer(send_buf), remote_endpoint);
+    Receiver receiver(io_context, 1024 * 1024);
+    receiver.ping(ip_address, port);
 
     printf("start for loop\n");
     for (;;) {
@@ -97,19 +94,18 @@ int main(std::string ip_address, int port)
         int cursor = 0;
         std::error_code error;
         while(left_bytes > 0) {
-            std::vector<uint8_t> packet(1500);
-            size_t packet_size = socket.receive_from(asio::buffer(packet), remote_endpoint, 0, error);
+            auto packet = receiver.receive(error);
 
-            if (error)
+            if (!packet)
                 break;
 
-            memcpy(write_ptr + cursor, packet.data(), packet_size);
+            memcpy(write_ptr + cursor, packet->data(), packet->size());
 
-            cursor += packet_size;
-            left_bytes -= packet_size;
+            cursor += packet->size();
+            left_bytes -= packet->size();
         }
-        int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
-        printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
+        //int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
+        //printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
 
         soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
     }

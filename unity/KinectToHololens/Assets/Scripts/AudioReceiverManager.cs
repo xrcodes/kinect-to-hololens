@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
@@ -7,12 +6,12 @@ using UnityEngine;
 public class AudioReceiverManager : MonoBehaviour
 {
     private Receiver receiver;
-    private ConcurrentQueue<byte[]> packets;
+    private RingBuffer ringBuffer;
 
     void Start()
     {
         receiver = new Receiver(1024 * 1024);
-        packets = new ConcurrentQueue<byte[]>();
+        ringBuffer = new RingBuffer(64 * 1024);
 
         IPAddress address = IPAddress.Parse("127.0.0.1");
         int port = 7777;
@@ -29,21 +28,19 @@ public class AudioReceiverManager : MonoBehaviour
             if (packet == null)
                 break;
 
-            packets.Enqueue(packet);
+            ringBuffer.Write(packet);
         }
     }
 
     void OnAudioFilterRead(float[] data, int channels)
     {
-        int cursor = 0;
-        int leftBytes = data.Length;
-        while(leftBytes > 0 && packets.TryDequeue(out byte[] packet))
-        {
-            int copySize = Math.Min(leftBytes, packet.Length);
-            Array.Copy(packet, 0, data, cursor, copySize);
+        int readSize = data.Length * 4;
+        byte[] readBuffer = new byte[readSize];
+        ringBuffer.Read(readBuffer);
 
-            cursor += copySize;
-            leftBytes -= copySize;
+        for(int i = 0; i < data.Length; ++i)
+        {
+            data[i] = BitConverter.ToSingle(readBuffer, i * 4);
         }
     }
 }
