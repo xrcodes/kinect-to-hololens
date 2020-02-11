@@ -7,7 +7,8 @@ namespace kh
 {
 int main(std::string ip_address, int port)
 {
-    const double MICROPHONE_LATENCY = 0.2; // seconds
+    //const double MICROPHONE_LATENCY = 0.2; // seconds
+    const double MICROPHONE_LATENCY = 1.0; // seconds
 
     auto audio = Audio::create();
     if (!audio) {
@@ -147,6 +148,9 @@ int main(std::string ip_address, int port)
             cursor += packet_size;
             left_bytes -= packet_size;
         }
+        int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
+        printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
+
         soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
     }
     return 0;

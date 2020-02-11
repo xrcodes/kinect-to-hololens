@@ -7,7 +7,8 @@ namespace kh
 {
 int main(int port)
 {
-    const double MICROPHONE_LATENCY = 0.2; // seconds
+    //const double MICROPHONE_LATENCY = 0.2; // seconds
+    const double MICROPHONE_LATENCY = 1.0; // seconds
 
     auto audio = Audio::create();
     if (!audio) {
