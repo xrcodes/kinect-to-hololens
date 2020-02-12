@@ -128,6 +128,7 @@ int main(int port)
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
 
+            // Converting a low-endian byte array to a 16-bit integer array.
             for (int i = 0; i < (FRAME_SIZE * STEREO_CHANNEL_COUNT); ++i)
                 in[i] = pcm_bytes[2 * i + 1] << 8 | pcm_bytes[2 * i];
 

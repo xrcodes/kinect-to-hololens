@@ -121,6 +121,8 @@ int main(std::string ip_address, int port)
                 return 1;
             }
 
+            printf("frame_size: %d\n", frame_size);
+
             for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size; ++i) {
                 pcm_bytes[2 * i] = out[i] & 0xFF;
                 pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
