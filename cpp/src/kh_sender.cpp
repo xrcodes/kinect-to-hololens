@@ -46,10 +46,10 @@ void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration, std::
     size_t cursor = 0;
 
     // Message type
-    memcpy(packet.data() + cursor, &session_id, sizeof(color_width));
+    memcpy(packet.data() + cursor, &session_id, sizeof(session_id));
     cursor += sizeof(session_id);
 
-    packet[cursor] = static_cast<uint8_t>(0);
+    packet[cursor] = KH_SENDER_INIT_PACKET;
     cursor += 1;
 
     memcpy(packet.data() + cursor, &color_width, sizeof(color_width));
@@ -78,6 +78,35 @@ void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration, std::
 
     memcpy(packet.data() + cursor, &depth_to_color_extrinsics, sizeof(depth_to_color_extrinsics));
 
+    sendPacket(packet, error);
+}
+
+void Sender::sendAudioPacket(int session_id, int frame_id, std::vector<uint8_t>& opus_frame, int opus_frame_size, std::error_code& error)
+{
+    uint32_t packet_size = static_cast<uint32_t>(sizeof(session_id) +
+                                                 1 +
+                                                 sizeof(frame_id) +
+                                                 sizeof(opus_frame_size) +
+                                                 opus_frame_size);
+
+    std::vector<uint8_t> packet(packet_size);
+    size_t cursor = 0;
+
+    memcpy(packet.data() + cursor, &session_id, sizeof(session_id));
+    cursor += sizeof(session_id);
+
+    packet[cursor] = KH_SENDER_AUDIO_PACKET;
+    cursor += 1;
+
+    memcpy(packet.data() + cursor, &frame_id, sizeof(frame_id));
+    cursor += sizeof(frame_id);
+
+    memcpy(packet.data() + cursor, &opus_frame_size, sizeof(opus_frame_size));
+    cursor += sizeof(opus_frame_size);
+
+    memcpy(packet.data() + cursor, opus_frame.data(), opus_frame_size);
+
+    printf("packet_size: %ld\n", packet_size);
     sendPacket(packet, error);
 }
 
@@ -127,21 +156,20 @@ std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int
 {
     // The size of frame packets is defined to match the upper limit for udp packets.
 
-    int packet_count = (frame_message.size() - 1) / KH_MAX_PACKET_CONTENT_SIZE + 1;
+    int packet_count = (frame_message.size() - 1) / KH_MAX_FRAME_PACKET_CONTENT_SIZE + 1;
     std::vector<std::vector<uint8_t>> packets;
     for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
-        int message_cursor = KH_MAX_PACKET_CONTENT_SIZE * packet_index;
+        int message_cursor = KH_MAX_FRAME_PACKET_CONTENT_SIZE * packet_index;
 
         bool last = (packet_index + 1) == packet_count;
-        int packet_content_size = last ? (frame_message.size() - message_cursor) : KH_MAX_PACKET_CONTENT_SIZE;
+        int packet_content_size = last ? (frame_message.size() - message_cursor) : KH_MAX_FRAME_PACKET_CONTENT_SIZE;
 
         std::vector<uint8_t> packet(KH_PACKET_SIZE);
-        uint8_t packet_type = 1;
         int cursor = 0;
         memcpy(packet.data() + cursor, &session_id, 4);
         cursor += 4;
 
-        memcpy(packet.data() + cursor, &packet_type, 1);
+        memcpy(packet.data() + cursor, &KH_SENDER_FRAME_PACKET, 1);
         cursor += 1;
 
         memcpy(packet.data() + cursor, &frame_id, 4);
@@ -180,12 +208,11 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
         // Copy packets[begin_index] instead of filling in everything zero
         // to reduce an XOR operation for contents once.
         std::vector<uint8_t> xor_packet(frame_packets[begin_index]);
-        uint8_t packet_type = 2;
         int cursor = 0;
         memcpy(xor_packet.data() + cursor, &session_id, 4);
         cursor += 4;
 
-        memcpy(xor_packet.data() + cursor, &packet_type, 1);
+        memcpy(xor_packet.data() + cursor, &KH_SENDER_XOR_PACKET, 1);
         cursor += 1;
 
         memcpy(xor_packet.data() + cursor, &frame_id, 4);
@@ -198,7 +225,7 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
         //cursor += 4;
 
         for (int i = begin_index + 1; i < end_index; ++i) {
-            for (int j = KH_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j) {
+            for (int j = KH_FRAME_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j) {
                 xor_packet[j] ^= frame_packets[i][j];
             }
         }

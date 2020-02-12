@@ -6,9 +6,18 @@
 
 namespace kh
 {
+const uint8_t KH_SENDER_INIT_PACKET = 0;
+const uint8_t KH_SENDER_FRAME_PACKET = 1;
+const uint8_t KH_SENDER_XOR_PACKET = 2;
+const uint8_t KH_SENDER_AUDIO_PACKET = 3;
+
 const int KH_PACKET_SIZE = 1472;
-const int KH_PACKET_HEADER_SIZE = 17;
-const int KH_MAX_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_PACKET_HEADER_SIZE;
+
+const int KH_FRAME_PACKET_HEADER_SIZE = 17;
+const int KH_MAX_FRAME_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_FRAME_PACKET_HEADER_SIZE;
+
+const int KH_FRAME_AUDIO_PACKET_HEADER_SIZE = 13;
+const int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_FRAME_AUDIO_PACKET_HEADER_SIZE;
 
 template<class T>
 void copy_to_packet(const T& t, std::vector<uint8_t>& packet, int& cursor)

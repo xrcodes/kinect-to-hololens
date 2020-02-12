@@ -151,7 +151,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
                             copy_to_packet<int>(packet_index, fec_frame_packet, cursor);
                             copy_to_packet<int>(packet_count, fec_frame_packet, cursor);
 
-                            memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, KH_MAX_PACKET_CONTENT_SIZE);
+                            memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, KH_MAX_FRAME_PACKET_CONTENT_SIZE);
 
                             int begin_frame_packet_index = xor_packet_index * XOR_MAX_GROUP_SIZE;
                             int end_frame_packet_index = std::min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE,
@@ -161,7 +161,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
                                 if (i == fec_packet_index)
                                     continue;
 
-                                for (int j = KH_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j)
+                                for (int j = KH_FRAME_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j)
                                     fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
                             }
 

@@ -28,13 +28,13 @@ bool FramePacketCollection::isFull()
 FrameMessage FramePacketCollection::toMessage() {
     int message_size = 0;
     for (auto packet : packets_) {
-        message_size += packet.size() - KH_PACKET_HEADER_SIZE;
+        message_size += packet.size() - KH_FRAME_PACKET_HEADER_SIZE;
     }
 
     std::vector<uint8_t> message(message_size);
     for (int i = 0; i < packets_.size(); ++i) {
-        int cursor = (KH_PACKET_SIZE - KH_PACKET_HEADER_SIZE) * i;
-        memcpy(message.data() + cursor, packets_[i].data() + KH_PACKET_HEADER_SIZE, packets_[i].size() - KH_PACKET_HEADER_SIZE);
+        int cursor = (KH_PACKET_SIZE - KH_FRAME_PACKET_HEADER_SIZE) * i;
+        memcpy(message.data() + cursor, packets_[i].data() + KH_FRAME_PACKET_HEADER_SIZE, packets_[i].size() - KH_FRAME_PACKET_HEADER_SIZE);
     }
 
     auto packet_collection_time = std::chrono::steady_clock::now() - construction_time_;

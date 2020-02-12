@@ -4,6 +4,7 @@
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
 #include "kh_receiver.h"
+#include "kh_packet_helper.h"
 
 namespace kh
 {
@@ -103,28 +104,31 @@ int main(std::string ip_address, int port)
 
         const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
-        int cursor = 0;
+        int write_cursor = 0;
         std::error_code error;
-        while((free_bytes - cursor) > FRAME_BYTE_SIZE) {
+        while((free_bytes - write_cursor) > FRAME_BYTE_SIZE) {
             auto packet = receiver.receive(error);
 
             if (!packet)
                 break;
 
-            int frame_size = opus_decode_float(opus_decoder, packet->data(), packet->size(), out, AUDIO_FRAME_SIZE, 0);
+            int audio_packet_cursor = 9;
+            int opus_frame_size = copy_from_packet<int>(*packet, audio_packet_cursor);
+
+            int frame_size = opus_decode_float(opus_decoder, packet->data() + audio_packet_cursor, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
             if (frame_size < 0) {
                 printf("decoder failed: %s\n", opus_strerror(frame_size));
                 return 1;
             }
 
-            printf("frame_size: %d\n", frame_size);
-            memcpy(write_ptr + cursor, out, FRAME_BYTE_SIZE);
+            printf("opus_frame_size: %d, frame_size: %d\n", opus_frame_size, frame_size);
+            memcpy(write_ptr + write_cursor, out, FRAME_BYTE_SIZE);
 
-            cursor += FRAME_BYTE_SIZE;
+            write_cursor += FRAME_BYTE_SIZE;
         }
 
-        soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, cursor);
-        sent_byte_count += cursor;
+        soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, write_cursor);
+        sent_byte_count += write_cursor;
 
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))

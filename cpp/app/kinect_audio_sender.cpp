@@ -3,6 +3,7 @@
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
+#include "kh_sender.h"
 #include "kh_packet_helper.h"
 
 namespace kh
@@ -99,6 +100,8 @@ int main(int port)
         return 1;
     }
 
+    Sender sender(std::move(socket), remote_endpoint, 1024 * 1024);
+
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     OpusEncoder* opus_encoder = opus_encoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, OPUS_APPLICATION_VOIP, &err);
@@ -107,7 +110,7 @@ int main(int port)
         return 1;
     }
 
-    uint8_t packet[KH_PACKET_SIZE];
+    std::vector<uint8_t> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
@@ -123,16 +126,16 @@ int main(int port)
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
 
-            int packet_size = opus_encode_float(opus_encoder, reinterpret_cast<float*>(pcm_bytes), AUDIO_FRAME_SIZE, packet, KH_PACKET_SIZE);
-            if (packet_size < 0) {
-                printf("encode failed: %s\n", opus_strerror(packet_size));
+            int opus_frame_size = opus_encode_float(opus_encoder, reinterpret_cast<float*>(pcm_bytes), AUDIO_FRAME_SIZE, opus_frame.data(), KH_PACKET_SIZE);
+            if (opus_frame_size < 0) {
+                printf("encode failed: %s\n", opus_strerror(opus_frame_size));
                 return 1;
             }
 
-            socket.send_to(asio::buffer(packet, packet_size), remote_endpoint, 0, error);
+            sender.sendAudioPacket(0, 0, opus_frame, opus_frame_size, error);
 
             cursor += FRAME_BYTE_SIZE;
-            sent_byte_count += packet_size;
+            sent_byte_count += opus_frame_size;
         }
 
         soundio_ring_buffer_advance_read_ptr(soundio_helper::ring_buffer, cursor);
