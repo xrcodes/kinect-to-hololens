@@ -1,5 +1,7 @@
 #include "kh_frame_packet_collection.h"
 
+#include "kh_packet_helper.h"
+
 namespace kh
 {
 FramePacketCollection::FramePacketCollection(int frame_id, int packet_count)
@@ -24,16 +26,15 @@ bool FramePacketCollection::isFull()
 }
 
 FrameMessage FramePacketCollection::toMessage() {
-    const int HEADER_SIZE = 17;
     int message_size = 0;
     for (auto packet : packets_) {
-        message_size += packet.size() - HEADER_SIZE;
+        message_size += packet.size() - KH_PACKET_HEADER_SIZE;
     }
 
     std::vector<uint8_t> message(message_size);
     for (int i = 0; i < packets_.size(); ++i) {
-        int cursor = (1500 - HEADER_SIZE) * i;
-        memcpy(message.data() + cursor, packets_[i].data() + HEADER_SIZE, packets_[i].size() - HEADER_SIZE);
+        int cursor = (KH_PACKET_SIZE - KH_PACKET_HEADER_SIZE) * i;
+        memcpy(message.data() + cursor, packets_[i].data() + KH_PACKET_HEADER_SIZE, packets_[i].size() - KH_PACKET_HEADER_SIZE);
     }
 
     auto packet_collection_time = std::chrono::steady_clock::now() - construction_time_;

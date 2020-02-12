@@ -83,7 +83,7 @@ void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration, std::
 
 std::optional<std::vector<uint8_t>> Sender::receive(std::error_code& error)
 {
-    std::vector<uint8_t> packet(1500);
+    std::vector<uint8_t> packet(KH_PACKET_SIZE);
     asio::ip::udp::endpoint sender_endpoint;
     size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
 

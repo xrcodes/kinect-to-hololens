@@ -352,7 +352,7 @@ void receive_frames(std::string ip_address, int port)
                       error);
 
         if (error && error != asio::error::would_block)
-            printf("Error sending receiver status: %s\n", error.message().c_str();
+            printf("Error sending receiver status: %s\n", error.message().c_str());
 
         summary_packet_count = 0;
 
