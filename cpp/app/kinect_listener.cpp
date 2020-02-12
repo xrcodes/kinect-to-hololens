@@ -74,8 +74,8 @@ int main()
     in_stream->set_sample_rate(K4AMicrophoneSampleRate);
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
-    in_stream->set_read_callback(libsoundio::helper::azure_kinect_read_callback);
-    in_stream->set_overflow_callback(libsoundio::helper::overflow_callback);
+    in_stream->set_read_callback(soundio_helper::azure_kinect_read_callback);
+    in_stream->set_overflow_callback(soundio_helper::overflow_callback);
     if (err = in_stream->open()) {
         printf("unable to open input stream: %s\n", soundio_strerror(err));
         return 1;
@@ -93,8 +93,8 @@ int main()
     out_stream->set_sample_rate(K4AMicrophoneSampleRate);
     out_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
     out_stream->set_software_latency(MICROPHONE_LATENCY);
-    out_stream->set_write_callback(libsoundio::helper::write_callback);
-    out_stream->set_underflow_callback(libsoundio::helper::underflow_callback);
+    out_stream->set_write_callback(soundio_helper::write_callback);
+    out_stream->set_underflow_callback(soundio_helper::underflow_callback);
     if (err = out_stream->open()) {
         printf("unable to open output stream: %s\n", soundio_strerror(err));
         return 1;
@@ -104,14 +104,14 @@ int main()
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     const int STEREO_CHANNEL_COUNT = 2;
     int capacity = MICROPHONE_LATENCY * 2 * in_stream->sample_rate() * in_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    libsoundio::helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
-    if (!libsoundio::helper::ring_buffer) {
+    soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
+    if (!soundio_helper::ring_buffer) {
         printf("unable to create ring buffer: out of memory\n");
     }
-    char* buf = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
+    char* buf = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
     int fill_count = MICROPHONE_LATENCY * out_stream->sample_rate() * out_stream->bytes_per_frame();
     memset(buf, 0, fill_count);
-    soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, fill_count);
+    soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, fill_count);
     if (err = in_stream->start()) {
         printf("unable to start input device: %s\n", soundio_strerror(err));
         return 1;

@@ -13,7 +13,7 @@
 namespace kh
 {
 // The functions inside this namesapce are from sio_microphone.c example of libsoundio.
-namespace libsoundio::helper
+namespace soundio_helper
 {
 static SoundIoRingBuffer* ring_buffer = NULL;
 
@@ -24,8 +24,8 @@ static void azure_kinect_read_callback(SoundIoInStream* instream, int frame_coun
 
     SoundIoChannelArea* areas;
     int err;
-    char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
-    int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
+    char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
+    int free_bytes = soundio_ring_buffer_free_count(soundio_helper::ring_buffer);
     // Using only the first two channels of Azure Kinect...
     //int bytes_per_stereo_frame = instream->bytes_per_sample / AZURE_KINECT_CHANNEL_COUNT * STEREO_CHANNEL_COUNT;
     int bytes_per_stereo_frame = instream->bytes_per_sample * STEREO_CHANNEL_COUNT;
@@ -76,7 +76,7 @@ static void azure_kinect_read_callback(SoundIoInStream* instream, int frame_coun
     }
 
     int advance_bytes = write_frames * bytes_per_stereo_frame;
-    soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, advance_bytes);
+    soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, advance_bytes);
 }
 
 static void read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max) {

@@ -54,8 +54,8 @@ int main(std::string ip_address, int port)
     out_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
     out_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
     out_stream->set_software_latency(MICROPHONE_LATENCY);
-    out_stream->set_write_callback(libsoundio::helper::write_callback);
-    out_stream->set_underflow_callback(libsoundio::helper::underflow_callback);
+    out_stream->set_write_callback(soundio_helper::write_callback);
+    out_stream->set_underflow_callback(soundio_helper::underflow_callback);
     if (err = out_stream->open()) {
         printf("unable to open output stream: %s\n", soundio_strerror(err));
         return 1;
@@ -66,14 +66,14 @@ int main(std::string ip_address, int port)
     const int STEREO_CHANNEL_COUNT = 2;
     //int capacity = MICROPHONE_LATENCY * 2 * in_stream->sample_rate() * in_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
     int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    libsoundio::helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
-    if (!libsoundio::helper::ring_buffer) {
+    soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
+    if (!soundio_helper::ring_buffer) {
         printf("unable to create ring buffer: out of memory\n");
     }
-    char* buf = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
+    char* buf = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
     int fill_count = MICROPHONE_LATENCY * out_stream->sample_rate() * out_stream->bytes_per_frame();
     memset(buf, 0, fill_count);
-    soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, fill_count);
+    soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, fill_count);
 
     if (err = out_stream->start()) {
         printf("unable to start output device: %s\n", soundio_strerror(err));
@@ -85,42 +85,6 @@ int main(std::string ip_address, int port)
     receiver.ping(ip_address, port);
 
     printf("start for loop\n");
-    //int sent_byte_count = 0;
-    //auto summary_time = std::chrono::steady_clock::now();
-    //for (;;) {
-    //    audio->flushEvents();
-    //    char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
-    //    int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
-    //    int left_bytes = free_bytes;
-
-    //    int cursor = 0;
-    //    std::error_code error;
-    //    while(left_bytes > 0) {
-    //        auto packet = receiver.receive(error);
-
-    //        if (!packet)
-    //            break;
-
-    //        memcpy(write_ptr + cursor, packet->data(), packet->size());
-
-    //        cursor += packet->size();
-    //        left_bytes -= packet->size();
-    //    }
-    //    //int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
-    //    //printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
-
-    //    soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
-
-    //    sent_byte_count += cursor;
-    //    auto summary_diff = std::chrono::steady_clock::now() - summary_time;
-    //    if (summary_diff > std::chrono::seconds(5))
-    //    {
-    //        printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
-    //        sent_byte_count = 0;
-    //        summary_time = std::chrono::steady_clock::now();
-    //    }
-    //}
-
     OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
     if (err < 0) {
         printf("failed to create decoder: %s\n", opus_strerror(err));
@@ -137,19 +101,14 @@ int main(std::string ip_address, int port)
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
-        char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
-        int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
-
-        if (free_bytes <= 0)
-            continue;
+        char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
+        int free_bytes = soundio_ring_buffer_free_count(soundio_helper::ring_buffer);
 
         const int FRAME_BYTE_SIZE = sizeof(short) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
-        int left_bytes = free_bytes;
         int cursor = 0;
         std::error_code error;
-        while(left_bytes > FRAME_BYTE_SIZE) {
-            printf("left_bytes: %d\n", left_bytes);
+        while((free_bytes - cursor) > FRAME_BYTE_SIZE) {
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             auto packet = receiver.receive(error);
 
@@ -167,28 +126,12 @@ int main(std::string ip_address, int port)
                 pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
             }
 
-            int packet_sum = 0;
-            for (int i = 0; i < packet->size(); ++i) {
-                packet_sum += (*packet)[i];
-            }
-
-            int pcm_bytes_sum = 0;
-            for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size * 2; ++i) {
-                pcm_bytes_sum += pcm_bytes[i];
-            }
-
-            printf("packet_sum: %d, pcm_bytes_sum: %d\n", packet_sum, pcm_bytes_sum);
-
-            //memcpy(write_ptr + cursor, packet->data(), packet->size());
             memcpy(write_ptr + cursor, pcm_bytes, FRAME_BYTE_SIZE);
 
             cursor += FRAME_BYTE_SIZE;
-            left_bytes -= FRAME_BYTE_SIZE;
         }
-        //int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
-        //printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
 
-        soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
+        soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, cursor);
         sent_byte_count += cursor;
 
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
@@ -199,6 +142,7 @@ int main(std::string ip_address, int port)
             summary_time = std::chrono::steady_clock::now();
         }
     }
+    opus_decoder_destroy(opus_decoder);
     return 0;
 }
 }

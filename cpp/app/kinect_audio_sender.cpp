@@ -63,8 +63,8 @@ int main(int port)
     in_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
-    in_stream->set_read_callback(libsoundio::helper::azure_kinect_read_callback);
-    in_stream->set_overflow_callback(libsoundio::helper::overflow_callback);
+    in_stream->set_read_callback(soundio_helper::azure_kinect_read_callback);
+    in_stream->set_overflow_callback(soundio_helper::overflow_callback);
     if (err = in_stream->open()) {
         printf("unable to open input stream: %s\n", soundio_strerror(err));
         return 1;
@@ -74,8 +74,8 @@ int main(int port)
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     const int STEREO_CHANNEL_COUNT = 2;
     int capacity = MICROPHONE_LATENCY * 2 * in_stream->sample_rate() * in_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    libsoundio::helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
-    if (!libsoundio::helper::ring_buffer) {
+    soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
+    if (!soundio_helper::ring_buffer) {
         printf("unable to create ring buffer: out of memory\n");
     }
 
@@ -106,71 +106,43 @@ int main(int port)
         return 1;
     }
 
-    //OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
-    //if (err < 0) {
-    //    printf("failed to create decoder: %s\n", opus_strerror(err));
-    //    return 1;
-    //}
-
     const int MAX_FRAME_SIZE = 6 * 960;
     const int MAX_PACKET_SIZE = 3 * 1276;
     const int FRAME_SIZE = 960;
 
     opus_int16 in[FRAME_SIZE * STEREO_CHANNEL_COUNT];
-    //opus_int16 out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
-    unsigned char cbits[MAX_PACKET_SIZE];
+    unsigned char packet[MAX_PACKET_SIZE];
 
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
-        char* read_ptr = soundio_ring_buffer_read_ptr(libsoundio::helper::ring_buffer);
-        int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
-
-        if (fill_bytes <= 0)
-            continue;
+        char* read_ptr = soundio_ring_buffer_read_ptr(soundio_helper::ring_buffer);
+        int fill_bytes = soundio_ring_buffer_fill_count(soundio_helper::ring_buffer);
 
         const int FRAME_BYTE_SIZE = sizeof(short) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
-        int left_bytes = fill_bytes;
         int cursor = 0;
 
-        while (left_bytes > FRAME_BYTE_SIZE) {
+        while ((fill_bytes - cursor) > FRAME_BYTE_SIZE) {
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
 
             for (int i = 0; i < (FRAME_SIZE * STEREO_CHANNEL_COUNT); ++i)
                 in[i] = pcm_bytes[2 * i + 1] << 8 | pcm_bytes[2 * i];
 
-            int opus_byte_count = opus_encode(opus_encoder, in, FRAME_SIZE, cbits, MAX_PACKET_SIZE);
-            if (opus_byte_count < 0) {
-                printf("encode failed: %s\n", opus_strerror(opus_byte_count));
+            int packet_size = opus_encode(opus_encoder, in, FRAME_SIZE, packet, MAX_PACKET_SIZE);
+            if (packet_size < 0) {
+                printf("encode failed: %s\n", opus_strerror(packet_size));
                 return 1;
             }
-
-            //int frame_size = opus_decode(opus_decoder, cbits, opus_byte_count, out, MAX_FRAME_SIZE, 0);
-            //if (frame_size < 0) {
-            //    printf("decoder failed: %s\n", opus_strerror(frame_size));
-            //    return 1;
-            //}
-
-            //for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size; i++) {
-            //    pcm_bytes[2 * i] = out[i] & 0xFF;
-            //    pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
-            //}
-
-
-            //int packet_size = 2 * STEREO_CHANNEL_COUNT * frame_size;
-            //int packet_size = 2 * STEREO_CHANNEL_COUNT * FRAME_SIZE;
-            //printf("packet_size: %d, opus_byte_count: %d\n", packet_size, opus_byte_count);
-            //socket.send_to(asio::buffer(pcm_bytes, packet_size), remote_endpoint, 0, error);
-            socket.send_to(asio::buffer(cbits, opus_byte_count), remote_endpoint, 0, error);
+            
+            socket.send_to(asio::buffer(packet, packet_size), remote_endpoint, 0, error);
 
             cursor += FRAME_BYTE_SIZE;
-            left_bytes -= FRAME_BYTE_SIZE;
         }
 
-        soundio_ring_buffer_advance_read_ptr(libsoundio::helper::ring_buffer, cursor);
+        soundio_ring_buffer_advance_read_ptr(soundio_helper::ring_buffer, cursor);
         sent_byte_count += cursor;
         
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
@@ -181,6 +153,7 @@ int main(int port)
             summary_time = std::chrono::steady_clock::now();
         }
     }
+    opus_encoder_destroy(opus_encoder);
     return 0;
 }
 }
