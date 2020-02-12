@@ -59,7 +59,7 @@ int main(int port)
         return 1;
     }
     // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
-    in_stream->set_format(SoundIoFormatS16LE);
+    in_stream->set_format(SoundIoFormatFloat32LE);
     in_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
     in_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
     in_stream->set_software_latency(MICROPHONE_LATENCY);
@@ -110,7 +110,6 @@ int main(int port)
     const int MAX_PACKET_SIZE = 3 * 1276;
     const int FRAME_SIZE = 960;
 
-    opus_int16 in[FRAME_SIZE * STEREO_CHANNEL_COUNT];
     unsigned char packet[MAX_PACKET_SIZE];
 
     int sent_byte_count = 0;
@@ -120,7 +119,7 @@ int main(int port)
         char* read_ptr = soundio_ring_buffer_read_ptr(soundio_helper::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(soundio_helper::ring_buffer);
 
-        const int FRAME_BYTE_SIZE = sizeof(short) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
+        const int FRAME_BYTE_SIZE = sizeof(float) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
         int cursor = 0;
 
@@ -128,23 +127,19 @@ int main(int port)
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
 
-            // Converting a low-endian byte array to a 16-bit integer array.
-            for (int i = 0; i < (FRAME_SIZE * STEREO_CHANNEL_COUNT); ++i)
-                in[i] = pcm_bytes[2 * i + 1] << 8 | pcm_bytes[2 * i];
-
-            int packet_size = opus_encode(opus_encoder, in, FRAME_SIZE, packet, MAX_PACKET_SIZE);
+            int packet_size = opus_encode_float(opus_encoder, reinterpret_cast<float*>(pcm_bytes), FRAME_SIZE, packet, MAX_PACKET_SIZE);
             if (packet_size < 0) {
                 printf("encode failed: %s\n", opus_strerror(packet_size));
                 return 1;
             }
-            
+
             socket.send_to(asio::buffer(packet, packet_size), remote_endpoint, 0, error);
 
             cursor += FRAME_BYTE_SIZE;
+            sent_byte_count += packet_size;
         }
 
         soundio_ring_buffer_advance_read_ptr(soundio_helper::ring_buffer, cursor);
-        sent_byte_count += cursor;
         
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))

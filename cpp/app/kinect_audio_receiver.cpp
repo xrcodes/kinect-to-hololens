@@ -50,7 +50,7 @@ int main(std::string ip_address, int port)
     }
     // These settings are those generic and similar to Azure Kinect's.
     // It is set to be Stereo, which is the default setting of Unity3D.
-    out_stream->set_format(SoundIoFormatS16LE);
+    out_stream->set_format(SoundIoFormatFloat32LE);
     out_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
     out_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
     out_stream->set_software_latency(MICROPHONE_LATENCY);
@@ -95,7 +95,7 @@ int main(std::string ip_address, int port)
     const int MAX_PACKET_SIZE = 3 * 1276;
     const int FRAME_SIZE = 960;
 
-    opus_int16 out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
+    float out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
 
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
@@ -104,31 +104,24 @@ int main(std::string ip_address, int port)
         char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
         int free_bytes = soundio_ring_buffer_free_count(soundio_helper::ring_buffer);
 
-        const int FRAME_BYTE_SIZE = sizeof(short) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
+        const int FRAME_BYTE_SIZE = sizeof(float) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
         int cursor = 0;
         std::error_code error;
         while((free_bytes - cursor) > FRAME_BYTE_SIZE) {
-            unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             auto packet = receiver.receive(error);
 
             if (!packet)
                 break;
 
-            int frame_size = opus_decode(opus_decoder, packet->data(), packet->size(), out, MAX_FRAME_SIZE, 0);
+            int frame_size = opus_decode_float(opus_decoder, packet->data(), packet->size(), out, MAX_FRAME_SIZE, 0);
             if (frame_size < 0) {
                 printf("decoder failed: %s\n", opus_strerror(frame_size));
                 return 1;
             }
 
             printf("frame_size: %d\n", frame_size);
-
-            for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size; ++i) {
-                pcm_bytes[2 * i] = out[i] & 0xFF;
-                pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
-            }
-
-            memcpy(write_ptr + cursor, pcm_bytes, FRAME_BYTE_SIZE);
+            memcpy(write_ptr + cursor, out, FRAME_BYTE_SIZE);
 
             cursor += FRAME_BYTE_SIZE;
         }
