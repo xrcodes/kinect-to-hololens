@@ -110,6 +110,7 @@ int main(int port)
         return 1;
     }
 
+    int frame_id = 0;
     std::vector<uint8_t> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
@@ -121,7 +122,6 @@ int main(int port)
         const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
         int cursor = 0;
-
         while ((fill_bytes - cursor) > FRAME_BYTE_SIZE) {
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
@@ -132,7 +132,7 @@ int main(int port)
                 return 1;
             }
 
-            sender.sendAudioPacket(0, 0, opus_frame, opus_frame_size, error);
+            sender.sendAudioPacket(0, frame_id++, opus_frame, opus_frame_size, error);
 
             cursor += FRAME_BYTE_SIZE;
             sent_byte_count += opus_frame_size;

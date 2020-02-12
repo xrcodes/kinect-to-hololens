@@ -17,11 +17,11 @@ template<class T> using time_point = std::chrono::time_point<T>;
 using FramePacketSet = std::pair<int, std::vector<std::vector<uint8_t>>>;
 template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
 
-void run_sender_thread(int session_id,
-                       bool& stop_sender_thread,
-                       Sender& sender,
-                       ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
-                       int& receiver_frame_id)
+void run_frame_sender_thread(int session_id,
+                             bool& stop_threads,
+                             Sender& sender,
+                             ReaderWriterQueue<FramePacketSet>& frame_packet_queue,
+                             int& receiver_frame_id)
 {
     const int XOR_MAX_GROUP_SIZE = 5;
 
@@ -32,7 +32,7 @@ void run_sender_thread(int session_id,
     int send_summary_receiver_frame_count = 0;
     int send_summary_receiver_packet_count = 0;
     int send_summary_packet_count = 0;
-    while (!stop_sender_thread) {
+    while (!stop_threads) {
         for (;;) {
             std::error_code error;
             std::optional<std::vector<uint8_t>> received_packet = sender.receive(error);
@@ -157,7 +157,7 @@ void run_sender_thread(int session_id,
         last_receiver_frame_id = receiver_frame_id;
     }
 run_sender_thread_end:
-    stop_sender_thread = true;
+    stop_threads = true;
     return;
 }
 
@@ -203,12 +203,12 @@ void send_frames(int session_id, KinectDevice& device, int port)
         return;
     }
 
-    bool stop_sender_thread = false;
+    bool stop_threads = false;
     moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id = 0;
-    std::thread sender_thread(run_sender_thread, session_id, std::ref(stop_sender_thread), std::ref(sender),
-                              std::ref(frame_packet_queue), std::ref(receiver_frame_id));
+    std::thread frame_sender_thread(run_frame_sender_thread, session_id, std::ref(stop_threads), std::ref(sender),
+                                    std::ref(frame_packet_queue), std::ref(receiver_frame_id));
     
     // frame_id is the ID of the frame the sender sends.
     int frame_id = 0;
@@ -221,7 +221,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
     size_t main_summary_frame_size_sum = 0;
     for (;;) {
         // Stop if the sender thread stopped.
-        if (stop_sender_thread)
+        if (stop_threads)
             break;
 
         auto capture = device.getCapture();
@@ -291,8 +291,8 @@ void send_frames(int session_id, KinectDevice& device, int port)
         }
         ++frame_id;
     }
-    stop_sender_thread = true;
-    sender_thread.join();
+    stop_threads = true;
+    frame_sender_thread.join();
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
@@ -95,36 +96,50 @@ int main(std::string ip_address, int port)
 
     float out[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
 
+    std::map<int, std::vector<uint8_t>> packets;
     int sent_byte_count = 0;
+    int last_frame_id = -1;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
+
+        std::error_code error;
+        while (auto packet = receiver.receive(error)) {
+            int frame_id = copy_from_packet_data<int>(packet->data() + 5);
+            packets.insert({ frame_id, std::move(*packet) });
+        }
+
         char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
         int free_bytes = soundio_ring_buffer_free_count(soundio_helper::ring_buffer);
 
         const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
         int write_cursor = 0;
-        std::error_code error;
+        auto packet_it = packets.begin();
         while((free_bytes - write_cursor) > FRAME_BYTE_SIZE) {
-            auto packet = receiver.receive(error);
-
-            if (!packet)
+            if (packet_it == packets.end())
                 break;
 
-            int audio_packet_cursor = 9;
-            int opus_frame_size = copy_from_packet<int>(*packet, audio_packet_cursor);
+            int audio_packet_cursor = 5;
+            int frame_id = copy_from_packet<int>(packet_it->second, audio_packet_cursor);
 
-            int frame_size = opus_decode_float(opus_decoder, packet->data() + audio_packet_cursor, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
+            //if (frame_id <= last_frame_id)
+            //    continue;
+
+            int opus_frame_size = copy_from_packet<int>(packet_it->second, audio_packet_cursor);
+
+            int frame_size = opus_decode_float(opus_decoder, packet_it->second.data() + audio_packet_cursor, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
             if (frame_size < 0) {
                 printf("decoder failed: %s\n", opus_strerror(frame_size));
                 return 1;
             }
 
-            printf("opus_frame_size: %d, frame_size: %d\n", opus_frame_size, frame_size);
+            printf("frame_id: %d, opus_frame_size: %d, frame_size: %d\n", frame_id, opus_frame_size, frame_size);
             memcpy(write_ptr + write_cursor, out, FRAME_BYTE_SIZE);
 
+            last_frame_id = frame_id;
             write_cursor += FRAME_BYTE_SIZE;
+            packet_it = packets.erase(packet_it);
         }
 
         soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, write_cursor);
