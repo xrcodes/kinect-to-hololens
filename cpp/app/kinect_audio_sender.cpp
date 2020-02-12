@@ -11,6 +11,7 @@ int main(int port)
 {
     const int AZURE_KINECT_SAMPLE_RATE = 48000;
     const double MICROPHONE_LATENCY = 0.2; // seconds
+    const int AUDIO_FRAME_SIZE = 960;
     
     auto audio = Audio::create();
     if (!audio) {
@@ -106,12 +107,7 @@ int main(int port)
         return 1;
     }
 
-    const int MAX_FRAME_SIZE = 6 * 960;
-    const int MAX_PACKET_SIZE = 3 * 1276;
-    const int FRAME_SIZE = 960;
-
-    unsigned char packet[MAX_PACKET_SIZE];
-
+    uint8_t packet[KH_PACKET_SIZE];
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
@@ -119,7 +115,7 @@ int main(int port)
         char* read_ptr = soundio_ring_buffer_read_ptr(soundio_helper::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(soundio_helper::ring_buffer);
 
-        const int FRAME_BYTE_SIZE = sizeof(float) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
+        const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
         int cursor = 0;
 
@@ -127,7 +123,7 @@ int main(int port)
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
 
-            int packet_size = opus_encode_float(opus_encoder, reinterpret_cast<float*>(pcm_bytes), FRAME_SIZE, packet, MAX_PACKET_SIZE);
+            int packet_size = opus_encode_float(opus_encoder, reinterpret_cast<float*>(pcm_bytes), AUDIO_FRAME_SIZE, packet, KH_PACKET_SIZE);
             if (packet_size < 0) {
                 printf("encode failed: %s\n", opus_strerror(packet_size));
                 return 1;

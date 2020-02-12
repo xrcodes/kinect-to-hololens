@@ -27,7 +27,7 @@ public class Receiver
 
     public byte[] Receive(out SocketError error)
     {
-        var packet = new byte[1500];
+        var packet = new byte[PacketHelper.PACKET_SIZE];
         var receiveResult = socket.Receive(packet);
         int packetSize = receiveResult.Item1;
         error = receiveResult.Item2;

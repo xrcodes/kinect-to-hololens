@@ -40,18 +40,17 @@ class FramePacketCollection
 
     public FrameMessage ToMessage()
     {
-        const int HEADER_SIZE = 17;
         int messageSize = 0;
         foreach (var packet in Packets)
         {
-            messageSize += packet.Length - HEADER_SIZE;
+            messageSize += packet.Length - PacketHelper.PACKET_HEADER_SIZE;
         }
 
         byte[] message = new byte[messageSize];
         for (int i = 0; i < Packets.Length; ++i)
         {
-            int cursor = (1500 - HEADER_SIZE) * i;
-            Array.Copy(Packets[i], HEADER_SIZE, message, cursor, Packets[i].Length - HEADER_SIZE);
+            int cursor = (PacketHelper.PACKET_SIZE - PacketHelper.PACKET_HEADER_SIZE) * i;
+            Array.Copy(Packets[i], PacketHelper.PACKET_HEADER_SIZE, message, cursor, Packets[i].Length - PacketHelper.PACKET_HEADER_SIZE);
         }
 
         stopWatch.Stop();

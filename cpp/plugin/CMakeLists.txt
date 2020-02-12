@@ -19,6 +19,7 @@ add_library(KinectToHololensPlugin SHARED
 )
 target_link_libraries(KinectToHololensPlugin
   KinectToHololens
+  Opus::opus
 )
 set_target_properties(KinectToHololensPlugin PROPERTIES
   CXX_STANDARD 17

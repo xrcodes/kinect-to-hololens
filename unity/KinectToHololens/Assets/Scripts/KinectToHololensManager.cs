@@ -579,10 +579,7 @@ public class KinectToHololensManager : MonoBehaviour
                                     continue;
                                 }
 
-                                const int PACKET_SIZE = 1500;
-                                const int PACKET_HEADER_SIZE = 17;
-                                const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
-                                byte[] fecFramePacket = new byte[PACKET_SIZE];
+                                byte[] fecFramePacket = new byte[PacketHelper.PACKET_SIZE];
 
                                 byte packetType = 1;
                                 int fecPacketCursor = 0;
@@ -597,7 +594,7 @@ public class KinectToHololensManager : MonoBehaviour
                                 Buffer.BlockCopy(BitConverter.GetBytes(packetCount), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
 
-                                Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, MAX_PACKET_CONTENT_SIZE);
+                                Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
 
                                 int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;
                                 int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.PacketCount);
@@ -608,7 +605,7 @@ public class KinectToHololensManager : MonoBehaviour
                                     if (i == fecPacketIndex)
                                         continue;
 
-                                    for (int j = PACKET_HEADER_SIZE; j < PACKET_SIZE; ++j)
+                                    for (int j = PacketHelper.PACKET_HEADER_SIZE; j < PacketHelper.PACKET_SIZE; ++j)
                                         fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
                                 }
 

@@ -11,6 +11,7 @@ int main(std::string ip_address, int port)
 {
     const int AZURE_KINECT_SAMPLE_RATE = 48000;
     const double MICROPHONE_LATENCY = 0.2; // seconds
+    const int AUDIO_FRAME_SIZE = 960;
 
     auto audio = Audio::create();
     if (!audio) {
@@ -91,11 +92,7 @@ int main(std::string ip_address, int port)
         return 1;
     }
 
-    const int MAX_FRAME_SIZE = 6 * 960;
-    const int MAX_PACKET_SIZE = 3 * 1276;
-    const int FRAME_SIZE = 960;
-
-    float out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
+    float out[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
 
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
@@ -104,7 +101,7 @@ int main(std::string ip_address, int port)
         char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
         int free_bytes = soundio_ring_buffer_free_count(soundio_helper::ring_buffer);
 
-        const int FRAME_BYTE_SIZE = sizeof(float) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
+        const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
         int cursor = 0;
         std::error_code error;
@@ -114,7 +111,7 @@ int main(std::string ip_address, int port)
             if (!packet)
                 break;
 
-            int frame_size = opus_decode_float(opus_decoder, packet->data(), packet->size(), out, MAX_FRAME_SIZE, 0);
+            int frame_size = opus_decode_float(opus_decoder, packet->data(), packet->size(), out, AUDIO_FRAME_SIZE, 0);
             if (frame_size < 0) {
                 printf("decoder failed: %s\n", opus_strerror(frame_size));
                 return 1;

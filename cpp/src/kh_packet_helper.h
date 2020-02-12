@@ -6,7 +6,6 @@
 
 namespace kh
 {
-//const int KH_PACKET_SIZE = 1500;
 const int KH_PACKET_SIZE = 1472;
 const int KH_PACKET_HEADER_SIZE = 17;
 const int KH_MAX_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_PACKET_HEADER_SIZE;
