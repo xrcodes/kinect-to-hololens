@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 
 // A class that contains a pointer to a TrvlDecoder in KinectToHololensPlugin.dll.
 public class TrvlDecoder
@@ -15,8 +16,13 @@ public class TrvlDecoder
         Plugin.delete_trvl_decoder(ptr);
     }
 
-    public TrvlFrame Decode(IntPtr framePtr, bool keyframe)
+    public TrvlFrame Decode(byte[] frame, bool keyframe)
     {
-        return new TrvlFrame(Plugin.trvl_decoder_decode(ptr, framePtr, keyframe));
+        IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
+        Marshal.Copy(frame, 0, bytes, frame.Length);
+        var trvlFrame = new TrvlFrame(Plugin.trvl_decoder_decode(ptr, bytes, keyframe));
+        Marshal.FreeHGlobal(bytes);
+
+        return trvlFrame;
     }
 }

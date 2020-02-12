@@ -268,18 +268,10 @@ public class KinectToHololensManager : MonoBehaviour
             var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
             var depthEncoderFrame = frameMessage.GetDepthEncoderFrame();
 
-            IntPtr colorEncoderFrameBytes = Marshal.AllocHGlobal(colorEncoderFrame.Length);
-            Marshal.Copy(colorEncoderFrame, 0, colorEncoderFrameBytes, colorEncoderFrame.Length);
-            ffmpegFrame = colorDecoder.Decode(colorEncoderFrameBytes, colorEncoderFrame.Length);
-            Marshal.FreeHGlobal(colorEncoderFrameBytes);
-
-
-            IntPtr depthEncoderFrameBytes = Marshal.AllocHGlobal(depthEncoderFrame.Length);
-            Marshal.Copy(depthEncoderFrame, 0, depthEncoderFrameBytes, depthEncoderFrame.Length);
-            trvlFrame = depthDecoder.Decode(depthEncoderFrameBytes, frameMessage.Keyframe);
-            Marshal.FreeHGlobal(depthEncoderFrameBytes);
-
+            ffmpegFrame = colorDecoder.Decode(colorEncoderFrame);
+            trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.Keyframe);
         }
+
         decoderStopWatch.Stop();
         var decoderTime = decoderStopWatch.Elapsed;
         frameStopWatch.Stop();
