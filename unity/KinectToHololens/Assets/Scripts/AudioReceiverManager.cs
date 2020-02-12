@@ -11,13 +11,13 @@ public class AudioReceiverManager : MonoBehaviour
     private const int STEREO_CHANNEL_COUNT = 2;
     private Receiver receiver;
     private RingBuffer ringBuffer;
-    private IntPtr opusDecoder;
+    private OpusDecoder opusDecoder;
 
     void Start()
     {
         receiver = new Receiver(1024 * 1024);
         ringBuffer = new RingBuffer(64 * 1024);
-        opusDecoder = Plugin.create_opus_decoder(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT);
+        opusDecoder = new OpusDecoder(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT);
 
         IPAddress address = IPAddress.Parse("127.0.0.1");
         int port = 7777;
@@ -34,24 +34,8 @@ public class AudioReceiverManager : MonoBehaviour
             if (packet == null)
                 break;
 
-            print($"packet size: {packet.Length}");
-
-            IntPtr opusPacketBytes = Marshal.AllocHGlobal(packet.Length);
-            Marshal.Copy(packet, 0, opusPacketBytes, packet.Length);
-            var nativeOpusFrame = Plugin.opus_decoder_decode(opusDecoder, opusPacketBytes, packet.Length, AUDIO_FRAME_SIZE, STEREO_CHANNEL_COUNT);
-            Marshal.FreeHGlobal(opusPacketBytes);
-
-            int opusFrameSize = Plugin.opus_frame_get_size(nativeOpusFrame);
-            print($"opusFrameSize: {opusFrameSize}");
-
-            float[] opusFrame = new float[opusFrameSize];
-            IntPtr opusFrameData = Plugin.opus_frame_get_data(nativeOpusFrame);
-            Marshal.Copy(opusFrameData, opusFrame, 0, opusFrameSize);
-            Plugin.delete_opus_frame(nativeOpusFrame);
-
-            print($"opusFrame[0]: {opusFrame[0]}");
-
-            ringBuffer.Write(opusFrame);
+            OpusFrame opusFrame = opusDecoder.Decode(packet, AUDIO_FRAME_SIZE, STEREO_CHANNEL_COUNT);
+            ringBuffer.Write(opusFrame.GetArray());
         }
     }
 
