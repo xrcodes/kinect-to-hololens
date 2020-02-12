@@ -3,11 +3,11 @@ using UnityEngine;
 
 public class RingBuffer
 {
-    private byte[] buffer;
+    private float[] buffer;
     private int readCursor;
     private int writeCursor;
 
-    public int FillBytes
+    public int FillSamples
     {
         get
         {
@@ -20,7 +20,7 @@ public class RingBuffer
         }
     }
 
-    public int FreeBytes
+    public int FreeSamples
     {
         get
         {
@@ -35,66 +35,66 @@ public class RingBuffer
 
     public RingBuffer(int capacity)
     {
-        buffer = new byte[capacity];
+        buffer = new float[capacity];
         readCursor = 0;
         writeCursor = 0;
     }
 
-    public void Read(byte[] bytes)
+    public void Read(float[] samples)
     {
-        if (bytes.Length > buffer.Length)
+        if (samples.Length > buffer.Length)
         {
-            Debug.Log("Cannot write more bytes than the capacity to a RingBuffer.");
+            Debug.Log("Cannot write more samples than the capacity to a RingBuffer.");
             return;
         }
 
-        if (bytes.Length > FillBytes)
+        if (samples.Length > FillSamples)
         {
             Debug.Log("Ringbuffer underflow...");
             return;
         }
 
-        if (readCursor + bytes.Length <= buffer.Length)
+        if (readCursor + samples.Length <= buffer.Length)
         {
-            Array.Copy(buffer, readCursor, bytes, 0, bytes.Length);
-            readCursor += bytes.Length;
+            Array.Copy(buffer, readCursor, samples, 0, samples.Length);
+            readCursor += samples.Length;
             return;
         }
 
-        int leftBytes = bytes.Length;
+        int leftSamples = samples.Length;
         int readLength = buffer.Length - readCursor;
-        Array.Copy(buffer, readCursor, bytes, 0, readLength);
-        leftBytes -= readLength;
-        Array.Copy(buffer, 0, bytes, readLength, leftBytes);
-        readCursor = leftBytes;
+        Array.Copy(buffer, readCursor, samples, 0, readLength);
+        leftSamples -= readLength;
+        Array.Copy(buffer, 0, samples, readLength, leftSamples);
+        readCursor = leftSamples;
     }
 
-    public void Write(byte[] bytes)
+    public void Write(float[] samples)
     {
-        if(bytes.Length > buffer.Length)
+        if(samples.Length > buffer.Length)
         {
-            Debug.Log("Cannot write more bytes than the capacity to a RingBuffer.");
+            Debug.Log("Cannot write more samples than the capacity to a RingBuffer.");
             return;
         }
 
-        if (bytes.Length > FreeBytes)
+        if (samples.Length > FreeSamples)
         {
             Debug.Log("Ringbuffer overflow...");
             return;
         }
 
-        if (writeCursor + bytes.Length <= buffer.Length)
+        if (writeCursor + samples.Length <= buffer.Length)
         {
-            Array.Copy(bytes, 0, buffer, writeCursor, bytes.Length);
-            writeCursor += bytes.Length;
+            Array.Copy(samples, 0, buffer, writeCursor, samples.Length);
+            writeCursor += samples.Length;
             return;
         }
 
-        int leftBytes = bytes.Length;
+        int leftSamples = samples.Length;
         int writeLength = buffer.Length - writeCursor;
-        Array.Copy(bytes, 0, buffer, writeCursor, writeLength);
-        leftBytes -= writeLength;
-        Array.Copy(bytes, writeLength, buffer, 0, leftBytes);
-        writeCursor = leftBytes;
+        Array.Copy(samples, 0, buffer, writeCursor, writeLength);
+        leftSamples -= writeLength;
+        Array.Copy(samples, writeLength, buffer, 0, leftSamples);
+        writeCursor = leftSamples;
     }
 }

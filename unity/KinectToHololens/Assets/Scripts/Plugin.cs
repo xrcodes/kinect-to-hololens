@@ -88,5 +88,8 @@ public static class Plugin
     public static extern void delete_opus_frame(IntPtr ptr);
 
     [DllImport(DllName)]
+    public static extern IntPtr opus_frame_get_data(IntPtr ptr);
+
+    [DllImport(DllName)]
     public static extern int opus_frame_get_size(IntPtr ptr);
 }

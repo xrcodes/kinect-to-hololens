@@ -100,6 +100,12 @@ extern "C" void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API delete_opus_frame(voi
     delete reinterpret_cast<std::vector<float>*>(ptr);
 }
 
+extern "C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API opus_frame_get_data(void* ptr)
+{
+    auto opus_frame = reinterpret_cast<std::vector<float>*>(ptr);
+    return opus_frame->data();
+}
+
 extern "C" int UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API opus_frame_get_size(void* ptr)
 {
     auto opus_frame = reinterpret_cast<std::vector<float>*>(ptr);
