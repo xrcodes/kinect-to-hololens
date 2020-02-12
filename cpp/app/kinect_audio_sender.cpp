@@ -11,7 +11,6 @@ int main(int port)
 {
     const int AZURE_KINECT_SAMPLE_RATE = 48000;
     const double MICROPHONE_LATENCY = 0.2; // seconds
-    const int FRAME_SIZE = 960;
     
     auto audio = Audio::create();
     if (!audio) {
@@ -107,17 +106,18 @@ int main(int port)
         return 1;
     }
 
-    OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
-    if (err < 0) {
-        printf("failed to create decoder: %s\n", opus_strerror(err));
-        return 1;
-    }
+    //OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
+    //if (err < 0) {
+    //    printf("failed to create decoder: %s\n", opus_strerror(err));
+    //    return 1;
+    //}
 
     const int MAX_FRAME_SIZE = 6 * 960;
     const int MAX_PACKET_SIZE = 3 * 1276;
+    const int FRAME_SIZE = 960;
 
     opus_int16 in[FRAME_SIZE * STEREO_CHANNEL_COUNT];
-    opus_int16 out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
+    //opus_int16 out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
     unsigned char cbits[MAX_PACKET_SIZE];
 
     int sent_byte_count = 0;
@@ -139,13 +139,8 @@ int main(int port)
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
 
-            //for (int i = 0; i < (FRAME_SIZE * STEREO_CHANNEL_COUNT); ++i) {
-            for (int i = 0; i < 1920; ++i) {
-                if (i >= 1920) {
-                    printf("i: %d\n", i);
-                }
+            for (int i = 0; i < (FRAME_SIZE * STEREO_CHANNEL_COUNT); ++i)
                 in[i] = pcm_bytes[2 * i + 1] << 8 | pcm_bytes[2 * i];
-            }
 
             int opus_byte_count = opus_encode(opus_encoder, in, FRAME_SIZE, cbits, MAX_PACKET_SIZE);
             if (opus_byte_count < 0) {
@@ -153,29 +148,31 @@ int main(int port)
                 return 1;
             }
 
-            int frame_size = opus_decode(opus_decoder, cbits, opus_byte_count, out, MAX_FRAME_SIZE, 0);
-            if (frame_size < 0) {
-                printf("decoder failed: %s\n", opus_strerror(frame_size));
-                return 1;
-            }
+            //int frame_size = opus_decode(opus_decoder, cbits, opus_byte_count, out, MAX_FRAME_SIZE, 0);
+            //if (frame_size < 0) {
+            //    printf("decoder failed: %s\n", opus_strerror(frame_size));
+            //    return 1;
+            //}
 
-            for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size; i++) {
-                pcm_bytes[2 * i] = out[i] & 0xFF;
-                pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
-            }
+            //for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size; i++) {
+            //    pcm_bytes[2 * i] = out[i] & 0xFF;
+            //    pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
+            //}
 
 
-            int packet_size = 2 * STEREO_CHANNEL_COUNT * frame_size;
-            printf("packet_size: %d, opus_byte_count: %d\n", packet_size, opus_byte_count);
-            //socket.send_to(asio::buffer(pcm_bytes, 2 * STEREO_CHANNEL_COUNT * frame_size), remote_endpoint, 0, error);
+            //int packet_size = 2 * STEREO_CHANNEL_COUNT * frame_size;
+            //int packet_size = 2 * STEREO_CHANNEL_COUNT * FRAME_SIZE;
+            //printf("packet_size: %d, opus_byte_count: %d\n", packet_size, opus_byte_count);
+            //socket.send_to(asio::buffer(pcm_bytes, packet_size), remote_endpoint, 0, error);
+            socket.send_to(asio::buffer(cbits, opus_byte_count), remote_endpoint, 0, error);
 
             cursor += FRAME_BYTE_SIZE;
             left_bytes -= FRAME_BYTE_SIZE;
         }
 
         soundio_ring_buffer_advance_read_ptr(libsoundio::helper::ring_buffer, cursor);
-
-        sent_byte_count += fill_bytes;
+        sent_byte_count += cursor;
+        
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))
         {

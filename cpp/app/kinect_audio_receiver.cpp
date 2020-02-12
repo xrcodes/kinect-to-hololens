@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <asio.hpp>
+#include <opus/opus.h>
 #include "helper/soundio_helper.h"
 #include "kh_receiver.h"
 
@@ -84,33 +85,112 @@ int main(std::string ip_address, int port)
     receiver.ping(ip_address, port);
 
     printf("start for loop\n");
+    //int sent_byte_count = 0;
+    //auto summary_time = std::chrono::steady_clock::now();
+    //for (;;) {
+    //    audio->flushEvents();
+    //    char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
+    //    int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
+    //    int left_bytes = free_bytes;
+
+    //    int cursor = 0;
+    //    std::error_code error;
+    //    while(left_bytes > 0) {
+    //        auto packet = receiver.receive(error);
+
+    //        if (!packet)
+    //            break;
+
+    //        memcpy(write_ptr + cursor, packet->data(), packet->size());
+
+    //        cursor += packet->size();
+    //        left_bytes -= packet->size();
+    //    }
+    //    //int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
+    //    //printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
+
+    //    soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
+
+    //    sent_byte_count += cursor;
+    //    auto summary_diff = std::chrono::steady_clock::now() - summary_time;
+    //    if (summary_diff > std::chrono::seconds(5))
+    //    {
+    //        printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
+    //        sent_byte_count = 0;
+    //        summary_time = std::chrono::steady_clock::now();
+    //    }
+    //}
+
+    OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
+    if (err < 0) {
+        printf("failed to create decoder: %s\n", opus_strerror(err));
+        return 1;
+    }
+
+    const int MAX_FRAME_SIZE = 6 * 960;
+    const int MAX_PACKET_SIZE = 3 * 1276;
+    const int FRAME_SIZE = 960;
+
+    opus_int16 out[MAX_FRAME_SIZE * STEREO_CHANNEL_COUNT];
+
     int sent_byte_count = 0;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
         audio->flushEvents();
         char* write_ptr = soundio_ring_buffer_write_ptr(libsoundio::helper::ring_buffer);
         int free_bytes = soundio_ring_buffer_free_count(libsoundio::helper::ring_buffer);
-        int left_bytes = free_bytes;
 
+        if (free_bytes <= 0)
+            continue;
+
+        const int FRAME_BYTE_SIZE = sizeof(short) * FRAME_SIZE * STEREO_CHANNEL_COUNT;
+
+        int left_bytes = free_bytes;
         int cursor = 0;
         std::error_code error;
-        while(left_bytes > 0) {
+        while(left_bytes > FRAME_BYTE_SIZE) {
+            printf("left_bytes: %d\n", left_bytes);
+            unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             auto packet = receiver.receive(error);
 
             if (!packet)
                 break;
 
-            memcpy(write_ptr + cursor, packet->data(), packet->size());
+            int frame_size = opus_decode(opus_decoder, packet->data(), packet->size(), out, MAX_FRAME_SIZE, 0);
+            if (frame_size < 0) {
+                printf("decoder failed: %s\n", opus_strerror(frame_size));
+                return 1;
+            }
 
-            cursor += packet->size();
-            left_bytes -= packet->size();
+            for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size; ++i) {
+                pcm_bytes[2 * i] = out[i] & 0xFF;
+                pcm_bytes[2 * i + 1] = (out[i] >> 8) & 0xFF;
+            }
+
+            int packet_sum = 0;
+            for (int i = 0; i < packet->size(); ++i) {
+                packet_sum += (*packet)[i];
+            }
+
+            int pcm_bytes_sum = 0;
+            for (int i = 0; i < STEREO_CHANNEL_COUNT * frame_size * 2; ++i) {
+                pcm_bytes_sum += pcm_bytes[i];
+            }
+
+            printf("packet_sum: %d, pcm_bytes_sum: %d\n", packet_sum, pcm_bytes_sum);
+
+            //memcpy(write_ptr + cursor, packet->data(), packet->size());
+            memcpy(write_ptr + cursor, pcm_bytes, FRAME_BYTE_SIZE);
+
+            cursor += FRAME_BYTE_SIZE;
+            left_bytes -= FRAME_BYTE_SIZE;
         }
         //int fill_bytes = soundio_ring_buffer_fill_count(libsoundio::helper::ring_buffer);
         //printf("free_bytes: %d, fill_bytes: %d\n", free_bytes, fill_bytes);
 
         soundio_ring_buffer_advance_write_ptr(libsoundio::helper::ring_buffer, cursor);
-
         sent_byte_count += cursor;
+
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))
         {
