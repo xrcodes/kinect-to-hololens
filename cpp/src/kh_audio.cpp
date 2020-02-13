@@ -6,16 +6,19 @@ Audio::Audio(SoundIo* ptr)
     : ptr_(ptr)
 {
 }
+
 Audio::Audio(Audio&& other) noexcept
 {
     ptr_ = other.ptr_;
     other.ptr_ = nullptr;
 }
+
 Audio::~Audio()
 {
     if (ptr_)
         soundio_destroy(ptr_);
 }
+
 std::optional<Audio> Audio::create()
 {
     SoundIo* ptr = soundio_create();

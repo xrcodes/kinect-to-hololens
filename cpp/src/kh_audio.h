@@ -6,6 +6,7 @@
 namespace kh
 {
 class AudioDevice;
+
 class Audio
 {
 private:
@@ -127,5 +128,49 @@ public:
     }
 private:
     SoundIoOutStream* ptr_;
+};
+
+class AudioRingBuffer
+{
+private:
+    AudioRingBuffer(SoundIoRingBuffer* ptr)
+        : ptr_(ptr)
+    {
+    }
+public:
+    AudioRingBuffer::AudioRingBuffer(AudioRingBuffer&& other) noexcept
+    {
+        ptr_ = other.ptr_;
+        other.ptr_ = nullptr;
+    }
+    ~AudioRingBuffer()
+    {
+        soundio_ring_buffer_destroy(ptr_);
+    }
+    static std::optional<AudioRingBuffer> create(Audio& audio, int capacity)
+    {
+        SoundIoRingBuffer* ptr = soundio_ring_buffer_create(audio.ptr(), capacity);
+        if (!ptr) {
+            printf("Failed to Create AudioRingBuffer...");
+            return std::nullopt;
+        }
+        return AudioRingBuffer(ptr);
+    }
+    SoundIoRingBuffer* ptr() { return ptr_; }
+    char* getReadPtr()
+    {
+        return soundio_ring_buffer_read_ptr(ptr_);
+    }
+    int getFillCount()
+    {
+        return soundio_ring_buffer_fill_count(ptr_);
+    }
+    void advanceReadPtr(int count)
+    {
+        soundio_ring_buffer_advance_read_ptr(ptr_, count);
+    }
+
+private:
+    SoundIoRingBuffer* ptr_;
 };
 }

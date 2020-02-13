@@ -76,7 +76,9 @@ int main(int port)
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     int capacity = MICROPHONE_LATENCY * 2 * in_stream->sample_rate() * in_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
+    //soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
+    auto ring_buffer = AudioRingBuffer::create(*audio, capacity);
+    soundio_helper::ring_buffer = ring_buffer->ptr();
     if (!soundio_helper::ring_buffer) {
         printf("unable to create ring buffer: out of memory\n");
     }
