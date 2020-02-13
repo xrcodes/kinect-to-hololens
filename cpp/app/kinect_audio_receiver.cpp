@@ -97,7 +97,7 @@ int main(std::string ip_address, int port)
     float out[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
 
     std::map<int, std::vector<uint8_t>> packets;
-    int sent_byte_count = 0;
+    int received_byte_count = 0;
     int last_frame_id = -1;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
@@ -105,8 +105,11 @@ int main(std::string ip_address, int port)
 
         std::error_code error;
         while (auto packet = receiver.receive(error)) {
+            received_byte_count += packet->size();
+
             int frame_id = copy_from_packet_data<int>(packet->data() + 5);
             packets.insert({ frame_id, std::move(*packet) });
+
         }
 
         char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
@@ -152,13 +155,12 @@ int main(std::string ip_address, int port)
         }
 
         soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, write_cursor);
-        sent_byte_count += write_cursor;
 
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))
         {
-            printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
-            sent_byte_count = 0;
+            printf("Bandwidth: %f Mbps\n", (received_byte_count / (1024.0f * 1024.0f / 8.0f)) / (summary_diff.count() / 1000000000.0f));
+            received_byte_count = 0;
             summary_time = std::chrono::steady_clock::now();
         }
     }
