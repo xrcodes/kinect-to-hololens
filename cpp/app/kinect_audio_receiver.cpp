@@ -67,16 +67,17 @@ int main(std::string ip_address, int port)
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     const int STEREO_CHANNEL_COUNT = 2;
-    //int capacity = MICROPHONE_LATENCY * 2 * in_stream->sample_rate() * in_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
-    if (!soundio_helper::ring_buffer) {
+    //int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
+    int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT / 2;
+    //soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
+    auto ring_buffer = AudioRingBuffer::create(*audio, capacity);
+    if (!ring_buffer) {
         printf("unable to create ring buffer: out of memory\n");
     }
-    char* buf = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
-    int fill_count = MICROPHONE_LATENCY * out_stream->sample_rate() * out_stream->bytes_per_frame();
-    memset(buf, 0, fill_count);
-    soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, fill_count);
+    soundio_helper::ring_buffer = ring_buffer->ptr();
+
+    int actual_capacity = soundio_ring_buffer_capacity(ring_buffer->ptr());
+    printf("actual_capacity: %d, capacity: %d\n", actual_capacity, capacity);
 
     if (err = out_stream->start()) {
         printf("unable to start output device: %s\n", soundio_strerror(err));
@@ -109,11 +110,17 @@ int main(std::string ip_address, int port)
 
             int frame_id = copy_from_packet_data<int>(packet->data() + 5);
             packets.insert({ frame_id, std::move(*packet) });
-
         }
 
-        char* write_ptr = soundio_ring_buffer_write_ptr(soundio_helper::ring_buffer);
-        int free_bytes = soundio_ring_buffer_free_count(soundio_helper::ring_buffer);
+        while (packets.size() > 20) {
+            packets.erase(packets.begin());
+        }
+
+        char* write_ptr = ring_buffer->getWritePtr();
+        int free_bytes = ring_buffer->getFreeCount();
+        //printf("free_bytes: %d\n", free_bytes);
+        printf("latency: %f\n", ring_buffer->getFillCount() / static_cast<float>(out_stream->sample_rate() * out_stream->bytes_per_frame()));
+        printf("packet size: %ld\n", packets.size());
 
         const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
@@ -154,7 +161,7 @@ int main(std::string ip_address, int port)
             write_cursor += FRAME_BYTE_SIZE;
         }
 
-        soundio_ring_buffer_advance_write_ptr(soundio_helper::ring_buffer, write_cursor);
+        ring_buffer->advanceWritePtr(write_cursor);
 
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))
@@ -165,7 +172,6 @@ int main(std::string ip_address, int port)
         }
     }
     opus_decoder_destroy(opus_decoder);
-    soundio_ring_buffer_destroy(soundio_helper::ring_buffer);
     return 0;
 }
 }

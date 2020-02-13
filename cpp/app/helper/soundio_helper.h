@@ -144,6 +144,7 @@ static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int
     char* read_ptr = soundio_ring_buffer_read_ptr(ring_buffer);
     int fill_bytes = soundio_ring_buffer_fill_count(ring_buffer);
     int fill_count = fill_bytes / outstream->bytes_per_frame;
+    //printf("write_callback free_bytes: %d, fill_bytes: %d\n", soundio_ring_buffer_free_count(soundio_helper::ring_buffer), fill_bytes);
 
     if (frame_count_min > fill_count) {
         // Ring buffer does not have enough data, fill with zeroes.

@@ -161,13 +161,25 @@ public:
     {
         return soundio_ring_buffer_read_ptr(ptr_);
     }
+    char* getWritePtr()
+    {
+        return soundio_ring_buffer_write_ptr(ptr_);
+    }
     int getFillCount()
     {
         return soundio_ring_buffer_fill_count(ptr_);
     }
+    int getFreeCount()
+    {
+        return soundio_ring_buffer_free_count(ptr_);
+    }
     void advanceReadPtr(int count)
     {
         soundio_ring_buffer_advance_read_ptr(ptr_, count);
+    }
+    void advanceWritePtr(int count)
+    {
+        soundio_ring_buffer_advance_write_ptr(ptr_, count);
     }
 
 private:
