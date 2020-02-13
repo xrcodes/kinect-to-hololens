@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
 
@@ -32,7 +33,16 @@ public class AudioReceiverManager : MonoBehaviour
             if (packet == null)
                 break;
 
-            OpusFrame opusFrame = opusDecoder.Decode(packet, AUDIO_FRAME_SIZE, STEREO_CHANNEL_COUNT);
+            int cursor = 5;
+            int frameId = BitConverter.ToInt32(packet, cursor);
+            cursor += 4;
+
+            int opusFrameSize = BitConverter.ToInt32(packet, cursor);
+            cursor += 4;
+
+            print($"opusFrameSize: {opusFrameSize}");
+
+            OpusFrame opusFrame = opusDecoder.Decode(packet, cursor, opusFrameSize, AUDIO_FRAME_SIZE, STEREO_CHANNEL_COUNT);
             ringBuffer.Write(opusFrame.GetArray());
         }
     }

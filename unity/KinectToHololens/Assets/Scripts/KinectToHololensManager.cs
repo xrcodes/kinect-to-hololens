@@ -288,7 +288,7 @@ public class KinectToHololensManager : MonoBehaviour
 
                 var packetType = packet[cursor];
                 cursor += 1;
-                if (packetType != 0)
+                if (packetType != PacketHelper.SENDER_INIT_PACKET)
                 {
                     print($"A different kind of a packet received before an init packet: {packetType}");
                     continue;
@@ -357,11 +357,11 @@ public class KinectToHololensManager : MonoBehaviour
                 if (sessionId != senderSessionId)
                     continue;
 
-                if (packetType == 1)
+                if (packetType == PacketHelper.SENDER_FRAME_PACKET)
                 {
                     framePackets.Add(packet);
                 }
-                else if (packetType == 2)
+                else if (packetType == PacketHelper.SENDER_XOR_PACKET)
                 {
                     xorPackets.Add(packet);
                 }
@@ -476,11 +476,10 @@ public class KinectToHololensManager : MonoBehaviour
 
                                 byte[] fecFramePacket = new byte[PacketHelper.PACKET_SIZE];
 
-                                byte packetType = 1;
                                 int fecPacketCursor = 0;
                                 Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
-                                fecFramePacket[fecPacketCursor] = packetType;
+                                fecFramePacket[fecPacketCursor] = PacketHelper.SENDER_FRAME_PACKET;
                                 fecPacketCursor += 1;
                                 Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
