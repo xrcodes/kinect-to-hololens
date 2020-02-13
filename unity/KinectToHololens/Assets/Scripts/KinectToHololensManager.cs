@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -40,7 +41,6 @@ public class KinectToHololensManager : MonoBehaviour
 
     private Receiver receiver;
     private bool stopReceiverThread;
-    private ConcurrentQueue<byte[]> initPacketQueue;
     private ConcurrentQueue<FrameMessage> frameMessageQueue;
     private int lastFrameId;
     private int summaryPacketCount;
@@ -104,7 +104,6 @@ public class KinectToHololensManager : MonoBehaviour
 
         receiver = null;
         stopReceiverThread = false;
-        initPacketQueue = new ConcurrentQueue<byte[]>();
         frameMessageQueue = new ConcurrentQueue<FrameMessage>();
         lastFrameId = -1;
         summaryPacketCount = 0;
@@ -158,27 +157,6 @@ public class KinectToHololensManager : MonoBehaviour
 
         if (receiver == null)
             return;
-
-        while (initPacketQueue.TryDequeue(out byte[] packet))
-        {
-            int cursor = 0;
-            //int sessionId = BitConverter.ToInt32(packet, cursor);
-            cursor += 4;
-
-            //var packetType = packet[cursor];
-            cursor += 1;
-
-            var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
-
-            Plugin.texture_group_set_width(calibration.DepthCamera.Width);
-            Plugin.texture_group_set_height(calibration.DepthCamera.Height);
-            PluginHelper.InitTextureGroup();
-
-            colorDecoder = new Vp8Decoder();
-            depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
-
-            azureKinectScreen.Setup(calibration);
-        }
 
         while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
         {
@@ -268,22 +246,6 @@ public class KinectToHololensManager : MonoBehaviour
         stopReceiverThread = true;
     }
 
-    //private void SetInputState(InputState inputState)
-    //{
-    //    if (inputState == InputState.IpAddress)
-    //    {
-    //        ipAddressText.color = Color.yellow;
-    //        portText.color = Color.white;
-    //    }
-    //    else
-    //    {
-    //        ipAddressText.color = Color.white;
-    //        portText.color = Color.yellow;
-    //    }
-
-    //    this.inputState = inputState;
-    //}
-
     private void OnTapped(TappedEventArgs args)
     {
         // Place the scene in front of the camera when the user taps.
@@ -341,7 +303,7 @@ public class KinectToHololensManager : MonoBehaviour
         }
         if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
         {
-            Ping();
+            StartCoroutine(Ping());
         }
     }
 
@@ -356,12 +318,12 @@ public class KinectToHololensManager : MonoBehaviour
 
     // To copy the c++ receiver, for easier development,
     // there should be only one chance to send a ping.
-    private void Ping()
+    private IEnumerator Ping()
     {
         if(!UiVisibility)
         {
             print("No more than one ping at a time.");
-            return;
+            yield break;
         }
 
         UiVisibility = false;
@@ -380,18 +342,75 @@ public class KinectToHololensManager : MonoBehaviour
         statusText.text = logString;
 
         var ipAddress = IPAddress.Parse(ipAddressText);
-        receiver = new Receiver(1024 * 1024);
-        receiver.Ping(ipAddress, port);
 
-        Thread receiverThread = new Thread(RunReceiverThread);
+        var receiver = new Receiver(1024 * 1024);
+        int senderSessionId = -1;
+        int pingCount = 0;
+        while (true)
+        {
+            bool initialized = false;
+            receiver.Ping(ipAddress, port);
+            ++pingCount;
+            print($"Sent ping to {ipAddress.ToString()}:{port}.");
+
+            yield return new WaitForSeconds(0.1f);
+
+            SocketError error = SocketError.WouldBlock;
+            while (true)
+            {
+                var packet = receiver.Receive(out error);
+                if (packet == null)
+                    break;
+
+                int cursor = 0;
+                int sessionId = BitConverter.ToInt32(packet, cursor);
+                cursor += 4;
+
+                var packetType = packet[cursor];
+                cursor += 1;
+                if (packetType != 0)
+                {
+                    print($"A different kind of a packet received before an init packet: {packetType}");
+                    continue;
+                }
+
+                senderSessionId = sessionId;
+
+                var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
+
+                Plugin.texture_group_set_width(calibration.DepthCamera.Width);
+                Plugin.texture_group_set_height(calibration.DepthCamera.Height);
+                PluginHelper.InitTextureGroup();
+
+                colorDecoder = new Vp8Decoder();
+                depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
+
+                azureKinectScreen.Setup(calibration);
+
+                initialized = true;
+                break;
+            }
+            if (initialized)
+                break;
+
+            if(pingCount == 10)
+            {
+                print("Tried pinging 10 times and failed to received an init packet...\n");
+                yield break;
+            }
+        }
+
+        this.receiver = receiver;
+
+        Thread receiverThread = new Thread(() => RunReceiverThread(senderSessionId));
         receiverThread.Start();
     }
 
-    private void RunReceiverThread()
+    private void RunReceiverThread(int senderSessionId)
     {
         const int XOR_MAX_GROUP_SIZE = 5;
 
-        int? senderSessionId = null;
+        //int? senderSessionId = null;
         var framePacketCollections = new Dictionary<int, FramePacketCollection>();
         var xorPacketCollections = new Dictionary<int, XorPacketCollection>();
         print("Start Receiver Thread");
@@ -411,15 +430,11 @@ public class KinectToHololensManager : MonoBehaviour
                 int cursor = 0;
                 int sessionId = BitConverter.ToInt32(packet, cursor);
                 cursor += 4;
-                var packetType = packet[cursor];
-                if (packetType == 0)
-                {
-                    print("Received Init Pacekt");
-                    senderSessionId = sessionId;
-                    initPacketQueue.Enqueue(packet);
-                }
 
-                if (!senderSessionId.HasValue || sessionId != senderSessionId.Value)
+                var packetType = packet[cursor];
+                //cursor += 1;
+
+                if (sessionId != senderSessionId)
                     continue;
 
                 if (packetType == 1)
@@ -543,7 +558,7 @@ public class KinectToHololensManager : MonoBehaviour
 
                                 byte packetType = 1;
                                 int fecPacketCursor = 0;
-                                Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId.Value), 0, fecFramePacket, fecPacketCursor, 4);
+                                Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
                                 fecFramePacket[fecPacketCursor] = packetType;
                                 fecPacketCursor += 1;

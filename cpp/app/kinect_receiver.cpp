@@ -243,9 +243,11 @@ void receive_frames(std::string ip_address, int port)
     int depth_height;
     // When ping then check if a init packet arrived.
     // Repeat until it happens.
-    for(;;) {
+    int ping_count = 0;
+    for (;;) {
         bool initialized = false;
         receiver.ping(ip_address, port);
+        ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
         Sleep(100);
@@ -273,6 +275,11 @@ void receive_frames(std::string ip_address, int port)
         }
         if (initialized)
             break;
+
+        if (ping_count == 10) {
+            printf("Tried pinging 10 times and failed to received an init packet...\n");
+            return;
+        }
     }
 
     bool stop_receiver_thread = false;
