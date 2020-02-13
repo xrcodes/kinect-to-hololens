@@ -158,87 +158,7 @@ public class KinectToHololensManager : MonoBehaviour
         if (receiver == null)
             return;
 
-        while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
-        {
-            frameMessages.Add(frameMessage);
-        }
-
-        frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
-        
-        if (frameMessages.Count == 0)
-        {
-            return;
-        }
-
-        int? beginIndex = null;
-        // If there is a key frame, use the most recent one.
-        for (int i = frameMessages.Count - 1; i >= 0; --i)
-        {
-            if (frameMessages[i].Keyframe)
-            {
-                beginIndex = i;
-                break;
-            }
-        }
-
-        // When there is no key frame, go through all the frames if the first
-        // FrameMessage is the one right after the previously rendered one.
-        if (!beginIndex.HasValue)
-        {
-            if (frameMessages[0].FrameId == lastFrameId + 1)
-            {
-                beginIndex = 0;
-            }
-            else
-            {
-                // Wait for more frames if there is way to render without glitches.
-                return;
-            }
-        }
-
-        // ffmpegFrame and trvlFrame are guaranteed to be non-null
-        // since the existence of beginIndex's value.
-        FFmpegFrame ffmpegFrame = null;
-        TrvlFrame trvlFrame = null;
-        TimeSpan packetCollectionTime;
-
-        var decoderStopWatch = Stopwatch.StartNew();
-        for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
-        {
-            var frameMessage = frameMessages[i];
-            lastFrameId = frameMessage.FrameId;
-
-            packetCollectionTime = frameMessage.PacketCollectionTime;
-
-            var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
-            var depthEncoderFrame = frameMessage.GetDepthEncoderFrame();
-
-            ffmpegFrame = colorDecoder.Decode(colorEncoderFrame);
-            trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.Keyframe);
-        }
-
-        decoderStopWatch.Stop();
-        var decoderTime = decoderStopWatch.Elapsed;
-        frameStopWatch.Stop();
-        var frameTime = frameStopWatch.Elapsed;
-        frameStopWatch = Stopwatch.StartNew();
-
-        print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
-              $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
-
-        receiver.Send(lastFrameId, (float) packetCollectionTime.TotalMilliseconds, (float) decoderTime.TotalMilliseconds,
-            (float) frameTime.TotalMilliseconds, summaryPacketCount);
-        summaryPacketCount = 0;
-
-        // Invokes a function to be called in a render thread.
-        if (textureGroup != null)
-        {
-            Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
-            Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);
-            PluginHelper.UpdateTextureGroup();
-        }
-
-        frameMessages = new List<FrameMessage>();
+        UpdateTextureGroup();
     }
 
     void OnDestroy()
@@ -634,5 +554,90 @@ public class KinectToHololensManager : MonoBehaviour
             }
         }
         print("Receiver Thread Dead");
+    }
+
+    private void UpdateTextureGroup()
+    {
+        while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
+        {
+            frameMessages.Add(frameMessage);
+        }
+
+        frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
+
+        if (frameMessages.Count == 0)
+        {
+            return;
+        }
+
+        int? beginIndex = null;
+        // If there is a key frame, use the most recent one.
+        for (int i = frameMessages.Count - 1; i >= 0; --i)
+        {
+            if (frameMessages[i].Keyframe)
+            {
+                beginIndex = i;
+                break;
+            }
+        }
+
+        // When there is no key frame, go through all the frames if the first
+        // FrameMessage is the one right after the previously rendered one.
+        if (!beginIndex.HasValue)
+        {
+            if (frameMessages[0].FrameId == lastFrameId + 1)
+            {
+                beginIndex = 0;
+            }
+            else
+            {
+                // Wait for more frames if there is way to render without glitches.
+                return;
+            }
+        }
+
+        // ffmpegFrame and trvlFrame are guaranteed to be non-null
+        // since the existence of beginIndex's value.
+        FFmpegFrame ffmpegFrame = null;
+        TrvlFrame trvlFrame = null;
+        TimeSpan packetCollectionTime;
+
+        var decoderStopWatch = Stopwatch.StartNew();
+        for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
+        {
+            var frameMessage = frameMessages[i];
+            lastFrameId = frameMessage.FrameId;
+
+            packetCollectionTime = frameMessage.PacketCollectionTime;
+
+            var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
+            var depthEncoderFrame = frameMessage.GetDepthEncoderFrame();
+
+            ffmpegFrame = colorDecoder.Decode(colorEncoderFrame);
+            trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.Keyframe);
+        }
+
+        decoderStopWatch.Stop();
+        var decoderTime = decoderStopWatch.Elapsed;
+        frameStopWatch.Stop();
+        var frameTime = frameStopWatch.Elapsed;
+        frameStopWatch = Stopwatch.StartNew();
+
+        print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
+              $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
+
+        receiver.Send(lastFrameId, (float)packetCollectionTime.TotalMilliseconds, (float)decoderTime.TotalMilliseconds,
+            (float)frameTime.TotalMilliseconds, summaryPacketCount);
+        summaryPacketCount = 0;
+
+        // Invokes a function to be called in a render thread.
+        if (textureGroup != null)
+        {
+            Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
+            Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);
+            PluginHelper.UpdateTextureGroup();
+        }
+
+        frameMessages = new List<FrameMessage>();
     }
 }
