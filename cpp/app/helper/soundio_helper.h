@@ -216,7 +216,6 @@ static void overflow_callback(struct SoundIoInStream* instream) {
 }
 
 class AudioDevice;
-// I will name the c++ wrapper of SoundIo as Audio.
 class Audio
 {
 private:

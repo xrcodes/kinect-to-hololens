@@ -28,11 +28,12 @@ void run_video_sender_thread(int session_id,
     std::unordered_map<int, time_point<steady_clock>> video_frame_send_times;
     std::unordered_map<int, VideoPacketSet> video_packet_sets;
     int last_receiver_video_frame_id = 0;
-    auto send_summary_start = steady_clock::now();
-    int send_summary_receiver_frame_count = 0;
-    int send_summary_receiver_packet_count = 0;
-    int send_summary_packet_count = 0;
+    auto video_sender_summary_start = steady_clock::now();
+    int video_sender_summary_receiver_frame_count = 0;
+    int video_sender_summary_receiver_packet_count = 0;
+    int video_sender_summary_packet_count = 0;
     while (!stop_threads) {
+        auto loop_start = steady_clock::now();
         for (;;) {
             std::error_code error;
             std::optional<std::vector<uint8_t>> received_packet = sender.receive(error);
@@ -70,8 +71,8 @@ void run_video_sender_thread(int session_id,
                 for (int obsolete_frame_id : obsolete_frame_ids)
                     video_frame_send_times.erase(obsolete_frame_id);
 
-                ++send_summary_receiver_frame_count;
-                send_summary_receiver_packet_count += receiver_packet_count;
+                ++video_sender_summary_receiver_frame_count;
+                video_sender_summary_receiver_packet_count += receiver_packet_count;
             } else if (message_type == KH_RECEIVER_REQUEST_PACKET) {
                 int requested_frame_id = copy_from_packet<int>(*received_packet, cursor);
                 int missing_packet_count = copy_from_packet<int>(*received_packet, cursor);
@@ -90,7 +91,7 @@ void run_video_sender_thread(int session_id,
                         goto run_video_sender_thread_end;
                     }
 
-                    ++send_summary_packet_count;
+                    ++video_sender_summary_packet_count;
                 }
             }
         }
@@ -111,7 +112,7 @@ void run_video_sender_thread(int session_id,
                     goto run_video_sender_thread_end;
                 }
 
-                ++send_summary_packet_count;
+                ++video_sender_summary_packet_count;
             }
 
             for (auto packet : xor_packets) {
@@ -125,7 +126,7 @@ void run_video_sender_thread(int session_id,
                     goto run_video_sender_thread_end;
                 }
 
-                ++send_summary_packet_count;
+                ++video_sender_summary_packet_count;
             }
             video_packet_sets[video_packet_set.first] = std::move(video_packet_set);
         }
@@ -142,25 +143,28 @@ void run_video_sender_thread(int session_id,
             video_packet_sets.erase(obsolete_frame_id);
 
         if ((receiver_frame_id / 100) > (last_receiver_video_frame_id / 100)) {
-            duration<double> send_summary_time_interval = steady_clock::now() - send_summary_start;
-            float packet_loss = 1.0f - send_summary_receiver_packet_count / (float)send_summary_packet_count;
+            duration<double> send_summary_time_interval = steady_clock::now() - video_sender_summary_start;
+            float packet_loss = 1.0f - video_sender_summary_receiver_packet_count / (float)video_sender_summary_packet_count;
             printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
-                   send_summary_receiver_frame_count / send_summary_time_interval.count(),
+                   video_sender_summary_receiver_frame_count / send_summary_time_interval.count(),
                    packet_loss * 100.0f);
 
-            send_summary_start = steady_clock::now();
-            send_summary_receiver_frame_count = 0;
-            send_summary_packet_count = 0;
-            send_summary_receiver_packet_count = 0;
+            video_sender_summary_start = steady_clock::now();
+            video_sender_summary_receiver_frame_count = 0;
+            video_sender_summary_packet_count = 0;
+            video_sender_summary_receiver_packet_count = 0;
         }
         last_receiver_video_frame_id = receiver_frame_id;
+
+        auto loop_time = steady_clock::now() - loop_start;
+        printf("loop_time: %f micro seconds\n", loop_time.count() / 1000.0f);
     }
 run_video_sender_thread_end:
     stop_threads = true;
     return;
 }
 
-void send_frames(int session_id, KinectDevice& device, int port)
+void send_frames(int port, int session_id, KinectDevice& kinect_device)
 {
     const int TARGET_BITRATE = 2000;
     const short CHANGE_THRESHOLD = 10;
@@ -170,7 +174,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
-    auto calibration = device.getCalibration();
+    auto calibration = kinect_device.getCalibration();
     k4a::transformation transformation(calibration);
 
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -227,7 +231,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
             Sleep(100);
         }
 
-        auto capture = device.getCapture();
+        auto capture = kinect_device.getCapture();
         if (!capture)
             continue;
 
@@ -316,15 +320,16 @@ void main()
         configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
         auto timeout = std::chrono::milliseconds(1000);
 
-        auto device = KinectDevice::create(configuration, timeout);
-        if (!device) {
+        int session_id = rng() % (INT_MAX + 1);
+        
+        auto kinect_device = KinectDevice::create(configuration, timeout);
+        if (!kinect_device) {
             printf("Failed to create a KinectDevice...\n");
             continue;
         }
-        device->start();
+        kinect_device->start();
 
-        int session_id = rng() % (INT_MAX + 1);
-        send_frames(session_id, *device, port);
+        send_frames(port, session_id, *kinect_device);
     }
 }
 }

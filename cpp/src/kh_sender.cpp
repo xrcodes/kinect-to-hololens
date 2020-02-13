@@ -156,13 +156,13 @@ std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int
 {
     // The size of frame packets is defined to match the upper limit for udp packets.
 
-    int packet_count = (frame_message.size() - 1) / KH_MAX_FRAME_PACKET_CONTENT_SIZE + 1;
+    int packet_count = (frame_message.size() - 1) / KH_MAX_VIDEO_PACKET_CONTENT_SIZE + 1;
     std::vector<std::vector<uint8_t>> packets;
     for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
-        int message_cursor = KH_MAX_FRAME_PACKET_CONTENT_SIZE * packet_index;
+        int message_cursor = KH_MAX_VIDEO_PACKET_CONTENT_SIZE * packet_index;
 
         bool last = (packet_index + 1) == packet_count;
-        int packet_content_size = last ? (frame_message.size() - message_cursor) : KH_MAX_FRAME_PACKET_CONTENT_SIZE;
+        int packet_content_size = last ? (frame_message.size() - message_cursor) : KH_MAX_VIDEO_PACKET_CONTENT_SIZE;
 
         std::vector<uint8_t> packet(KH_PACKET_SIZE);
         int cursor = 0;
@@ -225,7 +225,7 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
         //cursor += 4;
 
         for (int i = begin_index + 1; i < end_index; ++i) {
-            for (int j = KH_FRAME_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j) {
+            for (int j = KH_VIDEO_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j) {
                 xor_packet[j] ^= frame_packets[i][j];
             }
         }

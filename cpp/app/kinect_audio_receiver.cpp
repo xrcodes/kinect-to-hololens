@@ -163,6 +163,7 @@ int main(std::string ip_address, int port)
         }
     }
     opus_decoder_destroy(opus_decoder);
+    soundio_ring_buffer_destroy(soundio_helper::ring_buffer);
     return 0;
 }
 }

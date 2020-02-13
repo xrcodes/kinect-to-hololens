@@ -18,13 +18,13 @@ const uint8_t KH_RECEIVER_REQUEST_PACKET = 2;
 
 const int KH_PACKET_SIZE = 1472;
 
-// Frame packets need more information for reassembly of packets.
-const int KH_FRAME_PACKET_HEADER_SIZE = 17;
-const int KH_MAX_FRAME_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_FRAME_PACKET_HEADER_SIZE;
+// Video packets need more information for reassembly of packets.
+const int KH_VIDEO_PACKET_HEADER_SIZE = 17;
+const int KH_MAX_VIDEO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_VIDEO_PACKET_HEADER_SIZE;
 
 // Opus packets are small enough to fit in UDP.
-const int KH_FRAME_AUDIO_PACKET_HEADER_SIZE = 13;
-const int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_FRAME_AUDIO_PACKET_HEADER_SIZE;
+const int KH_AUDIO_PACKET_HEADER_SIZE = 13;
+const int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_AUDIO_PACKET_HEADER_SIZE;
 
 template<class T>
 void copy_to_packet(const T& t, std::vector<uint8_t>& packet, int& cursor)

@@ -149,6 +149,7 @@ int main(int port)
         }
     }
     opus_encoder_destroy(opus_encoder);
+    soundio_ring_buffer_destroy(soundio_helper::ring_buffer);
     return 0;
 }
 }
