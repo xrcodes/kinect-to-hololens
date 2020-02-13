@@ -5,41 +5,8 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.XR.WSA.Input;
-
-class XorPacketCollection
-{
-    public int FrameId { get; private set; }
-    public int PacketCount { get; private set; }
-    private byte[][] packets;
-    public XorPacketCollection(int frameId, int packetCount)
-    {
-        FrameId = frameId;
-        PacketCount = packetCount;
-        packets = new byte[packetCount][];
-        for (int i = 0; i < packetCount; ++i)
-        {
-            packets[i] = new byte[0];
-        }
-    }
-
-    public void AddPacket(int packetIndex, byte[] packet)
-    {
-        packets[packetIndex] = packet;
-    }
-
-    public byte[] TryGetPacket(int packetIndex)
-    {
-        if(packets[packetIndex].Length == 0)
-        {
-            return null;
-        }
-
-        return packets[packetIndex];
-    }
-};
 
 public enum InputState
 {
@@ -278,7 +245,7 @@ public class KinectToHololensManager : MonoBehaviour
         var frameTime = frameStopWatch.Elapsed;
         frameStopWatch = Stopwatch.StartNew();
 
-        print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}," +
+        print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
               $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
         receiver.Send(lastFrameId, (float) packetCollectionTime.TotalMilliseconds, (float) decoderTime.TotalMilliseconds,
@@ -447,6 +414,7 @@ public class KinectToHololensManager : MonoBehaviour
                 var packetType = packet[cursor];
                 if (packetType == 0)
                 {
+                    print("Received Init Pacekt");
                     senderSessionId = sessionId;
                     initPacketQueue.Enqueue(packet);
                 }

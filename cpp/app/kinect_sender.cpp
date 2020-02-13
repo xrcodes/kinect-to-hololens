@@ -206,7 +206,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
     bool stop_threads = false;
     moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
-    int receiver_frame_id = 0;
+    int receiver_frame_id = -1;
     std::thread frame_sender_thread(run_frame_sender_thread, session_id, std::ref(stop_threads), std::ref(sender),
                                     std::ref(frame_packet_queue), std::ref(receiver_frame_id));
     

@@ -18,16 +18,16 @@ namespace kh
 template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
 using steady_clock = std::chrono::steady_clock;
 
-void run_receiver_thread(bool& stop_receiver_thread,
+void run_receiver_thread(int sender_session_id,
+                         bool& stop_receiver_thread,
                          Receiver& receiver,
-                         ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
+                         //ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
                          ReaderWriterQueue<FrameMessage>& frame_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
     const int XOR_MAX_GROUP_SIZE = 5;
 
-    std::optional<int> sender_session_id = std::nullopt;
     std::unordered_map<int, FramePacketCollection> frame_packet_collections;
     std::unordered_map<int, XorPacketCollection> xor_packet_collections;
     while (!stop_receiver_thread) {
@@ -40,13 +40,9 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
             int cursor = 0;
             int session_id = copy_from_packet<int>(*packet, cursor);
-            uint8_t packet_type = (*packet)[cursor];
-            if (packet_type == 0) {
-                sender_session_id = session_id;
-                init_packet_queue.enqueue(*packet);
-            }
+            uint8_t packet_type = copy_from_packet<uint8_t>(*packet, cursor);
             
-            if (!sender_session_id || session_id != sender_session_id)
+            if (session_id != sender_session_id)
                 continue;
 
             if (packet_type == 1) {
@@ -145,7 +141,7 @@ void run_receiver_thread(bool& stop_receiver_thread,
 
                             uint8_t packet_type = 1;
                             int cursor = 0;
-                            copy_to_packet<int>(*sender_session_id, fec_frame_packet, cursor);
+                            copy_to_packet<int>(sender_session_id, fec_frame_packet, cursor);
                             copy_to_packet<uint8_t>(packet_type, fec_frame_packet, cursor);
                             copy_to_packet<int>(missing_frame_id, fec_frame_packet, cursor);
                             copy_to_packet<int>(packet_index, fec_frame_packet, cursor);
@@ -240,43 +236,59 @@ void receive_frames(std::string ip_address, int port)
     //const int RECEIVER_RECEIVE_BUFFER_SIZE = 64 * 1024;
     asio::io_context io_context;
     Receiver receiver(io_context, RECEIVER_RECEIVE_BUFFER_SIZE);
-    receiver.ping(ip_address, port);
 
-    printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
+    std::error_code error;
+    int sender_session_id;
+    int depth_width;
+    int depth_height;
+    // When ping then check if a init packet arrived.
+    // Repeat until it happens.
+    for(;;) {
+        bool initialized = false;
+        receiver.ping(ip_address, port);
+        printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
+
+        Sleep(100);
+        
+        while (auto packet = receiver.receive(error)) {
+            int cursor = 0;
+            int session_id = copy_from_packet<int>(*packet, cursor);
+            uint8_t packet_type = copy_from_packet<uint8_t>(*packet, cursor);
+            if (packet_type != KH_SENDER_INIT_PACKET) {
+                printf("A different kind of a packet received before an init packet: %d\n", packet_type);
+                continue;
+            }
+
+            sender_session_id = session_id;
+
+            //int color_width = copy_from_packet<int>(packet, cursor);
+            //int color_height = copy_from_packet<int>(packet, cursor);
+            cursor += 8;
+
+            depth_width = copy_from_packet<int>(*packet, cursor);
+            depth_height = copy_from_packet<int>(*packet, cursor);
+
+            initialized = true;
+            break;
+        }
+        if (initialized)
+            break;
+    }
 
     bool stop_receiver_thread = false;
-    moodycamel::ReaderWriterQueue<std::vector<uint8_t>> init_packet_queue;
     moodycamel::ReaderWriterQueue<FrameMessage> frame_message_queue;
     int last_frame_id = -1;
     int summary_packet_count = 0;
-    std::thread receiver_thread(run_receiver_thread, std::ref(stop_receiver_thread), std::ref(receiver),
-                                std::ref(init_packet_queue), std::ref(frame_message_queue),
+    std::thread receiver_thread(run_receiver_thread, sender_session_id, std::ref(stop_receiver_thread),
+                                std::ref(receiver), std::ref(frame_message_queue),
                                 std::ref(last_frame_id), std::ref(summary_packet_count));
 
     Vp8Decoder color_decoder;
-    int depth_width;
-    int depth_height;
-    std::unique_ptr<TrvlDecoder> depth_decoder;
+    TrvlDecoder depth_decoder(depth_width * depth_height);
 
     std::vector<FrameMessage> frame_messages;
     auto frame_start = steady_clock::now();
     for (;;) {
-        std::vector<uint8_t> packet;
-        while (init_packet_queue.try_dequeue(packet)) {
-            int cursor = 0;
-            // These are not needed for the c++ application.
-            //int session_id = copy_from_packet<int>(packet, cursor);
-            //uint8_t packet_type = copy_from_packet<uint8_t>(packet, cursor);
-            //int color_width = copy_from_packet<int>(packet, cursor);
-            //int color_height = copy_from_packet<int>(packet, cursor);
-            cursor += 13;
-
-            depth_width = copy_from_packet<int>(packet, cursor);
-            depth_height = copy_from_packet<int>(packet, cursor);
-
-            depth_decoder = std::make_unique<TrvlDecoder>(depth_width * depth_height);
-        }
-        
         FrameMessage frame_message;
         while (frame_message_queue.try_dequeue(frame_message)) {
             frame_messages.push_back(frame_message);
@@ -337,7 +349,7 @@ void receive_frames(std::string ip_address, int port)
             ffmpeg_frame = color_decoder.decode(color_encoder_frame.data(), color_encoder_frame.size());
 
             // Decompressing a RVL frame into depth pixels.
-            depth_image = depth_decoder->decode(depth_encoder_frame.data(), keyframe);
+            depth_image = depth_decoder.decode(depth_encoder_frame.data(), keyframe);
         }
         auto decoder_time = steady_clock::now() - decoder_start;
         auto frame_time = steady_clock::now() - frame_start;
