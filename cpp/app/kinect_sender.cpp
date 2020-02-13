@@ -197,11 +197,6 @@ void send_frames(int session_id, KinectDevice& device, int port)
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
     Sender sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
-    sender.sendInitPacket(session_id, calibration, error);
-    if (error) {
-        printf("Error sending init packet: %s\n", error.message().c_str());
-        return;
-    }
 
     bool stop_threads = false;
     moodycamel::ReaderWriterQueue<FramePacketSet> frame_packet_queue;
@@ -215,7 +210,7 @@ void send_frames(int session_id, KinectDevice& device, int port)
 
     // Variables for profiling the sender.
     int main_summary_keyframe_count = 0;
-    std::chrono::microseconds last_time_stamp;
+    auto last_device_time_stamp = std::chrono::microseconds::zero();
 
     auto main_summary_start = steady_clock::now();
     size_t main_summary_frame_size_sum = 0;
@@ -223,6 +218,15 @@ void send_frames(int session_id, KinectDevice& device, int port)
         // Stop if the sender thread stopped.
         if (stop_threads)
             break;
+
+        if (receiver_frame_id == -1) {
+            sender.sendInitPacket(session_id, calibration, error);
+            if (error) {
+                printf("Error sending init packet: %s\n", error.message().c_str());
+                return;
+            }
+            Sleep(100);
+        }
 
         auto capture = device.getCapture();
         if (!capture)
@@ -240,15 +244,14 @@ void send_frames(int session_id, KinectDevice& device, int port)
             continue;
         }
 
-        auto time_stamp = color_image.get_device_timestamp();
-        auto time_diff = time_stamp - last_time_stamp;
-        float frame_time_stamp = time_stamp.count() / 1000.0f;
+        auto device_time_stamp = color_image.get_device_timestamp();
+        auto device_time_diff = device_time_stamp - last_device_time_stamp;
+        int device_frame_diff = static_cast<int>(device_time_diff.count() / 33000.0f + 0.5f);
         int frame_id_diff = frame_id - receiver_frame_id;
-        int device_frame_diff = (int)(time_diff.count() / 33000.0f + 0.5f);
         if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3)))
             continue;
-        
-        last_time_stamp = time_stamp;
+
+        last_device_time_stamp = device_time_stamp;
 
         bool keyframe = frame_id_diff > 5;
 
@@ -264,9 +267,10 @@ void send_frames(int session_id, KinectDevice& device, int port)
         // Compress the depth pixels.
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
+        float frame_time_stamp = device_time_stamp.count() / 1000.0f;
         auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
-                                                    reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
-                                                    static_cast<uint32_t>(depth_encoder_frame.size()));
+                                                  reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
+                                                  static_cast<uint32_t>(depth_encoder_frame.size()));
         auto packets = Sender::createFramePackets(session_id, frame_id, message);
         frame_packet_queue.enqueue(FramePacketSet(frame_id, std::move(packets)));
 
