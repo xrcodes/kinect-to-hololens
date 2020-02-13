@@ -5,18 +5,18 @@
 
 namespace kh
 {
-class FrameMessage
+class VideoMessage
 {
 public:
-    FrameMessage();
+    VideoMessage();
 
 private:
-    FrameMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
+    VideoMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
                  bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size,
                  std::chrono::steady_clock::duration packet_collection_time);
 
 public:
-    static FrameMessage create(int frame_id, std::vector<uint8_t>&& message,
+    static VideoMessage create(int frame_id, std::vector<uint8_t>&& message,
                                std::chrono::steady_clock::duration packet_collection_time);
     int frame_id() const { return frame_id_; }
     float frame_time_stamp() const { return frame_time_stamp_; }

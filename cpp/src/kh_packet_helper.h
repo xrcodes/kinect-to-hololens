@@ -8,9 +8,13 @@ namespace kh
 {
 // Packet types.
 const uint8_t KH_SENDER_INIT_PACKET = 0;
-const uint8_t KH_SENDER_FRAME_PACKET = 1;
+const uint8_t KH_SENDER_VIDEO_PACKET = 1;
 const uint8_t KH_SENDER_XOR_PACKET = 2;
 const uint8_t KH_SENDER_AUDIO_PACKET = 3;
+
+const uint8_t KH_RECEIVER_PING_PACKET = 0;
+const uint8_t KH_RECEIVER_REPORT_PACKET = 1;
+const uint8_t KH_RECEIVER_REQUEST_PACKET = 2;
 
 const int KH_PACKET_SIZE = 1472;
 

@@ -18,8 +18,8 @@ set(SOURCE_FILES
   kh_receiver.cpp
   kh_frame_message.h
   kh_frame_message.cpp
-  kh_frame_packet_collection.h
-  kh_frame_packet_collection.cpp
+  kh_video_packet_collection.h
+  kh_video_packet_collection.cpp
   kh_xor_packet_collection.h
   kh_xor_packet_collection.cpp
   kh_packet_helper.h

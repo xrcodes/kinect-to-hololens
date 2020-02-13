@@ -169,7 +169,7 @@ std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int
         memcpy(packet.data() + cursor, &session_id, 4);
         cursor += 4;
 
-        memcpy(packet.data() + cursor, &KH_SENDER_FRAME_PACKET, 1);
+        memcpy(packet.data() + cursor, &KH_SENDER_VIDEO_PACKET, 1);
         cursor += 1;
 
         memcpy(packet.data() + cursor, &frame_id, 4);

@@ -11,6 +11,7 @@ namespace kh
 int main(int port)
 {
     const int AZURE_KINECT_SAMPLE_RATE = 48000;
+    const int STEREO_CHANNEL_COUNT = 2;
     const double MICROPHONE_LATENCY = 0.2; // seconds
     const int AUDIO_FRAME_SIZE = 960;
     
@@ -74,7 +75,6 @@ int main(int port)
 
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
-    const int STEREO_CHANNEL_COUNT = 2;
     int capacity = MICROPHONE_LATENCY * 2 * in_stream->sample_rate() * in_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
     soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
     if (!soundio_helper::ring_buffer) {

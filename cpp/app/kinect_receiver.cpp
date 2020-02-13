@@ -9,7 +9,7 @@
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "kh_receiver.h"
-#include "kh_frame_packet_collection.h"
+#include "kh_video_packet_collection.h"
 #include "kh_xor_packet_collection.h"
 #include "kh_packet_helper.h"
 
@@ -22,13 +22,13 @@ void run_receiver_thread(int sender_session_id,
                          bool& stop_receiver_thread,
                          Receiver& receiver,
                          //ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
-                         ReaderWriterQueue<FrameMessage>& frame_message_queue,
+                         ReaderWriterQueue<VideoMessage>& frame_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
     const int XOR_MAX_GROUP_SIZE = 5;
 
-    std::unordered_map<int, FramePacketCollection> frame_packet_collections;
+    std::unordered_map<int, VideoPacketCollection> frame_packet_collections;
     std::unordered_map<int, XorPacketCollection> xor_packet_collections;
     while (!stop_receiver_thread) {
         std::vector<std::vector<uint8_t>> frame_packets;
@@ -90,7 +90,7 @@ void run_receiver_thread(int sender_session_id,
             // there is a frame with missing packets, try to create them using xor packets.
             // If using the xor packets fails, request the sender to retransmit the packets.
             if (frame_packet_collections.find(frame_id) == frame_packet_collections.end()) {
-                frame_packet_collections.insert({ frame_id, FramePacketCollection(frame_id, packet_count) });
+                frame_packet_collections.insert({ frame_id, VideoPacketCollection(frame_id, packet_count) });
 
                 ///////////////////////////////////
                 // Forward Error Correction Start//
@@ -283,7 +283,7 @@ void receive_frames(std::string ip_address, int port)
     }
 
     bool stop_receiver_thread = false;
-    moodycamel::ReaderWriterQueue<FrameMessage> frame_message_queue;
+    moodycamel::ReaderWriterQueue<VideoMessage> frame_message_queue;
     int last_frame_id = -1;
     int summary_packet_count = 0;
     std::thread receiver_thread(run_receiver_thread, sender_session_id, std::ref(stop_receiver_thread),
@@ -293,15 +293,15 @@ void receive_frames(std::string ip_address, int port)
     Vp8Decoder color_decoder;
     TrvlDecoder depth_decoder(depth_width * depth_height);
 
-    std::vector<FrameMessage> frame_messages;
+    std::vector<VideoMessage> frame_messages;
     auto frame_start = steady_clock::now();
     for (;;) {
-        FrameMessage frame_message;
+        VideoMessage frame_message;
         while (frame_message_queue.try_dequeue(frame_message)) {
             frame_messages.push_back(frame_message);
         }
 
-        std::sort(frame_messages.begin(), frame_messages.end(), [](const FrameMessage& lhs, const FrameMessage& rhs)
+        std::sort(frame_messages.begin(), frame_messages.end(), [](const VideoMessage& lhs, const VideoMessage& rhs)
         {
             return lhs.frame_id() < rhs.frame_id();
         });
@@ -386,7 +386,7 @@ void receive_frames(std::string ip_address, int port)
             break;
 
         // Reset frame_messages after they are displayed.
-        frame_messages = std::vector<FrameMessage>();
+        frame_messages = std::vector<VideoMessage>();
     }
 
     stop_receiver_thread = true;

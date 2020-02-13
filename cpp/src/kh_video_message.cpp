@@ -1,12 +1,12 @@
-#include "kh_frame_message.h"
+#include "kh_video_message.h"
 
 namespace kh
 {
-FrameMessage::FrameMessage()
+VideoMessage::VideoMessage()
 {
 }
 
-FrameMessage::FrameMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
+VideoMessage::VideoMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
                            bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size,
                            std::chrono::steady_clock::duration packet_collection_time)
     : message_(std::move(message)), frame_id_(frame_id), frame_time_stamp_(frame_time_stamp),
@@ -16,7 +16,7 @@ FrameMessage::FrameMessage(std::vector<uint8_t>&& message, int frame_id, float f
 {
 }
 
-FrameMessage FrameMessage::create(int frame_id, std::vector<uint8_t>&& message,
+VideoMessage VideoMessage::create(int frame_id, std::vector<uint8_t>&& message,
                                   std::chrono::steady_clock::duration packet_collection_time)
 {
     int cursor = 0;
@@ -39,12 +39,12 @@ FrameMessage FrameMessage::create(int frame_id, std::vector<uint8_t>&& message,
     int depth_encoder_frame_size;
     memcpy(&depth_encoder_frame_size, message.data() + cursor, 4);
 
-    return FrameMessage(std::move(message), frame_id, frame_time_stamp,
+    return VideoMessage(std::move(message), frame_id, frame_time_stamp,
                         keyframe, color_encoder_frame_size,
                         depth_encoder_frame_size, packet_collection_time);
 }
 
-std::vector<uint8_t> FrameMessage::getColorEncoderFrame()
+std::vector<uint8_t> VideoMessage::getColorEncoderFrame()
 {
     int cursor = 4 + 1 + 4;
     std::vector<uint8_t> color_encoder_frame(color_encoder_frame_size_);
@@ -53,7 +53,7 @@ std::vector<uint8_t> FrameMessage::getColorEncoderFrame()
     return color_encoder_frame;
 }
 
-std::vector<uint8_t> FrameMessage::getDepthEncoderFrame()
+std::vector<uint8_t> VideoMessage::getDepthEncoderFrame()
 {
     int cursor = 4 + 1 + 4 + color_encoder_frame_size_ + 4;
     std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size_);
