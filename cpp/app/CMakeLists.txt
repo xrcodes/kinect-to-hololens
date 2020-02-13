@@ -68,7 +68,6 @@ target_include_directories(KinectListener PRIVATE
 )
 target_link_libraries(KinectListener
   KinectToHololens
-  libsoundio::libsoundio
 )
 set_target_properties(KinectListener PROPERTIES
   CXX_STANDARD 17
@@ -83,7 +82,6 @@ target_include_directories(KinectAudioSender PRIVATE
 )
 target_link_libraries(KinectAudioSender
   KinectToHololens
-  libsoundio::libsoundio
   Opus::opus
 )
 set_target_properties(KinectAudioSender PROPERTIES
@@ -99,7 +97,6 @@ target_include_directories(KinectAudioReceiver PRIVATE
 )
 target_link_libraries(KinectAudioReceiver
   KinectToHololens
-  libsoundio::libsoundio
   Opus::opus
 )
 set_target_properties(KinectAudioReceiver PROPERTIES
