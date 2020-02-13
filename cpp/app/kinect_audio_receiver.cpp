@@ -67,8 +67,8 @@ int main(std::string ip_address, int port)
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     const int STEREO_CHANNEL_COUNT = 2;
-    //int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT / 2;
+    int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
+    //int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT / 2;
     //soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
     auto ring_buffer = AudioRingBuffer::create(*audio, capacity);
     if (!ring_buffer) {
@@ -113,14 +113,15 @@ int main(std::string ip_address, int port)
         }
 
         while (packets.size() > 20) {
+            printf("remove packet");
             packets.erase(packets.begin());
         }
 
         char* write_ptr = ring_buffer->getWritePtr();
         int free_bytes = ring_buffer->getFreeCount();
         //printf("free_bytes: %d\n", free_bytes);
-        printf("latency: %f\n", ring_buffer->getFillCount() / static_cast<float>(out_stream->sample_rate() * out_stream->bytes_per_frame()));
-        printf("packet size: %ld\n", packets.size());
+        //printf("latency: %f\n", ring_buffer->getFillCount() / static_cast<float>(out_stream->sample_rate() * out_stream->bytes_per_frame()));
+        //printf("packet size: %ld\n", packets.size());
 
         const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
