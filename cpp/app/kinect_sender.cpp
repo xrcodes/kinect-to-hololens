@@ -14,12 +14,12 @@ namespace kh
 using steady_clock = std::chrono::steady_clock;
 template<class T> using duration = std::chrono::duration<T>;
 template<class T> using time_point = std::chrono::time_point<T>;
-using VideoPacketSet = std::pair<int, std::vector<std::vector<uint8_t>>>;
+using VideoPacketSet = std::pair<int, std::vector<std::vector<std::byte>>>;
 template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
 
 void run_video_sender_thread(int session_id,
                              bool& stop_threads,
-                             SenderSocket& sender,
+                             SenderSocket& sender_socket,
                              ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
                              int& receiver_frame_id)
 {
@@ -36,7 +36,7 @@ void run_video_sender_thread(int session_id,
         auto loop_start = steady_clock::now();
         for (;;) {
             std::error_code error;
-            std::optional<std::vector<uint8_t>> received_packet = sender.receive(error);
+            std::optional<std::vector<std::byte>> received_packet = sender_socket.receive(error);
 
             if (!received_packet) {
                 if (error == asio::error::would_block) {
@@ -83,7 +83,7 @@ void run_video_sender_thread(int session_id,
                     if (video_packet_sets.find(requested_frame_id) == video_packet_sets.end())
                         continue;
 
-                    sender.sendPacket(video_packet_sets[requested_frame_id].second[missing_packet_index], error);
+                    sender_socket.sendPacket(video_packet_sets[requested_frame_id].second[missing_packet_index], error);
                     if (error == asio::error::would_block) {
                         printf("Failed to fill in a packet as the buffer was full...\n");
                     } else if (error) {
@@ -103,7 +103,7 @@ void run_video_sender_thread(int session_id,
             video_frame_send_times[video_packet_set.first] = steady_clock::now();
             for (auto packet : video_packet_set.second) {
                 std::error_code error;
-                sender.sendPacket(packet, error);
+                sender_socket.sendPacket(packet, error);
 
                 if (error == asio::error::would_block) {
                     printf("Failed to send a frame packet as the buffer was full...\n");
@@ -117,7 +117,7 @@ void run_video_sender_thread(int session_id,
 
             for (auto packet : xor_packets) {
                 std::error_code error;
-                sender.sendPacket(packet, error);
+                sender_socket.sendPacket(packet, error);
 
                 if (error == asio::error::would_block) {
                     printf("Failed to send an xor packet as the buffer was full...\n");
@@ -187,7 +187,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
 
-    std::vector<uint8_t> ping_buffer(1);
+    std::vector<std::byte> ping_buffer(1);
     asio::ip::udp::endpoint remote_endpoint;
     std::error_code error;
     socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0, error);
@@ -199,13 +199,13 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    SenderSocket sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
+    SenderSocket sender_socket(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
 
     bool stop_threads = false;
     moodycamel::ReaderWriterQueue<VideoPacketSet> video_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id = -1;
-    std::thread video_sender_thread(run_video_sender_thread, session_id, std::ref(stop_threads), std::ref(sender),
+    std::thread video_sender_thread(run_video_sender_thread, session_id, std::ref(stop_threads), std::ref(sender_socket),
                                     std::ref(video_packet_queue), std::ref(receiver_frame_id));
     
     // frame_id is the ID of the frame the sender sends.
@@ -223,7 +223,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
             break;
 
         if (receiver_frame_id == -1) {
-            sender.sendInitPacket(session_id, calibration, error);
+            sender_socket.sendInitPacket(session_id, calibration, error);
             if (error) {
                 printf("Error sending init packet: %s\n", error.message().c_str());
                 return;
@@ -272,7 +272,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 
         float frame_time_stamp = device_time_stamp.count() / 1000.0f;
         auto message = SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
-                                                  reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
+                                                  depth_encoder_frame.data(),
                                                   static_cast<uint32_t>(depth_encoder_frame.size()));
         auto packets = SenderSocket::createFramePackets(session_id, video_frame_id, message);
         video_packet_queue.enqueue(VideoPacketSet(video_frame_id, std::move(packets)));

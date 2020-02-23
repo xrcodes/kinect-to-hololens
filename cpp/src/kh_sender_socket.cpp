@@ -42,14 +42,15 @@ void SenderSocket::sendInitPacket(int session_id, k4a_calibration_t calibration,
                                                  sizeof(depth_metric_radius) +
                                                  sizeof(depth_to_color_extrinsics));
 
-    std::vector<uint8_t> packet(packet_size);
+    std::vector<std::byte> packet(packet_size);
     size_t cursor = 0;
 
     // Message type
     memcpy(packet.data() + cursor, &session_id, sizeof(session_id));
     cursor += sizeof(session_id);
 
-    packet[cursor] = KH_SENDER_INIT_PACKET;
+    //packet[cursor] = KH_SENDER_INIT_PACKET;
+    memcpy(packet.data() + cursor, &KH_SENDER_INIT_PACKET, 1);
     cursor += 1;
 
     memcpy(packet.data() + cursor, &color_width, sizeof(color_width));
@@ -89,13 +90,14 @@ void SenderSocket::sendAudioPacket(int session_id, int frame_id, std::vector<uin
                                                  sizeof(opus_frame_size) +
                                                  opus_frame_size);
 
-    std::vector<uint8_t> packet(packet_size);
+    std::vector<std::byte> packet(packet_size);
     size_t cursor = 0;
 
     memcpy(packet.data() + cursor, &session_id, sizeof(session_id));
     cursor += sizeof(session_id);
 
-    packet[cursor] = KH_SENDER_AUDIO_PACKET;
+    //packet[cursor] = KH_SENDER_AUDIO_PACKET;
+    memcpy(packet.data() + cursor, &KH_SENDER_AUDIO_PACKET, 1);
     cursor += 1;
 
     memcpy(packet.data() + cursor, &frame_id, sizeof(frame_id));
@@ -110,9 +112,9 @@ void SenderSocket::sendAudioPacket(int session_id, int frame_id, std::vector<uin
     sendPacket(packet, error);
 }
 
-std::optional<std::vector<uint8_t>> SenderSocket::receive(std::error_code& error)
+std::optional<std::vector<std::byte>> SenderSocket::receive(std::error_code& error)
 {
-    std::vector<uint8_t> packet(KH_PACKET_SIZE);
+    std::vector<std::byte> packet(KH_PACKET_SIZE);
     asio::ip::udp::endpoint sender_endpoint;
     size_t packet_size = socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error);
 
@@ -123,18 +125,19 @@ std::optional<std::vector<uint8_t>> SenderSocket::receive(std::error_code& error
     return packet;
 }
 
-std::vector<uint8_t> SenderSocket::createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
-                                        uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
+std::vector<std::byte> SenderSocket::createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<std::byte>& vp8_frame,
+                                                      std::byte* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     uint32_t message_size = static_cast<uint32_t>(4 + 1 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
 
-    std::vector<uint8_t> message(message_size);
+    std::vector<std::byte> message(message_size);
     size_t cursor = 0;
 
     memcpy(message.data() + cursor, &frame_time_stamp, 4);
     cursor += 4;
 
-    message[cursor] = static_cast<uint8_t>(keyframe);
+    //message[cursor] = static_cast<uint8_t>(keyframe);
+    memcpy(message.data() + cursor, &keyframe, 1);
     cursor += 1;
 
     int vp8_frame_size = vp8_frame.size();
@@ -152,19 +155,19 @@ std::vector<uint8_t> SenderSocket::createFrameMessage(float frame_time_stamp, bo
     return message;
 }
 
-std::vector<std::vector<uint8_t>> SenderSocket::createFramePackets(int session_id, int frame_id, const std::vector<uint8_t>& frame_message)
+std::vector<std::vector<std::byte>> SenderSocket::createFramePackets(int session_id, int frame_id, const std::vector<std::byte>& frame_message)
 {
     // The size of frame packets is defined to match the upper limit for udp packets.
 
     int packet_count = (frame_message.size() - 1) / KH_MAX_VIDEO_PACKET_CONTENT_SIZE + 1;
-    std::vector<std::vector<uint8_t>> packets;
+    std::vector<std::vector<std::byte>> packets;
     for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
         int message_cursor = KH_MAX_VIDEO_PACKET_CONTENT_SIZE * packet_index;
 
         bool last = (packet_index + 1) == packet_count;
         int packet_content_size = last ? (frame_message.size() - message_cursor) : KH_MAX_VIDEO_PACKET_CONTENT_SIZE;
 
-        std::vector<uint8_t> packet(KH_PACKET_SIZE);
+        std::vector<std::byte> packet(KH_PACKET_SIZE);
         int cursor = 0;
         memcpy(packet.data() + cursor, &session_id, 4);
         cursor += 4;
@@ -194,20 +197,20 @@ std::vector<std::vector<uint8_t>> SenderSocket::createFramePackets(int session_i
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<std::vector<uint8_t>> SenderSocket::createXorPackets(int session_id, int frame_id,
-                                                           const std::vector<std::vector<uint8_t>>& frame_packets, int max_group_size)
+std::vector<std::vector<std::byte>> SenderSocket::createXorPackets(int session_id, int frame_id,
+                                                           const std::vector<std::vector<std::byte>>& frame_packets, int max_group_size)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
     int xor_packet_count = (frame_packets.size() - 1) / max_group_size + 1;
 
-    std::vector<std::vector<uint8_t>> xor_packets;
+    std::vector<std::vector<std::byte>> xor_packets;
     for (int xor_packet_index = 0; xor_packet_index < xor_packet_count; ++xor_packet_index) {
         int begin_index = xor_packet_index * max_group_size;
         int end_index = std::min<int>(begin_index + max_group_size, frame_packets.size());
         
         // Copy packets[begin_index] instead of filling in everything zero
         // to reduce an XOR operation for contents once.
-        std::vector<uint8_t> xor_packet(frame_packets[begin_index]);
+        std::vector<std::byte> xor_packet(frame_packets[begin_index]);
         int cursor = 0;
         memcpy(xor_packet.data() + cursor, &session_id, 4);
         cursor += 4;
@@ -234,7 +237,7 @@ std::vector<std::vector<uint8_t>> SenderSocket::createXorPackets(int session_id,
     return xor_packets;
 }
 
-void SenderSocket::sendPacket(const std::vector<uint8_t>& packet, std::error_code& error)
+void SenderSocket::sendPacket(const std::vector<std::byte>& packet, std::error_code& error)
 {
     socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
 }

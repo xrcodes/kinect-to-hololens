@@ -14,7 +14,7 @@ class Vp8Encoder
 public:
     Vp8Encoder(int width, int height, int target_bitrate);
     ~Vp8Encoder();
-    std::vector<uint8_t> encode(YuvImage& yuv_image, bool keyframe);
+    std::vector<std::byte> encode(YuvImage& yuv_image, bool keyframe);
 
 private:
     vpx_codec_ctx_t codec_;
@@ -32,7 +32,7 @@ private:
 
 public:
     Vp8Decoder();
-    FFmpegFrame decode(uint8_t* vp8_frame_data, size_t vp8_frame_size);
+    FFmpegFrame decode(std::byte* vp8_frame_data, size_t vp8_frame_size);
 
 private:
     std::shared_ptr<CodecContext> codec_context_;

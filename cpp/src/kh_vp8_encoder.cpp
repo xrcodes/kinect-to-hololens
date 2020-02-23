@@ -55,7 +55,7 @@ Vp8Encoder::~Vp8Encoder()
 }
 
 // Encoding YuvImage with the color pixels with libvpx.
-std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
+std::vector<std::byte> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
 {
     image_.planes[VPX_PLANE_Y] = yuv_image.y_channel().data();
     image_.planes[VPX_PLANE_U] = yuv_image.u_channel().data();
@@ -76,7 +76,7 @@ std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
 
     vpx_codec_iter_t iter{nullptr};
     const vpx_codec_cx_pkt_t* pkt{nullptr};
-    std::vector<uint8_t> bytes;
+    std::vector<std::byte> bytes;
     while (pkt = vpx_codec_get_cx_data(&codec_, &iter)) {
         if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
             if (!bytes.empty())
@@ -84,7 +84,7 @@ std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
 
             const int keyframe{(pkt->data.frame.flags & VPX_FRAME_IS_KEY) != 0};
             bytes.resize(pkt->data.frame.sz);
-            memcpy(bytes.data(), (uint8_t*)pkt->data.frame.buf, pkt->data.frame.sz);
+            memcpy(bytes.data(), (std::byte*)pkt->data.frame.buf, pkt->data.frame.sz);
         }
     }
 

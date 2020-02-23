@@ -41,7 +41,7 @@ TrvlEncoder::TrvlEncoder(int frame_size, short change_threshold, int invalid_thr
 {
 }
 
-std::vector<uint8_t> TrvlEncoder::encode(short* depth_buffer, bool keyframe)
+std::vector<std::byte> TrvlEncoder::encode(int16_t* depth_buffer, bool keyframe)
 {
     auto frame_size = pixels_.size();
     if (keyframe) {
@@ -68,7 +68,7 @@ TrvlDecoder::TrvlDecoder(int frame_size)
     : prev_pixel_values_(frame_size, 0)
 {
 }
-std::vector<short> TrvlDecoder::decode(uint8_t* trvl_frame, bool keyframe)
+std::vector<int16_t> TrvlDecoder::decode(std::byte* trvl_frame, bool keyframe)
 {
     int frame_size = prev_pixel_values_.size();
     if (keyframe) {

@@ -97,7 +97,7 @@ int main(std::string ip_address, int port)
 
     float out[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
 
-    std::map<int, std::vector<uint8_t>> packets;
+    std::map<int, std::vector<std::byte>> packets;
     int received_byte_count = 0;
     int last_frame_id = -1;
     auto summary_time = std::chrono::steady_clock::now();
@@ -143,7 +143,7 @@ int main(std::string ip_address, int port)
                 // When the packet for the next audio frame is found,
                 // use it and erase it.
                 int opus_frame_size = copy_from_packet<int>(packet_it->second, audio_packet_cursor);
-                frame_size = opus_decode_float(opus_decoder, packet_it->second.data() + audio_packet_cursor, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
+                frame_size = opus_decode_float(opus_decoder, reinterpret_cast<unsigned char*>(packet_it->second.data()) + audio_packet_cursor, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
                 packet_it = packets.erase(packet_it);
             } else {
                 // If not, let opus know there is a packet loss.

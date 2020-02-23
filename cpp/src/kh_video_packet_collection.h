@@ -11,8 +11,8 @@ public:
     VideoPacketCollection(int frame_id, int packet_count);
     int frame_id() { return frame_id_; }
     int packet_count() { return packet_count_; }
-    std::vector<std::vector<std::uint8_t>>& packets() { return packets_; }
-    void addPacket(int packet_index, std::vector<uint8_t>&& packet);
+    std::vector<std::vector<std::byte>>& packets() { return packets_; }
+    void addPacket(int packet_index, std::vector<std::byte>&& packet);
     bool isFull();
     VideoMessage toMessage();
     int getCollectedPacketCount();
@@ -21,7 +21,7 @@ public:
 private:
     int frame_id_;
     int packet_count_;
-    std::vector<std::vector<std::uint8_t>> packets_;
+    std::vector<std::vector<std::byte>> packets_;
     std::chrono::time_point<std::chrono::steady_clock> construction_time_;
 };
 }

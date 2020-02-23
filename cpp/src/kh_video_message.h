@@ -23,8 +23,8 @@ public:
     bool keyframe() const { return keyframe_; }
     int color_encoder_frame_size() const { return color_encoder_frame_size_; }
     int depth_encoder_frame_size() const { return depth_encoder_frame_size_; }
-    std::vector<uint8_t> getColorEncoderFrame();
-    std::vector<uint8_t> getDepthEncoderFrame();
+    std::vector<std::byte> getColorEncoderFrame();
+    std::vector<std::byte> getDepthEncoderFrame();
     std::chrono::steady_clock::duration packet_collection_time() { return packet_collection_time_; }
 
 private:

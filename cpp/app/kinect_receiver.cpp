@@ -21,7 +21,6 @@ using steady_clock = std::chrono::steady_clock;
 void run_receiver_thread(int sender_session_id,
                          bool& stop_receiver_thread,
                          ReceiverSocket& receiver,
-                         //ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
                          ReaderWriterQueue<VideoMessage>& frame_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
@@ -31,8 +30,8 @@ void run_receiver_thread(int sender_session_id,
     std::unordered_map<int, VideoPacketCollection> frame_packet_collections;
     std::unordered_map<int, XorPacketCollection> xor_packet_collections;
     while (!stop_receiver_thread) {
-        std::vector<std::vector<uint8_t>> frame_packets;
-        std::vector<std::vector<uint8_t>> xor_packets;
+        std::vector<std::vector<std::byte>> frame_packets;
+        std::vector<std::vector<std::byte>> xor_packets;
 
         std::error_code error;
         while (auto packet = receiver.receive(error)) {
@@ -137,7 +136,7 @@ void run_receiver_thread(int sender_session_id,
 
                             auto fec_start = steady_clock::now();
 
-                            std::vector<uint8_t> fec_frame_packet(KH_PACKET_SIZE);
+                            std::vector<std::byte> fec_frame_packet(KH_PACKET_SIZE);
 
                             uint8_t packet_type = 1;
                             int cursor = 0;

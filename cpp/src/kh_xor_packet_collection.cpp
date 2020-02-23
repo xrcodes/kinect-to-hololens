@@ -7,12 +7,12 @@ XorPacketCollection::XorPacketCollection(int frame_id, int packet_count)
 {
 }
 
-void XorPacketCollection::addPacket(int packet_index, std::vector<uint8_t>&& packet)
+void XorPacketCollection::addPacket(int packet_index, std::vector<std::byte>&& packet)
 {
     packets_[packet_index] = std::move(packet);
 }
 
-std::vector<std::uint8_t>* XorPacketCollection::TryGetPacket(int packet_index)
+std::vector<std::byte>* XorPacketCollection::TryGetPacket(int packet_index)
 {
     if (packets_[packet_index].empty())
     {

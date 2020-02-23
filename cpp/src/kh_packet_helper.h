@@ -27,14 +27,14 @@ const int KH_AUDIO_PACKET_HEADER_SIZE = 13;
 const int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_AUDIO_PACKET_HEADER_SIZE;
 
 template<class T>
-void copy_to_packet(const T& t, std::vector<uint8_t>& packet, int& cursor)
+void copy_to_packet(const T& t, std::vector<std::byte>& packet, int& cursor)
 {
     memcpy(packet.data() + cursor, &t, sizeof(T));
     cursor += sizeof(T);
 }
 
 template<class T>
-T copy_from_packet(const std::vector<uint8_t>& packet, int& cursor)
+T copy_from_packet(const std::vector<std::byte>& packet, int& cursor)
 {
     T t;
     memcpy(&t, packet.data() + cursor, sizeof(T));
@@ -43,7 +43,7 @@ T copy_from_packet(const std::vector<uint8_t>& packet, int& cursor)
 }
 
 template<class T>
-T copy_from_packet_data(uint8_t* packet_data)
+T copy_from_packet_data(std::byte* packet_data)
 {
     T t;
     memcpy(&t, packet_data, sizeof(T));

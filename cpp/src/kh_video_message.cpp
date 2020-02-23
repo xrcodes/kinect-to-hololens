@@ -44,19 +44,19 @@ VideoMessage VideoMessage::create(int frame_id, std::vector<uint8_t>&& message,
                         depth_encoder_frame_size, packet_collection_time);
 }
 
-std::vector<uint8_t> VideoMessage::getColorEncoderFrame()
+std::vector<std::byte> VideoMessage::getColorEncoderFrame()
 {
     int cursor = 4 + 1 + 4;
-    std::vector<uint8_t> color_encoder_frame(color_encoder_frame_size_);
+    std::vector<std::byte> color_encoder_frame(color_encoder_frame_size_);
     memcpy(color_encoder_frame.data(), message_.data() + cursor, color_encoder_frame_size_);
 
     return color_encoder_frame;
 }
 
-std::vector<uint8_t> VideoMessage::getDepthEncoderFrame()
+std::vector<std::byte> VideoMessage::getDepthEncoderFrame()
 {
     int cursor = 4 + 1 + 4 + color_encoder_frame_size_ + 4;
-    std::vector<uint8_t> depth_encoder_frame(depth_encoder_frame_size_);
+    std::vector<std::byte> depth_encoder_frame(depth_encoder_frame_size_);
     memcpy(depth_encoder_frame.data(), message_.data() + cursor, depth_encoder_frame_size_);
 
     return depth_encoder_frame;

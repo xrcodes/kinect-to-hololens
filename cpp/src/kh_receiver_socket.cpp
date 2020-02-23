@@ -21,9 +21,9 @@ void ReceiverSocket::ping(std::string ip_address, int port)
     socket_.send_to(asio::buffer(&KH_RECEIVER_PING_PACKET, 1), remote_endpoint_);
 }
 
-std::optional<std::vector<uint8_t>> ReceiverSocket::receive(std::error_code& error)
+std::optional<std::vector<std::byte>> ReceiverSocket::receive(std::error_code& error)
 {
-    std::vector<uint8_t> packet(KH_PACKET_SIZE);
+    std::vector<std::byte> packet(KH_PACKET_SIZE);
     size_t packet_size = socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error);
 
     if (error)

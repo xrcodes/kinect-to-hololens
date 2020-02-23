@@ -10,7 +10,7 @@ VideoPacketCollection::VideoPacketCollection(int frame_id, int packet_count)
 {
 }
 
-void VideoPacketCollection::addPacket(int packet_index, std::vector<uint8_t>&& packet)
+void VideoPacketCollection::addPacket(int packet_index, std::vector<std::byte>&& packet)
 {
     packets_[packet_index] = std::move(packet);
 }

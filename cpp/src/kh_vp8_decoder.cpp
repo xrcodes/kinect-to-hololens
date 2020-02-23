@@ -92,19 +92,9 @@ AVCodec* find_codec(AVCodecID id)
         throw std::exception("avcodec_find_decoder failed.");
     return codec;
 }
-}
-
-Vp8Decoder::Vp8Decoder()
-    : codec_context_{std::make_shared<CodecContext>(find_codec(AV_CODEC_ID_VP8))}
-    , codec_parser_context_{std::make_shared<CodecParserContext>(codec_context_->get()->codec->id)}
-    , packet_{std::make_shared<Packet>()}
-{
-    if (avcodec_open2(codec_context_->get(), codec_context_->get()->codec, nullptr) < 0)
-        throw std::exception("avcodec_open2 failed.");
-}
 
 // A helper function for Vp8Decoder::decode() that feeds frames of packet into decoder_frames.
-void decodePacket(std::vector<FFmpegFrame>& decoder_frames, AVCodecContext* codec_context, AVPacket* packet)
+void decode_packet(std::vector<FFmpegFrame>& decoder_frames, AVCodecContext* codec_context, AVPacket* packet)
 {
     if (avcodec_send_packet(codec_context, packet) < 0)
         throw std::exception("Error from avcodec_send_packet.");
@@ -113,7 +103,7 @@ void decodePacket(std::vector<FFmpegFrame>& decoder_frames, AVCodecContext* code
         auto av_frame = av_frame_alloc();
         if (!av_frame)
             throw std::exception("Error from av_frame_alloc.");
-        
+
         av_frame->format = AV_PIX_FMT_YUV420P;
 
         int receive_frame_result = avcodec_receive_frame(codec_context, av_frame);
@@ -129,9 +119,20 @@ void decodePacket(std::vector<FFmpegFrame>& decoder_frames, AVCodecContext* code
 
     return;
 }
+}
+
+Vp8Decoder::Vp8Decoder()
+    : codec_context_{std::make_shared<CodecContext>(find_codec(AV_CODEC_ID_VP8))}
+    , codec_parser_context_{std::make_shared<CodecParserContext>(codec_context_->get()->codec->id)}
+    , packet_{std::make_shared<Packet>()}
+{
+    if (avcodec_open2(codec_context_->get(), codec_context_->get()->codec, nullptr) < 0)
+        throw std::exception("avcodec_open2 failed.");
+}
+
 
 // Decode frames in vp8_frame_data.
-FFmpegFrame Vp8Decoder::decode(uint8_t* vp8_frame_data, size_t vp8_frame_size)
+FFmpegFrame Vp8Decoder::decode(std::byte* vp8_frame_data, size_t vp8_frame_size)
 {
     std::vector<FFmpegFrame> decoder_frames;
     /* use the parser to split the data into frames */
@@ -157,7 +158,7 @@ FFmpegFrame Vp8Decoder::decode(uint8_t* vp8_frame_data, size_t vp8_frame_size)
         data_size -= size;
 
         if (packet_->get()->size)
-            decodePacket(decoder_frames, codec_context_->get(), packet_->get());
+            decode_packet(decoder_frames, codec_context_->get(), packet_->get());
     }
 
     if (decoder_frames.size() != 1)

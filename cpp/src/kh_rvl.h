@@ -10,8 +10,9 @@ namespace kh
 namespace rvl
 {
 // Compresses depth pixels using RVL.
-std::vector<uint8_t> compress(short* input, int num_pixels);
+// It has to be int16_t not uint16_t to work with TRVL.
+std::vector<std::byte> compress(int16_t* input, int num_pixels);
 // Decompress depth pixels using RVL.
-std::vector<short> decompress(uint8_t* input, int num_pixels);
+std::vector<int16_t> decompress(std::byte* input, int num_pixels);
 }
 }
