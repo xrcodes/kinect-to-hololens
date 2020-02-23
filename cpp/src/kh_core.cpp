@@ -40,7 +40,7 @@ YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int
 }
 
 // Reference: https://docs.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering
-YuvImage createYuvImageFromAzureKinectBgraBuffer(uint8_t* buffer, int width, int height, int stride)
+YuvImage createYuvImageFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride)
 {
     // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
     std::vector<uint8_t> y_channel(width * height);

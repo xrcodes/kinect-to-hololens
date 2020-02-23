@@ -43,9 +43,9 @@ public:
         height_ = other.height_;
         return *this;
     }
-    std::vector<uint8_t>& y_channel() { return y_channel_; }
-    std::vector<uint8_t>& u_channel() { return u_channel_; }
-    std::vector<uint8_t>& v_channel() { return v_channel_; }
+    const std::vector<uint8_t>& y_channel() const { return y_channel_; }
+    const std::vector<uint8_t>& u_channel() const { return u_channel_; }
+    const std::vector<uint8_t>& v_channel() const { return v_channel_; }
     int width() const { return width_; }
     int height() const { return height_; }
 
@@ -94,7 +94,7 @@ private:
 
 // createYuvImageFromAzureKinectYuy2Buffer(): converts color pixels to a YuvImage.
 // createYuvImageFromAvFrame(): converts the outcome of Vp8Decoder to color pixels in Yuv420.
-YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int height, int stride);
-YuvImage createYuvImageFromAzureKinectBgraBuffer(uint8_t* buffer, int width, int height, int stride);
-YuvImage createYuvImageFromAvFrame(AVFrame* av_frame);
+YuvImage createYuvImageFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride);
+YuvImage createYuvImageFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride);
+YuvImage createYuvImageFromAvFrame(const AVFrame* av_frame);
 }

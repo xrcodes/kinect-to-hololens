@@ -11,8 +11,8 @@ namespace rvl
 {
 // Compresses depth pixels using RVL.
 // It has to be int16_t not uint16_t to work with TRVL.
-std::vector<std::byte> compress(int16_t* input, int num_pixels);
+std::vector<std::byte> compress(const int16_t* input, int num_pixels);
 // Decompress depth pixels using RVL.
-std::vector<int16_t> decompress(std::byte* input, int num_pixels);
+std::vector<int16_t> decompress(const std::byte* input, int num_pixels);
 }
 }

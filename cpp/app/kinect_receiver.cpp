@@ -25,7 +25,7 @@ void run_receiver_thread(int sender_session_id,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
-    const int XOR_MAX_GROUP_SIZE = 5;
+    constexpr int XOR_MAX_GROUP_SIZE = 5;
 
     std::unordered_map<int, VideoPacketCollection> frame_packet_collections;
     std::unordered_map<int, XorPacketCollection> xor_packet_collections;

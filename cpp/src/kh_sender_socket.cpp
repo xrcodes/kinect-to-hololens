@@ -82,7 +82,7 @@ void SenderSocket::sendInitPacket(int session_id, k4a_calibration_t calibration,
     sendPacket(packet, error);
 }
 
-void SenderSocket::sendAudioPacket(int session_id, int frame_id, std::vector<uint8_t>& opus_frame, int opus_frame_size, std::error_code& error)
+void SenderSocket::sendAudioPacket(int session_id, int frame_id, const std::vector<uint8_t>& opus_frame, int opus_frame_size, std::error_code& error)
 {
     uint32_t packet_size = static_cast<uint32_t>(sizeof(session_id) +
                                                  1 +
@@ -125,8 +125,8 @@ std::optional<std::vector<std::byte>> SenderSocket::receive(std::error_code& err
     return packet;
 }
 
-std::vector<std::byte> SenderSocket::createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<std::byte>& vp8_frame,
-                                                      std::byte* depth_encoder_frame, uint32_t depth_encoder_frame_size)
+std::vector<std::byte> SenderSocket::createFrameMessage(float frame_time_stamp, bool keyframe, const std::vector<std::byte>& vp8_frame,
+                                                      const std::byte* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     uint32_t message_size = static_cast<uint32_t>(4 + 1 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
 

@@ -55,11 +55,13 @@ Vp8Encoder::~Vp8Encoder()
 }
 
 // Encoding YuvImage with the color pixels with libvpx.
-std::vector<std::byte> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
+std::vector<std::byte> Vp8Encoder::encode(const YuvImage& yuv_image, bool keyframe)
 {
-    image_.planes[VPX_PLANE_Y] = yuv_image.y_channel().data();
-    image_.planes[VPX_PLANE_U] = yuv_image.u_channel().data();
-    image_.planes[VPX_PLANE_V] = yuv_image.v_channel().data();
+    // Const casts here is sends yuv image to image planes which will not
+    // modify the YUV images, but will just be encoded.
+    image_.planes[VPX_PLANE_Y] = const_cast<unsigned char*>(yuv_image.y_channel().data());
+    image_.planes[VPX_PLANE_U] = const_cast<unsigned char*>(yuv_image.u_channel().data());
+    image_.planes[VPX_PLANE_V] = const_cast<unsigned char*>(yuv_image.v_channel().data());
 
     image_.stride[VPX_PLANE_Y] = yuv_image.width();
     image_.stride[VPX_PLANE_U] = yuv_image.width() / 2;

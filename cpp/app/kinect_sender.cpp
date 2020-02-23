@@ -23,20 +23,20 @@ void run_video_sender_thread(int session_id,
                              ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
                              int& receiver_frame_id)
 {
-    const int XOR_MAX_GROUP_SIZE = 5;
+    constexpr int XOR_MAX_GROUP_SIZE = 5;
 
     std::unordered_map<int, time_point<steady_clock>> video_frame_send_times;
     std::unordered_map<int, VideoPacketSet> video_packet_sets;
-    int last_receiver_video_frame_id = 0;
-    auto video_sender_summary_start = steady_clock::now();
-    int video_sender_summary_receiver_frame_count = 0;
-    int video_sender_summary_receiver_packet_count = 0;
-    int video_sender_summary_packet_count = 0;
+    int last_receiver_video_frame_id{0};
+    auto video_sender_summary_start{steady_clock::now()};
+    int video_sender_summary_receiver_frame_count{0};
+    int video_sender_summary_receiver_packet_count{0};
+    int video_sender_summary_packet_count{0};
     while (!stop_threads) {
-        auto loop_start = steady_clock::now();
+        const auto loop_start{steady_clock::now()};
         for (;;) {
             std::error_code error;
-            std::optional<std::vector<std::byte>> received_packet = sender_socket.receive(error);
+            std::optional<std::vector<std::byte>> received_packet{sender_socket.receive(error)};
 
             if (!received_packet) {
                 if (error == asio::error::would_block) {
@@ -47,16 +47,16 @@ void run_video_sender_thread(int session_id,
                 }
             }
             int cursor = 0;
-            uint8_t message_type = copy_from_packet<uint8_t>(*received_packet, cursor);
+            const uint8_t message_type{copy_from_packet<uint8_t>(*received_packet, cursor)};
 
             if (message_type == KH_RECEIVER_REPORT_PACKET) {
                 receiver_frame_id = copy_from_packet<int>(*received_packet, cursor);
-                float packet_collection_time_ms = copy_from_packet<float>(*received_packet, cursor);
-                float decoder_time_ms = copy_from_packet<float>(*received_packet, cursor);
-                float frame_time_ms = copy_from_packet<float>(*received_packet, cursor);
-                int receiver_packet_count = copy_from_packet<int>(*received_packet, cursor);
+                const float packet_collection_time_ms{copy_from_packet<float>(*received_packet, cursor)};
+                const float decoder_time_ms{copy_from_packet<float>(*received_packet, cursor)};
+                const float frame_time_ms{copy_from_packet<float>(*received_packet, cursor)};
+                const int receiver_packet_count{copy_from_packet<int>(*received_packet, cursor)};
 
-                duration<double> round_trip_time = steady_clock::now() - video_frame_send_times[receiver_frame_id];
+                const duration<double> round_trip_time{steady_clock::now() - video_frame_send_times[receiver_frame_id]};
 
                 printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
                         receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
@@ -74,8 +74,8 @@ void run_video_sender_thread(int session_id,
                 ++video_sender_summary_receiver_frame_count;
                 video_sender_summary_receiver_packet_count += receiver_packet_count;
             } else if (message_type == KH_RECEIVER_REQUEST_PACKET) {
-                int requested_frame_id = copy_from_packet<int>(*received_packet, cursor);
-                int missing_packet_count = copy_from_packet<int>(*received_packet, cursor);
+                const int requested_frame_id{copy_from_packet<int>(*received_packet, cursor)};
+                const int missing_packet_count{copy_from_packet<int>(*received_packet, cursor)};
 
                 for (int i = 0; i < missing_packet_count; ++i) {
                     int missing_packet_index = copy_from_packet<int>(*received_packet, cursor);
@@ -100,7 +100,7 @@ void run_video_sender_thread(int session_id,
         while (video_packet_queue.try_dequeue(video_packet_set)) {
             auto xor_packets = SenderSocket::createXorPackets(session_id, video_packet_set.first, video_packet_set.second, XOR_MAX_GROUP_SIZE);
 
-            video_frame_send_times[video_packet_set.first] = steady_clock::now();
+            video_frame_send_times.insert({video_packet_set.first, steady_clock::now()});
             for (auto packet : video_packet_set.second) {
                 std::error_code error;
                 sender_socket.sendPacket(packet, error);
@@ -128,7 +128,7 @@ void run_video_sender_thread(int session_id,
 
                 ++video_sender_summary_packet_count;
             }
-            video_packet_sets[video_packet_set.first] = std::move(video_packet_set);
+            video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
         }
 
         // Remove elements of frame_packet_sets reserved for filling up missing packets
@@ -143,8 +143,8 @@ void run_video_sender_thread(int session_id,
             video_packet_sets.erase(obsolete_frame_id);
 
         if ((receiver_frame_id / 100) > (last_receiver_video_frame_id / 100)) {
-            duration<double> send_summary_time_interval = steady_clock::now() - video_sender_summary_start;
-            float packet_loss = 1.0f - video_sender_summary_receiver_packet_count / (float)video_sender_summary_packet_count;
+            const duration<double> send_summary_time_interval = steady_clock::now() - video_sender_summary_start;
+            const float packet_loss = 1.0f - video_sender_summary_receiver_packet_count / (float)video_sender_summary_packet_count;
             printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
                    video_sender_summary_receiver_frame_count / send_summary_time_interval.count(),
                    packet_loss * 100.0f);
@@ -156,7 +156,7 @@ void run_video_sender_thread(int session_id,
         }
         last_receiver_video_frame_id = receiver_frame_id;
 
-        auto loop_time = steady_clock::now() - loop_start;
+        const auto loop_time = steady_clock::now() - loop_start;
         printf("loop_time: %f micro seconds\n", loop_time.count() / 1000.0f);
     }
 run_video_sender_thread_end:
@@ -166,23 +166,23 @@ run_video_sender_thread_end:
 
 void send_frames(int port, int session_id, KinectDevice& kinect_device)
 {
-    const int TARGET_BITRATE = 2000;
-    const short CHANGE_THRESHOLD = 10;
-    const int INVALID_THRESHOLD = 2;
-    const int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
+    constexpr int TARGET_BITRATE = 2000;
+    constexpr short CHANGE_THRESHOLD = 10;
+    constexpr int INVALID_THRESHOLD = 2;
+    constexpr int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
     //const int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
-    auto calibration = kinect_device.getCalibration();
-    k4a::transformation transformation(calibration);
+    const auto calibration{kinect_device.getCalibration()};
+    k4a::transformation transformation{calibration};
 
-    int depth_width = calibration.depth_camera_calibration.resolution_width;
-    int depth_height = calibration.depth_camera_calibration.resolution_height;
+    const int depth_width{calibration.depth_camera_calibration.resolution_width};
+    const int depth_height{calibration.depth_camera_calibration.resolution_height};
     
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    Vp8Encoder color_encoder(depth_width, depth_height, TARGET_BITRATE);
-    TrvlEncoder depth_encoder(depth_width * depth_height, CHANGE_THRESHOLD, INVALID_THRESHOLD);
+    Vp8Encoder color_encoder{depth_width, depth_height, TARGET_BITRATE};
+    TrvlEncoder depth_encoder{depth_width * depth_height, CHANGE_THRESHOLD, INVALID_THRESHOLD};
 
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
@@ -199,24 +199,24 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    SenderSocket sender_socket(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
+    SenderSocket sender_socket{std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE};
 
-    bool stop_threads = false;
+    bool stop_threads{false};
     moodycamel::ReaderWriterQueue<VideoPacketSet> video_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
-    int receiver_frame_id = -1;
-    std::thread video_sender_thread(run_video_sender_thread, session_id, std::ref(stop_threads), std::ref(sender_socket),
-                                    std::ref(video_packet_queue), std::ref(receiver_frame_id));
+    int receiver_frame_id{-1};
+    std::thread video_sender_thread{run_video_sender_thread, session_id, std::ref(stop_threads), std::ref(sender_socket),
+                                    std::ref(video_packet_queue), std::ref(receiver_frame_id)};
     
     // frame_id is the ID of the frame the sender sends.
-    int video_frame_id = 0;
+    int video_frame_id{0};
 
     // Variables for profiling the sender.
-    int main_summary_keyframe_count = 0;
-    auto last_device_time_stamp = std::chrono::microseconds::zero();
+    int main_summary_keyframe_count{0};
+    auto last_device_time_stamp{std::chrono::microseconds::zero()};
 
-    auto main_summary_start = steady_clock::now();
-    size_t main_summary_frame_size_sum = 0;
+    auto main_summary_start{steady_clock::now()};
+    size_t main_summary_frame_size_sum{0};
     for (;;) {
         // Stop if the sender thread stopped.
         if (stop_threads)
@@ -231,51 +231,51 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
             Sleep(100);
         }
 
-        auto capture = kinect_device.getCapture();
+        const auto capture{kinect_device.getCapture()};
         if (!capture)
             continue;
 
-        auto color_image = capture->get_color_image();
+        const auto color_image{capture->get_color_image()};
         if (!color_image) {
             printf("get_color_image() failed...\n");
             continue;
         }
 
-        auto depth_image = capture->get_depth_image();
+        const auto depth_image{capture->get_depth_image()};
         if (!depth_image) {
             printf("get_depth_image() failed...\n");
             continue;
         }
 
-        auto device_time_stamp = color_image.get_device_timestamp();
-        auto device_time_diff = device_time_stamp - last_device_time_stamp;
-        int device_frame_diff = static_cast<int>(device_time_diff.count() / 33000.0f + 0.5f);
-        int frame_id_diff = video_frame_id - receiver_frame_id;
+        const auto device_time_stamp{color_image.get_device_timestamp()};
+        const auto device_time_diff{device_time_stamp - last_device_time_stamp};
+        const int device_frame_diff{static_cast<int>(device_time_diff.count() / 33000.0f + 0.5f)};
+        const int frame_id_diff{video_frame_id - receiver_frame_id};
         if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3)))
             continue;
 
         last_device_time_stamp = device_time_stamp;
 
-        bool keyframe = frame_id_diff > 5;
+        const bool keyframe{frame_id_diff > 5};
 
-        auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
+        const auto transformed_color_image{transformation.color_image_to_depth_camera(depth_image, color_image)};
 
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
-                                                                 transformed_color_image.get_width_pixels(),
-                                                                 transformed_color_image.get_height_pixels(),
-                                                                 transformed_color_image.get_stride_bytes());
-        auto vp8_frame = color_encoder.encode(yuv_image, keyframe);
+        const auto yuv_image{createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
+                                                                     transformed_color_image.get_width_pixels(),
+                                                                     transformed_color_image.get_height_pixels(),
+                                                                     transformed_color_image.get_stride_bytes())};
+        const auto vp8_frame{color_encoder.encode(yuv_image, keyframe)};
 
         // Compress the depth pixels.
-        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
+        const auto depth_encoder_frame{depth_encoder.encode(reinterpret_cast<const int16_t*>(depth_image.get_buffer()), keyframe)};
 
-        float frame_time_stamp = device_time_stamp.count() / 1000.0f;
-        auto message = SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
+        const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
+        const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
                                                   depth_encoder_frame.data(),
-                                                  static_cast<uint32_t>(depth_encoder_frame.size()));
-        auto packets = SenderSocket::createFramePackets(session_id, video_frame_id, message);
-        video_packet_queue.enqueue(VideoPacketSet(video_frame_id, std::move(packets)));
+                                                  static_cast<uint32_t>(depth_encoder_frame.size()))};
+        const auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
+        video_packet_queue.enqueue({video_frame_id, std::move(packets)});
 
         // Updating variables for profiling.
         if (keyframe)
@@ -284,7 +284,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 
         // Print profile measures every 100 frames.
         if (video_frame_id % 100 == 0) {
-            duration<double> main_summary_time_interval = steady_clock::now() - main_summary_start;
+            const duration<double> main_summary_time_interval{steady_clock::now() - main_summary_start};
             printf("Main Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
                    video_frame_id,
                    100 / main_summary_time_interval.count(),
@@ -312,17 +312,17 @@ void main()
         printf("Enter a port number to start sending frames: ");
         std::getline(std::cin, line);
         // The default port (the port when nothing is entered) is 7777.
-        int port = line.empty() ? 7777 : std::stoi(line);
+        const int port{line.empty() ? 7777 : std::stoi(line)};
 
         k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
         configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
         configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
         configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-        auto timeout = std::chrono::milliseconds(1000);
+        constexpr auto timeout = std::chrono::milliseconds(1000);
 
-        int session_id = rng() % (INT_MAX + 1);
+        const int session_id(rng() % (INT_MAX + 1));
         
-        auto kinect_device = KinectDevice::create(configuration, timeout);
+        auto kinect_device{KinectDevice::create(configuration, timeout)};
         if (!kinect_device) {
             printf("Failed to create a KinectDevice...\n");
             continue;

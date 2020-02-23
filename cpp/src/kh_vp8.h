@@ -14,7 +14,7 @@ class Vp8Encoder
 public:
     Vp8Encoder(int width, int height, int target_bitrate);
     ~Vp8Encoder();
-    std::vector<std::byte> encode(YuvImage& yuv_image, bool keyframe);
+    std::vector<std::byte> encode(const YuvImage& yuv_image, bool keyframe);
 
 private:
     vpx_codec_ctx_t codec_;

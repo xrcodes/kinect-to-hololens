@@ -16,7 +16,7 @@ class TrvlEncoder
 {
 public:
     TrvlEncoder(int frame_size, short change_threshold, int invalid_threshold);
-    std::vector<std::byte> encode(int16_t* depth_buffer, bool keyframe);
+    std::vector<std::byte> encode(const int16_t* depth_buffer, bool keyframe);
 
 private:
     std::vector<TrvlPixel> pixels_;
@@ -28,7 +28,7 @@ class TrvlDecoder
 {
 public:
     TrvlDecoder(int frame_size);
-    std::vector<int16_t> decode(std::byte* trvl_frame, bool keyframe);
+    std::vector<int16_t> decode(const std::byte* trvl_frame, bool keyframe);
 
 private:
     // Using int16_t to be compatible with the differences that can have negative values.
