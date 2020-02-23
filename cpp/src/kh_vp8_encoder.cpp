@@ -6,7 +6,7 @@ namespace kh
 {
 // The keyframe_interval_ was chosen arbitrarily.
 Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
-    : codec_(), image_(), frame_index_(0)
+    : codec_{}, image_{}, frame_index_{0}
 {
     vpx_codec_iface_t* (*const codec_interface)() = &vpx_codec_vp8_cx;
     vpx_codec_enc_cfg_t configuration;
@@ -14,7 +14,6 @@ Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
     vpx_codec_err_t res = vpx_codec_enc_config_default(codec_interface(), &configuration, 0);
     if (res != VPX_CODEC_OK)
         throw std::exception("Error from vpx_codec_enc_config_default.");
-
 
     // From https://developers.google.com/media/vp9/live-encoding
     // See also https://www.webmproject.org/docs/encoder-parameters/
@@ -66,8 +65,8 @@ std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
     image_.stride[VPX_PLANE_U] = yuv_image.width() / 2;
     image_.stride[VPX_PLANE_V] = yuv_image.width() / 2;
 
-    int flags = keyframe ? VPX_EFLAG_FORCE_KF : 0;
-    auto res = vpx_codec_encode(&codec_, &image_, frame_index_++, 1, flags, VPX_DL_REALTIME);
+    const int flags{keyframe ? VPX_EFLAG_FORCE_KF : 0};
+    const vpx_codec_err_t res{vpx_codec_encode(&codec_, &image_, frame_index_++, 1, flags, VPX_DL_REALTIME)};
 
     if (res != VPX_CODEC_OK) {
         std::cout << "vpx_codec_error: " << vpx_codec_error(&codec_) << std::endl;
@@ -75,15 +74,15 @@ std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
         throw std::exception("Error from vpx_codec_encode.");
     }
 
-    vpx_codec_iter_t iter = nullptr;
-    const vpx_codec_cx_pkt_t* pkt = nullptr;
+    vpx_codec_iter_t iter{nullptr};
+    const vpx_codec_cx_pkt_t* pkt{nullptr};
     std::vector<uint8_t> bytes;
-    while ((pkt = vpx_codec_get_cx_data(&codec_, &iter)) != nullptr) {
+    while (pkt = vpx_codec_get_cx_data(&codec_, &iter)) {
         if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
             if (!bytes.empty())
                 throw std::exception("Multiple frames found from a packet.");
 
-            const int keyframe = (pkt->data.frame.flags & VPX_FRAME_IS_KEY) != 0;
+            const int keyframe{(pkt->data.frame.flags & VPX_FRAME_IS_KEY) != 0};
             bytes.resize(pkt->data.frame.sz);
             memcpy(bytes.data(), (uint8_t*)pkt->data.frame.buf, pkt->data.frame.sz);
         }
