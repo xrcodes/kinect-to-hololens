@@ -3,45 +3,26 @@
 #include <iostream>
 #include <libavformat/avformat.h>
 
-namespace kh
+namespace
 {
-Vp8Decoder::Vp8Decoder()
-    : packet_(nullptr)
-    , codec_(nullptr)
-    , codec_parser_context_(nullptr)
-    , codec_context_(nullptr)
+AVCodec* find_codec(AVCodecID id)
 {
-    packet_ = av_packet_alloc();
-    if (!packet_)
-        throw std::exception("av_packet_alloc failed.");
-
     auto codec = avcodec_find_decoder(AV_CODEC_ID_VP8);
     if (!codec)
         throw std::exception("avcodec_find_decoder failed.");
-
-    codec_parser_context_ = av_parser_init(codec->id);
-    if (!codec_parser_context_)
-        throw std::exception("av_parser_init failed.");
-
-    codec_context_ = avcodec_alloc_context3(codec);
-    if (!codec_context_)
-        throw std::exception("avcodec_alloc_context3 failed.");
-
-    /* open it */
-    if (avcodec_open2(codec_context_, codec, nullptr) < 0)
-        throw std::exception("avcodec_open2 failed.");
+    return codec;
+}
 }
 
-Vp8Decoder::~Vp8Decoder()
+namespace kh
 {
-    if (packet_)
-        av_packet_free(&packet_);
-
-    if (codec_parser_context_)
-        av_parser_close(codec_parser_context_);
-
-    if (codec_context_)
-        avcodec_free_context(&codec_context_);
+Vp8Decoder::Vp8Decoder()
+    : codec_context_{find_codec(AV_CODEC_ID_VP8)}
+    , codec_parser_context_{codec_context_.get()->codec->id}
+    , packet_{}
+{
+    if (avcodec_open2(codec_context_.get(), codec_context_.get()->codec, nullptr) < 0)
+        throw std::exception("avcodec_open2 failed.");
 }
 
 // A helper function for Vp8Decoder::decode() that feeds frames of packet into decoder_frames.
@@ -87,8 +68,8 @@ FFmpegFrame Vp8Decoder::decode(uint8_t* vp8_frame_data, size_t vp8_frame_size)
 
     while (data_size > 0) {
         // Returns the number of bytes used.
-        int size = av_parser_parse2(codec_parser_context_,
-            codec_context_, &packet_->data, &packet_->size,
+        int size = av_parser_parse2(codec_parser_context_.get(),
+            codec_context_.get(), &packet_.get()->data, &packet_.get()->size,
             data, static_cast<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
 
         if (size < 0)
@@ -97,8 +78,8 @@ FFmpegFrame Vp8Decoder::decode(uint8_t* vp8_frame_data, size_t vp8_frame_size)
         data += size;
         data_size -= size;
 
-        if (packet_->size)
-            decodePacket(decoder_frames, codec_context_, packet_);
+        if (packet_.get()->size)
+            decodePacket(decoder_frames, codec_context_.get(), packet_.get());
     }
 
     if (decoder_frames.size() != 1)
