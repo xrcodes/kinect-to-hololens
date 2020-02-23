@@ -8,7 +8,7 @@
 #include "helper/opencv_helper.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-#include "kh_receiver.h"
+#include "kh_receiver_socket.h"
 #include "kh_video_packet_collection.h"
 #include "kh_xor_packet_collection.h"
 #include "kh_packet_helper.h"
@@ -20,7 +20,7 @@ using steady_clock = std::chrono::steady_clock;
 
 void run_receiver_thread(int sender_session_id,
                          bool& stop_receiver_thread,
-                         Receiver& receiver,
+                         ReceiverSocket& receiver,
                          //ReaderWriterQueue<std::vector<uint8_t>>& init_packet_queue,
                          ReaderWriterQueue<VideoMessage>& frame_message_queue,
                          int& last_frame_id,
@@ -235,7 +235,7 @@ void receive_frames(std::string ip_address, int port)
     const int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
     //const int RECEIVER_RECEIVE_BUFFER_SIZE = 64 * 1024;
     asio::io_context io_context;
-    Receiver receiver(io_context, RECEIVER_RECEIVE_BUFFER_SIZE);
+    ReceiverSocket receiver(io_context, RECEIVER_RECEIVE_BUFFER_SIZE);
 
     std::error_code error;
     int sender_session_id;

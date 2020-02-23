@@ -1,11 +1,11 @@
-#include "kh_receiver.h"
+#include "kh_receiver_socket.h"
 
 #include <iostream>
 #include "kh_packet_helper.h"
 
 namespace kh
 {
-Receiver::Receiver(asio::io_context& io_context, int receive_buffer_size)
+ReceiverSocket::ReceiverSocket(asio::io_context& io_context, int receive_buffer_size)
     : socket_(io_context), remote_endpoint_()
 {
     socket_.open(asio::ip::udp::v4());
@@ -15,13 +15,13 @@ Receiver::Receiver(asio::io_context& io_context, int receive_buffer_size)
 }
 
 // Connects to a Sender with the Sender's IP address and port.
-void Receiver::ping(std::string ip_address, int port)
+void ReceiverSocket::ping(std::string ip_address, int port)
 {
     remote_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
     socket_.send_to(asio::buffer(&KH_RECEIVER_PING_PACKET, 1), remote_endpoint_);
 }
 
-std::optional<std::vector<uint8_t>> Receiver::receive(std::error_code& error)
+std::optional<std::vector<uint8_t>> ReceiverSocket::receive(std::error_code& error)
 {
     std::vector<uint8_t> packet(KH_PACKET_SIZE);
     size_t packet_size = socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error);
@@ -33,7 +33,7 @@ std::optional<std::vector<uint8_t>> Receiver::receive(std::error_code& error)
     return packet;
 }
 
-void Receiver::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+void ReceiverSocket::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
                     float frame_time_ms, int packet_count, std::error_code& error)
 {
     std::vector<uint8_t> packet(21);
@@ -46,7 +46,7 @@ void Receiver::send(int frame_id, float packet_collection_time_ms, float decoder
     socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
 }
 
-void Receiver::send(int frame_id, const std::vector<int>& missing_packet_ids, std::error_code& error)
+void ReceiverSocket::send(int frame_id, const std::vector<int>& missing_packet_ids, std::error_code& error)
 {
     std::vector<uint8_t> packet(1 + 4 + 4 + 4 * missing_packet_ids.size());
     int cursor = 0;

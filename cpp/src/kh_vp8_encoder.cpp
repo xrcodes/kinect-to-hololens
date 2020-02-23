@@ -66,10 +66,7 @@ std::vector<uint8_t> Vp8Encoder::encode(YuvImage& yuv_image, bool keyframe)
     image_.stride[VPX_PLANE_U] = yuv_image.width() / 2;
     image_.stride[VPX_PLANE_V] = yuv_image.width() / 2;
 
-    int flags = 0;
-    if (keyframe)
-        flags |= VPX_EFLAG_FORCE_KF;
-
+    int flags = keyframe ? VPX_EFLAG_FORCE_KF : 0;
     auto res = vpx_codec_encode(&codec_, &image_, frame_index_++, 1, flags, VPX_DL_REALTIME);
 
     if (res != VPX_CODEC_OK) {

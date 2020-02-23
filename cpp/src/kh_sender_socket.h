@@ -6,10 +6,10 @@
 
 namespace kh
 {
-class Sender
+class SenderSocket
 {
 public:
-    Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint, int send_buffer_size);
+    SenderSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint, int send_buffer_size);
     void sendInitPacket(int session_id, k4a_calibration_t calibration, std::error_code& error);
     void sendAudioPacket(int session_id, int frame_id, std::vector<uint8_t>& opus_frame, int opus_frame_size, std::error_code& error);
     std::optional<std::vector<uint8_t>> receive(std::error_code& error);

@@ -4,7 +4,7 @@
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
-#include "kh_receiver.h"
+#include "kh_receiver_socket.h"
 #include "kh_packet_helper.h"
 
 namespace kh
@@ -85,7 +85,7 @@ int main(std::string ip_address, int port)
     }
 
     asio::io_context io_context;
-    Receiver receiver(io_context, 1024 * 1024);
+    ReceiverSocket receiver(io_context, 1024 * 1024);
     receiver.ping(ip_address, port);
 
     printf("start for loop\n");

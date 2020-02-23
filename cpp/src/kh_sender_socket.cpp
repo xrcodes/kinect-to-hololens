@@ -1,4 +1,4 @@
-#include "kh_sender.h"
+#include "kh_sender_socket.h"
 
 #include <algorithm>
 #include <iostream>
@@ -6,7 +6,7 @@
 
 namespace kh
 {
-Sender::Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint,
+SenderSocket::SenderSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint,
                      int send_buffer_size)
     : socket_(std::move(socket)), remote_endpoint_(remote_endpoint)
 {
@@ -16,7 +16,7 @@ Sender::Sender(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_en
 }
 
 // Sends a Kinect calibration information to a Receiver.
-void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration, std::error_code& error)
+void SenderSocket::sendInitPacket(int session_id, k4a_calibration_t calibration, std::error_code& error)
 {
     auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     int depth_width = calibration.depth_camera_calibration.resolution_width;
@@ -81,7 +81,7 @@ void Sender::sendInitPacket(int session_id, k4a_calibration_t calibration, std::
     sendPacket(packet, error);
 }
 
-void Sender::sendAudioPacket(int session_id, int frame_id, std::vector<uint8_t>& opus_frame, int opus_frame_size, std::error_code& error)
+void SenderSocket::sendAudioPacket(int session_id, int frame_id, std::vector<uint8_t>& opus_frame, int opus_frame_size, std::error_code& error)
 {
     uint32_t packet_size = static_cast<uint32_t>(sizeof(session_id) +
                                                  1 +
@@ -110,7 +110,7 @@ void Sender::sendAudioPacket(int session_id, int frame_id, std::vector<uint8_t>&
     sendPacket(packet, error);
 }
 
-std::optional<std::vector<uint8_t>> Sender::receive(std::error_code& error)
+std::optional<std::vector<uint8_t>> SenderSocket::receive(std::error_code& error)
 {
     std::vector<uint8_t> packet(KH_PACKET_SIZE);
     asio::ip::udp::endpoint sender_endpoint;
@@ -123,7 +123,7 @@ std::optional<std::vector<uint8_t>> Sender::receive(std::error_code& error)
     return packet;
 }
 
-std::vector<uint8_t> Sender::createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
+std::vector<uint8_t> SenderSocket::createFrameMessage(float frame_time_stamp, bool keyframe, std::vector<uint8_t>& vp8_frame,
                                         uint8_t* depth_encoder_frame, uint32_t depth_encoder_frame_size)
 {
     uint32_t message_size = static_cast<uint32_t>(4 + 1 + 4 + vp8_frame.size() + 4 + depth_encoder_frame_size);
@@ -152,7 +152,7 @@ std::vector<uint8_t> Sender::createFrameMessage(float frame_time_stamp, bool key
     return message;
 }
 
-std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int frame_id, const std::vector<uint8_t>& frame_message)
+std::vector<std::vector<uint8_t>> SenderSocket::createFramePackets(int session_id, int frame_id, const std::vector<uint8_t>& frame_message)
 {
     // The size of frame packets is defined to match the upper limit for udp packets.
 
@@ -194,7 +194,7 @@ std::vector<std::vector<uint8_t>> Sender::createFramePackets(int session_id, int
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int frame_id,
+std::vector<std::vector<uint8_t>> SenderSocket::createXorPackets(int session_id, int frame_id,
                                                            const std::vector<std::vector<uint8_t>>& frame_packets, int max_group_size)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
@@ -234,7 +234,7 @@ std::vector<std::vector<uint8_t>> Sender::createXorPackets(int session_id, int f
     return xor_packets;
 }
 
-void Sender::sendPacket(const std::vector<uint8_t>& packet, std::error_code& error)
+void SenderSocket::sendPacket(const std::vector<uint8_t>& packet, std::error_code& error)
 {
     socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
 }

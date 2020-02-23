@@ -15,20 +15,20 @@ Vp8Decoder::Vp8Decoder()
     if (!packet_)
         throw std::exception("av_packet_alloc failed.");
 
-    codec_ = avcodec_find_decoder(AV_CODEC_ID_VP8);
-    if (!codec_)
+    auto codec = avcodec_find_decoder(AV_CODEC_ID_VP8);
+    if (!codec)
         throw std::exception("avcodec_find_decoder failed.");
 
-    codec_parser_context_ = av_parser_init(codec_->id);
+    codec_parser_context_ = av_parser_init(codec->id);
     if (!codec_parser_context_)
         throw std::exception("av_parser_init failed.");
 
-    codec_context_ = avcodec_alloc_context3(codec_);
+    codec_context_ = avcodec_alloc_context3(codec);
     if (!codec_context_)
         throw std::exception("avcodec_alloc_context3 failed.");
 
     /* open it */
-    if (avcodec_open2(codec_context_, codec_, nullptr) < 0)
+    if (avcodec_open2(codec_context_, codec, nullptr) < 0)
         throw std::exception("avcodec_open2 failed.");
 }
 

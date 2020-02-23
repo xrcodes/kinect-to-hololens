@@ -3,7 +3,7 @@
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
-#include "kh_sender.h"
+#include "kh_sender_socket.h"
 #include "kh_packet_helper.h"
 
 namespace kh
@@ -101,7 +101,7 @@ int main(int port)
         return 1;
     }
 
-    Sender sender(std::move(socket), remote_endpoint, 1024 * 1024);
+    SenderSocket sender(std::move(socket), remote_endpoint, 1024 * 1024);
 
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 

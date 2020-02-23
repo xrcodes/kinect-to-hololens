@@ -11,10 +11,10 @@ add_library(KinectToHololens
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_sender.h
-  kh_sender.cpp
-  kh_receiver.h
-  kh_receiver.cpp
+  kh_sender_socket.h
+  kh_sender_socket.cpp
+  kh_receiver_socket.h
+  kh_receiver_socket.cpp
   kh_video_message.h
   kh_video_message.cpp
   kh_video_packet_collection.h

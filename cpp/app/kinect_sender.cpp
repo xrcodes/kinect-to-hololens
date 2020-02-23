@@ -3,7 +3,7 @@
 #include <random>
 #include "readerwriterqueue/readerwriterqueue.h"
 #include "helper/kinect_helper.h"
-#include "kh_sender.h"
+#include "kh_sender_socket.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
 #include "kh_packet_helper.h"
@@ -19,7 +19,7 @@ template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
 
 void run_video_sender_thread(int session_id,
                              bool& stop_threads,
-                             Sender& sender,
+                             SenderSocket& sender,
                              ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
                              int& receiver_frame_id)
 {
@@ -98,7 +98,7 @@ void run_video_sender_thread(int session_id,
 
         VideoPacketSet video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
-            auto xor_packets = Sender::createXorPackets(session_id, video_packet_set.first, video_packet_set.second, XOR_MAX_GROUP_SIZE);
+            auto xor_packets = SenderSocket::createXorPackets(session_id, video_packet_set.first, video_packet_set.second, XOR_MAX_GROUP_SIZE);
 
             video_frame_send_times[video_packet_set.first] = steady_clock::now();
             for (auto packet : video_packet_set.second) {
@@ -199,7 +199,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    Sender sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
+    SenderSocket sender(std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE);
 
     bool stop_threads = false;
     moodycamel::ReaderWriterQueue<VideoPacketSet> video_packet_queue;
@@ -271,10 +271,10 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
         auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), keyframe);
 
         float frame_time_stamp = device_time_stamp.count() / 1000.0f;
-        auto message = Sender::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
+        auto message = SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
                                                   reinterpret_cast<uint8_t*>(depth_encoder_frame.data()),
                                                   static_cast<uint32_t>(depth_encoder_frame.size()));
-        auto packets = Sender::createFramePackets(session_id, video_frame_id, message);
+        auto packets = SenderSocket::createFramePackets(session_id, video_frame_id, message);
         video_packet_queue.enqueue(VideoPacketSet(video_frame_id, std::move(packets)));
 
         // Updating variables for profiling.
