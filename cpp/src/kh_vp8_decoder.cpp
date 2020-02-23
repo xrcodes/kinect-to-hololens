@@ -3,6 +3,86 @@
 #include <iostream>
 #include <libavformat/avformat.h>
 
+namespace kh
+{
+class Vp8Decoder::CodecContext
+{
+public:
+    CodecContext(AVCodec* codec)
+        : codec_context_{avcodec_alloc_context3(codec)}
+    {
+        if (!codec_context_)
+            throw std::exception("avcodec_alloc_context3 failed.");
+    }
+    CodecContext(const CodecContext&) = delete;
+    CodecContext(CodecContext&&) = delete;
+    CodecContext& operator=(const CodecContext&) = delete;
+    CodecContext& operator=(CodecContext&&) = delete;
+
+    ~CodecContext()
+    {
+        if (codec_context_)
+            avcodec_free_context(&codec_context_);
+    }
+
+    AVCodecContext* get() noexcept { return codec_context_; }
+
+private:
+    AVCodecContext* codec_context_;
+};
+
+class Vp8Decoder::CodecParserContext
+{
+public:
+    CodecParserContext(int codec_id)
+        : codec_parser_context_{av_parser_init(codec_id)}
+    {
+        if (!codec_parser_context_)
+            throw std::exception("av_parser_init failed from CodecParserContext::CodecParserContext");
+    }
+    CodecParserContext(const CodecParserContext&) = delete;
+    CodecParserContext(CodecParserContext&&) = delete;
+    CodecParserContext& operator=(const CodecParserContext&) = delete;
+    CodecParserContext& operator=(CodecParserContext&&) = delete;
+
+    ~CodecParserContext()
+    {
+        if (codec_parser_context_)
+            av_parser_close(codec_parser_context_);
+    }
+
+    AVCodecParserContext* get() noexcept { return codec_parser_context_; }
+
+private:
+    AVCodecParserContext* codec_parser_context_;
+};
+
+class Vp8Decoder::Packet
+{
+public:
+    Packet()
+        : packet_{av_packet_alloc()}
+    {
+        if (!packet_)
+            throw std::exception("av_packet_alloc failed.");
+    }
+    Packet(const Packet&) = delete;
+    Packet(Packet&&) = delete;
+    Packet& operator=(const Packet&) = delete;
+    Packet& operator=(Packet&&) = delete;
+
+    ~Packet()
+    {
+        if (packet_)
+            av_packet_free(&packet_);
+    }
+
+    AVPacket* get() noexcept { return packet_; }
+
+private:
+    AVPacket* packet_;
+};
+
 namespace
 {
 AVCodec* find_codec(AVCodecID id)
@@ -14,14 +94,12 @@ AVCodec* find_codec(AVCodecID id)
 }
 }
 
-namespace kh
-{
 Vp8Decoder::Vp8Decoder()
-    : codec_context_{find_codec(AV_CODEC_ID_VP8)}
-    , codec_parser_context_{codec_context_.get()->codec->id}
-    , packet_{}
+    : codec_context_{std::make_shared<CodecContext>(find_codec(AV_CODEC_ID_VP8))}
+    , codec_parser_context_{std::make_shared<CodecParserContext>(codec_context_->get()->codec->id)}
+    , packet_{std::make_shared<Packet>()}
 {
-    if (avcodec_open2(codec_context_.get(), codec_context_.get()->codec, nullptr) < 0)
+    if (avcodec_open2(codec_context_->get(), codec_context_->get()->codec, nullptr) < 0)
         throw std::exception("avcodec_open2 failed.");
 }
 
@@ -68,8 +146,8 @@ FFmpegFrame Vp8Decoder::decode(uint8_t* vp8_frame_data, size_t vp8_frame_size)
 
     while (data_size > 0) {
         // Returns the number of bytes used.
-        int size = av_parser_parse2(codec_parser_context_.get(),
-            codec_context_.get(), &packet_.get()->data, &packet_.get()->size,
+        int size = av_parser_parse2(codec_parser_context_->get(),
+            codec_context_->get(), &packet_->get()->data, &packet_->get()->size,
             data, static_cast<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
 
         if (size < 0)
@@ -78,8 +156,8 @@ FFmpegFrame Vp8Decoder::decode(uint8_t* vp8_frame_data, size_t vp8_frame_size)
         data += size;
         data_size -= size;
 
-        if (packet_.get()->size)
-            decodePacket(decoder_frames, codec_context_.get(), packet_.get());
+        if (packet_->get()->size)
+            decodePacket(decoder_frames, codec_context_->get(), packet_->get());
     }
 
     if (decoder_frames.size() != 1)
