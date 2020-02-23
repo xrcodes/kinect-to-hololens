@@ -4,13 +4,13 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
-public class Receiver
+public class ReceiverSocket
 {
     private UdpSocket socket;
     public IPAddress Address { get; private set; }
     public int Port { get; private set; }
 
-    public Receiver(int receiveBufferSize)
+    public ReceiverSocket(int receiveBufferSize)
     {
         socket = new UdpSocket(receiveBufferSize);
     }
