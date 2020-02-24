@@ -202,9 +202,10 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     moodycamel::ReaderWriterQueue<VideoPacketSet> video_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id{-1};
-    std::thread video_sender_thread{run_video_sender_thread, session_id, std::ref(stop_threads), std::ref(sender_socket),
-                                    std::ref(video_packet_queue), std::ref(receiver_frame_id)};
-    
+    std::thread video_sender_thread([&] {
+        run_video_sender_thread(session_id, stop_threads, sender_socket, video_packet_queue, receiver_frame_id);
+    });
+
     // frame_id is the ID of the frame the sender sends.
     int video_frame_id{0};
 
@@ -271,9 +272,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
                                                             keyframe)};
 
         const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
-        const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
-                                                  depth_encoder_frame.data(),
-                                                  static_cast<uint32_t>(depth_encoder_frame.size()))};
+        const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
         auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
         video_packet_queue.enqueue({video_frame_id, std::move(packets)});
 
