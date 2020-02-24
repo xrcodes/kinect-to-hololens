@@ -3,6 +3,7 @@
 #include <memory>
 #include <vpx/vp8cx.h>
 #include <vpx/vpx_codec.h>
+#include <gsl/gsl>
 #include "kh_core.h"
 
 namespace kh
@@ -32,7 +33,7 @@ private:
 
 public:
     Vp8Decoder();
-    FFmpegFrame decode(const std::byte* vp8_frame_data, size_t vp8_frame_size);
+    FFmpegFrame decode(gsl::span<const std::byte> vp8_frame);
 
 private:
     std::shared_ptr<CodecContext> codec_context_;

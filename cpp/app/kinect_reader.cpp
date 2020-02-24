@@ -69,8 +69,8 @@ void display_frames()
                                                                      transformed_color_image.get_stride_bytes())};
 
         const auto vp8_frame{vp8_encoder.encode(yuv_image, false)};
-        const auto ffmpeg_frame{vp8_decoder.decode(vp8_frame.data(), vp8_frame.size())};
-        const auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()))};
+        const auto ffmpeg_frame{vp8_decoder.decode(vp8_frame)};
+        const auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame.av_frame()))};
 
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.

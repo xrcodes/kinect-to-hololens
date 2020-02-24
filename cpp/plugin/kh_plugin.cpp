@@ -24,7 +24,7 @@ extern "C"
         int frame_size
     )
     {
-        return new kh::FFmpegFrame(std::move(decoder->decode(frame_data, frame_size)));
+        return new kh::FFmpegFrame(std::move(decoder->decode({frame_data, frame_size})));
     }
 
     UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_ffmpeg_frame(kh::FFmpegFrame* ptr)

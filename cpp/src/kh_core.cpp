@@ -4,7 +4,7 @@
 
 namespace kh
 {
-YuvImage createYuvImageFromAzureKinectYuy2Buffer(uint8_t* buffer, int width, int height, int stride)
+YuvImage createYuvImageFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)
 {
     // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
     std::vector<uint8_t> y_channel(width * height);
