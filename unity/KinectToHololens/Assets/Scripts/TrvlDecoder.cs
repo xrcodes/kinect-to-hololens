@@ -20,7 +20,7 @@ public class TrvlDecoder
     {
         IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
         Marshal.Copy(frame, 0, bytes, frame.Length);
-        var trvlFrame = new TrvlFrame(Plugin.trvl_decoder_decode(ptr, bytes, keyframe));
+        var trvlFrame = new TrvlFrame(Plugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
         Marshal.FreeHGlobal(bytes);
 
         return trvlFrame;

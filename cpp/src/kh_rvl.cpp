@@ -6,7 +6,7 @@
 // The code has been modified to be thread-safe (i.e. removed global variables).
 namespace wilson
 {
-void EncodeVLE(int value, int*& pBuffer, int& word, int& nibblesWritten)
+void EncodeVLE(int value, int*& pBuffer, int& word, int& nibblesWritten) noexcept
 {
     do {
         int nibble = value & 0x7; // lower 3 bits
@@ -21,7 +21,7 @@ void EncodeVLE(int value, int*& pBuffer, int& word, int& nibblesWritten)
     } while (value);
 }
 
-int DecodeVLE(int*& pBuffer, int& word, int& nibblesWritten)
+int DecodeVLE(int*& pBuffer, int& word, int& nibblesWritten) noexcept
 {
     unsigned int nibble;
     int value = 0, bits = 29;
@@ -39,7 +39,7 @@ int DecodeVLE(int*& pBuffer, int& word, int& nibblesWritten)
     return value;
 }
 
-int CompressRVL(short* input, char* output, int numPixels)
+int CompressRVL(short* input, char* output, int numPixels) noexcept
 {
     int* buffer = (int*)output;
     int* pBuffer = (int*)output;
@@ -68,7 +68,7 @@ int CompressRVL(short* input, char* output, int numPixels)
     return int((char*)pBuffer - (char*)buffer); // num bytes
 }
 
-void DecompressRVL(char* input, short* output, int numPixels)
+void DecompressRVL(char* input, short* output, int numPixels) noexcept
 {
     int* buffer = (int*)input;
     int* pBuffer = (int*)input;
@@ -99,11 +99,11 @@ namespace kh
 namespace rvl
 {
 // Compresses depth pixels using RVL.
-std::vector<std::byte> compress(const int16_t* input, int num_pixels)
+std::vector<std::byte> compress(gsl::span<const int16_t> input, int num_pixels)
 {
     std::vector<std::byte> output(num_pixels);
-    int size = wilson::CompressRVL(const_cast<short*>(input),
-                                   reinterpret_cast<char*>(output.data()), num_pixels);
+    int size{wilson::CompressRVL(const_cast<short*>(input.data()),
+                                 reinterpret_cast<char*>(output.data()), num_pixels)};
     // This is theoretically possible to happen since lossless compression does not guarantee reduction of size.
     // However, it is very unlikely to happen.
     if (size > num_pixels)
@@ -113,10 +113,10 @@ std::vector<std::byte> compress(const int16_t* input, int num_pixels)
     return output;
 }
 
-std::vector<int16_t> decompress(const std::byte* input, int num_pixels)
+std::vector<int16_t> decompress(gsl::span<const std::byte> input, int num_pixels) noexcept
 {
     std::vector<int16_t> output(num_pixels);
-    wilson::DecompressRVL(const_cast<char*>(reinterpret_cast<const char*>(input)),
+    wilson::DecompressRVL(const_cast<char*>(reinterpret_cast<const char*>(input.data())),
                           reinterpret_cast<short*>(output.data()), num_pixels);
     return output;
 }

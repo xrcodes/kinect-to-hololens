@@ -86,7 +86,7 @@ public:
         other.av_frame_ = nullptr;
         return *this;
     }
-    AVFrame* av_frame() { return av_frame_; }
+    const AVFrame* av_frame() const { return av_frame_; }
 
 private:
     AVFrame* av_frame_;

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <gsl/gsl>
 #include "helper/opencv_helper.h"
 #include "k4a/k4a.hpp"
 #include "kh_vp8.h"
@@ -6,36 +7,36 @@
 
 namespace kh
 {
-void _display_frames()
+void display_frames()
 {
-    const int TARGET_BITRATE = 2000;
-    const short CHANGE_THRESHOLD = 10;
-    const int INVALID_THRESHOLD = 2;
-    const auto TIMEOUT = std::chrono::milliseconds(1000);
+    constexpr int TARGET_BITRATE{2000};
+    constexpr short CHANGE_THRESHOLD{10};
+    constexpr int INVALID_THRESHOLD{2};
+    constexpr auto TIMEOUT{std::chrono::milliseconds{1000}};
 
     // Obtain device to access Kinect frames.
-    auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
+    auto device{k4a::device::open(K4A_DEVICE_DEFAULT)};
 
-    auto configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    auto configuration{K4A_DEVICE_CONFIG_INIT_DISABLE_ALL};
     configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
     configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
     
-    auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
-    k4a::transformation transformation(calibration);
+    const auto calibration{device.get_calibration(configuration.depth_mode, configuration.color_resolution)};
+    const k4a::transformation transformation{calibration};
 
-    Vp8Encoder vp8_encoder(calibration.depth_camera_calibration.resolution_width,
+    Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
                            calibration.depth_camera_calibration.resolution_height,
-                           TARGET_BITRATE);
+                           TARGET_BITRATE};
     Vp8Decoder vp8_decoder;
 
-    int depth_frame_width = calibration.depth_camera_calibration.resolution_width;
-    int depth_frame_height = calibration.depth_camera_calibration.resolution_height;
-    int depth_frame_size = depth_frame_width * depth_frame_height;
+    const int depth_frame_width{calibration.depth_camera_calibration.resolution_width};
+    const int depth_frame_height{calibration.depth_camera_calibration.resolution_height};
+    const int depth_frame_size{depth_frame_width * depth_frame_height};
 
-    TrvlEncoder depth_encoder(depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD);
-    TrvlDecoder depth_decoder(depth_frame_size);
+    TrvlEncoder depth_encoder{depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD};
+    TrvlDecoder depth_decoder{depth_frame_size};
 
     device.start_cameras(&configuration);
 
@@ -46,36 +47,41 @@ void _display_frames()
             continue;
         }
 
-        auto color_image = capture.get_color_image();
+        const auto color_image{capture.get_color_image()};
         if (!color_image) {
             printf("get_color_image() failed...\n");
             continue;
         }
 
-        auto depth_image = capture.get_depth_image();
+        const auto depth_image{capture.get_depth_image()};
         if (!depth_image) {
             printf("get_depth_image() failed...\n");
             continue;
         }
 
-        auto transformed_color_image = transformation.color_image_to_depth_camera(depth_image, color_image);
+        const auto transformed_color_image{transformation.color_image_to_depth_camera(depth_image, color_image)};
 
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
-        auto yuv_image = createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
-                                                                 transformed_color_image.get_width_pixels(),
-                                                                 transformed_color_image.get_height_pixels(),
-                                                                 transformed_color_image.get_stride_bytes());
+        const auto yuv_image{createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
+                                                                     transformed_color_image.get_width_pixels(),
+                                                                     transformed_color_image.get_height_pixels(),
+                                                                     transformed_color_image.get_stride_bytes())};
 
-        auto vp8_frame = vp8_encoder.encode(yuv_image, false);
-        auto ffmpeg_frame = vp8_decoder.decode(vp8_frame.data(), vp8_frame.size());
-        auto color_mat = createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()));
+        const auto vp8_frame{vp8_encoder.encode(yuv_image, false)};
+        const auto ffmpeg_frame{vp8_decoder.decode(vp8_frame.data(), vp8_frame.size())};
+        const auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(ffmpeg_frame.av_frame()))};
+
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        auto depth_encoder_frame = depth_encoder.encode(reinterpret_cast<short*>(depth_image.get_buffer()), false);
-        auto depth_pixels = depth_decoder.decode(depth_encoder_frame.data(), false);
-        auto depth_mat = createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), depth_image.get_width_pixels(), depth_image.get_height_pixels());
+        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const short*>(depth_image.get_buffer()),
+                                                             gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())},
+                                                            false)};
+        auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
+        auto depth_mat{createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), 
+                                                       depth_image.get_width_pixels(),
+                                                       depth_image.get_height_pixels())};
 
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);
@@ -85,19 +91,19 @@ void _display_frames()
     }
 }
 
-void _display_calibration()
+void display_calibration()
 {
-    auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
+    auto device{k4a::device::open(K4A_DEVICE_DEFAULT)};
 
-    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    k4a_device_configuration_t configuration{K4A_DEVICE_CONFIG_INIT_DISABLE_ALL};
     configuration.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
     configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
     configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
 
-    auto calibration = device.get_calibration(configuration.depth_mode, configuration.color_resolution);
+    const auto calibration{device.get_calibration(configuration.depth_mode, configuration.color_resolution)};
 
-    auto color_intrinsics = calibration.color_camera_calibration.intrinsics;
+    const auto color_intrinsics{calibration.color_camera_calibration.intrinsics};
     std::cout << "color camera metric_radius: " << calibration.color_camera_calibration.metric_radius << std::endl;
 
     std::cout << "color intrinsics type: " << color_intrinsics.type << std::endl;
@@ -119,7 +125,7 @@ void _display_calibration()
     std::cout << "color intrinsics p1: " << color_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "color intrinsics metric_radius: " << color_intrinsics.parameters.param.metric_radius << std::endl;
 
-    auto depth_intrinsics = calibration.depth_camera_calibration.intrinsics;
+    const auto depth_intrinsics{calibration.depth_camera_calibration.intrinsics};
     std::cout << "depth camera metric_radius: " << calibration.depth_camera_calibration.metric_radius << std::endl;
 
     std::cout << "depth intrinsics type: " << depth_intrinsics.type << std::endl;
@@ -141,15 +147,15 @@ void _display_calibration()
     std::cout << "depth intrinsics p1: " << depth_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "depth intrinsics metric_radius: " << depth_intrinsics.parameters.param.metric_radius << std::endl;
 
-    auto extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
-    for (int i = 0; i < 9; ++i)
+    const auto extrinsics{calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR]};
+    for (gsl::index i = 0; i < 9; ++i)
         std::cout << "extrinsic rotation[" << i << "]: " << extrinsics.rotation[i] << std::endl;
 
-    for (int i = 0; i < 3; ++i)
+    for (gsl::index i = 0; i < 3; ++i)
         std::cout << "extrinsic translation[" << i << "]: " << extrinsics.translation[i] << std::endl;
 }
 
-void display_frames()
+void main()
 {
     for (;;) {
         std::cout << "Press Enter to Start: ";
@@ -158,17 +164,16 @@ void display_frames()
 
         // If "calibration" is entered, prints calibration information instead of displaying frames.
         if (line == "calibration") {
-            _display_calibration();
-            continue;
+            display_calibration();
+        } else {
+            display_frames();
         }
-
-        _display_frames();
     }
 }
 }
 
 int main()
 {
-    kh::display_frames();
+    kh::main();
     return 0;
 }

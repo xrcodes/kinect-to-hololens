@@ -4,7 +4,9 @@
 
 namespace kh
 {
-uint16_t abs_diff(short x, short y)
+namespace
+{
+std::int16_t absolute_difference(std::int16_t x, std::int16_t y)
 {
     if (x > y)
         return x - y;
@@ -12,7 +14,7 @@ uint16_t abs_diff(short x, short y)
         return y - x;
 }
 
-void update_pixel(TrvlPixel& pixel, short raw_value, short change_threshold, int invalidation_threshold) {
+void update_pixel(TrvlPixel& pixel, std::int16_t raw_value, std::int16_t change_threshold, int invalidation_threshold) {
     if (pixel.value == 0) {
         if (raw_value > 0)
             pixel.value = raw_value;
@@ -32,52 +34,54 @@ void update_pixel(TrvlPixel& pixel, short raw_value, short change_threshold, int
     pixel.invalid_count = 0;
 
     // Update pixel value when change is detected.
-    if (abs_diff(pixel.value, raw_value) > change_threshold)
+    if (absolute_difference(pixel.value, raw_value) > change_threshold)
         pixel.value = raw_value;
 }
+}
 
-TrvlEncoder::TrvlEncoder(int frame_size, short change_threshold, int invalid_threshold)
-    : pixels_(frame_size), change_threshold_(change_threshold), invalid_threshold_(invalid_threshold)
+TrvlEncoder::TrvlEncoder(int frame_size, int16_t change_threshold, int invalid_threshold)
+    : pixels_{frame_size}, change_threshold_{change_threshold}, invalid_threshold_{invalid_threshold}
 {
 }
 
-std::vector<std::byte> TrvlEncoder::encode(const int16_t* depth_buffer, bool keyframe)
+std::vector<std::byte> TrvlEncoder::encode(gsl::span<const int16_t> depth_buffer, bool keyframe)
 {
-    auto frame_size = pixels_.size();
+    const int frame_size{gsl::narrow_cast<int>(pixels_.size())};
     if (keyframe) {
-        for (int i = 0; i < frame_size; ++i) {
+        for (gsl::index i = 0; i < frame_size; ++i) {
             pixels_[i].value = depth_buffer[i];
-            // Not sure this is the best way to set invalid_count...
-            pixels_[i].invalid_count = depth_buffer[i] == 0 ? 1 : 0;
+            // equivalent to depth_buffer[i] == 0 ? 1: 0
+            pixels_[i].invalid_count = static_cast<int>(depth_buffer[i] == 0);
         }
 
         return rvl::compress(depth_buffer, frame_size);
     }
 
     std::vector<short> pixel_diffs(frame_size);
-    for (int i = 0; i < frame_size; ++i) {
+    for (gsl::index i = 0; i < frame_size; ++i) {
         pixel_diffs[i] = pixels_[i].value;
         update_pixel(pixels_[i], depth_buffer[i], change_threshold_, invalid_threshold_);
         pixel_diffs[i] = pixels_[i].value - pixel_diffs[i];
     }
 
-    return rvl::compress(pixel_diffs.data(), frame_size);
+    return rvl::compress(pixel_diffs, frame_size);
 }
 
 TrvlDecoder::TrvlDecoder(int frame_size)
     : prev_pixel_values_(frame_size, 0)
 {
 }
-std::vector<int16_t> TrvlDecoder::decode(const std::byte* trvl_frame, bool keyframe)
+
+std::vector<int16_t> TrvlDecoder::decode(gsl::span<const std::byte> trvl_frame, bool keyframe) noexcept
 {
-    int frame_size = prev_pixel_values_.size();
+    const int frame_size{gsl::narrow_cast<int>(prev_pixel_values_.size())};
     if (keyframe) {
         prev_pixel_values_ = rvl::decompress(trvl_frame, frame_size);
         return prev_pixel_values_;
     }
 
-    auto pixel_diffs = rvl::decompress(trvl_frame, frame_size);
-    for (int i = 0; i < frame_size; ++i)
+    const auto pixel_diffs{rvl::decompress(trvl_frame, frame_size)};
+    for (gsl::index i = 0; i < frame_size; ++i)
         prev_pixel_values_[i] += pixel_diffs[i];
 
     return prev_pixel_values_;

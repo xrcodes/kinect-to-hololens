@@ -32,7 +32,7 @@ private:
 
 public:
     Vp8Decoder();
-    FFmpegFrame decode(std::byte* vp8_frame_data, size_t vp8_frame_size);
+    FFmpegFrame decode(const std::byte* vp8_frame_data, size_t vp8_frame_size);
 
 private:
     std::shared_ptr<CodecContext> codec_context_;

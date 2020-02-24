@@ -92,13 +92,13 @@ std::vector<uint8_t> convertPicturePlaneToBytes(uint8_t* data, int line_size, in
 }
 
 // Converts an outcome of Vp8Deocder into YuvImage so it can be converted for OpenCV with createCvMatFromYuvImage().
-YuvImage createYuvImageFromAvFrame(AVFrame* av_frame)
+YuvImage createYuvImageFromAvFrame(const AVFrame& av_frame)
 {
     return YuvImage(
-        std::move(convertPicturePlaneToBytes(av_frame->data[0], av_frame->linesize[0], av_frame->width, av_frame->height)),
-        std::move(convertPicturePlaneToBytes(av_frame->data[1], av_frame->linesize[1], av_frame->width / 2, av_frame->height / 2)),
-        std::move(convertPicturePlaneToBytes(av_frame->data[2], av_frame->linesize[2], av_frame->width / 2, av_frame->height / 2)),
-        av_frame->width,
-        av_frame->height);
+        std::move(convertPicturePlaneToBytes(av_frame.data[0], av_frame.linesize[0], av_frame.width, av_frame.height)),
+        std::move(convertPicturePlaneToBytes(av_frame.data[1], av_frame.linesize[1], av_frame.width / 2, av_frame.height / 2)),
+        std::move(convertPicturePlaneToBytes(av_frame.data[2], av_frame.linesize[2], av_frame.width / 2, av_frame.height / 2)),
+        av_frame.width,
+        av_frame.height);
 }
 }

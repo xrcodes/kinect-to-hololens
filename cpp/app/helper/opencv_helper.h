@@ -5,11 +5,11 @@
 
 namespace kh
 {
-cv::Mat createCvMatFromYuvImage(YuvImage& yuv_frame)
+cv::Mat createCvMatFromYuvImage(const YuvImage& yuv_frame)
 {
-    cv::Mat y_channel(yuv_frame.height(), yuv_frame.width(), CV_8UC1, yuv_frame.y_channel().data());
-    cv::Mat u_channel(yuv_frame.height() / 2, yuv_frame.width() / 2, CV_8UC1, yuv_frame.u_channel().data());
-    cv::Mat v_channel(yuv_frame.height() / 2, yuv_frame.width() / 2, CV_8UC1, yuv_frame.v_channel().data());
+    cv::Mat y_channel(yuv_frame.height(), yuv_frame.width(), CV_8UC1, const_cast<std::uint8_t*>(yuv_frame.y_channel().data()));
+    cv::Mat u_channel(yuv_frame.height() / 2, yuv_frame.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_frame.u_channel().data()));
+    cv::Mat v_channel(yuv_frame.height() / 2, yuv_frame.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_frame.v_channel().data()));
     cv::Mat cr_channel;
     cv::Mat cb_channel;
     // u and v corresponds to Cb and Cr

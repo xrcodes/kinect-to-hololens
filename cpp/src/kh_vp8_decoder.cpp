@@ -132,7 +132,7 @@ Vp8Decoder::Vp8Decoder()
 
 
 // Decode frames in vp8_frame_data.
-FFmpegFrame Vp8Decoder::decode(std::byte* vp8_frame_data, size_t vp8_frame_size)
+FFmpegFrame Vp8Decoder::decode(const std::byte* vp8_frame_data, size_t vp8_frame_size)
 {
     std::vector<FFmpegFrame> decoder_frames;
     /* use the parser to split the data into frames */

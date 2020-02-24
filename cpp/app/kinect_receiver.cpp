@@ -355,7 +355,7 @@ void receive_frames(std::string ip_address, int port)
             ffmpeg_frame = color_decoder.decode(color_encoder_frame.data(), color_encoder_frame.size());
 
             // Decompressing a RVL frame into depth pixels.
-            depth_image = depth_decoder.decode(depth_encoder_frame.data(), keyframe);
+            depth_image = depth_decoder.decode(depth_encoder_frame, keyframe);
         }
         auto decoder_time = steady_clock::now() - decoder_start;
         auto frame_time = steady_clock::now() - frame_start;

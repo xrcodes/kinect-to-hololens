@@ -1,7 +1,8 @@
 #include <chrono>
 #include <iostream>
 #include <random>
-#include "readerwriterqueue/readerwriterqueue.h"
+#include <gsl/gsl>
+#include <readerwriterqueue/readerwriterqueue.h>
 #include "helper/kinect_helper.h"
 #include "kh_sender_socket.h"
 #include "kh_trvl.h"
@@ -33,7 +34,6 @@ void run_video_sender_thread(int session_id,
     int video_sender_summary_receiver_packet_count{0};
     int video_sender_summary_packet_count{0};
     while (!stop_threads) {
-        const auto loop_start{steady_clock::now()};
         for (;;) {
             std::error_code error;
             std::optional<std::vector<std::byte>> received_packet{sender_socket.receive(error)};
@@ -155,9 +155,6 @@ void run_video_sender_thread(int session_id,
             video_sender_summary_receiver_packet_count = 0;
         }
         last_receiver_video_frame_id = receiver_frame_id;
-
-        const auto loop_time = steady_clock::now() - loop_start;
-        printf("loop_time: %f micro seconds\n", loop_time.count() / 1000.0f);
     }
 run_video_sender_thread_end:
     stop_threads = true;
@@ -268,13 +265,16 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
         const auto vp8_frame{color_encoder.encode(yuv_image, keyframe)};
 
         // Compress the depth pixels.
-        const auto depth_encoder_frame{depth_encoder.encode(reinterpret_cast<const int16_t*>(depth_image.get_buffer()), keyframe)};
+        //const auto depth_encoder_frame{depth_encoder.encode(reinterpret_cast<const int16_t*>(depth_image.get_buffer()), keyframe)};
+        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const int16_t*>(depth_image.get_buffer()),
+                                                             gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())},
+                                                            keyframe)};
 
         const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
         const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame,
                                                   depth_encoder_frame.data(),
                                                   static_cast<uint32_t>(depth_encoder_frame.size()))};
-        const auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
+        auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
         video_packet_queue.enqueue({video_frame_id, std::move(packets)});
 
         // Updating variables for profiling.
@@ -305,7 +305,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 void main()
 {
     srand(time(nullptr));
-    std::mt19937 rng(steady_clock::now().time_since_epoch().count());
+    std::mt19937 rng{gsl::narrow_cast<unsigned int>(steady_clock::now().time_since_epoch().count())};
 
     for (;;) {
         std::string line;
@@ -313,14 +313,15 @@ void main()
         std::getline(std::cin, line);
         // The default port (the port when nothing is entered) is 7777.
         const int port{line.empty() ? 7777 : std::stoi(line)};
-
+        
         k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
         configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
         configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
         configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
         constexpr auto timeout = std::chrono::milliseconds(1000);
 
-        const int session_id(rng() % (INT_MAX + 1));
+        //const int session_id(rng() % (INT_MAX + 1));
+        const int session_id{gsl::narrow_cast<const int>(rng() % (static_cast<unsigned int>(INT_MAX) + 1))};
         
         auto kinect_device{KinectDevice::create(configuration, timeout)};
         if (!kinect_device) {
