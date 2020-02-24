@@ -14,13 +14,13 @@ set(SOURCE_FILES
   unity/IUnityInterface.h
 )
 
-add_library(KinectToHololensPlugin SHARED
+add_library(KinectToHololensUnity SHARED
   ${SOURCE_FILES}
 )
-target_link_libraries(KinectToHololensPlugin
+target_link_libraries(KinectToHololensUnity
   KinectToHololens
   Opus::opus
 )
-set_target_properties(KinectToHololensPlugin PROPERTIES
+set_target_properties(KinectToHololensUnity PROPERTIES
   CXX_STANDARD 17
 )

@@ -9,13 +9,13 @@ $msBuild = $msBuilds[0].FullName
 $configuration = "RelWithDebInfo"
 $buildPath = (Get-Location).path + "\cpp\build"
 
-&$msBuild ("/t:KinectToHololensPlugin", "/p:Configuration=$configuration", "/p:Platform=Win32", "$buildPath\x86\KinectToHololens.sln")
-&$msBuild ("/t:KinectToHololensPlugin", "/p:Configuration=$configuration", "/p:Platform=x64", "$buildPath\x64\KinectToHololens.sln")
+&$msBuild ("/t:KinectToHololensUnity", "/p:Configuration=$configuration", "/p:Platform=Win32", "$buildPath\x86\KinectToHololens.sln")
+&$msBuild ("/t:KinectToHololensUnity", "/p:Configuration=$configuration", "/p:Platform=x64", "$buildPath\x64\KinectToHololens.sln")
 
 $assetsPath = (Get-Location).path + "\unity\KinecttoHololens\Assets"
 
-Copy-Item "$buildPath\x86\plugin\$configuration\KinectToHololensPlugin.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$buildPath\x64\plugin\$configuration\KinectToHololensPlugin.dll" -Destination "$assetsPath\Editor"
+Copy-Item "$buildPath\x86\unity\$configuration\KinectToHololensUnity.dll" -Destination "$assetsPath\Plugins\WSA"
+Copy-Item "$buildPath\x64\unity\$configuration\KinectToHololensUnity.dll" -Destination "$assetsPath\Editor"
 
 $binPath = (Get-Location).path + "\bin"
 Copy-Item "$binPath\msvcp140.dll" -Destination "$assetsPath\Plugins\WSA"
