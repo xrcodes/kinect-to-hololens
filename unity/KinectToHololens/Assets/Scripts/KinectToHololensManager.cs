@@ -466,6 +466,13 @@ public class KinectToHololensManager : MonoBehaviour
                             {
                                 // Try getting the XOR FEC packet for correction.
                                 int xorPacketIndex = fecPacketIndex / XOR_MAX_GROUP_SIZE;
+
+                                if(!xorPacketCollections.ContainsKey(missingFrameId))
+                                {
+                                    fecFailedPacketIndices.Add(fecPacketIndex);
+                                    continue;
+                                }
+
                                 var xorPacket = xorPacketCollections[missingFrameId].TryGetPacket(xorPacketIndex);
                                 // Give up if there is no xor packet yet.
                                 if (xorPacket == null)

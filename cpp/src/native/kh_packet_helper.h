@@ -71,7 +71,6 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSenderPacketData init_sender_packet_data);
 std::vector<std::byte> create_frame_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                         gsl::span<const std::byte> packet_content);
-std::vector<std::byte> create_fec_sender_packet_bytes(int begin_index, int end_index,
-                                                      gsl::span<const std::vector<std::byte>> frame_packets, 
+std::vector<std::byte> create_fec_sender_packet_bytes(gsl::span<const std::vector<std::byte>> frame_packets, 
                                                       int session_id, int frame_id, int packet_index, int packet_count);
 }

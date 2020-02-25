@@ -98,13 +98,12 @@ std::vector<std::byte> create_frame_sender_packet_bytes(int session_id, int fram
     return packet;
 }
 
-std::vector<std::byte> create_fec_sender_packet_bytes(int begin_index, int end_index,
-                                                      gsl::span<const std::vector<std::byte>> frame_packets,
+std::vector<std::byte> create_fec_sender_packet_bytes(gsl::span<const std::vector<std::byte>> frame_packets,
                                                       int session_id, int frame_id, int packet_index, int packet_count)
 {
     // Copy packets[begin_index] instead of filling in everything zero
     // to reduce an XOR operation for contents once.
-    std::vector<std::byte> packet{frame_packets[begin_index]};
+    std::vector<std::byte> packet{frame_packets[0]};
     int cursor = 0;
     memcpy(packet.data() + cursor, &session_id, 4);
     cursor += 4;
@@ -121,7 +120,7 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int begin_index, int end_i
     memcpy(packet.data() + cursor, &packet_count, 4);
     //cursor += 4;
 
-    for (int i = begin_index + 1; i < end_index; ++i) {
+    for (int i = 1; i < frame_packets.size(); ++i) {
         for (int j = KH_VIDEO_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j) {
             packet[j] ^= frame_packets[i][j];
         }

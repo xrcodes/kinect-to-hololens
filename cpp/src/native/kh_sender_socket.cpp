@@ -126,9 +126,12 @@ std::vector<std::vector<std::byte>> SenderSocket::createXorPackets(int session_i
     std::vector<std::vector<std::byte>> xor_packets;
     for (int xor_packet_index = 0; xor_packet_index < xor_packet_count; ++xor_packet_index) {
         const int begin_index{xor_packet_index * max_group_size};
-        const int end_index{std::min<int>(begin_index + max_group_size, frame_packets.size())};
+        //const int end_index{std::min<int>(begin_index + max_group_size, frame_packets.size())};
+
+        //xor_packets.push_back(create_fec_sender_packet_bytes(begin_index, end_index, frame_packets, session_id, frame_id, xor_packet_index, xor_packet_count));
         
-        xor_packets.push_back(create_fec_sender_packet_bytes(begin_index, end_index, frame_packets, session_id, frame_id, xor_packet_index, xor_packet_count));
+        const int end_index{std::min<int>(max_group_size, frame_packets.size() - begin_index)};
+        xor_packets.push_back(create_fec_sender_packet_bytes(gsl::span<const std::vector<std::byte>>(&frame_packets[begin_index], end_index), session_id, frame_id, xor_packet_index, xor_packet_count));
     }
     return xor_packets;
 }

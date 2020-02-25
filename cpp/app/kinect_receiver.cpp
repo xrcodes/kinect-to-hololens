@@ -128,6 +128,12 @@ void run_receiver_thread(int sender_session_id,
                         for (int fec_packet_index : fec_packet_indices) {
                             // Try getting the XOR FEC packet for correction.
                             const int xor_packet_index{fec_packet_index / XOR_MAX_GROUP_SIZE};
+
+                            if (xor_packet_collections.find(missing_frame_id) == xor_packet_collections.end()) {
+                                fec_failed_packet_indices.push_back(fec_packet_index);
+                                continue;
+                            }
+
                             const auto xor_packet_ptr{xor_packet_collections.at(missing_frame_id).TryGetPacket(xor_packet_index)};
                             // Give up if there is no xor packet yet.
                             if (!xor_packet_ptr) {

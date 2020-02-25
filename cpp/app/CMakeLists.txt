@@ -51,6 +51,9 @@ add_executable(KinectReceiver
   kinect_receiver.cpp
   helper/opencv_helper.h
 )
+target_include_directories(KinectReceiver PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
 target_link_libraries(KinectReceiver
   ${OpenCV_LIBS}
   KinectToHololensNative
