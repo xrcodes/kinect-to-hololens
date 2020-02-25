@@ -69,8 +69,17 @@ struct InitSenderPacketData
 
 InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSenderPacketData init_sender_packet_data);
+std::vector<std::byte> create_frame_sender_message_bytes(float frame_time_stamp, bool keyframe,
+                                                         gsl::span<const std::byte> vp8_frame,
+                                                         gsl::span<const std::byte> depth_encoder_frame);
+std::vector<std::vector<std::byte>> split_frame_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> frame_message);
 std::vector<std::byte> create_frame_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                         gsl::span<const std::byte> packet_content);
-std::vector<std::byte> create_fec_sender_packet_bytes(gsl::span<const std::vector<std::byte>> frame_packets, 
-                                                      int session_id, int frame_id, int packet_index, int packet_count);
+// This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
+// is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
+// packets to restore the packet.
+std::vector<std::vector<std::byte>> create_fec_sender_packet_bytes_vector(int session_id, int frame_id, int max_group_size,
+                                                                          gsl::span<const std::vector<std::byte>> frame_packet_bytes_span);
+std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
+                                                      gsl::span<const std::vector<std::byte>> frame_packet_bytes_vector);
 }

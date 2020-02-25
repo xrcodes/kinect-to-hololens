@@ -98,7 +98,8 @@ void run_video_sender_thread(int session_id,
 
         VideoPacketSet video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
-            auto xor_packets = SenderSocket::createXorPackets(session_id, video_packet_set.first, video_packet_set.second, XOR_MAX_GROUP_SIZE);
+            //auto xor_packets = SenderSocket::createXorPackets(session_id, video_packet_set.first, video_packet_set.second, XOR_MAX_GROUP_SIZE);
+            auto xor_packets = create_fec_sender_packet_bytes_vector(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second);
 
             video_frame_send_times.insert({video_packet_set.first, steady_clock::now()});
             for (auto packet : video_packet_set.second) {
@@ -272,8 +273,10 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
                                                             keyframe)};
 
         const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
-        const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
-        auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
+        //const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
+        const auto message{create_frame_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
+        //auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
+        auto packets{split_frame_sender_message_bytes(session_id, video_frame_id, message)};
         video_packet_queue.enqueue({video_frame_id, std::move(packets)});
 
         // Updating variables for profiling.
