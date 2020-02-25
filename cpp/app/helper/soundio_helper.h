@@ -9,7 +9,7 @@
 
 #include <optional>
 #include <soundio.h>
-#include "kh_audio.h"
+#include "native/kh_audio.h"
 
 namespace kh
 {

@@ -8,7 +8,7 @@ target_include_directories(KinectReader PRIVATE
 target_link_libraries(KinectReader
   ${OpenCV_LIBS}
   "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
-  KinectToHololens
+  KinectToHololensNative
   ${Libvpx_LIB}
 )
 set_target_properties(KinectReader PROPERTIES
@@ -32,7 +32,7 @@ target_include_directories(KinectSender PRIVATE
 )
 target_link_libraries(KinectSender
   "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
-  KinectToHololens
+  KinectToHololensNative
   ${Libvpx_LIB}
 )
 set_target_properties(KinectSender PROPERTIES
@@ -53,7 +53,7 @@ add_executable(KinectReceiver
 )
 target_link_libraries(KinectReceiver
   ${OpenCV_LIBS}
-  KinectToHololens
+  KinectToHololensNative
 )
 set_target_properties(KinectReceiver PROPERTIES
   CXX_STANDARD 17
@@ -67,7 +67,7 @@ target_include_directories(KinectListener PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectListener
-  KinectToHololens
+  KinectToHololensNative
 )
 set_target_properties(KinectListener PROPERTIES
   CXX_STANDARD 17
@@ -81,7 +81,7 @@ target_include_directories(KinectAudioSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectAudioSender
-  KinectToHololens
+  KinectToHololensNative
   Opus::opus
 )
 set_target_properties(KinectAudioSender PROPERTIES
@@ -96,7 +96,7 @@ target_include_directories(KinectAudioReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectAudioReceiver
-  KinectToHololens
+  KinectToHololensNative
   Opus::opus
 )
 set_target_properties(KinectAudioReceiver PROPERTIES

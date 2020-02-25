@@ -4,10 +4,10 @@
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "helper/kinect_helper.h"
-#include "kh_sender_socket.h"
+#include "native/kh_sender_socket.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
-#include "kh_packet_helper.h"
+#include "native/kh_packet_helper.h"
 
 namespace kh
 {

@@ -1,6 +1,6 @@
 #include "texture_group.h"
 
-#include "unity/IUnityInterface.h"
+#include "interfaces/IUnityInterface.h"
 #include "depth_texture.h"
 #include "channel_texture.h"
 #include "kh_trvl.h"

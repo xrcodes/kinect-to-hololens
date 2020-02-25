@@ -3,8 +3,8 @@
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
-#include "kh_sender_socket.h"
-#include "kh_packet_helper.h"
+#include "native/kh_sender_socket.h"
+#include "native/kh_packet_helper.h"
 
 namespace kh
 {

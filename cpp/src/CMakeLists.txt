@@ -11,21 +11,7 @@ add_library(KinectToHololens
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_sender_socket.h
-  kh_sender_socket.cpp
-  kh_receiver_socket.h
-  kh_receiver_socket.cpp
-  kh_video_message.h
-  kh_video_message.cpp
-  kh_video_packet_collection.h
-  kh_video_packet_collection.cpp
-  kh_xor_packet_collection.h
-  kh_xor_packet_collection.cpp
-  kh_packet_helper.h
-  kh_audio.h
-  kh_audio.cpp
  )
-
 target_include_directories(KinectToHololens PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
@@ -36,3 +22,9 @@ target_link_libraries(KinectToHololens
 set_target_properties(KinectToHololens PROPERTIES
   CXX_STANDARD 17
 )
+
+# The directory that contains files required to build the DLL file for native applications. 
+add_subdirectory(native)
+
+# The directory that contains files required to build the DLL file for Unity. 
+add_subdirectory(unity)

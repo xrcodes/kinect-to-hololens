@@ -9,10 +9,10 @@
 #include "helper/opencv_helper.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-#include "kh_receiver_socket.h"
-#include "kh_video_packet_collection.h"
-#include "kh_xor_packet_collection.h"
-#include "kh_packet_helper.h"
+#include "native/kh_receiver_socket.h"
+#include "native/kh_video_packet_collection.h"
+#include "native/kh_xor_packet_collection.h"
+#include "native/kh_packet_helper.h"
 
 namespace kh
 {

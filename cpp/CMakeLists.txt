@@ -35,5 +35,3 @@ find_package(Opus CONFIG REQUIRED)
 add_subdirectory(src)
 # The directory for cpp files corresponding to exe files.
 add_subdirectory(app)
-# The directory that contains files required to build the DLL file for Unity. 
-add_subdirectory(unity)

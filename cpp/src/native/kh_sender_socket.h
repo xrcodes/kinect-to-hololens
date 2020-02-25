@@ -3,7 +3,7 @@
 #include <asio.hpp>
 #include <optional>
 #include <gsl/gsl>
-#include "k4a/k4a.hpp"
+#include <k4a/k4a.hpp>
 
 namespace kh
 {

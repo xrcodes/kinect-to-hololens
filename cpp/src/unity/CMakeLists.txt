@@ -9,9 +9,9 @@ set(SOURCE_FILES
   channel_texture.cpp
   depth_texture.h
   depth_texture.cpp
-  unity/IUnityGraphics.h
-  unity/IUnityGraphicsD3D11.h
-  unity/IUnityInterface.h
+  interfaces/IUnityGraphics.h
+  interfaces/IUnityGraphicsD3D11.h
+  interfaces/IUnityInterface.h
 )
 
 add_library(KinectToHololensUnity SHARED
