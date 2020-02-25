@@ -587,14 +587,11 @@ public class KinectToHololensManager : MonoBehaviour
         //    }
         //}
         int? beginFrameId = null;
-        // Get the most recent keyframe.
-        foreach(var frameMessagePair in frameMessages)
+        // If there is a key frame, use the most recent one.
+        foreach (var frameMessagePair in frameMessages)
         {
             if (frameMessagePair.Value.Keyframe)
-            {
                 beginFrameId = frameMessagePair.Key;
-                break;
-            }
         }
 
         // When there is no key frame, go through all the frames if the first
@@ -637,9 +634,8 @@ public class KinectToHololensManager : MonoBehaviour
         for (int i = beginFrameId.Value; ; ++i)
         {
             if(!frameMessages.ContainsKey(i))
-            {
                 break;
-            }
+            
             var frameMessage = frameMessages[i];
             lastFrameId = frameMessage.FrameId;
 

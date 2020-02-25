@@ -169,14 +169,14 @@ void run_receiver_thread(int sender_session_id,
 
                             const auto fec_time{steady_clock::now() - fec_start};
 
-                            printf("restored %d %d %lf\n", missing_frame_id, fec_packet_index, fec_time.count() / 1000000.0f);
+                            //printf("restored %d %d %lf\n", missing_frame_id, fec_packet_index, fec_time.count() / 1000000.0f);
                             frame_packet_collections.at(missing_frame_id)
                                                     .addPacket(fec_packet_index, std::move(fec_frame_packet));
                         } // end of for (int missing_packet_index : missing_packet_indices)
 
-                        for (int fec_failed_packet_index : fec_failed_packet_indices) {
-                            printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
-                        }
+                        //for (int fec_failed_packet_index : fec_failed_packet_indices) {
+                        //    printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
+                        //}
                         
                         std::error_code error;
                         receiver.send(missing_frame_id, fec_failed_packet_indices, error);
@@ -205,16 +205,16 @@ void run_receiver_thread(int sender_session_id,
             }
         }
 
-        if(!frame_packet_collections.empty())
-            printf("Collection Status:\n");
+        //if(!frame_packet_collections.empty())
+        //    printf("Collection Status:\n");
 
-        for (auto& collection_pair : frame_packet_collections) {
-            const int frame_id{collection_pair.first};
-            const auto collected_packet_count{collection_pair.second.getCollectedPacketCount()};
-            const auto total_packet_count{collection_pair.second.packet_count()};
-            printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-                   collected_packet_count, total_packet_count);
-        }
+        //for (auto& collection_pair : frame_packet_collections) {
+        //    const int frame_id{collection_pair.first};
+        //    const auto collected_packet_count{collection_pair.second.getCollectedPacketCount()};
+        //    const auto total_packet_count{collection_pair.second.packet_count()};
+        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
+        //           collected_packet_count, total_packet_count);
+        //}
 
         // Clean up frame_packet_collections.
         for (auto it = frame_packet_collections.begin(); it != frame_packet_collections.end();) {
@@ -299,38 +299,53 @@ void receive_frames(std::string ip_address, int port)
     Vp8Decoder color_decoder;
     TrvlDecoder depth_decoder{depth_width * depth_height};
 
-    std::vector<VideoMessage> frame_messages;
+    std::map<int, VideoMessage> frame_messages;
     auto frame_start{steady_clock::now()};
     for (;;) {
         VideoMessage frame_message;
         while (frame_message_queue.try_dequeue(frame_message)) {
-            frame_messages.push_back(frame_message);
+            //frame_messages.push_back(frame_message);
+            frame_messages.insert({frame_message.frame_id(), frame_message});
         }
 
-        std::sort(frame_messages.begin(), frame_messages.end(), [](const VideoMessage& lhs, const VideoMessage& rhs)
-        {
-            return lhs.frame_id() < rhs.frame_id();
-        });
+        //std::sort(frame_messages.begin(), frame_messages.end(), [](const VideoMessage& lhs, const VideoMessage& rhs)
+        //{
+        //    return lhs.frame_id() < rhs.frame_id();
+        //});
 
         if (frame_messages.empty())
             continue;
 
-        std::optional<int> begin_index;
+        //std::optional<int> begin_index;
+        //// If there is a key frame, use the most recent one.
+        //for (gsl::index i = frame_messages.size() - 1; i >= 0; --i) {
+        //    if (frame_messages[i].keyframe()) {
+        //        begin_index = i;
+        //        break;
+        //    }
+        //}
+        std::optional<int> begin_frame_id;
         // If there is a key frame, use the most recent one.
-        for (gsl::index i = frame_messages.size() - 1; i >= 0; --i) {
-            if (frame_messages[i].keyframe()) {
-                begin_index = i;
-                break;
-            }
+        for (auto& frame_message_pair : frame_messages) {
+            if (frame_message_pair.second.keyframe())
+                begin_frame_id = frame_message_pair.first;
         }
 
         // When there is no key frame, go through all the frames if the first
         // FrameMessage is the one right after the previously rendered one.
-        if (!begin_index) {
-            if (frame_messages[0].frame_id() == last_frame_id + 1) {
-                begin_index = 0;
+        //if (!begin_index) {
+        //    if (frame_messages[0].frame_id() == last_frame_id + 1) {
+        //        begin_index = 0;
+        //    } else {
+        //        // Wait for more frames if there is way to render without glitches.
+        //        continue;
+        //    }
+        //}
+        if (!begin_frame_id) {
+            // If a frame message with frame_id == (last_frame_id + 1) is found
+            if(frame_messages.find(last_frame_id + 1) != frame_messages.end()){
+                begin_frame_id = last_frame_id + 1;
             } else {
-                // Wait for more frames if there is way to render without glitches.
                 continue;
             }
         }
@@ -340,7 +355,13 @@ void receive_frames(std::string ip_address, int port)
         steady_clock::duration packet_collection_time;
 
         const auto decoder_start{steady_clock::now()};
-        for (gsl::index i = *begin_index; i < frame_messages.size(); ++i) {
+        //for (gsl::index i = *begin_index; i < frame_messages.size(); ++i) {
+        //    const auto frame_message_ptr{&frame_messages[i]};
+        for (int i = *begin_frame_id; ; ++i) {
+            // break loop is there is no frame with frame_id i.
+            if (frame_messages.find(i) == frame_messages.end())
+                break;
+
             const auto frame_message_ptr{&frame_messages[i]};
 
             const int frame_id{frame_message_ptr->frame_id()};
@@ -348,6 +369,8 @@ void receive_frames(std::string ip_address, int port)
             const bool keyframe{frame_message_ptr->keyframe()};
 
             last_frame_id = frame_id;
+
+            std::cout << "frame_id: " << frame_id << ", keyframe: " << keyframe << std::endl;
 
             packet_collection_time = frame_message_ptr->packet_collection_time();
 
@@ -388,8 +411,14 @@ void receive_frames(std::string ip_address, int port)
         if (cv::waitKey(1) >= 0)
             break;
 
-        // Reset frame_messages after they are displayed.
-        frame_messages = std::vector<VideoMessage>();
+        // Remove frame messages before the rendered frame.
+        for (auto it = frame_messages.begin(); it != frame_messages.end();) {
+            if (it->first < last_frame_id) {
+                it = frame_messages.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     stop_receiver_thread = true;
