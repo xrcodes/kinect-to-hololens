@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 #include <gsl/gsl>
+#include <k4a/k4a.h>
 
 namespace kh
 {
@@ -50,4 +51,27 @@ T copy_from_packet_data(std::byte* packet_data)
     memcpy(&t, packet_data, sizeof(T));
     return t;
 }
+
+struct InitSenderPacketData
+{
+    k4a_calibration_intrinsic_parameters_t::_param depth_intrinsics;
+    int depth_width;
+    int depth_height;
+    float depth_metric_radius;
+
+    k4a_calibration_intrinsic_parameters_t::_param color_intrinsics;
+    int color_width;
+    int color_height;
+    float color_metric_radius;
+
+    k4a_calibration_extrinsics_t depth_to_color_extrinsics;
+};
+
+InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
+std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSenderPacketData init_sender_packet_data);
+std::vector<std::byte> create_frame_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
+                                                        gsl::span<const std::byte> packet_content);
+std::vector<std::byte> create_fec_sender_packet_bytes(int begin_index, int end_index,
+                                                      gsl::span<const std::vector<std::byte>> frame_packets, 
+                                                      int session_id, int frame_id, int packet_index, int packet_count);
 }
