@@ -5,7 +5,7 @@
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
 #include "native/kh_receiver_socket.h"
-#include "native/kh_packet_helper.h"
+#include "native/kh_packets.h"
 
 namespace kh
 {
@@ -108,7 +108,8 @@ int main(std::string ip_address, int port)
         while (auto packet = receiver.receive(error)) {
             received_byte_count += packet->size();
 
-            int frame_id = copy_from_packet_data<int>(packet->data() + 5);
+            int cursor = 5;
+            int frame_id = copy_from_bytes<int>(*packet, cursor);
             packets.insert({ frame_id, std::move(*packet) });
         }
 
@@ -132,7 +133,7 @@ int main(std::string ip_address, int port)
                 break;
 
             int audio_packet_cursor = 5;
-            int frame_id = copy_from_packet<int>(packet_it->second, audio_packet_cursor);
+            int frame_id = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
 
             int frame_size;
             if (frame_id <= last_frame_id) {
@@ -142,7 +143,7 @@ int main(std::string ip_address, int port)
             } else if (frame_id == last_frame_id + 1) {
                 // When the packet for the next audio frame is found,
                 // use it and erase it.
-                int opus_frame_size = copy_from_packet<int>(packet_it->second, audio_packet_cursor);
+                int opus_frame_size = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
                 frame_size = opus_decode_float(opus_decoder, reinterpret_cast<unsigned char*>(packet_it->second.data()) + audio_packet_cursor, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
                 packet_it = packets.erase(packet_it);
             } else {

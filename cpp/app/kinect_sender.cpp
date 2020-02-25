@@ -7,7 +7,7 @@
 #include "native/kh_sender_socket.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
-#include "native/kh_packet_helper.h"
+#include "native/kh_packets.h"
 
 namespace kh
 {
@@ -47,14 +47,14 @@ void run_video_sender_thread(int session_id,
                 }
             }
             int cursor = 0;
-            const uint8_t message_type{copy_from_packet<uint8_t>(*received_packet, cursor)};
+            const uint8_t message_type{copy_from_bytes<uint8_t>(*received_packet, cursor)};
 
             if (message_type == KH_RECEIVER_REPORT_PACKET) {
-                receiver_frame_id = copy_from_packet<int>(*received_packet, cursor);
-                const float packet_collection_time_ms{copy_from_packet<float>(*received_packet, cursor)};
-                const float decoder_time_ms{copy_from_packet<float>(*received_packet, cursor)};
-                const float frame_time_ms{copy_from_packet<float>(*received_packet, cursor)};
-                const int receiver_packet_count{copy_from_packet<int>(*received_packet, cursor)};
+                receiver_frame_id = copy_from_bytes<int>(*received_packet, cursor);
+                const float packet_collection_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
+                const float decoder_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
+                const float frame_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
+                const int receiver_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
 
                 const duration<double> round_trip_time{steady_clock::now() - video_frame_send_times[receiver_frame_id]};
 
@@ -74,11 +74,11 @@ void run_video_sender_thread(int session_id,
                 ++video_sender_summary_receiver_frame_count;
                 video_sender_summary_receiver_packet_count += receiver_packet_count;
             } else if (message_type == KH_RECEIVER_REQUEST_PACKET) {
-                const int requested_frame_id{copy_from_packet<int>(*received_packet, cursor)};
-                const int missing_packet_count{copy_from_packet<int>(*received_packet, cursor)};
+                const int requested_frame_id{copy_from_bytes<int>(*received_packet, cursor)};
+                const int missing_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
 
                 for (int i = 0; i < missing_packet_count; ++i) {
-                    int missing_packet_index = copy_from_packet<int>(*received_packet, cursor);
+                    int missing_packet_index = copy_from_bytes<int>(*received_packet, cursor);
 
                     if (video_packet_sets.find(requested_frame_id) == video_packet_sets.end())
                         continue;

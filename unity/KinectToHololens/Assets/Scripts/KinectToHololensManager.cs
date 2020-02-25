@@ -569,45 +569,24 @@ public class KinectToHololensManager : MonoBehaviour
             frameMessages.Add(frameMessage.FrameId, frameMessage);
         }
 
-        //frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
-
         if (frameMessages.Count == 0)
         {
             return;
         }
 
-        //int? beginIndex = null;
-        //// If there is a key frame, use the most recent one.
-        //for (int i = frameMessages.Count - 1; i >= 0; --i)
-        //{
-        //    if (frameMessages[i].Keyframe)
-        //    {
-        //        beginIndex = i;
-        //        break;
-        //    }
-        //}
         int? beginFrameId = null;
         // If there is a key frame, use the most recent one.
         foreach (var frameMessagePair in frameMessages)
         {
+            if (frameMessagePair.Key <= lastFrameId)
+                continue;
+
             if (frameMessagePair.Value.Keyframe)
                 beginFrameId = frameMessagePair.Key;
         }
 
-        // When there is no key frame, go through all the frames if the first
-        // FrameMessage is the one right after the previously rendered one.
-        //if (!beginIndex.HasValue)
-        //{
-        //    if (frameMessages[0].FrameId == lastFrameId + 1)
-        //    {
-        //        beginIndex = 0;
-        //    }
-        //    else
-        //    {
-        //        // Wait for more frames if there is way to render without glitches.
-        //        return;
-        //    }
-        //}
+        // When there is no key frame, go through all the frames to check
+        // if there is the one right after the previously rendered one.
         if (!beginFrameId.HasValue)
         {
             if(frameMessages.ContainsKey(lastFrameId + 1))

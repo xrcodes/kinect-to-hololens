@@ -28,51 +28,66 @@ const int KH_MAX_VIDEO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_VIDEO_PACKET_HE
 const int KH_AUDIO_PACKET_HEADER_SIZE = 13;
 const int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_AUDIO_PACKET_HEADER_SIZE;
 
-template<class T>
-void copy_to_packet(const T& t, gsl::span<std::byte> packet, int& cursor)
+struct PacketCursor
 {
-    memcpy(packet.data() + cursor, &t, sizeof(T));
+    int position{0};
+};
+
+template<class T>
+void copy_to_bytes(const T& t, gsl::span<std::byte> bytes, int& cursor)
+{
+    memcpy(&bytes[cursor], &t, sizeof(T));
     cursor += sizeof(T);
 }
 
 template<class T>
-T copy_from_packet(gsl::span<const std::byte> packet, int& cursor)
+void copy_from_bytes(T& t, gsl::span<const std::byte> bytes, int& cursor)
 {
-    T t;
-    memcpy(&t, packet.data() + cursor, sizeof(T));
+    memcpy(&t, &bytes[cursor], sizeof(T));
     cursor += sizeof(T);
-    return t;
 }
 
 template<class T>
-T copy_from_packet_data(std::byte* packet_data)
+T copy_from_bytes(gsl::span<const std::byte> bytes, int& cursor)
 {
     T t;
-    memcpy(&t, packet_data, sizeof(T));
+    copy_from_bytes(t, bytes, cursor);
     return t;
 }
 
 struct InitSenderPacketData
 {
-    k4a_calibration_intrinsic_parameters_t::_param depth_intrinsics;
-    int depth_width;
-    int depth_height;
-    float depth_metric_radius;
-
-    k4a_calibration_intrinsic_parameters_t::_param color_intrinsics;
     int color_width;
     int color_height;
+    int depth_width;
+    int depth_height;
+    k4a_calibration_intrinsic_parameters_t::_param color_intrinsics;
     float color_metric_radius;
-
+    k4a_calibration_intrinsic_parameters_t::_param depth_intrinsics;
+    float depth_metric_radius;
     k4a_calibration_extrinsics_t depth_to_color_extrinsics;
 };
 
+struct FecSenderPacketData
+{
+    int frame_id;
+    int packet_index;
+    int packet_count;
+    std::vector<std::byte> message_data;
+};
+
+int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+uint8_t get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSenderPacketData init_sender_packet_data);
+InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 std::vector<std::byte> create_frame_sender_message_bytes(float frame_time_stamp, bool keyframe,
-                                                         gsl::span<const std::byte> vp8_frame,
+                                                         gsl::span<const std::byte> color_encoder_frame,
                                                          gsl::span<const std::byte> depth_encoder_frame);
-std::vector<std::vector<std::byte>> split_frame_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> frame_message);
+std::vector<std::vector<std::byte>> split_frame_sender_message_bytes(int session_id, int frame_id,
+                                                                     gsl::span<const std::byte> frame_message);
 std::vector<std::byte> create_frame_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                         gsl::span<const std::byte> packet_content);
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
@@ -82,4 +97,6 @@ std::vector<std::vector<std::byte>> create_fec_sender_packet_bytes_vector(int se
                                                                           gsl::span<const std::vector<std::byte>> frame_packet_bytes_span);
 std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                       gsl::span<const std::vector<std::byte>> frame_packet_bytes_vector);
+FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 }

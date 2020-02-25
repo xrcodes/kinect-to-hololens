@@ -12,7 +12,7 @@
 #include "native/kh_receiver_socket.h"
 #include "native/kh_video_packet_collection.h"
 #include "native/kh_xor_packet_collection.h"
-#include "native/kh_packet_helper.h"
+#include "native/kh_packets.h"
 
 namespace kh
 {
@@ -31,24 +31,26 @@ void run_receiver_thread(int sender_session_id,
     std::unordered_map<int, VideoPacketCollection> frame_packet_collections;
     std::unordered_map<int, XorPacketCollection> xor_packet_collections;
     while (!stop_receiver_thread) {
-        std::vector<std::vector<std::byte>> frame_packets;
-        std::vector<std::vector<std::byte>> xor_packets;
+        std::vector<std::vector<std::byte>> frame_packet_bytes_vector;
+        std::vector<std::vector<std::byte>> xor_packet_bytes_vector;
 
         std::error_code error;
         while (const auto packet{receiver.receive(error)}) {
             ++summary_packet_count;
 
-            int cursor{0};
-            const int session_id{copy_from_packet<int>(*packet, cursor)};
-            const uint8_t packet_type{copy_from_packet<uint8_t>(*packet, cursor)};
-            
+            //int cursor{0};
+            //const int session_id{copy_from_packet<int>(*packet, cursor)};
+            //const uint8_t packet_type{copy_from_packet<uint8_t>(*packet, cursor)};
+            const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
+            const uint8_t packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
+
             if (session_id != sender_session_id)
                 continue;
 
-            if (packet_type == 1) {
-                frame_packets.push_back(std::move(*packet));
-            } else if (packet_type == 2) {
-                xor_packets.push_back(std::move(*packet));
+            if (packet_type == KH_SENDER_VIDEO_PACKET) {
+                frame_packet_bytes_vector.push_back(std::move(*packet));
+            } else if (packet_type == KH_SENDER_XOR_PACKET) {
+                xor_packet_bytes_vector.push_back(std::move(*packet));
             }
         }
 
@@ -59,32 +61,36 @@ void run_receiver_thread(int sender_session_id,
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
-        for (auto& xor_packet : xor_packets) {
+        for (auto& xor_packet_bytes : xor_packet_bytes_vector) {
             // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
-            int cursor{5};
-            const int frame_id{copy_from_packet<int>(xor_packet, cursor)};
+            //int cursor{5};
+            //const int frame_id{copy_from_bytes<int>(xor_packet_bytes, cursor)};
+            const auto fec_sender_packet_data{parse_fec_sender_packet_bytes(xor_packet_bytes)};
 
-            if (frame_id <= last_frame_id)
+            if (fec_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
-            const int packet_index{copy_from_packet<int>(xor_packet, cursor)};
-            const int packet_count{copy_from_packet<int>(xor_packet, cursor)};
+            //const int packet_index{copy_from_bytes<int>(xor_packet_bytes, cursor)};
+            //const int packet_count{copy_from_bytes<int>(xor_packet_bytes, cursor)};
 
-            if (xor_packet_collections.find(frame_id) == xor_packet_collections.end())
-                xor_packet_collections.insert({frame_id, XorPacketCollection{frame_id, packet_count}});
+            if (xor_packet_collections.find(fec_sender_packet_data.frame_id) == xor_packet_collections.end())
+                xor_packet_collections.insert({fec_sender_packet_data.frame_id,
+                                               XorPacketCollection{fec_sender_packet_data.frame_id,
+                                                                   fec_sender_packet_data.packet_count}});
 
-            xor_packet_collections.at(frame_id).addPacket(packet_index, std::move(xor_packet));
+            xor_packet_collections.at(fec_sender_packet_data.frame_id)
+                                  .addPacket(fec_sender_packet_data.packet_index, std::move(xor_packet_bytes));
         }
 
-        for (auto& frame_packet : frame_packets) {
+        for (auto& frame_packet_bytes : frame_packet_bytes_vector) {
             int cursor{5};
-            const int frame_id{copy_from_packet<int>(frame_packet, cursor)};
+            const int frame_id{copy_from_bytes<int>(frame_packet_bytes, cursor)};
 
             if (frame_id <= last_frame_id)
                 continue;
 
-            const int packet_index{copy_from_packet<int>(frame_packet, cursor)};
-            const int packet_count{copy_from_packet<int>(frame_packet, cursor)};
+            const int packet_index{copy_from_bytes<int>(frame_packet_bytes, cursor)};
+            const int packet_count{copy_from_bytes<int>(frame_packet_bytes, cursor)};
 
             // If there is a packet for a new frame, check the previous frames, and if
             // there is a frame with missing packets, try to create them using xor packets.
@@ -147,11 +153,11 @@ void run_receiver_thread(int sender_session_id,
 
                             uint8_t packet_type{1};
                             int cursor{0};
-                            copy_to_packet<int>(sender_session_id, fec_frame_packet, cursor);
-                            copy_to_packet<uint8_t>(packet_type, fec_frame_packet, cursor);
-                            copy_to_packet<int>(missing_frame_id, fec_frame_packet, cursor);
-                            copy_to_packet<int>(packet_index, fec_frame_packet, cursor);
-                            copy_to_packet<int>(packet_count, fec_frame_packet, cursor);
+                            copy_to_bytes<int>(sender_session_id, fec_frame_packet, cursor);
+                            copy_to_bytes<uint8_t>(packet_type, fec_frame_packet, cursor);
+                            copy_to_bytes<int>(missing_frame_id, fec_frame_packet, cursor);
+                            copy_to_bytes<int>(packet_index, fec_frame_packet, cursor);
+                            copy_to_bytes<int>(packet_count, fec_frame_packet, cursor);
 
                             memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, KH_MAX_VIDEO_PACKET_CONTENT_SIZE);
 
@@ -192,7 +198,7 @@ void run_receiver_thread(int sender_session_id,
             // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
             // which was for reacting to a packet for a new frame.
 
-            frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet));
+            frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet_bytes));
         }
 
         // Find all full collections and extract messages from them.
@@ -260,21 +266,18 @@ void receive_frames(std::string ip_address, int port)
         
         while (auto packet = receiver.receive(error)) {
             int cursor{0};
-            const int session_id{copy_from_packet<int>(*packet, cursor)};
-            const uint8_t packet_type{copy_from_packet<uint8_t>(*packet, cursor)};
+            const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
+            const uint8_t packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
             if (packet_type != KH_SENDER_INIT_PACKET) {
                 printf("A different kind of a packet received before an init packet: %d\n", packet_type);
                 continue;
             }
 
-            sender_session_id = session_id;
+            sender_session_id = session_id;;
 
-            //int color_width = copy_from_packet<int>(packet, cursor);
-            //int color_height = copy_from_packet<int>(packet, cursor);
-            cursor += 8;
-
-            depth_width = copy_from_packet<int>(*packet, cursor);
-            depth_height = copy_from_packet<int>(*packet, cursor);
+            const auto init_sender_packet_data{parse_init_sender_packet_bytes(*packet)};
+            depth_width = init_sender_packet_data.depth_width;
+            depth_height = init_sender_packet_data.depth_height;
 
             initialized = true;
             break;
@@ -308,44 +311,27 @@ void receive_frames(std::string ip_address, int port)
             frame_messages.insert({frame_message.frame_id(), frame_message});
         }
 
-        //std::sort(frame_messages.begin(), frame_messages.end(), [](const VideoMessage& lhs, const VideoMessage& rhs)
-        //{
-        //    return lhs.frame_id() < rhs.frame_id();
-        //});
-
         if (frame_messages.empty())
             continue;
 
-        //std::optional<int> begin_index;
-        //// If there is a key frame, use the most recent one.
-        //for (gsl::index i = frame_messages.size() - 1; i >= 0; --i) {
-        //    if (frame_messages[i].keyframe()) {
-        //        begin_index = i;
-        //        break;
-        //    }
-        //}
         std::optional<int> begin_frame_id;
         // If there is a key frame, use the most recent one.
         for (auto& frame_message_pair : frame_messages) {
+            if (frame_message_pair.first <= last_frame_id)
+                continue;
+
             if (frame_message_pair.second.keyframe())
                 begin_frame_id = frame_message_pair.first;
         }
 
-        // When there is no key frame, go through all the frames if the first
-        // FrameMessage is the one right after the previously rendered one.
-        //if (!begin_index) {
-        //    if (frame_messages[0].frame_id() == last_frame_id + 1) {
-        //        begin_index = 0;
-        //    } else {
-        //        // Wait for more frames if there is way to render without glitches.
-        //        continue;
-        //    }
-        //}
+        // When there is no key frame, go through all the frames to check
+        // if there is the one right after the previously rendered one.
         if (!begin_frame_id) {
             // If a frame message with frame_id == (last_frame_id + 1) is found
             if(frame_messages.find(last_frame_id + 1) != frame_messages.end()){
                 begin_frame_id = last_frame_id + 1;
             } else {
+                // Wait for more frames if there is way to render without glitches.
                 continue;
             }
         }
@@ -355,8 +341,6 @@ void receive_frames(std::string ip_address, int port)
         steady_clock::duration packet_collection_time;
 
         const auto decoder_start{steady_clock::now()};
-        //for (gsl::index i = *begin_index; i < frame_messages.size(); ++i) {
-        //    const auto frame_message_ptr{&frame_messages[i]};
         for (int i = *begin_frame_id; ; ++i) {
             // break loop is there is no frame with frame_id i.
             if (frame_messages.find(i) == frame_messages.end())

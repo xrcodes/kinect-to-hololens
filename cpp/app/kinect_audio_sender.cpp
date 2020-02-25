@@ -4,7 +4,7 @@
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
 #include "native/kh_sender_socket.h"
-#include "native/kh_packet_helper.h"
+#include "native/kh_packets.h"
 
 namespace kh
 {
