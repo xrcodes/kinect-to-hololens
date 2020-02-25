@@ -49,7 +49,7 @@ public class KinectToHololensManager : MonoBehaviour
     private TrvlDecoder depthDecoder;
     private TextureGroup textureGroup;
 
-    private List<FrameMessage> frameMessages;
+    private Dictionary<int, FrameMessage> frameMessages;
     private Stopwatch frameStopWatch;
 
     private InputState InputState
@@ -112,7 +112,7 @@ public class KinectToHololensManager : MonoBehaviour
         depthDecoder = null;
         textureGroup = null;
 
-        frameMessages = new List<FrameMessage>();
+        frameMessages = new Dictionary<int, FrameMessage>();
         frameStopWatch = Stopwatch.StartNew();
 
         // Prepare a GestureRecognizer to recognize taps.
@@ -566,34 +566,56 @@ public class KinectToHololensManager : MonoBehaviour
     {
         while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
         {
-            frameMessages.Add(frameMessage);
+            frameMessages.Add(frameMessage.FrameId, frameMessage);
         }
 
-        frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
+        //frameMessages.Sort((x, y) => x.FrameId.CompareTo(y.FrameId));
 
         if (frameMessages.Count == 0)
         {
             return;
         }
 
-        int? beginIndex = null;
-        // If there is a key frame, use the most recent one.
-        for (int i = frameMessages.Count - 1; i >= 0; --i)
+        //int? beginIndex = null;
+        //// If there is a key frame, use the most recent one.
+        //for (int i = frameMessages.Count - 1; i >= 0; --i)
+        //{
+        //    if (frameMessages[i].Keyframe)
+        //    {
+        //        beginIndex = i;
+        //        break;
+        //    }
+        //}
+        int? beginFrameId = null;
+        // Get the most recent keyframe.
+        foreach(var frameMessagePair in frameMessages)
         {
-            if (frameMessages[i].Keyframe)
+            if (frameMessagePair.Value.Keyframe)
             {
-                beginIndex = i;
+                beginFrameId = frameMessagePair.Key;
                 break;
             }
         }
 
         // When there is no key frame, go through all the frames if the first
         // FrameMessage is the one right after the previously rendered one.
-        if (!beginIndex.HasValue)
+        //if (!beginIndex.HasValue)
+        //{
+        //    if (frameMessages[0].FrameId == lastFrameId + 1)
+        //    {
+        //        beginIndex = 0;
+        //    }
+        //    else
+        //    {
+        //        // Wait for more frames if there is way to render without glitches.
+        //        return;
+        //    }
+        //}
+        if (!beginFrameId.HasValue)
         {
-            if (frameMessages[0].FrameId == lastFrameId + 1)
+            if(frameMessages.ContainsKey(lastFrameId + 1))
             {
-                beginIndex = 0;
+                beginFrameId = lastFrameId + 1;
             }
             else
             {
@@ -609,8 +631,15 @@ public class KinectToHololensManager : MonoBehaviour
         TimeSpan packetCollectionTime;
 
         var decoderStopWatch = Stopwatch.StartNew();
-        for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
+        //for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
+        //{
+        //    var frameMessage = frameMessages[i];
+        for (int i = beginFrameId.Value; ; ++i)
         {
+            if(!frameMessages.ContainsKey(i))
+            {
+                break;
+            }
             var frameMessage = frameMessages[i];
             lastFrameId = frameMessage.FrameId;
 
@@ -629,8 +658,8 @@ public class KinectToHololensManager : MonoBehaviour
         var frameTime = frameStopWatch.Elapsed;
         frameStopWatch = Stopwatch.StartNew();
 
-        print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
-              $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
+        //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
+        //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
         receiver.Send(lastFrameId, (float)packetCollectionTime.TotalMilliseconds, (float)decoderTime.TotalMilliseconds,
             (float)frameTime.TotalMilliseconds, summaryPacketCount);
@@ -644,6 +673,18 @@ public class KinectToHololensManager : MonoBehaviour
             PluginHelper.UpdateTextureGroup();
         }
 
-        frameMessages = new List<FrameMessage>();
+        // Remove frame messages before the rendered frame.
+        var frameMessageKeys = new List<int>();
+        foreach (int key in frameMessages.Keys)
+        {
+            frameMessageKeys.Add(key);
+        }
+        foreach (int key in frameMessageKeys)
+        {
+            if(key < lastFrameId)
+            {
+                frameMessages.Remove(key);
+            }
+        }
     }
 }
