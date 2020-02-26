@@ -6,20 +6,20 @@ public static class AzureKinectIntrinsicTransformation
     // Size of J should be 4.
     public static bool Project(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
     {
-        float cx = intrinsics.Cx;
-        float cy = intrinsics.Cy;
-        float fx = intrinsics.Fx;
-        float fy = intrinsics.Fy;
-        float k1 = intrinsics.K1;
-        float k2 = intrinsics.K2;
-        float k3 = intrinsics.K3;
-        float k4 = intrinsics.K4;
-        float k5 = intrinsics.K5;
-        float k6 = intrinsics.K6;
-        float codx = intrinsics.Codx;
-        float cody = intrinsics.Cody;
-        float p1 = intrinsics.P1;
-        float p2 = intrinsics.P2;
+        float cx = intrinsics.cx;
+        float cy = intrinsics.cy;
+        float fx = intrinsics.fx;
+        float fy = intrinsics.fy;
+        float k1 = intrinsics.k1;
+        float k2 = intrinsics.k2;
+        float k3 = intrinsics.k3;
+        float k4 = intrinsics.k4;
+        float k5 = intrinsics.k5;
+        float k6 = intrinsics.k6;
+        float codx = intrinsics.codx;
+        float cody = intrinsics.cody;
+        float p1 = intrinsics.p1;
+        float p2 = intrinsics.p2;
         float max_radius_for_projection = metricRadius;
 
         if (!((fx > 0.0f && fy > 0.0f)))
@@ -169,20 +169,20 @@ public static class AzureKinectIntrinsicTransformation
     // Size of uv and xy should be 2.
     public static bool Unproject(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid)
     {
-        float cx = intrinsics.Cx;
-        float cy = intrinsics.Cy;
-        float fx = intrinsics.Fx;
-        float fy = intrinsics.Fy;
-        float k1 = intrinsics.K1;
-        float k2 = intrinsics.K2;
-        float k3 = intrinsics.K3;
-        float k4 = intrinsics.K4;
-        float k5 = intrinsics.K5;
-        float k6 = intrinsics.K6;
-        float codx = intrinsics.Codx;
-        float cody = intrinsics.Cody;
-        float p1 = intrinsics.P1;
-        float p2 = intrinsics.P2;
+        float cx = intrinsics.cx;
+        float cy = intrinsics.cy;
+        float fx = intrinsics.fx;
+        float fy = intrinsics.fy;
+        float k1 = intrinsics.k1;
+        float k2 = intrinsics.k2;
+        float k3 = intrinsics.k3;
+        float k4 = intrinsics.k4;
+        float k5 = intrinsics.k5;
+        float k6 = intrinsics.k6;
+        float codx = intrinsics.codx;
+        float cody = intrinsics.cody;
+        float p1 = intrinsics.p1;
+        float p2 = intrinsics.p2;
 
         if (!(fx > 0.0f && fy > 0.0f))
         {

@@ -20,6 +20,8 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
     init_sender_packet_data.depth_width = calibration.depth_camera_calibration.resolution_width;
     init_sender_packet_data.depth_height = calibration.depth_camera_calibration.resolution_height;
     init_sender_packet_data.color_intrinsics = calibration.color_camera_calibration.intrinsics.parameters.param;
+    // color_camera_calibration.intrinsics.parameters.param includes metric radius, but actually it is zero.
+    // The real metric_radius value for calibration is at color_camera_calibration.metric_radius.
     init_sender_packet_data.color_metric_radius = calibration.color_camera_calibration.metric_radius;
     init_sender_packet_data.depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
     init_sender_packet_data.depth_metric_radius = calibration.depth_camera_calibration.metric_radius;

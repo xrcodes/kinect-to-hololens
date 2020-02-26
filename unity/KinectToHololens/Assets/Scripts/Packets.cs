@@ -24,55 +24,55 @@ public class InitSenderPacketData
         initSenderPacketData.depthHeight = reader.ReadInt32();
 
         var colorIntrinsics = new AzureKinectCalibration.Intrinsics();
-        colorIntrinsics.Cx = reader.ReadSingle();
-        colorIntrinsics.Cy = reader.ReadSingle();
-        colorIntrinsics.Fx = reader.ReadSingle();
-        colorIntrinsics.Fy = reader.ReadSingle();
-        colorIntrinsics.K1 = reader.ReadSingle();
-        colorIntrinsics.K2 = reader.ReadSingle();
-        colorIntrinsics.K3 = reader.ReadSingle();
-        colorIntrinsics.K4 = reader.ReadSingle();
-        colorIntrinsics.K5 = reader.ReadSingle();
-        colorIntrinsics.K6 = reader.ReadSingle();
-        colorIntrinsics.Codx = reader.ReadSingle();
-        colorIntrinsics.Cody = reader.ReadSingle();
-        colorIntrinsics.P2 = reader.ReadSingle();
-        colorIntrinsics.P1 = reader.ReadSingle();
-        colorIntrinsics.MetricRadius = reader.ReadSingle();
+        colorIntrinsics.cx = reader.ReadSingle();
+        colorIntrinsics.cy = reader.ReadSingle();
+        colorIntrinsics.fx = reader.ReadSingle();
+        colorIntrinsics.fy = reader.ReadSingle();
+        colorIntrinsics.k1 = reader.ReadSingle();
+        colorIntrinsics.k2 = reader.ReadSingle();
+        colorIntrinsics.k3 = reader.ReadSingle();
+        colorIntrinsics.k4 = reader.ReadSingle();
+        colorIntrinsics.k5 = reader.ReadSingle();
+        colorIntrinsics.k6 = reader.ReadSingle();
+        colorIntrinsics.codx = reader.ReadSingle();
+        colorIntrinsics.cody = reader.ReadSingle();
+        colorIntrinsics.p2 = reader.ReadSingle();
+        colorIntrinsics.p1 = reader.ReadSingle();
+        colorIntrinsics.metricRadius = reader.ReadSingle();
 
         initSenderPacketData.colorIntrinsics = colorIntrinsics;
 
         initSenderPacketData.colorMetricRadius = reader.ReadSingle();
 
-        UnityEngine.Debug.LogFormat($"color: {colorIntrinsics.MetricRadius} / {initSenderPacketData.colorMetricRadius}");
+        UnityEngine.Debug.LogFormat($"color: {colorIntrinsics.metricRadius} / {initSenderPacketData.colorMetricRadius}");
 
         var depthIntrinsics = new AzureKinectCalibration.Intrinsics();
-        depthIntrinsics.Cx = reader.ReadSingle();
-        depthIntrinsics.Cy = reader.ReadSingle();
-        depthIntrinsics.Fx = reader.ReadSingle();
-        depthIntrinsics.Fy = reader.ReadSingle();
-        depthIntrinsics.K1 = reader.ReadSingle();
-        depthIntrinsics.K2 = reader.ReadSingle();
-        depthIntrinsics.K3 = reader.ReadSingle();
-        depthIntrinsics.K4 = reader.ReadSingle();
-        depthIntrinsics.K5 = reader.ReadSingle();
-        depthIntrinsics.K6 = reader.ReadSingle();
-        depthIntrinsics.Codx = reader.ReadSingle();
-        depthIntrinsics.Cody = reader.ReadSingle();
-        depthIntrinsics.P2 = reader.ReadSingle();
-        depthIntrinsics.P1 = reader.ReadSingle();
-        depthIntrinsics.MetricRadius = reader.ReadSingle();
+        depthIntrinsics.cx = reader.ReadSingle();
+        depthIntrinsics.cy = reader.ReadSingle();
+        depthIntrinsics.fx = reader.ReadSingle();
+        depthIntrinsics.fy = reader.ReadSingle();
+        depthIntrinsics.k1 = reader.ReadSingle();
+        depthIntrinsics.k2 = reader.ReadSingle();
+        depthIntrinsics.k3 = reader.ReadSingle();
+        depthIntrinsics.k4 = reader.ReadSingle();
+        depthIntrinsics.k5 = reader.ReadSingle();
+        depthIntrinsics.k6 = reader.ReadSingle();
+        depthIntrinsics.codx = reader.ReadSingle();
+        depthIntrinsics.cody = reader.ReadSingle();
+        depthIntrinsics.p2 = reader.ReadSingle();
+        depthIntrinsics.p1 = reader.ReadSingle();
+        depthIntrinsics.metricRadius = reader.ReadSingle();
         initSenderPacketData.depthIntrinsics = depthIntrinsics;
 
         initSenderPacketData.depthMetricRadius = reader.ReadSingle();
 
-        UnityEngine.Debug.LogFormat($"depth: {depthIntrinsics.MetricRadius} / {initSenderPacketData.depthMetricRadius}");
+        UnityEngine.Debug.LogFormat($"depth: {depthIntrinsics.metricRadius} / {initSenderPacketData.depthMetricRadius}");
 
         var depthToColorExtrinsics = new AzureKinectCalibration.Extrinsics();
-        for (int i = 0; i < depthToColorExtrinsics.Rotation.Length; ++i)
-            depthToColorExtrinsics.Rotation[i] = reader.ReadSingle();
-        for (int i = 0; i < depthToColorExtrinsics.Translation.Length; ++i)
-            depthToColorExtrinsics.Translation[i] = reader.ReadSingle();
+        for (int i = 0; i < depthToColorExtrinsics.rotation.Length; ++i)
+            depthToColorExtrinsics.rotation[i] = reader.ReadSingle();
+        for (int i = 0; i < depthToColorExtrinsics.translation.Length; ++i)
+            depthToColorExtrinsics.translation[i] = reader.ReadSingle();
         initSenderPacketData.depthToColorExtrinsics = depthToColorExtrinsics;
 
         return initSenderPacketData;
