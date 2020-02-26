@@ -29,7 +29,7 @@ void run_receiver_thread(int sender_session_id,
     std::unordered_map<int, FecPacketCollection> fec_packet_collections;
     while (!stop_receiver_thread) {
         std::vector<std::vector<std::byte>> frame_packet_bytes_vector;
-        std::vector<std::vector<std::byte>> fec_packet_bytes_vector;
+        std::vector<FecSenderPacketData> fec_packet_data_vector;
 
         std::error_code error;
         while (auto packet{receiver.receive(error)}) {
@@ -44,7 +44,7 @@ void run_receiver_thread(int sender_session_id,
             if (packet_type == SenderPacketType::Video) {
                 frame_packet_bytes_vector.push_back(std::move(*packet));
             } else if (packet_type == SenderPacketType::Fec) {
-                fec_packet_bytes_vector.push_back(std::move(*packet));
+                fec_packet_data_vector.push_back(parse_fec_sender_packet_bytes(*packet));
             }
         }
 
@@ -55,10 +55,7 @@ void run_receiver_thread(int sender_session_id,
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
-        for (auto& fec_packet_bytes : fec_packet_bytes_vector) {
-            // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
-            const auto fec_sender_packet_data{parse_fec_sender_packet_bytes(fec_packet_bytes)};
-
+        for (auto& fec_sender_packet_data : fec_packet_data_vector) {
             if (fec_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
@@ -68,7 +65,7 @@ void run_receiver_thread(int sender_session_id,
                                                                    fec_sender_packet_data.packet_count}});
 
             fec_packet_collections.at(fec_sender_packet_data.frame_id)
-                                  .addPacket(fec_sender_packet_data.packet_index, std::move(fec_packet_bytes));
+                                  .addPacket(fec_sender_packet_data.packet_index, std::move(fec_sender_packet_data));
         }
 
         for (auto& frame_packet_bytes : frame_packet_bytes_vector) {
@@ -120,16 +117,16 @@ void run_receiver_thread(int sender_session_id,
 
                         for (int fec_packet_index : fec_packet_indices) {
                             // Try getting the XOR FEC packet for correction.
-                            const int fec_packet_index{fec_packet_index / FEC_MAX_GROUP_SIZE};
+                            const int xor_packet_index{fec_packet_index / FEC_MAX_GROUP_SIZE};
 
                             if (fec_packet_collections.find(missing_frame_id) == fec_packet_collections.end()) {
                                 fec_failed_packet_indices.push_back(fec_packet_index);
                                 continue;
                             }
 
-                            const auto fec_packet_ptr{fec_packet_collections.at(missing_frame_id).TryGetPacket(fec_packet_index)};
+                            const auto fec_packet_data{fec_packet_collections.at(missing_frame_id).TryGetPacket(xor_packet_index)};
                             // Give up if there is no xor packet yet.
-                            if (!fec_packet_ptr) {
+                            if (!fec_packet_data) {
                                 fec_failed_packet_indices.push_back(fec_packet_index);
                                 continue;
                             }
@@ -147,10 +144,10 @@ void run_receiver_thread(int sender_session_id,
                             copy_to_bytes(frame_sender_packet_data.packet_count, fec_frame_packet, cursor);
 
                             memcpy(fec_frame_packet.data() + cursor.position,
-                                   fec_packet_ptr->data() + cursor.position,
+                                   fec_packet_data->bytes.data(),
                                    KH_MAX_VIDEO_PACKET_CONTENT_SIZE);
 
-                            const int begin_frame_packet_index{fec_packet_index * FEC_MAX_GROUP_SIZE};
+                            const int begin_frame_packet_index{xor_packet_index * FEC_MAX_GROUP_SIZE};
                             const int end_frame_packet_index{std::min(begin_frame_packet_index + FEC_MAX_GROUP_SIZE,
                                                                       collection_pair.second.packet_count())};
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
