@@ -132,19 +132,25 @@ int main(std::string ip_address, int port)
             if (packet_it == packets.end())
                 break;
 
-            PacketCursor audio_packet_cursor{5};
-            int frame_id = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
+            auto audio_sender_packet_data{parse_audio_sender_packet_bytes(packet_it->second)};
+            //PacketCursor audio_packet_cursor{5};
+            //int frame_id = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
 
             int frame_size;
-            if (frame_id <= last_frame_id) {
+            if (audio_sender_packet_data.frame_id <= last_frame_id) {
                 // If a packet is about the past, throw it away and try again.
                 packet_it = packets.erase(packet_it);
                 continue;
-            } else if (frame_id == last_frame_id + 1) {
+            } else if (audio_sender_packet_data.frame_id == last_frame_id + 1) {
                 // When the packet for the next audio frame is found,
                 // use it and erase it.
-                int opus_frame_size = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
-                frame_size = opus_decode_float(opus_decoder, reinterpret_cast<unsigned char*>(packet_it->second.data()) + audio_packet_cursor.position, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
+                //int opus_frame_size = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
+                //frame_size = opus_decode_float(opus_decoder, reinterpret_cast<unsigned char*>(packet_it->second.data()) + audio_packet_cursor.position, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
+                frame_size = opus_decode_float(opus_decoder,
+                                               reinterpret_cast<unsigned char*>(audio_sender_packet_data.opus_frame.data()),
+                                               audio_sender_packet_data.opus_frame.size(),
+                                               out,
+                                               AUDIO_FRAME_SIZE, 0);
                 packet_it = packets.erase(packet_it);
             } else {
                 // If not, let opus know there is a packet loss.

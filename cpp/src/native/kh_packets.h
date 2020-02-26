@@ -9,14 +9,28 @@
 namespace kh
 {
 // Packet types.
-const uint8_t KH_SENDER_INIT_PACKET = 0;
-const uint8_t KH_SENDER_VIDEO_PACKET = 1;
-const uint8_t KH_SENDER_XOR_PACKET = 2;
-const uint8_t KH_SENDER_AUDIO_PACKET = 3;
+enum class SenderPacketType : std::uint8_t
+{
+    Init = 0,
+    Video = 1,
+    Fec = 2,
+    Audio = 3,
+};
+//const uint8_t KH_SENDER_INIT_PACKET = 0;
+//const uint8_t KH_SENDER_VIDEO_PACKET = 1;
+//const uint8_t KH_SENDER_XOR_PACKET = 2;
+//const uint8_t KH_SENDER_AUDIO_PACKET = 3;
 
-const uint8_t KH_RECEIVER_PING_PACKET = 0;
-const uint8_t KH_RECEIVER_REPORT_PACKET = 1;
-const uint8_t KH_RECEIVER_REQUEST_PACKET = 2;
+enum class ReceiverPacketType : std::uint8_t
+{
+    Ping = 0,
+    Report = 1,
+    Request = 2,
+};
+
+//const uint8_t KH_RECEIVER_PING_PACKET = 0;
+//const uint8_t KH_RECEIVER_REPORT_PACKET = 1;
+//const uint8_t KH_RECEIVER_REQUEST_PACKET = 2;
 
 const int KH_PACKET_SIZE = 1472;
 
@@ -84,6 +98,12 @@ struct FecSenderPacketData
     std::vector<std::byte> bytes;
 };
 
+struct AudioSenderPacketData
+{
+    int frame_id;
+    std::vector<std::byte> opus_frame;
+};
+
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 uint8_t get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
@@ -109,4 +129,7 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
                                                       gsl::span<const std::vector<std::byte>> frame_packet_bytes_vector);
 FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
+                                                        gsl::span<const std::byte> opus_frame);
+AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 }

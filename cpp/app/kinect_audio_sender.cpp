@@ -39,7 +39,9 @@ int main(int port)
     for (int i = 0; i < audio->getInputDeviceCount(); ++i) {
         auto device = audio->getInputDevice(i);
         if (!(device->is_raw())) {
-            if (strcmp(device->name(), "Microphone Array (Azure Kinect Microphone Array)") == 0) {
+            std::string device_name{device->name()};
+            //if (strcmp(device->name(), "Microphone Array (Azure Kinect Microphone Array)") == 0) {
+            if (device_name.find("Azure Kinect Microphone Array") != device_name.npos) {
                 in_device_index = i;
                 break;
             }
@@ -132,7 +134,13 @@ int main(int port)
                 return 1;
             }
 
-            sender.sendAudioPacket(0, frame_id++, opus_frame, opus_frame_size, error);
+            //sender.sendAudioPacket(0, frame_id++, opus_frame, opus_frame_size, error);
+            //sender.sendAudioPacket(0, frame_id++,
+            //                       gsl::span<std::byte>(reinterpret_cast<std::byte*>(opus_frame.data()), opus_frame_size),
+            //                       error);
+            const auto audio_sender_packet_bytes{create_audio_sender_packet_bytes(0, frame_id++,
+                                                                                  gsl::span<std::byte>(reinterpret_cast<std::byte*>(opus_frame.data()), opus_frame_size))};
+            sender.send(audio_sender_packet_bytes, error);
 
             cursor += FRAME_BYTE_SIZE;
             sent_byte_count += opus_frame_size;

@@ -37,7 +37,7 @@ std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSende
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(KH_SENDER_INIT_PACKET, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Init, packet_bytes, cursor);
     copy_to_bytes(init_sender_packet_data, packet_bytes, cursor);
 
     return packet_bytes;
@@ -96,7 +96,7 @@ std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int fram
     std::vector<std::byte> packet(KH_PACKET_SIZE);
     PacketCursor cursor;
     copy_to_bytes(session_id, packet, cursor);
-    copy_to_bytes(KH_SENDER_VIDEO_PACKET, packet, cursor);
+    copy_to_bytes(SenderPacketType::Video, packet, cursor);
     copy_to_bytes(frame_id, packet, cursor);
     copy_to_bytes(packet_index, packet, cursor);
     copy_to_bytes(packet_count, packet, cursor);
@@ -149,7 +149,7 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
     std::vector<std::byte> packet{video_packet_bytes_vector[0]};
     PacketCursor cursor;
     copy_to_bytes(session_id, packet, cursor);
-    copy_to_bytes(KH_SENDER_XOR_PACKET, packet, cursor);
+    copy_to_bytes(SenderPacketType::Fec, packet, cursor);
     copy_to_bytes(frame_id, packet, cursor);
     copy_to_bytes(packet_index, packet, cursor);
     copy_to_bytes(packet_count, packet, cursor);
@@ -177,5 +177,36 @@ FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> pac
            fec_sender_packet_data.bytes.size());
 
     return fec_sender_packet_data;
+}
+
+std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
+                                                        gsl::span<const std::byte> opus_frame)
+{
+    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
+                                                1 +
+                                                sizeof(frame_id) +
+                                                sizeof(int) +
+                                                opus_frame.size())};
+
+    std::vector<std::byte> packet(packet_size);
+    PacketCursor cursor;
+    copy_to_bytes(session_id, packet, cursor);
+    copy_to_bytes(SenderPacketType::Audio, packet, cursor);
+    copy_to_bytes(frame_id, packet, cursor);
+
+    memcpy(packet.data() + cursor.position, opus_frame.data(), opus_frame.size());
+
+    return packet;
+}
+
+AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
+{
+    PacketCursor cursor{5};
+    AudioSenderPacketData audio_sender_packet_data;
+    copy_from_bytes(audio_sender_packet_data.frame_id, packet_bytes, cursor);
+
+    memcpy(audio_sender_packet_data.opus_frame.data(), packet_bytes.data() + cursor.position, packet_bytes.size() - cursor.position);
+
+    return audio_sender_packet_data;
 }
 }

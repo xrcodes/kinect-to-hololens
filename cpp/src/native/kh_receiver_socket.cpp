@@ -18,7 +18,8 @@ ReceiverSocket::ReceiverSocket(asio::io_context& io_context, int receive_buffer_
 void ReceiverSocket::ping(std::string ip_address, int port)
 {
     remote_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
-    socket_.send_to(asio::buffer(&KH_RECEIVER_PING_PACKET, 1), remote_endpoint_);
+    auto ping_packet_type{ReceiverPacketType::Ping};
+    socket_.send_to(asio::buffer(&ping_packet_type, 1), remote_endpoint_);
 }
 
 std::optional<std::vector<std::byte>> ReceiverSocket::receive(std::error_code& error)
@@ -37,7 +38,7 @@ void ReceiverSocket::send(int frame_id, float packet_collection_time_ms, float d
                     float frame_time_ms, int packet_count, std::error_code& error)
 {
     std::vector<uint8_t> packet(21);
-    packet[0] = KH_RECEIVER_REPORT_PACKET;
+    packet[0] = static_cast<uint8_t>(ReceiverPacketType::Report);
     memcpy(packet.data() + 1, &frame_id, 4);
     memcpy(packet.data() + 5, &packet_collection_time_ms, 4);
     memcpy(packet.data() + 9, &decoder_time_ms, 4);
@@ -50,7 +51,8 @@ void ReceiverSocket::send(int frame_id, const std::vector<int>& missing_packet_i
 {
     std::vector<uint8_t> packet(1 + 4 + 4 + 4 * missing_packet_ids.size());
     int cursor = 0;
-    packet[cursor] = KH_RECEIVER_REQUEST_PACKET;
+    //packet[cursor] = KH_RECEIVER_REQUEST_PACKET;
+    packet[cursor] = static_cast<uint8_t>(ReceiverPacketType::Request);
     cursor += 1;
 
     memcpy(packet.data() + cursor, &frame_id, 4);

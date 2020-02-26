@@ -47,9 +47,9 @@ void run_video_sender_thread(int session_id,
                 }
             }
             PacketCursor cursor;
-            const uint8_t message_type{copy_from_bytes<uint8_t>(*received_packet, cursor)};
+            const auto message_type{copy_from_bytes<ReceiverPacketType>(*received_packet, cursor)};
 
-            if (message_type == KH_RECEIVER_REPORT_PACKET) {
+            if (message_type == ReceiverPacketType::Report) {
                 receiver_frame_id = copy_from_bytes<int>(*received_packet, cursor);
                 const float packet_collection_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
                 const float decoder_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
@@ -73,7 +73,7 @@ void run_video_sender_thread(int session_id,
 
                 ++video_sender_summary_receiver_frame_count;
                 video_sender_summary_receiver_packet_count += receiver_packet_count;
-            } else if (message_type == KH_RECEIVER_REQUEST_PACKET) {
+            } else if (message_type == ReceiverPacketType::Request) {
                 const int requested_frame_id{copy_from_bytes<int>(*received_packet, cursor)};
                 const int missing_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
 
@@ -83,7 +83,7 @@ void run_video_sender_thread(int session_id,
                     if (video_packet_sets.find(requested_frame_id) == video_packet_sets.end())
                         continue;
 
-                    sender_socket.sendPacket(video_packet_sets[requested_frame_id].second[missing_packet_index], error);
+                    sender_socket.send(video_packet_sets[requested_frame_id].second[missing_packet_index], error);
                     if (error == asio::error::would_block) {
                         printf("Failed to fill in a packet as the buffer was full...\n");
                     } else if (error) {
@@ -104,7 +104,7 @@ void run_video_sender_thread(int session_id,
             video_frame_send_times.insert({video_packet_set.first, steady_clock::now()});
             for (auto packet : video_packet_set.second) {
                 std::error_code error;
-                sender_socket.sendPacket(packet, error);
+                sender_socket.send(packet, error);
 
                 if (error == asio::error::would_block) {
                     printf("Failed to send a frame packet as the buffer was full...\n");
@@ -118,7 +118,7 @@ void run_video_sender_thread(int session_id,
 
             for (auto packet : xor_packets) {
                 std::error_code error;
-                sender_socket.sendPacket(packet, error);
+                sender_socket.send(packet, error);
 
                 if (error == asio::error::would_block) {
                     printf("Failed to send an xor packet as the buffer was full...\n");
@@ -222,7 +222,9 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
             break;
 
         if (receiver_frame_id == -1) {
-            sender_socket.sendInitPacket(session_id, calibration, error);
+            const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
+            //sender_socket.sendInitPacket(session_id, calibration, error);
+            sender_socket.send(init_packet_bytes, error);
             if (error) {
                 printf("Error sending init packet: %s\n", error.message().c_str());
                 return;

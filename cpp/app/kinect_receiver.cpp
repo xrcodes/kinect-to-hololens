@@ -42,14 +42,14 @@ void run_receiver_thread(int sender_session_id,
             //const int session_id{copy_from_packet<int>(*packet, cursor)};
             //const uint8_t packet_type{copy_from_packet<uint8_t>(*packet, cursor)};
             const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
-            const uint8_t packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
+            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
 
             if (session_id != sender_session_id)
                 continue;
 
-            if (packet_type == KH_SENDER_VIDEO_PACKET) {
+            if (packet_type == SenderPacketType::Video) {
                 frame_packet_bytes_vector.push_back(std::move(*packet));
-            } else if (packet_type == KH_SENDER_XOR_PACKET) {
+            } else if (packet_type == SenderPacketType::Fec) {
                 xor_packet_bytes_vector.push_back(std::move(*packet));
             }
         }
@@ -154,7 +154,7 @@ void run_receiver_thread(int sender_session_id,
 
                             std::vector<std::byte> fec_frame_packet(KH_PACKET_SIZE);
 
-                            uint8_t packet_type{KH_SENDER_VIDEO_PACKET};
+                            auto packet_type{SenderPacketType::Video};
                             PacketCursor cursor;
                             copy_to_bytes(sender_session_id, fec_frame_packet, cursor);
                             copy_to_bytes(packet_type, fec_frame_packet, cursor);
@@ -273,8 +273,8 @@ void receive_frames(std::string ip_address, int port)
         while (auto packet = receiver.receive(error)) {
             int cursor{0};
             const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
-            const uint8_t packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
-            if (packet_type != KH_SENDER_INIT_PACKET) {
+            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
+            if (packet_type != SenderPacketType::Init) {
                 printf("A different kind of a packet received before an init packet: %d\n", packet_type);
                 continue;
             }
