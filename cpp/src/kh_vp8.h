@@ -4,6 +4,12 @@
 #include <vpx/vp8cx.h>
 #include <vpx/vpx_codec.h>
 #include <gsl/gsl>
+
+extern "C"
+{
+#include <libavcodec/avcodec.h>
+}
+
 #include "kh_core.h"
 
 namespace kh

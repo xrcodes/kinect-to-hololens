@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <gsl/span>
+#include <gsl/gsl>
 
 // This algorithm is from
 // Wilson, A. D. (2017, October). Fast lossless depth image compression.

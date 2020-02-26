@@ -1,7 +1,5 @@
 #include "kh_rvl.h"
 
-#include <vector>
-
 // Code inside namespace wilson is from the RVL paper (Wilson, 2017).
 // The code has been modified to be thread-safe (i.e. removed global variables).
 namespace wilson

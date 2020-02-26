@@ -120,7 +120,7 @@ struct RequestReceiverPacketData
 };
 
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-uint8_t get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
@@ -148,10 +148,14 @@ std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int fram
                                                         gsl::span<const std::byte> opus_frame);
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
                                                             float frame_time_ms, int packet_count);
 std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverPacketData& report_receiver_packet_data);
+ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 RequestReceiverPacketData create_request_receiver_packet_data(int frame_id, const std::vector<int>& packet_indices);
 std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceiverPacketData& request_receiver_packet_data);
+RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 }

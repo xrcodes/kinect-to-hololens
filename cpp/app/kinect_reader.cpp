@@ -5,6 +5,11 @@
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 
+extern "C"
+{
+#include <libavcodec/avcodec.h>
+}
+
 namespace kh
 {
 void display_frames()

@@ -46,21 +46,30 @@ void run_video_sender_thread(int session_id,
                     goto run_video_sender_thread_end;
                 }
             }
-            PacketCursor cursor;
-            const auto message_type{copy_from_bytes<ReceiverPacketType>(*received_packet, cursor)};
+            //PacketCursor cursor;
+            //const auto message_type{copy_from_bytes<ReceiverPacketType>(*received_packet, cursor)};
+
+            const auto message_type{get_packet_type_from_receiver_packet_bytes(*received_packet)};
+            PacketCursor cursor{1};
 
             if (message_type == ReceiverPacketType::Report) {
-                receiver_frame_id = copy_from_bytes<int>(*received_packet, cursor);
-                const float packet_collection_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
-                const float decoder_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
-                const float frame_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
-                const int receiver_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
+                //receiver_frame_id = copy_from_bytes<int>(*received_packet, cursor);
+                //const float packet_collection_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
+                //const float decoder_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
+                //const float frame_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
+                //const int receiver_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
+
+                const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
+                receiver_frame_id = report_receiver_packet_data.frame_id;
 
                 const duration<double> round_trip_time{steady_clock::now() - video_frame_send_times[receiver_frame_id]};
 
                 printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
-                        receiver_frame_id, packet_collection_time_ms, decoder_time_ms, frame_time_ms,
-                        round_trip_time.count() * 1000.0f);
+                       receiver_frame_id,
+                       report_receiver_packet_data.packet_collection_time_ms,
+                       report_receiver_packet_data.decoder_time_ms,
+                       report_receiver_packet_data.frame_time_ms,
+                       round_trip_time.count() * 1000.0f);
 
                 std::vector<int> obsolete_frame_ids;
                 for (auto& frame_send_time_pair : video_frame_send_times) {
@@ -72,18 +81,20 @@ void run_video_sender_thread(int session_id,
                     video_frame_send_times.erase(obsolete_frame_id);
 
                 ++video_sender_summary_receiver_frame_count;
-                video_sender_summary_receiver_packet_count += receiver_packet_count;
+                video_sender_summary_receiver_packet_count += report_receiver_packet_data.packet_count;
             } else if (message_type == ReceiverPacketType::Request) {
-                const int requested_frame_id{copy_from_bytes<int>(*received_packet, cursor)};
-                const int missing_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
+                //const int requested_frame_id{copy_from_bytes<int>(*received_packet, cursor)};
+                //const int missing_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
 
-                for (int i = 0; i < missing_packet_count; ++i) {
+                const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
+
+                for (int i = 0; i < request_receiver_packet_data.packet_indices.size(); ++i) {
                     int missing_packet_index = copy_from_bytes<int>(*received_packet, cursor);
 
-                    if (video_packet_sets.find(requested_frame_id) == video_packet_sets.end())
+                    if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
                         continue;
 
-                    sender_socket.send(video_packet_sets[requested_frame_id].second[missing_packet_index], error);
+                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[missing_packet_index], error);
                     if (error == asio::error::would_block) {
                         printf("Failed to fill in a packet as the buffer was full...\n");
                     } else if (error) {

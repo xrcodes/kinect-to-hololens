@@ -8,10 +8,10 @@ int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_by
     return copy_from_bytes<int>(packet_bytes, cursor);
 }
 
-uint8_t get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
+SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
     PacketCursor cursor{4};
-    return copy_from_bytes<uint8_t>(packet_bytes, cursor);
+    return copy_from_bytes<SenderPacketType>(packet_bytes, cursor);
 }
 
 InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration)
@@ -210,6 +210,12 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
     return audio_sender_packet_data;
 }
 
+ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
+{
+    PacketCursor cursor;
+    return copy_from_bytes<ReceiverPacketType>(packet_bytes, cursor);
+}
+
 ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
                                                             float frame_time_ms, int packet_count)
 {
@@ -233,6 +239,12 @@ std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverP
     copy_to_bytes(report_receiver_packet_data, packet_bytes, cursor);
 
     return packet_bytes;
+}
+
+ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
+{
+    PacketCursor cursor{1};
+    return copy_from_bytes<ReportReceiverPacketData>(packet_bytes, cursor);
 }
 
 RequestReceiverPacketData create_request_receiver_packet_data(int frame_id, const std::vector<int>& packet_indices)
@@ -261,5 +273,11 @@ std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceive
         copy_to_bytes(index, packet_bytes, cursor);
 
     return packet_bytes;
+}
+
+RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
+{
+    PacketCursor cursor{1};
+    return copy_from_bytes<RequestReceiverPacketData>(packet_bytes, cursor);
 }
 }

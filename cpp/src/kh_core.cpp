@@ -1,7 +1,5 @@
 #include "kh_core.h"
 
-#include "kh_rvl.h"
-
 namespace kh
 {
 YuvImage createYuvImageFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)
