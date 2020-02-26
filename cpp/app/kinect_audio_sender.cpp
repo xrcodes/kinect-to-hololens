@@ -134,10 +134,6 @@ int main(int port)
                 return 1;
             }
 
-            //sender.sendAudioPacket(0, frame_id++, opus_frame, opus_frame_size, error);
-            //sender.sendAudioPacket(0, frame_id++,
-            //                       gsl::span<std::byte>(reinterpret_cast<std::byte*>(opus_frame.data()), opus_frame_size),
-            //                       error);
             const auto audio_sender_packet_bytes{create_audio_sender_packet_bytes(0, frame_id++,
                                                                                   gsl::span<std::byte>(reinterpret_cast<std::byte*>(opus_frame.data()), opus_frame_size))};
             sender.send(audio_sender_packet_bytes, error);

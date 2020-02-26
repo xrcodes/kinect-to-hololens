@@ -6,26 +6,17 @@
 namespace kh
 {
 ReceiverSocket::ReceiverSocket(asio::io_context& io_context, int receive_buffer_size)
-    : socket_(io_context), remote_endpoint_()
+    : socket_{io_context}, remote_endpoint_{}
 {
     socket_.open(asio::ip::udp::v4());
     socket_.non_blocking(true);
-    asio::socket_base::receive_buffer_size option(receive_buffer_size);
-    socket_.set_option(option);
-}
-
-// Connects to a Sender with the Sender's IP address and port.
-void ReceiverSocket::ping(std::string ip_address, int port)
-{
-    remote_endpoint_ = asio::ip::udp::endpoint(asio::ip::address::from_string(ip_address), port);
-    auto ping_packet_type{ReceiverPacketType::Ping};
-    socket_.send_to(asio::buffer(&ping_packet_type, 1), remote_endpoint_);
+    socket_.set_option(asio::socket_base::receive_buffer_size{receive_buffer_size});
 }
 
 std::optional<std::vector<std::byte>> ReceiverSocket::receive(std::error_code& error)
 {
     std::vector<std::byte> packet(KH_PACKET_SIZE);
-    size_t packet_size = socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error);
+    size_t packet_size{socket_.receive_from(asio::buffer(packet), remote_endpoint_, 0, error)};
 
     if (error)
         return std::nullopt;
@@ -34,39 +25,30 @@ std::optional<std::vector<std::byte>> ReceiverSocket::receive(std::error_code& e
     return packet;
 }
 
-void ReceiverSocket::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
-                    float frame_time_ms, int packet_count, std::error_code& error)
+// Connects to a Sender with the Sender's IP address and port.
+void ReceiverSocket::ping(std::string ip_address, unsigned short port)
 {
-    std::vector<uint8_t> packet(21);
-    packet[0] = static_cast<uint8_t>(ReceiverPacketType::Report);
-    memcpy(packet.data() + 1, &frame_id, 4);
-    memcpy(packet.data() + 5, &packet_collection_time_ms, 4);
-    memcpy(packet.data() + 9, &decoder_time_ms, 4);
-    memcpy(packet.data() + 13, &frame_time_ms, 4);
-    memcpy(packet.data() + 17, &packet_count, 4);
-    socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
+    remote_endpoint_ = asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), port};
+    auto packet_type{ReceiverPacketType::Ping};
+    socket_.send_to(asio::buffer(&packet_type, 1), remote_endpoint_);
 }
 
-void ReceiverSocket::send(int frame_id, const std::vector<int>& missing_packet_ids, std::error_code& error)
+void ReceiverSocket::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+                          float frame_time_ms, int packet_count, std::error_code& error)
 {
-    std::vector<uint8_t> packet(1 + 4 + 4 + 4 * missing_packet_ids.size());
-    int cursor = 0;
-    //packet[cursor] = KH_RECEIVER_REQUEST_PACKET;
-    packet[cursor] = static_cast<uint8_t>(ReceiverPacketType::Request);
-    cursor += 1;
+    const auto report_receiver_packet_data{create_report_receiver_packet_data(frame_id, packet_collection_time_ms,
+                                                                              decoder_time_ms, frame_time_ms,
+                                                                              packet_count)};
+    const auto packet_bytes{create_report_receiver_packet_bytes(report_receiver_packet_data)};
 
-    memcpy(packet.data() + cursor, &frame_id, 4);
-    cursor += 4;
-    
-    int missing_packet_count = missing_packet_ids.size();
-    memcpy(packet.data() + cursor, &missing_packet_count, 4);
-    cursor += 4;
+    socket_.send_to(asio::buffer(packet_bytes), remote_endpoint_, 0, error);
+}
 
-    for (int i = 0; i < missing_packet_ids.size(); ++i) {
-        memcpy(packet.data() + cursor, &missing_packet_ids[i], 4);
-        cursor += 4;
-    }
+void ReceiverSocket::send(int frame_id, const std::vector<int>& missing_packet_indices, std::error_code& error)
+{
+    const auto request_receiver_packet_data{create_request_receiver_packet_data(frame_id, missing_packet_indices)};
+    const auto packet_bytes{create_request_receiver_packet_bytes(request_receiver_packet_data)};
 
-    socket_.send_to(asio::buffer(packet), remote_endpoint_, 0, error);
+    socket_.send_to(asio::buffer(packet_bytes), remote_endpoint_, 0, error);
 }
 }

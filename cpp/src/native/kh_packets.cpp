@@ -30,9 +30,9 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
     return init_sender_packet_data;
 }
 
-std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSenderPacketData init_sender_packet_data)
+std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data)
 {
-    const int packet_size{gsl::narrow_cast<uint32_t>(sizeof(session_id) + 1 + sizeof(init_sender_packet_data))};
+    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) + 1 + sizeof(init_sender_packet_data))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
@@ -55,21 +55,21 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
 {
     const int message_size{gsl::narrow_cast<int>(4 + 1 + 4 + color_encoder_frame.size() + 4 + depth_encoder_frame.size())};
 
-    std::vector<std::byte> message(message_size);
+    std::vector<std::byte> message_bytes(message_size);
     PacketCursor cursor;
 
-    copy_to_bytes(frame_time_stamp, message, cursor);
-    copy_to_bytes(keyframe, message, cursor);
-    copy_to_bytes(gsl::narrow_cast<int>(color_encoder_frame.size()), message, cursor);
+    copy_to_bytes(frame_time_stamp, message_bytes, cursor);
+    copy_to_bytes(keyframe, message_bytes, cursor);
+    copy_to_bytes(gsl::narrow_cast<int>(color_encoder_frame.size()), message_bytes, cursor);
 
-    memcpy(message.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
+    memcpy(message_bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
     cursor.position += color_encoder_frame.size();
 
-    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message, cursor);
+    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
 
-    memcpy(message.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
+    memcpy(message_bytes.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
 
-    return message;
+    return message_bytes;
 }
 
 std::vector<std::vector<std::byte>> split_video_sender_message_bytes(int session_id, int frame_id,
@@ -93,16 +93,16 @@ std::vector<std::vector<std::byte>> split_video_sender_message_bytes(int session
 std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                         gsl::span<const std::byte> packet_content)
 {
-    std::vector<std::byte> packet(KH_PACKET_SIZE);
+    std::vector<std::byte> packet_bytes(KH_PACKET_SIZE);
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet, cursor);
-    copy_to_bytes(SenderPacketType::Video, packet, cursor);
-    copy_to_bytes(frame_id, packet, cursor);
-    copy_to_bytes(packet_index, packet, cursor);
-    copy_to_bytes(packet_count, packet, cursor);
-    memcpy(packet.data() + cursor.position, packet_content.data(), packet_content.size());
+    copy_to_bytes(session_id, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Video, packet_bytes, cursor);
+    copy_to_bytes(frame_id, packet_bytes, cursor);
+    copy_to_bytes(packet_index, packet_bytes, cursor);
+    copy_to_bytes(packet_count, packet_bytes, cursor);
+    memcpy(packet_bytes.data() + cursor.position, packet_content.data(), packet_content.size());
 
-    return packet;
+    return packet_bytes;
 }
 
 VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -146,21 +146,21 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
 {
     // Copy packets[begin_index] instead of filling in everything zero
     // to reduce an XOR operation for contents once.
-    std::vector<std::byte> packet{video_packet_bytes_vector[0]};
+    std::vector<std::byte> packet_bytes{video_packet_bytes_vector[0]};
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet, cursor);
-    copy_to_bytes(SenderPacketType::Fec, packet, cursor);
-    copy_to_bytes(frame_id, packet, cursor);
-    copy_to_bytes(packet_index, packet, cursor);
-    copy_to_bytes(packet_count, packet, cursor);
+    copy_to_bytes(session_id, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Fec, packet_bytes, cursor);
+    copy_to_bytes(frame_id, packet_bytes, cursor);
+    copy_to_bytes(packet_index, packet_bytes, cursor);
+    copy_to_bytes(packet_count, packet_bytes, cursor);
 
     for (gsl::index i{1}; i < video_packet_bytes_vector.size(); ++i) {
         for (gsl::index j{KH_VIDEO_PACKET_HEADER_SIZE}; j < KH_PACKET_SIZE; ++j) {
-            packet[j] ^= video_packet_bytes_vector[i][j];
+            packet_bytes[j] ^= video_packet_bytes_vector[i][j];
         }
     }
 
-    return packet;
+    return packet_bytes;
 }
 
 FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -188,15 +188,15 @@ std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int fram
                                                 sizeof(int) +
                                                 opus_frame.size())};
 
-    std::vector<std::byte> packet(packet_size);
+    std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet, cursor);
-    copy_to_bytes(SenderPacketType::Audio, packet, cursor);
-    copy_to_bytes(frame_id, packet, cursor);
+    copy_to_bytes(session_id, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Audio, packet_bytes, cursor);
+    copy_to_bytes(frame_id, packet_bytes, cursor);
 
-    memcpy(packet.data() + cursor.position, opus_frame.data(), opus_frame.size());
+    memcpy(packet_bytes.data() + cursor.position, opus_frame.data(), opus_frame.size());
 
-    return packet;
+    return packet_bytes;
 }
 
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -208,5 +208,58 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
     memcpy(audio_sender_packet_data.opus_frame.data(), packet_bytes.data() + cursor.position, packet_bytes.size() - cursor.position);
 
     return audio_sender_packet_data;
+}
+
+ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+                                                            float frame_time_ms, int packet_count)
+{
+    ReportReceiverPacketData report_receiver_packet_data;
+    report_receiver_packet_data.frame_id = frame_id;
+    report_receiver_packet_data.packet_collection_time_ms = packet_collection_time_ms;
+    report_receiver_packet_data.decoder_time_ms = decoder_time_ms;
+    report_receiver_packet_data.frame_time_ms = frame_time_ms;
+    report_receiver_packet_data.packet_count = packet_count;
+
+    return report_receiver_packet_data;
+}
+
+std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverPacketData& report_receiver_packet_data)
+{
+    const int packet_size{gsl::narrow_cast<int>(1 + sizeof(report_receiver_packet_data))};
+
+    std::vector<std::byte> packet_bytes(packet_size);
+    PacketCursor cursor;
+    copy_to_bytes(ReceiverPacketType::Report, packet_bytes, cursor);
+    copy_to_bytes(report_receiver_packet_data, packet_bytes, cursor);
+
+    return packet_bytes;
+}
+
+RequestReceiverPacketData create_request_receiver_packet_data(int frame_id, const std::vector<int>& packet_indices)
+{
+    RequestReceiverPacketData request_receiver_packet_data;
+    request_receiver_packet_data.frame_id = frame_id;
+    request_receiver_packet_data.packet_indices = packet_indices;
+
+    return request_receiver_packet_data;
+}
+
+std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceiverPacketData& request_receiver_packet_data)
+{
+    const int packet_size(1 +
+                          sizeof(request_receiver_packet_data.frame_id) +
+                          sizeof(request_receiver_packet_data.packet_indices.size()) +
+                          sizeof(int) * request_receiver_packet_data.packet_indices.size());
+
+    std::vector<std::byte> packet_bytes(packet_size);
+    PacketCursor cursor;
+    copy_to_bytes(ReceiverPacketType::Request, packet_bytes, cursor);
+    copy_to_bytes(request_receiver_packet_data.frame_id, packet_bytes, cursor);
+    copy_to_bytes(request_receiver_packet_data.packet_indices.size(), packet_bytes, cursor);
+
+    for (auto index : request_receiver_packet_data.packet_indices)
+        copy_to_bytes(index, packet_bytes, cursor);
+
+    return packet_bytes;
 }
 }
