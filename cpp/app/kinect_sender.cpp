@@ -46,7 +46,7 @@ void run_video_sender_thread(int session_id,
                     goto run_video_sender_thread_end;
                 }
             }
-            int cursor = 0;
+            PacketCursor cursor;
             const uint8_t message_type{copy_from_bytes<uint8_t>(*received_packet, cursor)};
 
             if (message_type == KH_RECEIVER_REPORT_PACKET) {
@@ -274,9 +274,9 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 
         const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
         //const auto message{SenderSocket::createFrameMessage(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
-        const auto message{create_frame_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
+        const auto message{create_video_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
         //auto packets{SenderSocket::createFramePackets(session_id, video_frame_id, message)};
-        auto packets{split_frame_sender_message_bytes(session_id, video_frame_id, message)};
+        auto packets{split_video_sender_message_bytes(session_id, video_frame_id, message)};
         video_packet_queue.enqueue({video_frame_id, std::move(packets)});
 
         // Updating variables for profiling.

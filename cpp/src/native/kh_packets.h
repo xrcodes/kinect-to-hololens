@@ -34,21 +34,21 @@ struct PacketCursor
 };
 
 template<class T>
-void copy_to_bytes(const T& t, gsl::span<std::byte> bytes, int& cursor)
+void copy_to_bytes(const T& t, gsl::span<std::byte> bytes, PacketCursor& cursor)
 {
-    memcpy(&bytes[cursor], &t, sizeof(T));
-    cursor += sizeof(T);
+    memcpy(&bytes[cursor.position], &t, sizeof(T));
+    cursor.position += sizeof(T);
 }
 
 template<class T>
-void copy_from_bytes(T& t, gsl::span<const std::byte> bytes, int& cursor)
+void copy_from_bytes(T& t, gsl::span<const std::byte> bytes, PacketCursor& cursor)
 {
-    memcpy(&t, &bytes[cursor], sizeof(T));
-    cursor += sizeof(T);
+    memcpy(&t, &bytes[cursor.position], sizeof(T));
+    cursor.position += sizeof(T);
 }
 
 template<class T>
-T copy_from_bytes(gsl::span<const std::byte> bytes, int& cursor)
+T copy_from_bytes(gsl::span<const std::byte> bytes, PacketCursor& cursor)
 {
     T t;
     copy_from_bytes(t, bytes, cursor);
@@ -68,12 +68,20 @@ struct InitSenderPacketData
     k4a_calibration_extrinsics_t depth_to_color_extrinsics;
 };
 
-struct FecSenderPacketData
+struct VideoSenderPacketData
 {
     int frame_id;
     int packet_index;
     int packet_count;
     std::vector<std::byte> message_data;
+};
+
+struct FecSenderPacketData
+{
+    int frame_id;
+    int packet_index;
+    int packet_count;
+    std::vector<std::byte> bytes;
 };
 
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
@@ -83,13 +91,15 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, InitSenderPacketData init_sender_packet_data);
 InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-std::vector<std::byte> create_frame_sender_message_bytes(float frame_time_stamp, bool keyframe,
+std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
                                                          gsl::span<const std::byte> color_encoder_frame,
                                                          gsl::span<const std::byte> depth_encoder_frame);
-std::vector<std::vector<std::byte>> split_frame_sender_message_bytes(int session_id, int frame_id,
+std::vector<std::vector<std::byte>> split_video_sender_message_bytes(int session_id, int frame_id,
                                                                      gsl::span<const std::byte> frame_message);
-std::vector<std::byte> create_frame_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
+std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                         gsl::span<const std::byte> packet_content);
+VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.

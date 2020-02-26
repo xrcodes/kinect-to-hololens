@@ -83,27 +83,30 @@ void run_receiver_thread(int sender_session_id,
         }
 
         for (auto& frame_packet_bytes : frame_packet_bytes_vector) {
-            int cursor{5};
-            const int frame_id{copy_from_bytes<int>(frame_packet_bytes, cursor)};
+            //PacketCursor cursor{5};
+            //const int frame_id{copy_from_bytes<int>(frame_packet_bytes, cursor)};
+            const auto frame_sender_packet_data{parse_fec_sender_packet_bytes(frame_packet_bytes)};
 
-            if (frame_id <= last_frame_id)
+            if (frame_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
-            const int packet_index{copy_from_bytes<int>(frame_packet_bytes, cursor)};
-            const int packet_count{copy_from_bytes<int>(frame_packet_bytes, cursor)};
+            //const int packet_index{copy_from_bytes<int>(frame_packet_bytes, cursor)};
+            //const int packet_count{copy_from_bytes<int>(frame_packet_bytes, cursor)};
 
             // If there is a packet for a new frame, check the previous frames, and if
             // there is a frame with missing packets, try to create them using xor packets.
             // If using the xor packets fails, request the sender to retransmit the packets.
-            if (frame_packet_collections.find(frame_id) == frame_packet_collections.end()) {
-                frame_packet_collections.insert({ frame_id, VideoPacketCollection(frame_id, packet_count) });
+            if (frame_packet_collections.find(frame_sender_packet_data.frame_id) == frame_packet_collections.end()) {
+                frame_packet_collections.insert({frame_sender_packet_data.frame_id,
+                                                 VideoPacketCollection(frame_sender_packet_data.frame_id,
+                                                                       frame_sender_packet_data.packet_count)});
 
                 ///////////////////////////////////
                 // Forward Error Correction Start//
                 ///////////////////////////////////
                 // Request missing packets of the previous frames.
                 for (auto& collection_pair : frame_packet_collections) {
-                    if (collection_pair.first < frame_id) {
+                    if (collection_pair.first < frame_sender_packet_data.frame_id) {
                         const int missing_frame_id{collection_pair.first};
                         const auto missing_packet_indices{collection_pair.second.getMissingPacketIndices()};
 
@@ -151,15 +154,17 @@ void run_receiver_thread(int sender_session_id,
 
                             std::vector<std::byte> fec_frame_packet(KH_PACKET_SIZE);
 
-                            uint8_t packet_type{1};
-                            int cursor{0};
-                            copy_to_bytes<int>(sender_session_id, fec_frame_packet, cursor);
-                            copy_to_bytes<uint8_t>(packet_type, fec_frame_packet, cursor);
-                            copy_to_bytes<int>(missing_frame_id, fec_frame_packet, cursor);
-                            copy_to_bytes<int>(packet_index, fec_frame_packet, cursor);
-                            copy_to_bytes<int>(packet_count, fec_frame_packet, cursor);
+                            uint8_t packet_type{KH_SENDER_VIDEO_PACKET};
+                            PacketCursor cursor;
+                            copy_to_bytes(sender_session_id, fec_frame_packet, cursor);
+                            copy_to_bytes(packet_type, fec_frame_packet, cursor);
+                            copy_to_bytes(missing_frame_id, fec_frame_packet, cursor);
+                            copy_to_bytes(frame_sender_packet_data.packet_index, fec_frame_packet, cursor);
+                            copy_to_bytes(frame_sender_packet_data.packet_count, fec_frame_packet, cursor);
 
-                            memcpy(fec_frame_packet.data() + cursor, xor_packet_ptr->data() + cursor, KH_MAX_VIDEO_PACKET_CONTENT_SIZE);
+                            memcpy(fec_frame_packet.data() + cursor.position,
+                                   xor_packet_ptr->data() + cursor.position,
+                                   KH_MAX_VIDEO_PACKET_CONTENT_SIZE);
 
                             const int begin_frame_packet_index{xor_packet_index * XOR_MAX_GROUP_SIZE};
                             const int end_frame_packet_index{std::min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE,
@@ -198,7 +203,8 @@ void run_receiver_thread(int sender_session_id,
             // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
             // which was for reacting to a packet for a new frame.
 
-            frame_packet_collections.at(frame_id).addPacket(packet_index, std::move(frame_packet_bytes));
+            frame_packet_collections.at(frame_sender_packet_data.frame_id)
+                                    .addPacket(frame_sender_packet_data.packet_index, std::move(frame_packet_bytes));
         }
 
         // Find all full collections and extract messages from them.
@@ -295,9 +301,13 @@ void receive_frames(std::string ip_address, int port)
     moodycamel::ReaderWriterQueue<VideoMessage> frame_message_queue;
     int last_frame_id{-1};
     int summary_packet_count{0};
-    std::thread receiver_thread(run_receiver_thread, sender_session_id, std::ref(stop_receiver_thread),
-                                std::ref(receiver), std::ref(frame_message_queue),
-                                std::ref(last_frame_id), std::ref(summary_packet_count));
+    //std::thread receiver_thread(run_receiver_thread, sender_session_id, std::ref(stop_receiver_thread),
+    //                            std::ref(receiver), std::ref(frame_message_queue),
+    //                            std::ref(last_frame_id), std::ref(summary_packet_count));
+    std::thread receiver_thread([&] {
+        run_receiver_thread(sender_session_id, stop_receiver_thread, receiver, frame_message_queue,
+                            last_frame_id, summary_packet_count);
+    });
 
     Vp8Decoder color_decoder;
     TrvlDecoder depth_decoder{depth_width * depth_height};

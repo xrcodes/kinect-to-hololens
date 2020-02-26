@@ -566,6 +566,11 @@ public class KinectToHololensManager : MonoBehaviour
     {
         while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
         {
+            // C# Dictionary throws an error when you add an element with
+            // a key that is already taken.
+            if (frameMessages.ContainsKey(frameMessage.FrameId))
+                continue;
+
             frameMessages.Add(frameMessage.FrameId, frameMessage);
         }
 
