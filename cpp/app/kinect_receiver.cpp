@@ -3,7 +3,6 @@
 #include <iostream>
 #include <optional>
 #include <thread>
-#include <asio.hpp>
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "helper/opencv_helper.h"
@@ -11,36 +10,31 @@
 #include "kh_trvl.h"
 #include "native/kh_receiver_socket.h"
 #include "native/kh_video_packet_collection.h"
-#include "native/kh_xor_packet_collection.h"
-#include "native/kh_packets.h"
+#include "native/kh_fec_packet_collection.h"
+#include "native/kh_packet.h"
+#include "native/kh_time.h"
 
 namespace kh
 {
-template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
-using steady_clock = std::chrono::steady_clock;
-
 void run_receiver_thread(int sender_session_id,
                          bool& stop_receiver_thread,
                          ReceiverSocket& receiver,
-                         ReaderWriterQueue<VideoMessage>& frame_message_queue,
+                         moodycamel::ReaderWriterQueue<VideoMessage>& frame_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
-    constexpr int XOR_MAX_GROUP_SIZE{5};
+    constexpr int FEC_MAX_GROUP_SIZE{5};
 
     std::unordered_map<int, VideoPacketCollection> frame_packet_collections;
-    std::unordered_map<int, XorPacketCollection> xor_packet_collections;
+    std::unordered_map<int, FecPacketCollection> fec_packet_collections;
     while (!stop_receiver_thread) {
         std::vector<std::vector<std::byte>> frame_packet_bytes_vector;
-        std::vector<std::vector<std::byte>> xor_packet_bytes_vector;
+        std::vector<std::vector<std::byte>> fec_packet_bytes_vector;
 
         std::error_code error;
-        while (const auto packet{receiver.receive(error)}) {
+        while (auto packet{receiver.receive(error)}) {
             ++summary_packet_count;
 
-            //int cursor{0};
-            //const int session_id{copy_from_packet<int>(*packet, cursor)};
-            //const uint8_t packet_type{copy_from_packet<uint8_t>(*packet, cursor)};
             const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
             const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
 
@@ -50,7 +44,7 @@ void run_receiver_thread(int sender_session_id,
             if (packet_type == SenderPacketType::Video) {
                 frame_packet_bytes_vector.push_back(std::move(*packet));
             } else if (packet_type == SenderPacketType::Fec) {
-                xor_packet_bytes_vector.push_back(std::move(*packet));
+                fec_packet_bytes_vector.push_back(std::move(*packet));
             }
         }
 
@@ -61,37 +55,27 @@ void run_receiver_thread(int sender_session_id,
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
-        for (auto& xor_packet_bytes : xor_packet_bytes_vector) {
+        for (auto& fec_packet_bytes : fec_packet_bytes_vector) {
             // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
-            //int cursor{5};
-            //const int frame_id{copy_from_bytes<int>(xor_packet_bytes, cursor)};
-            const auto fec_sender_packet_data{parse_fec_sender_packet_bytes(xor_packet_bytes)};
+            const auto fec_sender_packet_data{parse_fec_sender_packet_bytes(fec_packet_bytes)};
 
             if (fec_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
-            //const int packet_index{copy_from_bytes<int>(xor_packet_bytes, cursor)};
-            //const int packet_count{copy_from_bytes<int>(xor_packet_bytes, cursor)};
-
-            if (xor_packet_collections.find(fec_sender_packet_data.frame_id) == xor_packet_collections.end())
-                xor_packet_collections.insert({fec_sender_packet_data.frame_id,
-                                               XorPacketCollection{fec_sender_packet_data.frame_id,
+            if (fec_packet_collections.find(fec_sender_packet_data.frame_id) == fec_packet_collections.end())
+                fec_packet_collections.insert({fec_sender_packet_data.frame_id,
+                                               FecPacketCollection{fec_sender_packet_data.frame_id,
                                                                    fec_sender_packet_data.packet_count}});
 
-            xor_packet_collections.at(fec_sender_packet_data.frame_id)
-                                  .addPacket(fec_sender_packet_data.packet_index, std::move(xor_packet_bytes));
+            fec_packet_collections.at(fec_sender_packet_data.frame_id)
+                                  .addPacket(fec_sender_packet_data.packet_index, std::move(fec_packet_bytes));
         }
 
         for (auto& frame_packet_bytes : frame_packet_bytes_vector) {
-            //PacketCursor cursor{5};
-            //const int frame_id{copy_from_bytes<int>(frame_packet_bytes, cursor)};
             const auto frame_sender_packet_data{parse_fec_sender_packet_bytes(frame_packet_bytes)};
 
             if (frame_sender_packet_data.frame_id <= last_frame_id)
                 continue;
-
-            //const int packet_index{copy_from_bytes<int>(frame_packet_bytes, cursor)};
-            //const int packet_count{copy_from_bytes<int>(frame_packet_bytes, cursor)};
 
             // If there is a packet for a new frame, check the previous frames, and if
             // there is a frame with missing packets, try to create them using xor packets.
@@ -122,7 +106,7 @@ void run_receiver_thread(int sender_session_id,
                                 if (i == j)
                                     continue;
 
-                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE)) {
+                                if ((i / FEC_MAX_GROUP_SIZE) == (j / FEC_MAX_GROUP_SIZE)) {
                                     found = true;
                                     break;
                                 }
@@ -136,21 +120,21 @@ void run_receiver_thread(int sender_session_id,
 
                         for (int fec_packet_index : fec_packet_indices) {
                             // Try getting the XOR FEC packet for correction.
-                            const int xor_packet_index{fec_packet_index / XOR_MAX_GROUP_SIZE};
+                            const int fec_packet_index{fec_packet_index / FEC_MAX_GROUP_SIZE};
 
-                            if (xor_packet_collections.find(missing_frame_id) == xor_packet_collections.end()) {
+                            if (fec_packet_collections.find(missing_frame_id) == fec_packet_collections.end()) {
                                 fec_failed_packet_indices.push_back(fec_packet_index);
                                 continue;
                             }
 
-                            const auto xor_packet_ptr{xor_packet_collections.at(missing_frame_id).TryGetPacket(xor_packet_index)};
+                            const auto fec_packet_ptr{fec_packet_collections.at(missing_frame_id).TryGetPacket(fec_packet_index)};
                             // Give up if there is no xor packet yet.
-                            if (!xor_packet_ptr) {
+                            if (!fec_packet_ptr) {
                                 fec_failed_packet_indices.push_back(fec_packet_index);
                                 continue;
                             }
 
-                            const auto fec_start{steady_clock::now()};
+                            const auto fec_start{TimePoint::now()};
 
                             std::vector<std::byte> fec_frame_packet(KH_PACKET_SIZE);
 
@@ -163,11 +147,11 @@ void run_receiver_thread(int sender_session_id,
                             copy_to_bytes(frame_sender_packet_data.packet_count, fec_frame_packet, cursor);
 
                             memcpy(fec_frame_packet.data() + cursor.position,
-                                   xor_packet_ptr->data() + cursor.position,
+                                   fec_packet_ptr->data() + cursor.position,
                                    KH_MAX_VIDEO_PACKET_CONTENT_SIZE);
 
-                            const int begin_frame_packet_index{xor_packet_index * XOR_MAX_GROUP_SIZE};
-                            const int end_frame_packet_index{std::min(begin_frame_packet_index + XOR_MAX_GROUP_SIZE,
+                            const int begin_frame_packet_index{fec_packet_index * FEC_MAX_GROUP_SIZE};
+                            const int end_frame_packet_index{std::min(begin_frame_packet_index + FEC_MAX_GROUP_SIZE,
                                                                       collection_pair.second.packet_count())};
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                             for (gsl::index i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
@@ -178,7 +162,7 @@ void run_receiver_thread(int sender_session_id,
                                     fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
                             }
 
-                            const auto fec_time{steady_clock::now() - fec_start};
+                            const auto fec_time{TimePoint::now() - fec_start};
 
                             //printf("restored %d %d %lf\n", missing_frame_id, fec_packet_index, fec_time.count() / 1000000.0f);
                             frame_packet_collections.at(missing_frame_id)
@@ -238,9 +222,9 @@ void run_receiver_thread(int sender_session_id,
         }
 
         // Clean up xor_packet_collections.
-        for (auto it = xor_packet_collections.begin(); it != xor_packet_collections.end();) {
+        for (auto it = fec_packet_collections.begin(); it != fec_packet_collections.end();) {
             if (it->first <= last_frame_id) {
-                it = xor_packet_collections.erase(it);
+                it = fec_packet_collections.erase(it);
             } else {
                 ++it;
             }
@@ -251,7 +235,6 @@ void run_receiver_thread(int sender_session_id,
 void receive_frames(std::string ip_address, int port)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
-    //constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 64 * 1024;
     asio::io_context io_context;
     ReceiverSocket receiver{io_context, RECEIVER_RECEIVE_BUFFER_SIZE};
 
@@ -301,9 +284,6 @@ void receive_frames(std::string ip_address, int port)
     moodycamel::ReaderWriterQueue<VideoMessage> frame_message_queue;
     int last_frame_id{-1};
     int summary_packet_count{0};
-    //std::thread receiver_thread(run_receiver_thread, sender_session_id, std::ref(stop_receiver_thread),
-    //                            std::ref(receiver), std::ref(frame_message_queue),
-    //                            std::ref(last_frame_id), std::ref(summary_packet_count));
     std::thread receiver_thread([&] {
         run_receiver_thread(sender_session_id, stop_receiver_thread, receiver, frame_message_queue,
                             last_frame_id, summary_packet_count);
@@ -313,7 +293,7 @@ void receive_frames(std::string ip_address, int port)
     TrvlDecoder depth_decoder{depth_width * depth_height};
 
     std::map<int, VideoMessage> frame_messages;
-    auto frame_start{steady_clock::now()};
+    auto frame_start{TimePoint::now()};
     for (;;) {
         VideoMessage frame_message;
         while (frame_message_queue.try_dequeue(frame_message)) {
@@ -348,9 +328,9 @@ void receive_frames(std::string ip_address, int port)
 
         std::optional<kh::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
-        steady_clock::duration packet_collection_time;
+        TimeDuration packet_collection_time;
 
-        const auto decoder_start{steady_clock::now()};
+        const auto decoder_start{TimePoint::now()};
         for (int i = *begin_frame_id; ; ++i) {
             // break loop is there is no frame with frame_id i.
             if (frame_messages.find(i) == frame_messages.end())
@@ -364,8 +344,6 @@ void receive_frames(std::string ip_address, int port)
 
             last_frame_id = frame_id;
 
-            std::cout << "frame_id: " << frame_id << ", keyframe: " << keyframe << std::endl;
-
             packet_collection_time = frame_message_ptr->packet_collection_time();
 
             const auto color_encoder_frame{frame_message_ptr->getColorEncoderFrame()};
@@ -377,15 +355,15 @@ void receive_frames(std::string ip_address, int port)
             // Decompressing a RVL frame into depth pixels.
             depth_image = depth_decoder.decode(depth_encoder_frame, keyframe);
         }
-        const auto decoder_time{steady_clock::now() - decoder_start};
-        const auto frame_time{steady_clock::now() - frame_start};
-        frame_start = steady_clock::now();
+        const auto decoder_time{TimePoint::now() - decoder_start};
+        const auto frame_time{TimePoint::now() - frame_start};
+        frame_start = TimePoint::now();
 
         std::error_code error;
         receiver.send(last_frame_id,
-                      packet_collection_time.count() / 1000000.0f,
-                      decoder_time.count() / 1000000.0f,
-                      frame_time.count() / 1000000.0f,
+                      packet_collection_time.ms(),
+                      decoder_time.ms(),
+                      frame_time.ms(),
                       summary_packet_count,
                       error);
 

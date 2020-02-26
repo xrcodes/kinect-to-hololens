@@ -1,12 +1,12 @@
 #include "kh_video_packet_collection.h"
 
-#include "kh_packets.h"
+#include "kh_packet.h"
 
 namespace kh
 {
 VideoPacketCollection::VideoPacketCollection(int frame_id, int packet_count)
     : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count_),
-    construction_time_(std::chrono::steady_clock::now())
+    construction_time_(TimePoint::now())
 {
 }
 
@@ -37,7 +37,7 @@ VideoMessage VideoPacketCollection::toMessage() {
         memcpy(message.data() + cursor, packets_[i].data() + KH_VIDEO_PACKET_HEADER_SIZE, packets_[i].size() - KH_VIDEO_PACKET_HEADER_SIZE);
     }
 
-    auto packet_collection_time = std::chrono::steady_clock::now() - construction_time_;
+    auto packet_collection_time = TimePoint::now() - construction_time_;
     return VideoMessage::create(frame_id_, std::move(message), packet_collection_time);
 }
 

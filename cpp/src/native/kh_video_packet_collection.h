@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include "kh_video_message.h"
+#include "kh_time.h"
 
 namespace kh
 {
@@ -22,6 +23,6 @@ private:
     int frame_id_;
     int packet_count_;
     std::vector<std::vector<std::byte>> packets_;
-    std::chrono::time_point<std::chrono::steady_clock> construction_time_;
+    TimePoint construction_time_;
 };
 }

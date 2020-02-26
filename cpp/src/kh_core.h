@@ -16,9 +16,9 @@ class YuvImage
 public:
     YuvImage(std::vector<uint8_t>&& y_channel, std::vector<uint8_t>&& u_channel,
         std::vector<uint8_t>&& v_channel, int width, int height)
-        : y_channel_(std::move(y_channel))
-        , u_channel_(std::move(u_channel))
-        , v_channel_(std::move(v_channel))
+        : y_channel_{std::move(y_channel)}
+        , u_channel_{std::move(u_channel)}
+        , v_channel_{std::move(v_channel)}
         , width_(width)
         , height_(height)
     {
@@ -26,9 +26,9 @@ public:
     YuvImage(const YuvImage& other) = delete;
     YuvImage& operator=(const YuvImage& other) = delete;
     YuvImage(YuvImage&& other) noexcept
-        : y_channel_(std::move(other.y_channel_))
-        , u_channel_(std::move(other.u_channel_))
-        , v_channel_(std::move(other.v_channel_))
+        : y_channel_{std::move(other.y_channel_)}
+        , u_channel_{std::move(other.u_channel_)}
+        , v_channel_{std::move(other.v_channel_)}
         , width_(other.width_)
         , height_(other.height_)
     {

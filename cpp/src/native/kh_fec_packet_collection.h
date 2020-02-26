@@ -4,10 +4,10 @@
 
 namespace kh
 {
-class XorPacketCollection
+class FecPacketCollection
 {
 public:
-    XorPacketCollection(int frame_id, int packet_count);
+    FecPacketCollection(int frame_id, int packet_count);
     int frame_id() { return frame_id_; }
     int packet_count() { return packet_count_; }
     void addPacket(int packet_index, std::vector<std::byte>&& packet);

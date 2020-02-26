@@ -15,9 +15,7 @@ public:
             throw std::exception("avcodec_alloc_context3 failed.");
     }
     CodecContext(const CodecContext&) = delete;
-    CodecContext(CodecContext&&) = delete;
     CodecContext& operator=(const CodecContext&) = delete;
-    CodecContext& operator=(CodecContext&&) = delete;
 
     ~CodecContext()
     {
@@ -41,9 +39,7 @@ public:
             throw std::exception("av_parser_init failed from CodecParserContext::CodecParserContext");
     }
     CodecParserContext(const CodecParserContext&) = delete;
-    CodecParserContext(CodecParserContext&&) = delete;
     CodecParserContext& operator=(const CodecParserContext&) = delete;
-    CodecParserContext& operator=(CodecParserContext&&) = delete;
 
     ~CodecParserContext()
     {
@@ -67,9 +63,7 @@ public:
             throw std::exception("av_packet_alloc failed.");
     }
     Packet(const Packet&) = delete;
-    Packet(Packet&&) = delete;
     Packet& operator=(const Packet&) = delete;
-    Packet& operator=(Packet&&) = delete;
 
     ~Packet()
     {

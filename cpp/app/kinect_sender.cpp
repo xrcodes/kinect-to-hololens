@@ -7,29 +7,28 @@
 #include "native/kh_sender_socket.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
-#include "native/kh_packets.h"
+#include "native/kh_packet.h"
+#include "native/kh_time.h"
 
 namespace kh
 {
 // Pair of the frame's id and its packets.
-using steady_clock = std::chrono::steady_clock;
-template<class T> using duration = std::chrono::duration<T>;
-template<class T> using time_point = std::chrono::time_point<T>;
 using VideoPacketSet = std::pair<int, std::vector<std::vector<std::byte>>>;
-template<class T> using ReaderWriterQueue = moodycamel::ReaderWriterQueue<T>;
 
-void run_video_sender_thread(int session_id,
-                             bool& stop_threads,
-                             SenderSocket& sender_socket,
-                             ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
-                             int& receiver_frame_id)
+void handle_receiver_messages(int session_id,
+                              bool& stop_threads,
+                              SenderSocket& sender_socket,
+                              moodycamel::ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
+                              int& receiver_frame_id)
 {
     constexpr int XOR_MAX_GROUP_SIZE = 5;
 
-    std::unordered_map<int, time_point<steady_clock>> video_frame_send_times;
+    //std::unordered_map<int, time_point<steady_clock>> video_frame_send_times;
+    std::unordered_map<int, TimePoint> video_frame_send_times;
     std::unordered_map<int, VideoPacketSet> video_packet_sets;
     int last_receiver_video_frame_id{0};
-    auto video_sender_summary_start{steady_clock::now()};
+    //auto video_sender_summary_start{steady_clock::now()};
+    auto video_sender_summary_start{TimePoint::now()};
     int video_sender_summary_receiver_frame_count{0};
     int video_sender_summary_receiver_packet_count{0};
     int video_sender_summary_packet_count{0};
@@ -46,30 +45,21 @@ void run_video_sender_thread(int session_id,
                     goto run_video_sender_thread_end;
                 }
             }
-            //PacketCursor cursor;
-            //const auto message_type{copy_from_bytes<ReceiverPacketType>(*received_packet, cursor)};
 
             const auto message_type{get_packet_type_from_receiver_packet_bytes(*received_packet)};
-            PacketCursor cursor{1};
 
             if (message_type == ReceiverPacketType::Report) {
-                //receiver_frame_id = copy_from_bytes<int>(*received_packet, cursor);
-                //const float packet_collection_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
-                //const float decoder_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
-                //const float frame_time_ms{copy_from_bytes<float>(*received_packet, cursor)};
-                //const int receiver_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
-
                 const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
                 receiver_frame_id = report_receiver_packet_data.frame_id;
 
-                const duration<double> round_trip_time{steady_clock::now() - video_frame_send_times[receiver_frame_id]};
+                const TimeDuration round_trip_time{TimePoint::now() - video_frame_send_times[receiver_frame_id]};
 
                 printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
                        receiver_frame_id,
                        report_receiver_packet_data.packet_collection_time_ms,
                        report_receiver_packet_data.decoder_time_ms,
                        report_receiver_packet_data.frame_time_ms,
-                       round_trip_time.count() * 1000.0f);
+                       round_trip_time.ms());
 
                 std::vector<int> obsolete_frame_ids;
                 for (auto& frame_send_time_pair : video_frame_send_times) {
@@ -83,10 +73,6 @@ void run_video_sender_thread(int session_id,
                 ++video_sender_summary_receiver_frame_count;
                 video_sender_summary_receiver_packet_count += report_receiver_packet_data.packet_count;
             } else if (message_type == ReceiverPacketType::Request) {
-                //const int requested_frame_id{copy_from_bytes<int>(*received_packet, cursor)};
-                //const int missing_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
-                cursor.position += 4;
-
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
 
                 for (int packet_index : request_receiver_packet_data.packet_indices) {
@@ -108,10 +94,10 @@ void run_video_sender_thread(int session_id,
 
         VideoPacketSet video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
-            auto xor_packets = create_fec_sender_packet_bytes_vector(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second);
+            auto xor_packets{create_fec_sender_packet_bytes_vector(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
 
-            video_frame_send_times.insert({video_packet_set.first, steady_clock::now()});
-            for (auto packet : video_packet_set.second) {
+            video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
+            for (auto& packet : video_packet_set.second) {
                 std::error_code error;
                 sender_socket.send(packet, error);
 
@@ -143,23 +129,30 @@ void run_video_sender_thread(int session_id,
 
         // Remove elements of frame_packet_sets reserved for filling up missing packets
         // if they are already used from the receiver side.
-        std::vector<int> obsolete_frame_ids;
-        for (auto& frame_packet_set_pair : video_packet_sets) {
-            if (frame_packet_set_pair.first <= receiver_frame_id)
-                obsolete_frame_ids.push_back(frame_packet_set_pair.first);
+        //std::vector<int> obsolete_frame_ids;
+        //for (auto& video_packet_set_pair : video_packet_sets) {
+        //    if (video_packet_set_pair.first <= receiver_frame_id)
+        //        obsolete_frame_ids.push_back(video_packet_set_pair.first);
+        //}
+
+        //for (int obsolete_frame_id : obsolete_frame_ids)
+        //    video_packet_sets.erase(obsolete_frame_id);
+        for (auto it = video_packet_sets.begin(); it != video_packet_sets.end();) {
+            if (it->first <= receiver_frame_id) {
+                it = video_packet_sets.erase(it);
+            } else {
+                ++it;
+            }
         }
 
-        for (int obsolete_frame_id : obsolete_frame_ids)
-            video_packet_sets.erase(obsolete_frame_id);
-
         if ((receiver_frame_id / 100) > (last_receiver_video_frame_id / 100)) {
-            const duration<double> send_summary_time_interval = steady_clock::now() - video_sender_summary_start;
-            const float packet_loss = 1.0f - video_sender_summary_receiver_packet_count / (float)video_sender_summary_packet_count;
+            const auto send_summary_time_interval{TimePoint::now() - video_sender_summary_start};
+            const float packet_loss{1.0f - video_sender_summary_receiver_packet_count / static_cast<float>(video_sender_summary_packet_count)};
             printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
-                   video_sender_summary_receiver_frame_count / send_summary_time_interval.count(),
-                   packet_loss * 100.0f);
+                   video_sender_summary_receiver_frame_count / send_summary_time_interval.sec(),
+                   gsl::narrow_cast<float>(packet_loss * 100.0f));
 
-            video_sender_summary_start = steady_clock::now();
+            video_sender_summary_start = TimePoint::now();
             video_sender_summary_receiver_frame_count = 0;
             video_sender_summary_packet_count = 0;
             video_sender_summary_receiver_packet_count = 0;
@@ -213,7 +206,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id{-1};
     std::thread video_sender_thread([&] {
-        run_video_sender_thread(session_id, stop_threads, sender_socket, video_packet_queue, receiver_frame_id);
+        handle_receiver_messages(session_id, stop_threads, sender_socket, video_packet_queue, receiver_frame_id);
     });
 
     // frame_id is the ID of the frame the sender sends.
@@ -223,7 +216,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     int main_summary_keyframe_count{0};
     auto last_device_time_stamp{std::chrono::microseconds::zero()};
 
-    auto main_summary_start{steady_clock::now()};
+    auto main_summary_start{TimePoint::now()};
     size_t main_summary_frame_size_sum{0};
     for (;;) {
         // Stop if the sender thread stopped.
@@ -297,14 +290,14 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 
         // Print profile measures every 100 frames.
         if (video_frame_id % 100 == 0) {
-            const duration<double> main_summary_time_interval{steady_clock::now() - main_summary_start};
+            const auto main_summary_time_interval{TimePoint::now() - main_summary_start};
             printf("Main Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
                    video_frame_id,
-                   100 / main_summary_time_interval.count(),
+                   100 / main_summary_time_interval.sec(),
                    main_summary_keyframe_count,
-                   main_summary_frame_size_sum / (main_summary_time_interval.count() * 131072));
+                   main_summary_frame_size_sum / (main_summary_time_interval.sec() * 131072));
 
-            main_summary_start = steady_clock::now();
+            main_summary_start = TimePoint::now();
             main_summary_keyframe_count = 0;
             main_summary_frame_size_sum = 0;
         }
@@ -318,7 +311,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 void main()
 {
     srand(time(nullptr));
-    std::mt19937 rng{gsl::narrow_cast<unsigned int>(steady_clock::now().time_since_epoch().count())};
+    std::mt19937 rng{gsl::narrow_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count())};
 
     for (;;) {
         std::string line;

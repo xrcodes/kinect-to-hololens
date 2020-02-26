@@ -5,14 +5,16 @@ add_library(KinectToHololensNative
   kh_sender_socket.cpp
   kh_video_packet_collection.h
   kh_video_packet_collection.cpp
-  kh_xor_packet_collection.h
-  kh_xor_packet_collection.cpp
+  kh_fec_packet_collection.h
+  kh_fec_packet_collection.cpp
   kh_video_message.h
   kh_video_message.cpp
-  kh_packets.h
-  kh_packets.cpp
+  kh_packet.h
+  kh_packet.cpp
   kh_audio.h
   kh_audio.cpp
+  kh_time.h
+  kh_time.cpp
 )
 target_include_directories(KinectToHololensNative PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

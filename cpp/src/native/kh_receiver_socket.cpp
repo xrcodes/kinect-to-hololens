@@ -1,7 +1,7 @@
 #include "kh_receiver_socket.h"
 
 #include <iostream>
-#include "kh_packets.h"
+#include "kh_packet.h"
 
 namespace kh
 {
