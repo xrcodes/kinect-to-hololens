@@ -185,9 +185,9 @@ void run_receiver_thread(int sender_session_id,
                                                     .addPacket(fec_packet_index, std::move(fec_frame_packet));
                         } // end of for (int missing_packet_index : missing_packet_indices)
 
-                        //for (int fec_failed_packet_index : fec_failed_packet_indices) {
-                        //    printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
-                        //}
+                        for (int fec_failed_packet_index : fec_failed_packet_indices) {
+                            printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
+                        }
                         
                         std::error_code error;
                         receiver.send(missing_frame_id, fec_failed_packet_indices, error);

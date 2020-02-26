@@ -85,16 +85,15 @@ void run_video_sender_thread(int session_id,
             } else if (message_type == ReceiverPacketType::Request) {
                 //const int requested_frame_id{copy_from_bytes<int>(*received_packet, cursor)};
                 //const int missing_packet_count{copy_from_bytes<int>(*received_packet, cursor)};
+                cursor.position += 4;
 
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
 
-                for (int i = 0; i < request_receiver_packet_data.packet_indices.size(); ++i) {
-                    int missing_packet_index = copy_from_bytes<int>(*received_packet, cursor);
-
+                for (int packet_index : request_receiver_packet_data.packet_indices) {
                     if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
                         continue;
 
-                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[missing_packet_index], error);
+                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index], error);
                     if (error == asio::error::would_block) {
                         printf("Failed to fill in a packet as the buffer was full...\n");
                     } else if (error) {
@@ -109,7 +108,6 @@ void run_video_sender_thread(int session_id,
 
         VideoPacketSet video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
-            //auto xor_packets = SenderSocket::createXorPackets(session_id, video_packet_set.first, video_packet_set.second, XOR_MAX_GROUP_SIZE);
             auto xor_packets = create_fec_sender_packet_bytes_vector(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second);
 
             video_frame_send_times.insert({video_packet_set.first, steady_clock::now()});

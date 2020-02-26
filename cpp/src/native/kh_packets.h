@@ -16,10 +16,6 @@ enum class SenderPacketType : std::uint8_t
     Fec = 2,
     Audio = 3,
 };
-//const uint8_t KH_SENDER_INIT_PACKET = 0;
-//const uint8_t KH_SENDER_VIDEO_PACKET = 1;
-//const uint8_t KH_SENDER_XOR_PACKET = 2;
-//const uint8_t KH_SENDER_AUDIO_PACKET = 3;
 
 enum class ReceiverPacketType : std::uint8_t
 {
@@ -27,10 +23,6 @@ enum class ReceiverPacketType : std::uint8_t
     Report = 1,
     Request = 2,
 };
-
-//const uint8_t KH_RECEIVER_PING_PACKET = 0;
-//const uint8_t KH_RECEIVER_REPORT_PACKET = 1;
-//const uint8_t KH_RECEIVER_REQUEST_PACKET = 2;
 
 const int KH_PACKET_SIZE = 1472;
 
@@ -69,6 +61,24 @@ T copy_from_bytes(gsl::span<const std::byte> bytes, PacketCursor& cursor)
     return t;
 }
 
+template<class T>
+void copy_from_bytes(T& t, gsl::span<const std::byte> bytes, int position)
+{
+    memcpy(&t, &bytes[position], sizeof(T));
+}
+
+template<class T>
+T copy_from_bytes(gsl::span<const std::byte> bytes, int position)
+{
+    T t;
+    copy_from_bytes(t, bytes, position);
+    return t;
+}
+
+/**Sender Packets**/
+int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 struct InitSenderPacketData
 {
     int color_width;
@@ -82,6 +92,10 @@ struct InitSenderPacketData
     k4a_calibration_extrinsics_t depth_to_color_extrinsics;
 };
 
+InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
+std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
+InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
 struct VideoSenderPacketData
 {
     int frame_id;
@@ -89,42 +103,6 @@ struct VideoSenderPacketData
     int packet_count;
     std::vector<std::byte> message_data;
 };
-
-struct FecSenderPacketData
-{
-    int frame_id;
-    int packet_index;
-    int packet_count;
-    std::vector<std::byte> bytes;
-};
-
-struct AudioSenderPacketData
-{
-    int frame_id;
-    std::vector<std::byte> opus_frame;
-};
-
-struct ReportReceiverPacketData
-{
-    int frame_id;
-    float packet_collection_time_ms;
-    float decoder_time_ms;
-    float frame_time_ms;
-    int packet_count;
-};
-
-struct RequestReceiverPacketData
-{
-    int frame_id;
-    std::vector<int> packet_indices;
-};
-
-int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-
-InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
-std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
-InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
                                                          gsl::span<const std::byte> color_encoder_frame,
@@ -135,6 +113,14 @@ std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int fram
                                                         gsl::span<const std::byte> packet_content);
 VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+struct FecSenderPacketData
+{
+    int frame_id;
+    int packet_index;
+    int packet_count;
+    std::vector<std::byte> bytes;
+};
+
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
@@ -144,16 +130,38 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
                                                       gsl::span<const std::vector<std::byte>> frame_packet_bytes_vector);
 FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+struct AudioSenderPacketData
+{
+    int frame_id;
+    std::vector<std::byte> opus_frame;
+};
+
 std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
                                                         gsl::span<const std::byte> opus_frame);
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+/**Receiver Packets**/
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
+struct ReportReceiverPacketData
+{
+    int frame_id;
+    float packet_collection_time_ms;
+    float decoder_time_ms;
+    float frame_time_ms;
+    int packet_count;
+};
 
 ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
                                                             float frame_time_ms, int packet_count);
 std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverPacketData& report_receiver_packet_data);
 ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
+struct RequestReceiverPacketData
+{
+    int frame_id;
+    std::vector<int> packet_indices;
+};
 
 RequestReceiverPacketData create_request_receiver_packet_data(int frame_id, const std::vector<int>& packet_indices);
 std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceiverPacketData& request_receiver_packet_data);
