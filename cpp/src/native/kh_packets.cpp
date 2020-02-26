@@ -307,14 +307,12 @@ std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceive
 {
     const int packet_size(sizeof(ReceiverPacketType) +
                           sizeof(request_receiver_packet_data.frame_id) +
-                          sizeof(int) +
                           sizeof(int) * request_receiver_packet_data.packet_indices.size());
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(ReceiverPacketType::Request, packet_bytes, cursor);
     copy_to_bytes(request_receiver_packet_data.frame_id, packet_bytes, cursor);
-    copy_to_bytes<int>(request_receiver_packet_data.packet_indices.size(), packet_bytes, cursor);
 
     for (int index : request_receiver_packet_data.packet_indices)
         copy_to_bytes(index, packet_bytes, cursor);
@@ -328,7 +326,7 @@ RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const st
     PacketCursor cursor{1};
     copy_from_bytes(request_receiver_packet_data.frame_id, packet_bytes, cursor);
     
-    int packet_indices_size{copy_from_bytes<int>(packet_bytes, cursor)};
+    int packet_indices_size{gsl::narrow_cast<int>((packet_bytes.size() - cursor.position) / sizeof(int))};
     std::vector<int> packet_indices(packet_indices_size);
     for (int i = 0; i < packet_indices_size; ++i)
         copy_from_bytes(packet_indices[i], packet_bytes, cursor);

@@ -67,7 +67,6 @@ public class ReceiverSocket
         var ms = new MemoryStream();
         ms.WriteByte(2);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        ms.Write(BitConverter.GetBytes(missingPacketIds.Count), 0, 4);
         foreach(int missingPacketId in missingPacketIds)
         {
             ms.Write(BitConverter.GetBytes(missingPacketId), 0, 4);

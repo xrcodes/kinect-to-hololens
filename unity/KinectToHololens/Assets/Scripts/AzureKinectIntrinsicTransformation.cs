@@ -4,10 +4,8 @@ public static class AzureKinectIntrinsicTransformation
     // Equivalent to transformation_project_internal().
     // Size of uv and xy should be 2.
     // Size of J should be 4.
-    public static bool Project(in AzureKinectCalibration.Camera camera, in float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
+    public static bool Project(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
     {
-        var intrinsics = camera.Intrinsics;
-
         float cx = intrinsics.Cx;
         float cy = intrinsics.Cy;
         float fx = intrinsics.Fx;
@@ -22,7 +20,7 @@ public static class AzureKinectIntrinsicTransformation
         float cody = intrinsics.Cody;
         float p1 = intrinsics.P1;
         float p2 = intrinsics.P2;
-        float max_radius_for_projection = camera.MetricRadius;
+        float max_radius_for_projection = metricRadius;
 
         if (!((fx > 0.0f && fy > 0.0f)))
         {
@@ -112,7 +110,7 @@ public static class AzureKinectIntrinsicTransformation
 
     // Equivalent to transformation_iterative_unproject().
     // Size of uv and xy should be 2.
-    public static bool InterativeUnproject(in AzureKinectCalibration.Camera camera, in float[] uv, ref float[] xy, ref int valid, int maxPasses)
+    public static bool InterativeUnproject(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid, int maxPasses)
     {
         valid = 1;
         float[] Jinv = new float[4];
@@ -124,7 +122,7 @@ public static class AzureKinectIntrinsicTransformation
             float[] p = new float[2];
             float[] J = new float[4];
 
-            if (!Project(camera, xy, ref p, ref valid, ref J))
+            if (!Project(intrinsics, metricRadius, xy, ref p, ref valid, ref J))
             {
                 return false;
             }
@@ -169,10 +167,8 @@ public static class AzureKinectIntrinsicTransformation
 
     // Equivalent to transformation_unproject_internal(). 
     // Size of uv and xy should be 2.
-    public static bool Unproject(in AzureKinectCalibration.Camera camera, in float[] uv, ref float[] xy, ref int valid)
+    public static bool Unproject(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid)
     {
-        var intrinsics = camera.Intrinsics;
-
         float cx = intrinsics.Cx;
         float cy = intrinsics.Cy;
         float fx = intrinsics.Fx;
@@ -228,6 +224,6 @@ public static class AzureKinectIntrinsicTransformation
         xy[0] += codx;
         xy[1] += cody;
 
-        return InterativeUnproject(camera, uv, ref xy, ref valid, 20);
+        return InterativeUnproject(intrinsics, metricRadius, uv, ref xy, ref valid, 20);
     }
 }

@@ -1,4 +1,6 @@
-﻿public static class PacketHelper
+﻿using System;
+
+public static class PacketHelper
 {
     // Packet types.
     public const byte SENDER_INIT_PACKET = 0;
@@ -9,4 +11,14 @@
     public const int PACKET_SIZE = 1472;
     public const int PACKET_HEADER_SIZE = 17;
     public const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
+
+    public static int getSessionIdFromSenderPacketBytes(byte[] packetBytes)
+    {
+        return BitConverter.ToInt32(packetBytes, 0);
+    }
+
+    public static byte getPacketTypeFromSenderPacketBytes(byte[] packetBytes)
+    {
+        return packetBytes[4];
+    }
 }

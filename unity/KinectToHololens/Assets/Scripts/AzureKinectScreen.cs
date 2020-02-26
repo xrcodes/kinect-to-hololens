@@ -8,9 +8,9 @@ public class AzureKinectScreen : MonoBehaviour
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
 
-    public void Setup(AzureKinectCalibration calibration)
+    public void Setup(InitSenderPacketData initSenderPacketData)
     {
-        meshFilter.mesh = CreateMesh(calibration);
+        meshFilter.mesh = CreateMesh(initSenderPacketData);
         //meshFilter.mesh = CreateGeometryMesh(calibration);
     }
 
@@ -54,12 +54,13 @@ public class AzureKinectScreen : MonoBehaviour
         meshRenderer.sharedMaterial.SetVector("_VertexOffsetYVector", new Vector4(vertexOffsetYVector.x, vertexOffsetYVector.y, vertexOffsetYVector.z, 0.0f));
     }
 
-    private static Mesh CreateMesh(AzureKinectCalibration calibration)
+    //private static Mesh CreateMesh(AzureKinectCalibration calibration)
+    private static Mesh CreateMesh(InitSenderPacketData initSenderPacketData)
     {
-        int width = calibration.DepthCamera.Width;
-        int height = calibration.DepthCamera.Height;
+        int width = initSenderPacketData.depthWidth;
+        int height = initSenderPacketData.depthHeight;
 
-        var depthCamera = calibration.DepthCamera;
+        //var depthCamera = calibration.DepthCamera;
 
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
@@ -70,7 +71,9 @@ public class AzureKinectScreen : MonoBehaviour
             {
                 float[] xy = new float[2];
                 int valid = 0;
-                if (AzureKinectIntrinsicTransformation.Unproject(depthCamera, new float[2] { i, j }, ref xy, ref valid))
+                if (AzureKinectIntrinsicTransformation.Unproject(initSenderPacketData.depthIntrinsics,
+                                                                 initSenderPacketData.depthMetricRadius,
+                                                                 new float[2] { i, j }, ref xy, ref valid))
                 {
                     vertices[i + j * width] = new Vector3(xy[0], xy[1], 1.0f);
                 }
@@ -134,12 +137,10 @@ public class AzureKinectScreen : MonoBehaviour
         return mesh;
     }
 
-    private static Mesh CreateGeometryMesh(AzureKinectCalibration calibration)
+    private static Mesh CreateGeometryMesh(InitSenderPacketData initSenderPacketData)
     {
-        int width = calibration.DepthCamera.Width;
-        int height = calibration.DepthCamera.Height;
-
-        var depthCamera = calibration.DepthCamera;
+        int width = initSenderPacketData.depthWidth;
+        int height = initSenderPacketData.depthHeight;
 
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
@@ -150,7 +151,9 @@ public class AzureKinectScreen : MonoBehaviour
             {
                 float[] xy = new float[2];
                 int valid = 0;
-                if (AzureKinectIntrinsicTransformation.Unproject(depthCamera, new float[2] { i, j }, ref xy, ref valid))
+                if (AzureKinectIntrinsicTransformation.Unproject(initSenderPacketData.depthIntrinsics,
+                                                                 initSenderPacketData.depthMetricRadius,
+                                                                 new float[2] { i, j }, ref xy, ref valid))
                 {
                     vertices[i + j * width] = new Vector3(xy[0], xy[1], 1.0f);
                 }

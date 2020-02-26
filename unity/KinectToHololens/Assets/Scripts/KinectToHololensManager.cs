@@ -296,16 +296,17 @@ public class KinectToHololensManager : MonoBehaviour
 
                 senderSessionId = sessionId;
 
-                var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
+                //var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
+                var initSenderPacketData = InitSenderPacketData.Parse(packet);
 
-                Plugin.texture_group_set_width(calibration.DepthCamera.Width);
-                Plugin.texture_group_set_height(calibration.DepthCamera.Height);
+                Plugin.texture_group_set_width(initSenderPacketData.depthWidth);
+                Plugin.texture_group_set_height(initSenderPacketData.depthHeight);
                 PluginHelper.InitTextureGroup();
 
                 colorDecoder = new Vp8Decoder();
-                depthDecoder = new TrvlDecoder(calibration.DepthCamera.Width * calibration.DepthCamera.Height);
+                depthDecoder = new TrvlDecoder(initSenderPacketData.depthWidth * initSenderPacketData.depthHeight);
 
-                azureKinectScreen.Setup(calibration);
+                azureKinectScreen.Setup(initSenderPacketData);
 
                 initialized = true;
                 break;
@@ -347,11 +348,13 @@ public class KinectToHololensManager : MonoBehaviour
 
                 ++summaryPacketCount;
 
-                int cursor = 0;
-                int sessionId = BitConverter.ToInt32(packet, cursor);
-                cursor += 4;
+                //int cursor = 0;
+                //int sessionId = BitConverter.ToInt32(packet, cursor);
+                int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
+                //cursor += 4;
 
-                var packetType = packet[cursor];
+                //var packetType = packet[cursor];
+                byte packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
                 //cursor += 1;
 
                 if (sessionId != senderSessionId)
@@ -379,46 +382,50 @@ public class KinectToHololensManager : MonoBehaviour
             foreach (var xorPacket in xorPackets)
             {
                 // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
-                int cursor = 5;
-                int frameId = BitConverter.ToInt32(xorPacket, cursor);
-                cursor += 4;
+                //int cursor = 5;
+                //int frameId = BitConverter.ToInt32(xorPacket, cursor);
+                //cursor += 4;
+                var fecSenderPacketData = FecSenderPacketData.Parse(xorPacket);
 
-                if (frameId <= lastFrameId)
+                if (fecSenderPacketData.frameId <= lastFrameId)
                     continue;
 
-                int packetIndex = BitConverter.ToInt32(xorPacket, cursor);
-                cursor += 4;
-                int packetCount = BitConverter.ToInt32(xorPacket, cursor);
+                //int packetIndex = BitConverter.ToInt32(xorPacket, cursor);
+                //cursor += 4;
+                //int packetCount = BitConverter.ToInt32(xorPacket, cursor);
                 //cursor += 4;
 
-                if (!xorPacketCollections.ContainsKey(frameId))
+                if (!xorPacketCollections.ContainsKey(fecSenderPacketData.frameId))
                 {
-                    xorPacketCollections[frameId] = new XorPacketCollection(frameId, packetCount);
+                    xorPacketCollections[fecSenderPacketData.frameId] = new XorPacketCollection(fecSenderPacketData.frameId,
+                                                                                                fecSenderPacketData.packetCount);
                 }
 
-                xorPacketCollections[frameId].AddPacket(packetIndex, xorPacket);
+                xorPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, xorPacket);
             }
 
             foreach (var framePacket in framePackets)
             {
-                int framePacketCursor = 5;
-                int frameId = BitConverter.ToInt32(framePacket, framePacketCursor);
-                framePacketCursor += 4;
+                //int framePacketCursor = 5;
+                //int frameId = BitConverter.ToInt32(framePacket, framePacketCursor);
+                //framePacketCursor += 4;
+                var videoSenderPacketData = VideoSenderPacketData.Parse(framePacket);
 
-                if (frameId <= lastFrameId)
+                if (videoSenderPacketData.frameId <= lastFrameId)
                     continue;
 
-                int packetIndex = BitConverter.ToInt32(framePacket, framePacketCursor);
-                framePacketCursor += 4;
-                int packetCount = BitConverter.ToInt32(framePacket, framePacketCursor);
+                //int packetIndex = BitConverter.ToInt32(framePacket, framePacketCursor);
+                //framePacketCursor += 4;
+                //int packetCount = BitConverter.ToInt32(framePacket, framePacketCursor);
                 //framePacketCursor += 4;
 
                 // If there is a packet for a new frame, check the previous frames, and if
                 // there is a frame with missing packets, try to create them using xor packets.
                 // If using the xor packets fails, request the sender to retransmit the packets.
-                if (!framePacketCollections.ContainsKey(frameId))
+                if (!framePacketCollections.ContainsKey(videoSenderPacketData.frameId))
                 {
-                    framePacketCollections[frameId] = new FramePacketCollection(frameId, packetCount);
+                    framePacketCollections[videoSenderPacketData.frameId] = new FramePacketCollection(videoSenderPacketData.frameId,
+                                                                                                      videoSenderPacketData.packetCount);
 
                     ///////////////////////////////////
                     // Forward Error Correction Start//
@@ -426,7 +433,7 @@ public class KinectToHololensManager : MonoBehaviour
                     // Request missing packets of the previous frames.
                     foreach (var collectionPair in framePacketCollections)
                     {
-                        if(collectionPair.Key < frameId)
+                        if(collectionPair.Key < videoSenderPacketData.frameId)
                         {
                             int missingFrameId = collectionPair.Key;
                             var missingPacketIndices = collectionPair.Value.GetMissingPacketIds();
@@ -490,9 +497,9 @@ public class KinectToHololensManager : MonoBehaviour
                                 fecPacketCursor += 1;
                                 Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
-                                Buffer.BlockCopy(BitConverter.GetBytes(packetIndex), 0, fecFramePacket, fecPacketCursor, 4);
+                                Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetIndex), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
-                                Buffer.BlockCopy(BitConverter.GetBytes(packetCount), 0, fecFramePacket, fecPacketCursor, 4);
+                                Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetCount), 0, fecFramePacket, fecPacketCursor, 4);
                                 fecPacketCursor += 4;
 
                                 Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
@@ -523,7 +530,7 @@ public class KinectToHololensManager : MonoBehaviour
                 // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
                 // which was for reacting to a packet for a new frame.
 
-                framePacketCollections[frameId].AddPacket(packetIndex, framePacket);
+                framePacketCollections[videoSenderPacketData.frameId].AddPacket(videoSenderPacketData.packetIndex, framePacket);
             }
 
             // Find all full collections and their frame_ids.
