@@ -6,7 +6,7 @@ VideoMessage::VideoMessage()
 {
 }
 
-VideoMessage::VideoMessage(std::vector<uint8_t>&& message, int frame_id, float frame_time_stamp,
+VideoMessage::VideoMessage(std::vector<std::byte>&& message, int frame_id, float frame_time_stamp,
                            bool keyframe, int color_encoder_frame_size, int depth_encoder_frame_size,
                            TimeDuration packet_collection_time)
     : message_(std::move(message)), frame_id_(frame_id), frame_time_stamp_(frame_time_stamp),
@@ -16,7 +16,7 @@ VideoMessage::VideoMessage(std::vector<uint8_t>&& message, int frame_id, float f
 {
 }
 
-VideoMessage VideoMessage::create(int frame_id, std::vector<uint8_t>&& message,
+VideoMessage VideoMessage::create(int frame_id, std::vector<std::byte>&& message,
                                   TimeDuration packet_collection_time)
 {
     int cursor = 0;
@@ -25,7 +25,7 @@ VideoMessage VideoMessage::create(int frame_id, std::vector<uint8_t>&& message,
     memcpy(&frame_time_stamp, message.data() + cursor, 4);
     cursor += 4;
 
-    bool keyframe = message[cursor];
+    bool keyframe = static_cast<bool>(message[cursor]);
     cursor += 1;
 
     // Parsing the bytes of the message into the VP8 and RVL frames.

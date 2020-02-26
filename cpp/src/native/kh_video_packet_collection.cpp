@@ -5,20 +5,20 @@
 namespace kh
 {
 VideoPacketCollection::VideoPacketCollection(int frame_id, int packet_count)
-    : frame_id_(frame_id), packet_count_(packet_count), packets_(packet_count_),
+    : frame_id_(frame_id), packet_count_(packet_count), packet_data_vector_(packet_count_),
     construction_time_(TimePoint::now())
 {
 }
 
-void VideoPacketCollection::addPacket(int packet_index, std::vector<std::byte>&& packet)
+void VideoPacketCollection::addPacketData(int packet_index, VideoSenderPacketData&& packet_data)
 {
-    packets_[packet_index] = std::move(packet);
+    packet_data_vector_[packet_index] = std::move(packet_data);
 }
 
 bool VideoPacketCollection::isFull()
 {
-    for (auto packet : packets_) {
-        if (packet.empty())
+    for (auto& packet_data : packet_data_vector_) {
+        if (!packet_data)
             return false;
     }
 
@@ -26,15 +26,16 @@ bool VideoPacketCollection::isFull()
 }
 
 VideoMessage VideoPacketCollection::toMessage() {
-    int message_size = 0;
-    for (auto packet : packets_) {
-        message_size += packet.size() - KH_VIDEO_PACKET_HEADER_SIZE;
+    int message_size{0};
+    for (auto& packet_data : packet_data_vector_) {
+        message_size += packet_data->message_data.size();
     }
 
-    std::vector<uint8_t> message(message_size);
-    for (int i = 0; i < packets_.size(); ++i) {
-        int cursor = (KH_PACKET_SIZE - KH_VIDEO_PACKET_HEADER_SIZE) * i;
-        memcpy(message.data() + cursor, packets_[i].data() + KH_VIDEO_PACKET_HEADER_SIZE, packets_[i].size() - KH_VIDEO_PACKET_HEADER_SIZE);
+    std::vector<std::byte> message(message_size);
+    int cursor{0};
+    for (auto& packet_data : packet_data_vector_) {
+        memcpy(message.data() + cursor, packet_data->message_data.data(), packet_data->message_data.size());
+        cursor += packet_data->message_data.size();
     }
 
     auto packet_collection_time = TimePoint::now() - construction_time_;
@@ -43,8 +44,8 @@ VideoMessage VideoPacketCollection::toMessage() {
 
 int VideoPacketCollection::getCollectedPacketCount() {
     int count = 0;
-    for (auto packet : packets_) {
-        if (!packet.empty())
+    for (auto& packet_data : packet_data_vector_) {
+        if (packet_data)
             ++count;
     }
 
@@ -54,8 +55,8 @@ int VideoPacketCollection::getCollectedPacketCount() {
 std::vector<int> VideoPacketCollection::getMissingPacketIndices()
 {
     std::vector<int> missing_packet_indices;
-    for (int i = 0; i < packets_.size(); ++i) {
-        if (packets_[i].empty())
+    for (int i = 0; i < packet_data_vector_.size(); ++i) {
+        if (!packet_data_vector_[i])
             missing_packet_indices.push_back(i);
     }
     return missing_packet_indices;

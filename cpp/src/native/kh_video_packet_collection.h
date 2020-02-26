@@ -1,8 +1,9 @@
 #pragma once
 
-#include <chrono>
+#include <optional>
 #include "kh_video_message.h"
 #include "kh_time.h"
+#include "kh_packet.h"
 
 namespace kh
 {
@@ -12,8 +13,8 @@ public:
     VideoPacketCollection(int frame_id, int packet_count);
     int frame_id() { return frame_id_; }
     int packet_count() { return packet_count_; }
-    std::vector<std::vector<std::byte>>& packets() { return packets_; }
-    void addPacket(int packet_index, std::vector<std::byte>&& packet);
+    std::vector<std::optional<VideoSenderPacketData>>& packet_data_vector() { return packet_data_vector_; }
+    void addPacketData(int packet_index, VideoSenderPacketData&& packet_data);
     bool isFull();
     VideoMessage toMessage();
     int getCollectedPacketCount();
@@ -22,7 +23,7 @@ public:
 private:
     int frame_id_;
     int packet_count_;
-    std::vector<std::vector<std::byte>> packets_;
+    std::vector<std::optional<VideoSenderPacketData>> packet_data_vector_;
     TimePoint construction_time_;
 };
 }
