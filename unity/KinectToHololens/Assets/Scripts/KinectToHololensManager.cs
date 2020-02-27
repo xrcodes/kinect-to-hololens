@@ -332,13 +332,13 @@ public class KinectToHololensManager : MonoBehaviour
         const int XOR_MAX_GROUP_SIZE = 5;
 
         //int? senderSessionId = null;
-        var framePacketCollections = new Dictionary<int, VideoPacketCollection>();
+        var videoPacketCollections = new Dictionary<int, VideoPacketCollection>();
         var fecPacketCollections = new Dictionary<int, FecPacketCollection>();
         print("Start Receiver Thread");
         while (!stopReceiverThread)
         {
-            var framePackets = new List<byte[]>();
-            var xorPackets = new List<byte[]>();
+            var videoPacketDataSet = new List<VideoSenderPacketData>();
+            var fecPacketDataSet = new List<FecSenderPacketData>();
             SocketError error = SocketError.WouldBlock;
             while (true)
             {
@@ -362,11 +362,11 @@ public class KinectToHololensManager : MonoBehaviour
 
                 if (packetType == PacketHelper.SENDER_FRAME_PACKET)
                 {
-                    framePackets.Add(packet);
+                    videoPacketDataSet.Add(VideoSenderPacketData.Parse(packet));
                 }
                 else if (packetType == PacketHelper.SENDER_XOR_PACKET)
                 {
-                    xorPackets.Add(packet);
+                    fecPacketDataSet.Add(FecSenderPacketData.Parse(packet));
                 }
             }
 
@@ -379,21 +379,10 @@ public class KinectToHololensManager : MonoBehaviour
             // The operations for XOR FEC packets should happen before the frame packets
             // so that frame packet can be created with XOR FEC packets when a missing
             // frame packet is detected.
-            foreach (var xorPacket in xorPackets)
+            foreach (var fecSenderPacketData in fecPacketDataSet)
             {
-                // Start from 5 since there are 4 bytes for session_id then 1 for packet_type.
-                //int cursor = 5;
-                //int frameId = BitConverter.ToInt32(xorPacket, cursor);
-                //cursor += 4;
-                var fecSenderPacketData = FecSenderPacketData.Parse(xorPacket);
-
                 if (fecSenderPacketData.frameId <= lastFrameId)
                     continue;
-
-                //int packetIndex = BitConverter.ToInt32(xorPacket, cursor);
-                //cursor += 4;
-                //int packetCount = BitConverter.ToInt32(xorPacket, cursor);
-                //cursor += 4;
 
                 if (!fecPacketCollections.ContainsKey(fecSenderPacketData.frameId))
                 {
@@ -404,34 +393,24 @@ public class KinectToHololensManager : MonoBehaviour
                 fecPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, fecSenderPacketData);
             }
 
-            foreach (var framePacket in framePackets)
+            foreach (var videoSenderPacketData in videoPacketDataSet)
             {
-                //int framePacketCursor = 5;
-                //int frameId = BitConverter.ToInt32(framePacket, framePacketCursor);
-                //framePacketCursor += 4;
-                var videoSenderPacketData = VideoSenderPacketData.Parse(framePacket);
-
                 if (videoSenderPacketData.frameId <= lastFrameId)
                     continue;
-
-                //int packetIndex = BitConverter.ToInt32(framePacket, framePacketCursor);
-                //framePacketCursor += 4;
-                //int packetCount = BitConverter.ToInt32(framePacket, framePacketCursor);
-                //framePacketCursor += 4;
 
                 // If there is a packet for a new frame, check the previous frames, and if
                 // there is a frame with missing packets, try to create them using xor packets.
                 // If using the xor packets fails, request the sender to retransmit the packets.
-                if (!framePacketCollections.ContainsKey(videoSenderPacketData.frameId))
+                if (!videoPacketCollections.ContainsKey(videoSenderPacketData.frameId))
                 {
-                    framePacketCollections[videoSenderPacketData.frameId] = new VideoPacketCollection(videoSenderPacketData.frameId,
+                    videoPacketCollections[videoSenderPacketData.frameId] = new VideoPacketCollection(videoSenderPacketData.frameId,
                                                                                                       videoSenderPacketData.packetCount);
 
                     ///////////////////////////////////
                     // Forward Error Correction Start//
                     ///////////////////////////////////
                     // Request missing packets of the previous frames.
-                    foreach (var collectionPair in framePacketCollections)
+                    foreach (var collectionPair in videoPacketCollections)
                     {
                         if(collectionPair.Key < videoSenderPacketData.frameId)
                         {
@@ -454,7 +433,6 @@ public class KinectToHololensManager : MonoBehaviour
 
                                     if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
                                     {
-                                        //fecFailedPacketIndices.Add(i);
                                         found = true;
                                         break;
                                     }
@@ -526,7 +504,7 @@ public class KinectToHololensManager : MonoBehaviour
                                 }
 
                                 //framePacketCollections[missingFrameId].AddPacket(fecPacketIndex, fecFramePacket);
-                                framePacketCollections[missingFrameId].AddPacketData(fecPacketIndex, fecVideoPacketData);
+                                videoPacketCollections[missingFrameId].AddPacketData(fecPacketIndex, fecVideoPacketData);
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
                             receiver.Send(collectionPair.Key, fecFailedPacketIndices);
@@ -540,12 +518,12 @@ public class KinectToHololensManager : MonoBehaviour
                 // which was for reacting to a packet for a new frame.
 
                 //framePacketCollections[videoSenderPacketData.frameId].AddPacket(videoSenderPacketData.packetIndex, framePacket);
-                framePacketCollections[videoSenderPacketData.frameId].AddPacketData(videoSenderPacketData.packetIndex, videoSenderPacketData);
+                videoPacketCollections[videoSenderPacketData.frameId].AddPacketData(videoSenderPacketData.packetIndex, videoSenderPacketData);
             }
 
             // Find all full collections and their frame_ids.
             var fullFrameIds = new List<int>();
-            foreach (var collectionPair in framePacketCollections)
+            foreach (var collectionPair in videoPacketCollections)
             {
                 if (collectionPair.Value.IsFull())
                 {
@@ -557,13 +535,13 @@ public class KinectToHololensManager : MonoBehaviour
             // Extract messages from the full collections.
             foreach (int fullFrameId in fullFrameIds)
             {
-                frameMessageQueue.Enqueue(framePacketCollections[fullFrameId].ToMessage());
-                framePacketCollections.Remove(fullFrameId);
+                frameMessageQueue.Enqueue(videoPacketCollections[fullFrameId].ToMessage());
+                videoPacketCollections.Remove(fullFrameId);
             }
 
             // Clean up frame_packet_collections.
             var obsoleteFrameIds = new List<int>();
-            foreach (var collectionPair in framePacketCollections)
+            foreach (var collectionPair in videoPacketCollections)
             {
                 if (collectionPair.Key <= lastFrameId)
                 {
@@ -573,7 +551,7 @@ public class KinectToHololensManager : MonoBehaviour
 
             foreach (int obsoleteFrameId in obsoleteFrameIds)
             {
-                framePacketCollections.Remove(obsoleteFrameId);
+                videoPacketCollections.Remove(obsoleteFrameId);
             }
         }
         print("Receiver Thread Dead");
