@@ -332,8 +332,8 @@ public class KinectToHololensManager : MonoBehaviour
         const int XOR_MAX_GROUP_SIZE = 5;
 
         //int? senderSessionId = null;
-        var framePacketCollections = new Dictionary<int, FramePacketCollection>();
-        var xorPacketCollections = new Dictionary<int, XorPacketCollection>();
+        var framePacketCollections = new Dictionary<int, VideoPacketCollection>();
+        var fecPacketCollections = new Dictionary<int, FecPacketCollection>();
         print("Start Receiver Thread");
         while (!stopReceiverThread)
         {
@@ -395,13 +395,13 @@ public class KinectToHololensManager : MonoBehaviour
                 //int packetCount = BitConverter.ToInt32(xorPacket, cursor);
                 //cursor += 4;
 
-                if (!xorPacketCollections.ContainsKey(fecSenderPacketData.frameId))
+                if (!fecPacketCollections.ContainsKey(fecSenderPacketData.frameId))
                 {
-                    xorPacketCollections[fecSenderPacketData.frameId] = new XorPacketCollection(fecSenderPacketData.frameId,
+                    fecPacketCollections[fecSenderPacketData.frameId] = new FecPacketCollection(fecSenderPacketData.frameId,
                                                                                                 fecSenderPacketData.packetCount);
                 }
 
-                xorPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, xorPacket);
+                fecPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, fecSenderPacketData);
             }
 
             foreach (var framePacket in framePackets)
@@ -424,7 +424,7 @@ public class KinectToHololensManager : MonoBehaviour
                 // If using the xor packets fails, request the sender to retransmit the packets.
                 if (!framePacketCollections.ContainsKey(videoSenderPacketData.frameId))
                 {
-                    framePacketCollections[videoSenderPacketData.frameId] = new FramePacketCollection(videoSenderPacketData.frameId,
+                    framePacketCollections[videoSenderPacketData.frameId] = new VideoPacketCollection(videoSenderPacketData.frameId,
                                                                                                       videoSenderPacketData.packetCount);
 
                     ///////////////////////////////////
@@ -474,35 +474,41 @@ public class KinectToHololensManager : MonoBehaviour
                                 // Try getting the XOR FEC packet for correction.
                                 int xorPacketIndex = fecPacketIndex / XOR_MAX_GROUP_SIZE;
 
-                                if(!xorPacketCollections.ContainsKey(missingFrameId))
+                                if(!fecPacketCollections.ContainsKey(missingFrameId))
                                 {
                                     fecFailedPacketIndices.Add(fecPacketIndex);
                                     continue;
                                 }
 
-                                var xorPacket = xorPacketCollections[missingFrameId].TryGetPacket(xorPacketIndex);
+                                var fecPacketData = fecPacketCollections[missingFrameId].GetPacketData(xorPacketIndex);
                                 // Give up if there is no xor packet yet.
-                                if (xorPacket == null)
+                                if (fecPacketData == null)
                                 {
                                     fecFailedPacketIndices.Add(fecPacketIndex);
                                     continue;
                                 }
 
-                                byte[] fecFramePacket = new byte[PacketHelper.PACKET_SIZE];
+                                //byte[] fecFramePacket = new byte[PacketHelper.PACKET_SIZE];
+                                var fecVideoPacketData = new VideoSenderPacketData();
 
-                                int fecPacketCursor = 0;
-                                Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId), 0, fecFramePacket, fecPacketCursor, 4);
-                                fecPacketCursor += 4;
-                                fecFramePacket[fecPacketCursor] = PacketHelper.SENDER_FRAME_PACKET;
-                                fecPacketCursor += 1;
-                                Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, fecPacketCursor, 4);
-                                fecPacketCursor += 4;
-                                Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetIndex), 0, fecFramePacket, fecPacketCursor, 4);
-                                fecPacketCursor += 4;
-                                Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetCount), 0, fecFramePacket, fecPacketCursor, 4);
-                                fecPacketCursor += 4;
+                                //int fecPacketCursor = 0;
+                                //Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId), 0, fecFramePacket, fecPacketCursor, 4);
+                                //fecPacketCursor += 4;
+                                //fecFramePacket[fecPacketCursor] = PacketHelper.SENDER_FRAME_PACKET;
+                                //fecPacketCursor += 1;
+                                //Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, fecPacketCursor, 4);
+                                //fecPacketCursor += 4;
+                                //Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetIndex), 0, fecFramePacket, fecPacketCursor, 4);
+                                //fecPacketCursor += 4;
+                                //Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetCount), 0, fecFramePacket, fecPacketCursor, 4);
+                                //fecPacketCursor += 4;
+                                fecVideoPacketData.frameId = missingFrameId;
+                                fecVideoPacketData.packetIndex = videoSenderPacketData.packetIndex;
+                                fecVideoPacketData.packetCount = videoSenderPacketData.packetCount;
 
-                                Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
+                                //Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
+                                //Buffer.BlockCopy(fecPacketData.bytes, 0, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
+                                fecVideoPacketData.messageData = fecPacketData.bytes;
 
                                 int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;
                                 int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.PacketCount);
@@ -513,11 +519,14 @@ public class KinectToHololensManager : MonoBehaviour
                                     if (i == fecPacketIndex)
                                         continue;
 
-                                    for (int j = PacketHelper.PACKET_HEADER_SIZE; j < PacketHelper.PACKET_SIZE; ++j)
-                                        fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
+                                    //for (int j = PacketHelper.PACKET_HEADER_SIZE; j < PacketHelper.PACKET_SIZE; ++j)
+                                    //    fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
+                                    for (int j = 0; j < fecVideoPacketData.messageData.Length; ++j)
+                                        fecVideoPacketData.messageData[j] ^= collectionPair.Value.PacketDataSet[i].messageData[j];
                                 }
 
-                                framePacketCollections[missingFrameId].AddPacket(fecPacketIndex, fecFramePacket);
+                                //framePacketCollections[missingFrameId].AddPacket(fecPacketIndex, fecFramePacket);
+                                framePacketCollections[missingFrameId].AddPacketData(fecPacketIndex, fecVideoPacketData);
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
                             receiver.Send(collectionPair.Key, fecFailedPacketIndices);
@@ -530,7 +539,8 @@ public class KinectToHololensManager : MonoBehaviour
                 // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
                 // which was for reacting to a packet for a new frame.
 
-                framePacketCollections[videoSenderPacketData.frameId].AddPacket(videoSenderPacketData.packetIndex, framePacket);
+                //framePacketCollections[videoSenderPacketData.frameId].AddPacket(videoSenderPacketData.packetIndex, framePacket);
+                framePacketCollections[videoSenderPacketData.frameId].AddPacketData(videoSenderPacketData.packetIndex, videoSenderPacketData);
             }
 
             // Find all full collections and their frame_ids.

@@ -134,8 +134,8 @@ void run_receiver_thread(int sender_session_id,
                             //std::vector<std::byte> fec_frame_packet(KH_PACKET_SIZE);
                             VideoSenderPacketData fec_video_packet_data;
 
-                            auto packet_type{SenderPacketType::Video};
-                            PacketCursor cursor;
+                            //auto packet_type{SenderPacketType::Video};
+                            //PacketCursor cursor;
                             //copy_to_bytes(sender_session_id, fec_frame_packet, cursor);
                             //copy_to_bytes(packet_type, fec_frame_packet, cursor);
                             //copy_to_bytes(missing_frame_id, fec_frame_packet, cursor);

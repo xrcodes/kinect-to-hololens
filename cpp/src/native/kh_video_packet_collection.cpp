@@ -27,9 +27,8 @@ bool VideoPacketCollection::isFull()
 
 VideoMessage VideoPacketCollection::toMessage() {
     int message_size{0};
-    for (auto& packet_data : packet_data_set_) {
+    for (auto& packet_data : packet_data_set_)
         message_size += packet_data->message_data.size();
-    }
 
     std::vector<std::byte> message(message_size);
     int cursor{0};
@@ -42,7 +41,8 @@ VideoMessage VideoPacketCollection::toMessage() {
     return VideoMessage::create(frame_id_, std::move(message), packet_collection_time);
 }
 
-int VideoPacketCollection::getCollectedPacketCount() {
+int VideoPacketCollection::getCollectedPacketCount()
+{
     int count = 0;
     for (auto& packet_data : packet_data_set_) {
         if (packet_data)

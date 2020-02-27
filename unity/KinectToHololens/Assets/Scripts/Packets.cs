@@ -84,7 +84,7 @@ public class VideoSenderPacketData
     public int frameId;
     public int packetIndex;
     public int packetCount;
-    public byte[] bytes;
+    public byte[] messageData;
 
     public static VideoSenderPacketData Parse(byte[] packetBytes)
     {
@@ -96,7 +96,7 @@ public class VideoSenderPacketData
         videoSenderPacketData.packetIndex = reader.ReadInt32();
         videoSenderPacketData.packetCount = reader.ReadInt32();
 
-        videoSenderPacketData.bytes = reader.ReadBytes(packetBytes.Length - (int)reader.BaseStream.Position);
+        videoSenderPacketData.messageData = reader.ReadBytes(packetBytes.Length - (int)reader.BaseStream.Position);
 
         return videoSenderPacketData;
     }
