@@ -2,7 +2,7 @@
 
 // A class that creates Unity textures using the external methods of Plugin.cs.
 // Through the methods, the Unity textures become wrappers of single channel Direct3D textures.
-public class TextureGroup
+public class UnityTextureGroup
 {
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -11,7 +11,7 @@ public class TextureGroup
     public Texture2D VTexture { get; private set; }
     public Texture2D DepthTexture { get; private set; }
 
-    public TextureGroup(int width, int height)
+    public UnityTextureGroup(int width, int height)
     {
         Width = width;
         Height = height;

@@ -20,7 +20,7 @@ public class KinectReceiver
 
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
-    private TextureGroup textureGroup;
+    private UnityTextureGroup unityTextureGroup;
 
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
@@ -38,7 +38,7 @@ public class KinectReceiver
 
         colorDecoder = null;
         depthDecoder = null;
-        textureGroup = null;
+        unityTextureGroup = null;
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
@@ -47,20 +47,20 @@ public class KinectReceiver
     public void UpdateFrame()
     {
         // If texture is not created, create and assign them to quads.
-        if (textureGroup == null)
+        if (unityTextureGroup == null)
         {
             // Check whether the native plugin has Direct3D textures that
             // can be connected to Unity textures.
             if (Plugin.texture_group_get_y_texture_view().ToInt64() != 0)
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
-                textureGroup = new TextureGroup(Plugin.texture_group_get_width(),
+                unityTextureGroup = new UnityTextureGroup(Plugin.texture_group_get_width(),
                                                 Plugin.texture_group_get_height());
 
-                azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.YTexture);
-                azureKinectScreenMaterial.SetTexture("_UTex", textureGroup.UTexture);
-                azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.VTexture);
-                azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.DepthTexture);
+                azureKinectScreenMaterial.SetTexture("_YTex", unityTextureGroup.YTexture);
+                azureKinectScreenMaterial.SetTexture("_UTex", unityTextureGroup.UTexture);
+                azureKinectScreenMaterial.SetTexture("_VTex", unityTextureGroup.VTexture);
+                azureKinectScreenMaterial.SetTexture("_DepthTex", unityTextureGroup.DepthTexture);
 
                 UnityEngine.Debug.Log("textureGroup intialized");
             }
@@ -72,7 +72,7 @@ public class KinectReceiver
         UpdateTextureGroup();
     }
 
-    public void Destroy()
+    public void Stop()
     {
         stopReceiverThread = true;
     }
@@ -440,7 +440,7 @@ public class KinectReceiver
         summaryPacketCount = 0;
 
         // Invokes a function to be called in a render thread.
-        if (textureGroup != null)
+        if (unityTextureGroup != null)
         {
             Plugin.texture_group_set_ffmpeg_frame(ffmpegFrame.Ptr);
             Plugin.texture_group_set_depth_pixels(trvlFrame.Ptr);

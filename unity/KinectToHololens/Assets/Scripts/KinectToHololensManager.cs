@@ -112,7 +112,7 @@ public class KinectToHololensManager : MonoBehaviour
 
     void OnDestroy()
     {
-        kinectReceiver.Destroy();
+        kinectReceiver.Stop();
     }
 
     private void OnTapped(TappedEventArgs args)
