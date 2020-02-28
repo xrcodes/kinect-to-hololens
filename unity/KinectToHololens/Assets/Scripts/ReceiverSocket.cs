@@ -17,12 +17,13 @@ public class ReceiverSocket
 
     public void Ping(IPAddress address, int port)
     {
+        IPEndPoint remoteEndPoint = new IPEndPoint(address, port);
         Address = address;
         Port = port;
 
-        var bytes = new byte[1];
-        bytes[0] = 0;
-        socket.SendTo(bytes, address, port);
+        //var bytes = new byte[1];
+        //bytes[0] = 0;
+        socket.SendTo(PacketHelper.createPingReceiverPacketBytes(), remoteEndPoint);
     }
 
     public byte[] Receive(out SocketError error)
@@ -58,7 +59,7 @@ public class ReceiverSocket
         ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
         ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
         ms.Write(BitConverter.GetBytes(packetCount), 0, 4);
-        socket.SendTo(ms.ToArray(), Address, Port);
+        socket.SendTo(ms.ToArray(), new IPEndPoint(Address, Port));
     }
 
     public void Send(int frameId, List<int> missingPacketIds)
@@ -70,6 +71,6 @@ public class ReceiverSocket
         {
             ms.Write(BitConverter.GetBytes(missingPacketId), 0, 4);
         }
-        socket.SendTo(ms.ToArray(), Address, Port);
+        socket.SendTo(ms.ToArray(), new IPEndPoint(Address, Port));
     }
 }

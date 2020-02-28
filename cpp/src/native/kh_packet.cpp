@@ -295,33 +295,21 @@ std::vector<std::byte> create_ping_receiver_packet_bytes()
     return std::vector<std::byte>{static_cast<std::byte>(ReceiverPacketType::Ping)};
 }
 
-ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float decoder_time_ms,
-                                                            float frame_time_ms, int packet_count)
-{
-    ReportReceiverPacketData report_receiver_packet_data;
-    report_receiver_packet_data.frame_id = frame_id;
-    report_receiver_packet_data.decoder_time_ms = decoder_time_ms;
-    report_receiver_packet_data.frame_time_ms = frame_time_ms;
-    report_receiver_packet_data.packet_count = packet_count;
-
-    return report_receiver_packet_data;
-}
-
-std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverPacketData& report_receiver_packet_data)
+std::vector<std::byte> create_report_receiver_packet_bytes(int frame_id, float decoder_time_ms, float frame_time_ms, int packet_count)
 {
     const int packet_size{gsl::narrow_cast<int>(sizeof(ReceiverPacketType) +
-                                                sizeof(report_receiver_packet_data.frame_id) +
-                                                sizeof(report_receiver_packet_data.decoder_time_ms) +
-                                                sizeof(report_receiver_packet_data.frame_time_ms) +
-                                                sizeof(report_receiver_packet_data.packet_count))};
+                                                sizeof(frame_id) +
+                                                sizeof(decoder_time_ms) +
+                                                sizeof(frame_time_ms) +
+                                                sizeof(packet_count))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(ReceiverPacketType::Report, packet_bytes, cursor);
-    copy_to_bytes(report_receiver_packet_data.frame_id, packet_bytes, cursor);
-    copy_to_bytes(report_receiver_packet_data.decoder_time_ms, packet_bytes, cursor);
-    copy_to_bytes(report_receiver_packet_data.frame_time_ms, packet_bytes, cursor);
-    copy_to_bytes(report_receiver_packet_data.packet_count, packet_bytes, cursor);
+    copy_to_bytes(frame_id, packet_bytes, cursor);
+    copy_to_bytes(decoder_time_ms, packet_bytes, cursor);
+    copy_to_bytes(frame_time_ms, packet_bytes, cursor);
+    copy_to_bytes(packet_count, packet_bytes, cursor);
 
     return packet_bytes;
 }
@@ -338,27 +326,18 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
     return report_receiver_packet_data;
 }
 
-RequestReceiverPacketData create_request_receiver_packet_data(int frame_id, const std::vector<int>& packet_indices)
-{
-    RequestReceiverPacketData request_receiver_packet_data;
-    request_receiver_packet_data.frame_id = frame_id;
-    request_receiver_packet_data.packet_indices = packet_indices;
-
-    return request_receiver_packet_data;
-}
-
-std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceiverPacketData& request_receiver_packet_data)
+std::vector<std::byte> create_request_receiver_packet_bytes(int frame_id, const std::vector<int>& packet_indices)
 {
     const int packet_size(sizeof(ReceiverPacketType) +
-                          sizeof(request_receiver_packet_data.frame_id) +
-                          sizeof(int) * request_receiver_packet_data.packet_indices.size());
+                          sizeof(frame_id) +
+                          sizeof(int) * packet_indices.size());
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(ReceiverPacketType::Request, packet_bytes, cursor);
-    copy_to_bytes(request_receiver_packet_data.frame_id, packet_bytes, cursor);
+    copy_to_bytes(frame_id, packet_bytes, cursor);
 
-    for (int index : request_receiver_packet_data.packet_indices)
+    for (int index : packet_indices)
         copy_to_bytes(index, packet_bytes, cursor);
 
     return packet_bytes;

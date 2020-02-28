@@ -297,7 +297,6 @@ public class KinectToHololensManager : MonoBehaviour
 
                 senderSessionId = sessionId;
 
-                //var calibration = ManagerHelper.ReadAzureKinectCalibrationFromMessage(packet, cursor);
                 var initSenderPacketData = InitSenderPacketData.Parse(packet);
 
                 Plugin.texture_group_set_width(initSenderPacketData.depthWidth);
@@ -349,14 +348,8 @@ public class KinectToHololensManager : MonoBehaviour
 
                 ++summaryPacketCount;
 
-                //int cursor = 0;
-                //int sessionId = BitConverter.ToInt32(packet, cursor);
                 int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
-                //cursor += 4;
-
-                //var packetType = packet[cursor];
                 var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
-                //cursor += 1;
 
                 if (sessionId != senderSessionId)
                     continue;
@@ -503,7 +496,6 @@ public class KinectToHololensManager : MonoBehaviour
                 // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
                 // which was for reacting to a packet for a new frame.
 
-                //framePacketCollections[videoSenderPacketData.frameId].AddPacket(videoSenderPacketData.packetIndex, framePacket);
                 videoPacketCollections[videoSenderPacketData.frameId].AddPacketData(videoSenderPacketData.packetIndex, videoSenderPacketData);
             }
 

@@ -31,6 +31,13 @@ public static class PacketHelper
     {
         return (SenderPacketType)packetBytes[4];
     }
+
+    public static byte[] createPingReceiverPacketBytes()
+    {
+        var bytes = new byte[1];
+        bytes[0] = (byte) ReceiverPacketType.Ping;
+        return bytes;
+    }
 }
 
 public class InitSenderPacketData

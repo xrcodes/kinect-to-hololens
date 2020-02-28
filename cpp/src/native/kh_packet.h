@@ -163,9 +163,7 @@ struct ReportReceiverPacketData
     int packet_count;
 };
 
-ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float decoder_time_ms,
-                                                            float frame_time_ms, int packet_count);
-std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverPacketData& report_receiver_packet_data);
+std::vector<std::byte> create_report_receiver_packet_bytes(int frame_id, float decoder_time_ms, float frame_time_ms, int packet_count);
 ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct RequestReceiverPacketData
@@ -174,7 +172,6 @@ struct RequestReceiverPacketData
     std::vector<int> packet_indices;
 };
 
-RequestReceiverPacketData create_request_receiver_packet_data(int frame_id, const std::vector<int>& packet_indices);
-std::vector<std::byte> create_request_receiver_packet_bytes(const RequestReceiverPacketData& request_receiver_packet_data);
+std::vector<std::byte> create_request_receiver_packet_bytes(int frame_id, const std::vector<int>& packet_indices);
 RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 }

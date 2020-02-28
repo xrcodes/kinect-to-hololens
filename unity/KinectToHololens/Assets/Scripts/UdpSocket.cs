@@ -49,23 +49,25 @@ public class UdpSocket
 
     public Tuple<int, SocketError> Receive(byte[] buffer)
     {
-        return Receive(buffer, 0, buffer.Length);
-    }
-
-    public Tuple<int, SocketError> Receive(byte[] buffer, int offset, int length)
-    {
-        int size = socket.Receive(buffer, offset, length, SocketFlags.None, out SocketError socketError);
+        int size = socket.Receive(buffer, 0, buffer.Length, SocketFlags.None, out SocketError socketError);
         return new Tuple<int, SocketError>(size, socketError);
     }
 
-    public int SendTo(byte[] buffer, int offset, int size, IPAddress address, int port)
-    {
-        EndPoint remoteEP = new IPEndPoint(address, port);
-        return socket.SendTo(buffer, offset, size, SocketFlags.None, remoteEP);
-    }
+    //public Tuple<int, SocketError> Receive(byte[] buffer, int offset, int length)
+    //{
+    //    int size = socket.Receive(buffer, offset, length, SocketFlags.None, out SocketError socketError);
+    //    return new Tuple<int, SocketError>(size, socketError);
+    //}
 
-    public int SendTo(byte[] buffer, IPAddress address, int port)
+    //public int SendTo(byte[] buffer, int offset, int size, IPAddress address, int port)
+    //{
+    //    EndPoint remoteEP = new IPEndPoint(address, port);
+    //    return socket.SendTo(buffer, offset, size, SocketFlags.None, remoteEP);
+    //}
+
+    public int SendTo(byte[] buffer, EndPoint remoteEndPoint)
     {
-        return SendTo(buffer, 0, buffer.Length, address, port);
+        //return SendTo(buffer, 0, buffer.Length, address, port);
+        return socket.SendTo(buffer, 0, buffer.Length, SocketFlags.None, remoteEndPoint);
     }
 }

@@ -176,7 +176,7 @@ void run_receiver_thread(int sender_session_id,
                         }
                         
                         std::error_code error;
-                        receiver.send(create_request_receiver_packet_bytes(create_request_receiver_packet_data(missing_frame_id, fec_failed_packet_indices)), error);
+                        receiver.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices), error);
 
                         if (error && error != asio::error::would_block)
                             printf("Error requesting missing packets: %s\n", error.message().c_str());
@@ -363,10 +363,10 @@ void receive_frames(std::string ip_address, int port)
         frame_start = TimePoint::now();
 
         std::error_code error;
-        receiver.send(create_report_receiver_packet_bytes(create_report_receiver_packet_data(last_frame_id,
-                                                                                             decoder_time.ms(),
-                                                                                             frame_time.ms(),
-                                                                                             summary_packet_count)), error);
+        receiver.send(create_report_receiver_packet_bytes(last_frame_id,
+                                                          decoder_time.ms(),
+                                                          frame_time.ms(),
+                                                          summary_packet_count), error);
             //last_frame_id,
             //          decoder_time.ms(),
             //          frame_time.ms(),
