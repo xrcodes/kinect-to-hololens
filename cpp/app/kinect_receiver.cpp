@@ -19,7 +19,7 @@ namespace kh
 void run_receiver_thread(int sender_session_id,
                          bool& stop_receiver_thread,
                          ReceiverSocket& receiver,
-                         moodycamel::ReaderWriterQueue<VideoSenderMessage>& video_message_queue,
+                         moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
 {
@@ -200,7 +200,7 @@ void run_receiver_thread(int sender_session_id,
                 for (gsl::index i{0}; i < video_sender_message_data_set.size(); ++i)
                     video_sender_message_data_set[i] = gsl::span<std::byte>{it->second.packet_data_set()[i]->message_data};
 
-                video_message_queue.enqueue(parse_video_sender_message_bytes(it->second.frame_id(), merge_video_sender_message_bytes(video_sender_message_data_set)));
+                video_message_queue.enqueue({it->second.frame_id(), parse_video_sender_message_bytes(merge_video_sender_message_bytes(video_sender_message_data_set))});
                 it = video_packet_collections.erase(it);
             } else {
                 ++it;
@@ -287,7 +287,7 @@ void receive_frames(std::string ip_address, int port)
     }
 
     bool stop_receiver_thread{false};
-    moodycamel::ReaderWriterQueue<VideoSenderMessage> video_message_queue;
+    moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
     int last_frame_id{-1};
     int summary_packet_count{0};
     std::thread receiver_thread([&] {
@@ -298,13 +298,13 @@ void receive_frames(std::string ip_address, int port)
     Vp8Decoder color_decoder;
     TrvlDecoder depth_decoder{depth_width * depth_height};
 
-    std::map<int, VideoSenderMessage> frame_messages;
+    std::map<int, VideoSenderMessageData> frame_messages;
     auto frame_start{TimePoint::now()};
     for (;;) {
-        VideoSenderMessage frame_message;
+        std::pair<int, VideoSenderMessageData> frame_message;
         while (video_message_queue.try_dequeue(frame_message)) {
             //frame_messages.push_back(frame_message);
-            frame_messages.insert({frame_message.frame_id, frame_message});
+            frame_messages.insert({frame_message.first, frame_message.second});
         }
 
         if (frame_messages.empty())
@@ -340,16 +340,14 @@ void receive_frames(std::string ip_address, int port)
             if (frame_messages.find(i) == frame_messages.end())
                 break;
 
-            const auto frame_message_ptr{&frame_messages[i]};
+            const auto frame_message_pair_ptr{&frame_messages[i]};
 
-            const int frame_id{frame_message_ptr->frame_id};
-            //printf("frame id: %d\n", frame_id);
-            const bool keyframe{frame_message_ptr->keyframe};
+            const bool keyframe{frame_message_pair_ptr->keyframe};
 
-            last_frame_id = frame_id;
+            last_frame_id = i;
 
-            const auto color_encoder_frame{frame_message_ptr->color_encoder_frame};
-            const auto depth_encoder_frame{frame_message_ptr->depth_encoder_frame};
+            const auto color_encoder_frame{frame_message_pair_ptr->color_encoder_frame};
+            const auto depth_encoder_frame{frame_message_pair_ptr->depth_encoder_frame};
 
             // Decoding a Vp8Frame into color pixels.
             ffmpeg_frame = color_decoder.decode(color_encoder_frame);

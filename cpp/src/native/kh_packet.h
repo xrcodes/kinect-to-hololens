@@ -96,9 +96,8 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
 InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-struct VideoSenderMessage
+struct VideoSenderMessageData
 {
-    int frame_id;
     float frame_time_stamp;
     bool keyframe;
     std::vector<std::byte> color_encoder_frame;
@@ -122,7 +121,7 @@ std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int fram
                                                         gsl::span<const std::byte> packet_content);
 VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set);
-VideoSenderMessage parse_video_sender_message_bytes(int frame_id, gsl::span<const std::byte> message_bytes);
+VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byte> message_bytes);
 
 struct FecSenderPacketData
 {

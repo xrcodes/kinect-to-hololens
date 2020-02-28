@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -41,7 +42,7 @@ public class KinectToHololensManager : MonoBehaviour
 
     private ReceiverSocket receiver;
     private bool stopReceiverThread;
-    private ConcurrentQueue<FrameMessage> frameMessageQueue;
+    private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private int lastFrameId;
     private int summaryPacketCount;
 
@@ -49,7 +50,7 @@ public class KinectToHololensManager : MonoBehaviour
     private TrvlDecoder depthDecoder;
     private TextureGroup textureGroup;
 
-    private Dictionary<int, FrameMessage> frameMessages;
+    private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
     private InputState InputState
@@ -104,7 +105,7 @@ public class KinectToHololensManager : MonoBehaviour
 
         receiver = null;
         stopReceiverThread = false;
-        frameMessageQueue = new ConcurrentQueue<FrameMessage>();
+        videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         lastFrameId = -1;
         summaryPacketCount = 0;
 
@@ -112,7 +113,7 @@ public class KinectToHololensManager : MonoBehaviour
         depthDecoder = null;
         textureGroup = null;
 
-        frameMessages = new Dictionary<int, FrameMessage>();
+        videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
 
         // Prepare a GestureRecognizer to recognize taps.
@@ -286,9 +287,9 @@ public class KinectToHololensManager : MonoBehaviour
                 int sessionId = BitConverter.ToInt32(packet, cursor);
                 cursor += 4;
 
-                var packetType = packet[cursor];
+                var packetType = (SenderPacketType) packet[cursor];
                 cursor += 1;
-                if (packetType != PacketHelper.SENDER_INIT_PACKET)
+                if (packetType != SenderPacketType.Init)
                 {
                     print($"A different kind of a packet received before an init packet: {packetType}");
                     continue;
@@ -354,17 +355,17 @@ public class KinectToHololensManager : MonoBehaviour
                 //cursor += 4;
 
                 //var packetType = packet[cursor];
-                byte packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
+                var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
                 //cursor += 1;
 
                 if (sessionId != senderSessionId)
                     continue;
 
-                if (packetType == PacketHelper.SENDER_FRAME_PACKET)
+                if (packetType == SenderPacketType.Frame)
                 {
                     videoPacketDataSet.Add(VideoSenderPacketData.Parse(packet));
                 }
-                else if (packetType == PacketHelper.SENDER_XOR_PACKET)
+                else if (packetType == SenderPacketType.Fec)
                 {
                     fecPacketDataSet.Add(FecSenderPacketData.Parse(packet));
                 }
@@ -520,7 +521,16 @@ public class KinectToHololensManager : MonoBehaviour
             // Extract messages from the full collections.
             foreach (int fullFrameId in fullFrameIds)
             {
-                frameMessageQueue.Enqueue(videoPacketCollections[fullFrameId].ToMessage());
+                //frameMessageQueue.Enqueue(videoPacketCollections[fullFrameId].ToMessage());
+                var ms = new MemoryStream();
+                foreach (var packetData in videoPacketCollections[fullFrameId].PacketDataSet)
+                {
+                    ms.Write(packetData.messageData, 0, packetData.messageData.Length);
+                }
+
+                var videoMessageData = VideoSenderMessageData.Parse(ms.ToArray());
+                videoMessageQueue.Enqueue(new Tuple<int, VideoSenderMessageData>(fullFrameId, videoMessageData));
+
                 videoPacketCollections.Remove(fullFrameId);
             }
 
@@ -544,29 +554,29 @@ public class KinectToHololensManager : MonoBehaviour
 
     private void UpdateTextureGroup()
     {
-        while (frameMessageQueue.TryDequeue(out FrameMessage frameMessage))
+        while (videoMessageQueue.TryDequeue(out Tuple<int, VideoSenderMessageData> frameMessagePair))
         {
             // C# Dictionary throws an error when you add an element with
             // a key that is already taken.
-            if (frameMessages.ContainsKey(frameMessage.FrameId))
+            if (videoMessages.ContainsKey(frameMessagePair.Item1))
                 continue;
 
-            frameMessages.Add(frameMessage.FrameId, frameMessage);
+            videoMessages.Add(frameMessagePair.Item1, frameMessagePair.Item2);
         }
 
-        if (frameMessages.Count == 0)
+        if (videoMessages.Count == 0)
         {
             return;
         }
 
         int? beginFrameId = null;
         // If there is a key frame, use the most recent one.
-        foreach (var frameMessagePair in frameMessages)
+        foreach (var frameMessagePair in videoMessages)
         {
             if (frameMessagePair.Key <= lastFrameId)
                 continue;
 
-            if (frameMessagePair.Value.Keyframe)
+            if (frameMessagePair.Value.keyframe)
                 beginFrameId = frameMessagePair.Key;
         }
 
@@ -574,7 +584,7 @@ public class KinectToHololensManager : MonoBehaviour
         // if there is the one right after the previously rendered one.
         if (!beginFrameId.HasValue)
         {
-            if(frameMessages.ContainsKey(lastFrameId + 1))
+            if(videoMessages.ContainsKey(lastFrameId + 1))
             {
                 beginFrameId = lastFrameId + 1;
             }
@@ -589,7 +599,6 @@ public class KinectToHololensManager : MonoBehaviour
         // since the existence of beginIndex's value.
         FFmpegFrame ffmpegFrame = null;
         TrvlFrame trvlFrame = null;
-        TimeSpan packetCollectionTime;
 
         var decoderStopWatch = Stopwatch.StartNew();
         //for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
@@ -597,19 +606,17 @@ public class KinectToHololensManager : MonoBehaviour
         //    var frameMessage = frameMessages[i];
         for (int i = beginFrameId.Value; ; ++i)
         {
-            if(!frameMessages.ContainsKey(i))
+            if(!videoMessages.ContainsKey(i))
                 break;
             
-            var frameMessage = frameMessages[i];
-            lastFrameId = frameMessage.FrameId;
+            var frameMessage = videoMessages[i];
+            lastFrameId = i;
 
-            packetCollectionTime = frameMessage.PacketCollectionTime;
-
-            var colorEncoderFrame = frameMessage.GetColorEncoderFrame();
-            var depthEncoderFrame = frameMessage.GetDepthEncoderFrame();
+            var colorEncoderFrame = frameMessage.colorEncoderFrame;
+            var depthEncoderFrame = frameMessage.depthEncoderFrame;
 
             ffmpegFrame = colorDecoder.Decode(colorEncoderFrame);
-            trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.Keyframe);
+            trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.keyframe);
         }
 
         decoderStopWatch.Stop();
@@ -621,7 +628,7 @@ public class KinectToHololensManager : MonoBehaviour
         //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
         //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
-        receiver.Send(lastFrameId, (float)packetCollectionTime.TotalMilliseconds, (float)decoderTime.TotalMilliseconds,
+        receiver.Send(lastFrameId, (float)decoderTime.TotalMilliseconds,
             (float)frameTime.TotalMilliseconds, summaryPacketCount);
         summaryPacketCount = 0;
 
@@ -635,7 +642,7 @@ public class KinectToHololensManager : MonoBehaviour
 
         // Remove frame messages before the rendered frame.
         var frameMessageKeys = new List<int>();
-        foreach (int key in frameMessages.Keys)
+        foreach (int key in videoMessages.Keys)
         {
             frameMessageKeys.Add(key);
         }
@@ -643,7 +650,7 @@ public class KinectToHololensManager : MonoBehaviour
         {
             if(key < lastFrameId)
             {
-                frameMessages.Remove(key);
+                videoMessages.Remove(key);
             }
         }
     }

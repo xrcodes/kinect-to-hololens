@@ -50,12 +50,11 @@ public class ReceiverSocket
     }
 
     // Sends a message to the Sender that a Kinect frame was received.
-    public void Send(int frameId, float packetCollectionMs, float decoderMs, float frameMs, int packetCount)
+    public void Send(int frameId, float decoderMs, float frameMs, int packetCount)
     {
         var ms = new MemoryStream();
-        ms.WriteByte(1);
+        ms.WriteByte((byte) ReceiverPacketType.Report);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        ms.Write(BitConverter.GetBytes(packetCollectionMs), 0, 4);
         ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
         ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
         ms.Write(BitConverter.GetBytes(packetCount), 0, 4);
@@ -65,7 +64,7 @@ public class ReceiverSocket
     public void Send(int frameId, List<int> missingPacketIds)
     {
         var ms = new MemoryStream();
-        ms.WriteByte(2);
+        ms.WriteByte((byte) ReceiverPacketType.Request);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         foreach(int missingPacketId in missingPacketIds)
         {

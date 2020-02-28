@@ -1,20 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 
 class VideoPacketCollection
 {
     public int FrameId { get; private set; }
     public int PacketCount { get; private set; }
     public VideoSenderPacketData[] PacketDataSet { get; private set; }
-    private Stopwatch stopWatch;
 
     public VideoPacketCollection(int frameId, int packetCount)
     {
         FrameId = frameId;
         PacketCount = packetCount;
         PacketDataSet = new VideoSenderPacketData[packetCount];
-        stopWatch = Stopwatch.StartNew();
     }
 
     public void AddPacketData(int packetIndex, VideoSenderPacketData packetData)
@@ -33,23 +32,22 @@ class VideoPacketCollection
         return true;
     }
 
-    public FrameMessage ToMessage()
-    {
-        int messageSize = 0;
-        foreach (var packetData in PacketDataSet)
-            messageSize += packetData.messageData.Length;
+    //public FrameMessage ToMessage()
+    //{
+    //    int messageSize = 0;
+    //    foreach (var packetData in PacketDataSet)
+    //        messageSize += packetData.messageData.Length;
 
-        byte[] message = new byte[messageSize];
-        int cursor = 0;
-        foreach (var packetData in PacketDataSet)
-        {
-            Array.Copy(packetData.messageData, 0, message, cursor, packetData.messageData.Length);
-            cursor += packetData.messageData.Length;
-        }
+    //    byte[] message = new byte[messageSize];
+    //    int cursor = 0;
+    //    foreach (var packetData in PacketDataSet)
+    //    {
+    //        Array.Copy(packetData.messageData, 0, message, cursor, packetData.messageData.Length);
+    //        cursor += packetData.messageData.Length;
+    //    }
 
-        stopWatch.Stop();
-        return FrameMessage.Create(FrameId, message, stopWatch.Elapsed);
-    }
+    //    return FrameMessage.Create(FrameId, message);
+    //}
 
     public List<int> GetMissingPacketIds()
     {

@@ -8,11 +8,9 @@ class FrameMessage
     public bool Keyframe { get; private set; }
     public int ColorEncoderFrameSize { get; private set; }
     public int DepthEncoderFrameSize { get; private set; }
-    public TimeSpan PacketCollectionTime { get; private set; }
 
     private FrameMessage(int frameId, byte[] message, float frameTimeStamp,
-                         bool keyframe, int colorEncoderFrameSize, int depthEncoderFrameSize,
-                         TimeSpan packetCollectionTime)
+                         bool keyframe, int colorEncoderFrameSize, int depthEncoderFrameSize)
     {
         FrameId = frameId;
         this.message = message;
@@ -20,10 +18,9 @@ class FrameMessage
         Keyframe = keyframe;
         ColorEncoderFrameSize = colorEncoderFrameSize;
         DepthEncoderFrameSize = depthEncoderFrameSize;
-        PacketCollectionTime = packetCollectionTime;
     }
 
-    public static FrameMessage Create(int frameId, byte[] message, TimeSpan packetCollectionTime)
+    public static FrameMessage Create(int frameId, byte[] message)
     {
         int cursor = 0;
 
@@ -44,8 +41,7 @@ class FrameMessage
 
         return new FrameMessage(frameId: frameId, message: message, frameTimeStamp: frameTimeStamp,
                                 keyframe: keyframe, colorEncoderFrameSize: colorEncoderFrameSize,
-                                depthEncoderFrameSize: depthEncoderFrameSize,
-                                packetCollectionTime: packetCollectionTime);
+                                depthEncoderFrameSize: depthEncoderFrameSize);
     }
 
     public byte[] GetColorEncoderFrame()

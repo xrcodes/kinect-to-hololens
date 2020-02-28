@@ -1,4 +1,37 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+
+public enum SenderPacketType : byte
+{
+    Init = 0,
+    Frame = 1,
+    Fec = 2,
+    Audio = 3,
+}
+
+public enum ReceiverPacketType : byte
+{
+    Ping = 0,
+    Report = 1,
+    Request = 2,
+}
+
+public static class PacketHelper
+{
+    public const int PACKET_SIZE = 1472;
+    public const int PACKET_HEADER_SIZE = 17;
+    public const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
+
+    public static int getSessionIdFromSenderPacketBytes(byte[] packetBytes)
+    {
+        return BitConverter.ToInt32(packetBytes, 0);
+    }
+
+    public static SenderPacketType getPacketTypeFromSenderPacketBytes(byte[] packetBytes)
+    {
+        return (SenderPacketType)packetBytes[4];
+    }
+}
 
 public class InitSenderPacketData
 {
@@ -76,6 +109,31 @@ public class InitSenderPacketData
         initSenderPacketData.depthToColorExtrinsics = depthToColorExtrinsics;
 
         return initSenderPacketData;
+    }
+}
+
+public class VideoSenderMessageData
+{
+    public float frameTimeStamp;
+    public bool keyframe;
+    public byte[] colorEncoderFrame;
+    public byte[] depthEncoderFrame;
+
+    public static VideoSenderMessageData Parse(byte[] messageBytes)
+    {
+        var reader = new BinaryReader(new MemoryStream(messageBytes));
+
+        var videoSenderMessageData = new VideoSenderMessageData();
+        videoSenderMessageData.frameTimeStamp = reader.ReadSingle();
+        videoSenderMessageData.keyframe = reader.ReadBoolean();
+
+        int colorEncoderFrameSize = reader.ReadInt32();
+        int depthEncoderFrameSize = reader.ReadInt32();
+
+        videoSenderMessageData.colorEncoderFrame = reader.ReadBytes(colorEncoderFrameSize);
+        videoSenderMessageData.depthEncoderFrame = reader.ReadBytes(depthEncoderFrameSize);
+
+        return videoSenderMessageData;
     }
 }
 

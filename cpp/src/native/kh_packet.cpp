@@ -95,11 +95,10 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
     copy_to_bytes(frame_time_stamp, message_bytes, cursor);
     copy_to_bytes(keyframe, message_bytes, cursor);
     copy_to_bytes(gsl::narrow_cast<int>(color_encoder_frame.size()), message_bytes, cursor);
+    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
 
     memcpy(message_bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
     cursor.position += color_encoder_frame.size();
-
-    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
 
     memcpy(message_bytes.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
 
@@ -171,35 +170,30 @@ std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std:
     return message_bytes;
 }
 
-VideoSenderMessage parse_video_sender_message_bytes(int frame_id, gsl::span<const std::byte> message_bytes)
+VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byte> message_bytes)
 {
     PacketCursor cursor{};
-    VideoSenderMessage video_sender_message;
-    //copy_from_bytes(video_sender_message.frame_id, message_bytes, cursor);
-    video_sender_message.frame_id = frame_id;
-    copy_from_bytes(video_sender_message.frame_time_stamp, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.keyframe, message_bytes, cursor);
+    VideoSenderMessageData video_sender_message_data;
+    copy_from_bytes(video_sender_message_data.frame_time_stamp, message_bytes, cursor);
+    copy_from_bytes(video_sender_message_data.keyframe, message_bytes, cursor);
 
     // Parsing the bytes of the message into the VP8 and TRVL frames.
-    int color_encoder_frame_size;
-    copy_from_bytes(color_encoder_frame_size, message_bytes, cursor);
+    int color_encoder_frame_size = copy_from_bytes<int>(message_bytes, cursor);
+    int depth_encoder_frame_size = copy_from_bytes<int>(message_bytes, cursor);
 
-    video_sender_message.color_encoder_frame = std::vector<std::byte>(color_encoder_frame_size);
-    memcpy(video_sender_message.color_encoder_frame.data(),
+    video_sender_message_data.color_encoder_frame = std::vector<std::byte>(color_encoder_frame_size);
+    memcpy(video_sender_message_data.color_encoder_frame.data(),
            message_bytes.data() + cursor.position,
            color_encoder_frame_size);
     cursor.position += color_encoder_frame_size;
 
-    int depth_encoder_frame_size;
-    copy_from_bytes(depth_encoder_frame_size, message_bytes, cursor);
-
-    video_sender_message.depth_encoder_frame = std::vector<std::byte>(depth_encoder_frame_size);
-    memcpy(video_sender_message.depth_encoder_frame.data(),
+    video_sender_message_data.depth_encoder_frame = std::vector<std::byte>(depth_encoder_frame_size);
+    memcpy(video_sender_message_data.depth_encoder_frame.data(),
            message_bytes.data() + cursor.position,
            depth_encoder_frame_size);
     cursor.position += depth_encoder_frame_size;
 
-    return video_sender_message;
+    return video_sender_message_data;
 }
 
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
