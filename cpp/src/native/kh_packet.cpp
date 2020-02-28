@@ -290,6 +290,11 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
     return copy_from_bytes<ReceiverPacketType>(packet_bytes, cursor);
 }
 
+std::vector<std::byte> create_ping_receiver_packet_bytes()
+{
+    return std::vector<std::byte>{static_cast<std::byte>(ReceiverPacketType::Ping)};
+}
+
 ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float decoder_time_ms,
                                                             float frame_time_ms, int packet_count)
 {

@@ -176,7 +176,7 @@ void run_receiver_thread(int sender_session_id,
                         }
                         
                         std::error_code error;
-                        receiver.send(missing_frame_id, fec_failed_packet_indices, error);
+                        receiver.send(create_request_receiver_packet_bytes(create_request_receiver_packet_data(missing_frame_id, fec_failed_packet_indices)), error);
 
                         if (error && error != asio::error::would_block)
                             printf("Error requesting missing packets: %s\n", error.message().c_str());
@@ -242,7 +242,7 @@ void receive_frames(std::string ip_address, int port)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
     asio::io_context io_context;
-    ReceiverSocket receiver{io_context, RECEIVER_RECEIVE_BUFFER_SIZE};
+    ReceiverSocket receiver{io_context, asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}, RECEIVER_RECEIVE_BUFFER_SIZE};
 
     std::error_code error;
     int sender_session_id;
@@ -253,7 +253,7 @@ void receive_frames(std::string ip_address, int port)
     int ping_count{0};
     for (;;) {
         bool initialized{false};
-        receiver.ping(ip_address, port);
+        receiver.send(create_ping_receiver_packet_bytes(), error);
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
@@ -360,11 +360,15 @@ void receive_frames(std::string ip_address, int port)
         frame_start = TimePoint::now();
 
         std::error_code error;
-        receiver.send(last_frame_id,
-                      decoder_time.ms(),
-                      frame_time.ms(),
-                      summary_packet_count,
-                      error);
+        receiver.send(create_report_receiver_packet_bytes(create_report_receiver_packet_data(last_frame_id,
+                                                                                             decoder_time.ms(),
+                                                                                             frame_time.ms(),
+                                                                                             summary_packet_count)), error);
+            //last_frame_id,
+            //          decoder_time.ms(),
+            //          frame_time.ms(),
+            //          summary_packet_count,
+            //          error);
 
         if (error && error != asio::error::would_block)
             printf("Error sending receiver status: %s\n", error.message().c_str());

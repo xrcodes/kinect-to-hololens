@@ -85,8 +85,9 @@ int main(std::string ip_address, int port)
     }
 
     asio::io_context io_context;
-    ReceiverSocket receiver(io_context, 1024 * 1024);
-    receiver.ping(ip_address, port);
+    ReceiverSocket receiver(io_context, asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}, 1024 * 1024);
+    std::error_code error;
+    receiver.send(create_ping_receiver_packet_bytes(), error);
 
     printf("start for loop\n");
     OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);

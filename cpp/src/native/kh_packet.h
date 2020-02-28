@@ -153,6 +153,8 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
 /**Receiver Packets**/
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+std::vector<std::byte> create_ping_receiver_packet_bytes();
+
 struct ReportReceiverPacketData
 {
     int frame_id;

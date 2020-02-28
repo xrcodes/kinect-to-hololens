@@ -7,8 +7,6 @@ add_library(KinectToHololensNative
   kh_video_packet_collection.cpp
   kh_fec_packet_collection.h
   kh_fec_packet_collection.cpp
-  kh_video_message.h
-  kh_video_message.cpp
   kh_packet.h
   kh_packet.cpp
   kh_audio.h
