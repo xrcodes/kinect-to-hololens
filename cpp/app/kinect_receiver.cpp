@@ -131,23 +131,10 @@ void run_receiver_thread(int sender_session_id,
 
                             const auto fec_start{TimePoint::now()};
 
-                            //std::vector<std::byte> fec_frame_packet(KH_PACKET_SIZE);
                             VideoSenderPacketData fec_video_packet_data;
-
-                            //auto packet_type{SenderPacketType::Video};
-                            //PacketCursor cursor;
-                            //copy_to_bytes(sender_session_id, fec_frame_packet, cursor);
-                            //copy_to_bytes(packet_type, fec_frame_packet, cursor);
-                            //copy_to_bytes(missing_frame_id, fec_frame_packet, cursor);
-                            //copy_to_bytes(frame_sender_packet_data.packet_index, fec_frame_packet, cursor);
-                            //copy_to_bytes(frame_sender_packet_data.packet_count, fec_frame_packet, cursor);
                             fec_video_packet_data.frame_id = missing_frame_id;
                             fec_video_packet_data.packet_index = video_sender_packet_data.packet_index;
                             fec_video_packet_data.packet_count = video_sender_packet_data.packet_count;
-
-                            //memcpy(fec_frame_packet.data() + cursor.position,
-                            //       fec_packet_data->bytes.data(),
-                            //       KH_MAX_VIDEO_PACKET_CONTENT_SIZE);
                             fec_video_packet_data.message_data = fec_packet_data->bytes;
 
                             const int begin_frame_packet_index{xor_packet_index * FEC_MAX_GROUP_SIZE};
@@ -158,8 +145,6 @@ void run_receiver_thread(int sender_session_id,
                                 if (i == fec_packet_index)
                                     continue;
 
-                                //for (gsl::index j = KH_VIDEO_PACKET_HEADER_SIZE; j < KH_PACKET_SIZE; ++j)
-                                //    fec_frame_packet[j] ^= collection_pair.second.packets()[i][j];
                                 for (gsl::index j{0}; j < fec_video_packet_data.message_data.size(); ++j)
                                     fec_video_packet_data.message_data[j] ^= collection_pair.second.packet_data_set()[i]->message_data[j];
                             }
@@ -367,11 +352,6 @@ void receive_frames(std::string ip_address, int port)
                                                           decoder_time.ms(),
                                                           frame_time.ms(),
                                                           summary_packet_count), error);
-            //last_frame_id,
-            //          decoder_time.ms(),
-            //          frame_time.ms(),
-            //          summary_packet_count,
-            //          error);
 
         if (error && error != asio::error::would_block)
             printf("Error sending receiver status: %s\n", error.message().c_str());

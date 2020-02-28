@@ -1,9 +1,8 @@
 #pragma once
 
-#include <asio.hpp>
 #include <optional>
+#include <asio.hpp>
 #include <gsl/gsl>
-#include <k4a/k4a.hpp>
 
 namespace kh
 {

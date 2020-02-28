@@ -17,7 +17,6 @@ public enum InputState
 
 public class KinectToHololensManager : MonoBehaviour
 {
-
     // The main camera's Transform.
     public Transform cameraTransform;
     // The TextMesh placed above user's head.
@@ -40,7 +39,7 @@ public class KinectToHololensManager : MonoBehaviour
     // Varaibles that represent states of the scene.
     private InputState inputState;
 
-    private UdpSocket receiver;
+    private UdpSocket udpSocket;
     private bool stopReceiverThread;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private int lastFrameId;
@@ -103,7 +102,7 @@ public class KinectToHololensManager : MonoBehaviour
 
         gestureRecognizer = new GestureRecognizer();
 
-        receiver = null;
+        udpSocket = null;
         stopReceiverThread = false;
         videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         lastFrameId = -1;
@@ -156,7 +155,7 @@ public class KinectToHololensManager : MonoBehaviour
             }
         }
 
-        if (receiver == null)
+        if (udpSocket == null)
             return;
 
         UpdateTextureGroup();
@@ -263,19 +262,14 @@ public class KinectToHololensManager : MonoBehaviour
         statusText.text = logString;
 
         var ipAddress = IPAddress.Parse(ipAddressText);
-
-        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
-        {
-            ReceiveBufferSize = 1024 * 1024
-        };
-
-        var receiver = new UdpSocket(socket, new IPEndPoint(ipAddress, port));
+        var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 },
+                                      new IPEndPoint(ipAddress, port));
         int senderSessionId = -1;
         int pingCount = 0;
         while (true)
         {
             bool initialized = false;
-            receiver.Send(PacketHelper.createPingReceiverPacketBytes());
+            udpSocket.Send(PacketHelper.createPingReceiverPacketBytes());
             ++pingCount;
             print($"Sent ping to {ipAddress.ToString()}:{port}.");
 
@@ -284,7 +278,7 @@ public class KinectToHololensManager : MonoBehaviour
             SocketError error = SocketError.WouldBlock;
             while (true)
             {
-                var packet = receiver.Receive(out error);
+                var packet = udpSocket.Receive(out error);
                 if (packet == null)
                     break;
 
@@ -326,7 +320,7 @@ public class KinectToHololensManager : MonoBehaviour
             }
         }
 
-        this.receiver = receiver;
+        this.udpSocket = udpSocket;
 
         Thread receiverThread = new Thread(() => RunReceiverThread(senderSessionId));
         receiverThread.Start();
@@ -347,7 +341,7 @@ public class KinectToHololensManager : MonoBehaviour
             SocketError error = SocketError.WouldBlock;
             while (true)
             {
-                var packet = receiver.Receive(out error);
+                var packet = udpSocket.Receive(out error);
                 if (packet == null)
                     break;
 
@@ -491,7 +485,7 @@ public class KinectToHololensManager : MonoBehaviour
                                 videoPacketCollections[missingFrameId].AddPacketData(fecPacketIndex, fecVideoPacketData);
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
-                            receiver.Send(PacketHelper.createRequestReceiverPacketBytes(collectionPair.Key, fecFailedPacketIndices));
+                            udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(collectionPair.Key, fecFailedPacketIndices));
                         }
                     }
                     /////////////////////////////////
@@ -625,7 +619,7 @@ public class KinectToHololensManager : MonoBehaviour
         //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
         //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
-        receiver.Send(PacketHelper.createReportReceiverPacketBytes(lastFrameId, (float)decoderTime.TotalMilliseconds,
+        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(lastFrameId, (float)decoderTime.TotalMilliseconds,
                                                                    (float)frameTime.TotalMilliseconds, summaryPacketCount));
         summaryPacketCount = 0;
 
