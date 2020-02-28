@@ -264,13 +264,18 @@ public class KinectToHololensManager : MonoBehaviour
 
         var ipAddress = IPAddress.Parse(ipAddressText);
 
-        var receiver = new ReceiverSocket(1024 * 1024);
+        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+        {
+            ReceiveBufferSize = 1024 * 1024
+        };
+
+        var receiver = new ReceiverSocket(socket, new IPEndPoint(ipAddress, port));
         int senderSessionId = -1;
         int pingCount = 0;
         while (true)
         {
             bool initialized = false;
-            receiver.Ping(ipAddress, port);
+            receiver.Send(PacketHelper.createPingReceiverPacketBytes());
             ++pingCount;
             print($"Sent ping to {ipAddress.ToString()}:{port}.");
 
@@ -486,7 +491,7 @@ public class KinectToHololensManager : MonoBehaviour
                                 videoPacketCollections[missingFrameId].AddPacketData(fecPacketIndex, fecVideoPacketData);
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
-                            receiver.Send(collectionPair.Key, fecFailedPacketIndices);
+                            receiver.Send(PacketHelper.createRequestReceiverPacketBytes(collectionPair.Key, fecFailedPacketIndices));
                         }
                     }
                     /////////////////////////////////
@@ -620,8 +625,8 @@ public class KinectToHololensManager : MonoBehaviour
         //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
         //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
-        receiver.Send(lastFrameId, (float)decoderTime.TotalMilliseconds,
-            (float)frameTime.TotalMilliseconds, summaryPacketCount);
+        receiver.Send(PacketHelper.createReportReceiverPacketBytes(lastFrameId, (float)decoderTime.TotalMilliseconds,
+                                                                   (float)frameTime.TotalMilliseconds, summaryPacketCount));
         summaryPacketCount = 0;
 
         // Invokes a function to be called in a render thread.

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 public enum SenderPacketType : byte
@@ -35,8 +36,31 @@ public static class PacketHelper
     public static byte[] createPingReceiverPacketBytes()
     {
         var bytes = new byte[1];
-        bytes[0] = (byte) ReceiverPacketType.Ping;
+        bytes[0] = (byte)ReceiverPacketType.Ping;
         return bytes;
+    }
+
+    public static byte[] createReportReceiverPacketBytes(int frameId, float decoderMs, float frameMs, int packetCount)
+    {
+        var ms = new MemoryStream();
+        ms.WriteByte((byte)ReceiverPacketType.Report);
+        ms.Write(BitConverter.GetBytes(frameId), 0, 4);
+        ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
+        ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
+        ms.Write(BitConverter.GetBytes(packetCount), 0, 4);
+        return ms.ToArray();
+    }
+
+    public static byte[] createRequestReceiverPacketBytes(int frameId, List<int> missingPacketIds)
+    {
+        var ms = new MemoryStream();
+        ms.WriteByte((byte)ReceiverPacketType.Request);
+        ms.Write(BitConverter.GetBytes(frameId), 0, 4);
+        foreach (int missingPacketId in missingPacketIds)
+        {
+            ms.Write(BitConverter.GetBytes(missingPacketId), 0, 4);
+        }
+        return ms.ToArray();
     }
 }
 
@@ -84,8 +108,6 @@ public class InitSenderPacketData
 
         initSenderPacketData.colorMetricRadius = reader.ReadSingle();
 
-        UnityEngine.Debug.LogFormat($"color: {colorIntrinsics.metricRadius} / {initSenderPacketData.colorMetricRadius}");
-
         var depthIntrinsics = new AzureKinectCalibration.Intrinsics();
         depthIntrinsics.cx = reader.ReadSingle();
         depthIntrinsics.cy = reader.ReadSingle();
@@ -105,8 +127,6 @@ public class InitSenderPacketData
         initSenderPacketData.depthIntrinsics = depthIntrinsics;
 
         initSenderPacketData.depthMetricRadius = reader.ReadSingle();
-
-        UnityEngine.Debug.LogFormat($"depth: {depthIntrinsics.metricRadius} / {initSenderPacketData.depthMetricRadius}");
 
         var depthToColorExtrinsics = new AzureKinectCalibration.Extrinsics();
         for (int i = 0; i < depthToColorExtrinsics.rotation.Length; ++i)

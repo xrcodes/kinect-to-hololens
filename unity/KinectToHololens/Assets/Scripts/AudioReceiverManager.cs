@@ -14,14 +14,20 @@ public class AudioReceiverManager : MonoBehaviour
 
     void Start()
     {
-        receiver = new ReceiverSocket(1024 * 1024);
-        ringBuffer = new RingBuffer(64 * 1024);
-        opusDecoder = new OpusDecoder(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT);
-
         IPAddress address = IPAddress.Parse("127.0.0.1");
         int port = 7777;
 
-        receiver.Ping(address, port);
+        Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+        {
+            ReceiveBufferSize = 1024 * 1024
+        };
+
+        receiver = new ReceiverSocket(socket, new IPEndPoint(address, port));
+        ringBuffer = new RingBuffer(64 * 1024);
+        opusDecoder = new OpusDecoder(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT);
+
+
+        receiver.Send(PacketHelper.createPingReceiverPacketBytes());
     }
 
     private void Update()

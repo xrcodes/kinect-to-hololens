@@ -1,37 +1,28 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
 public class ReceiverSocket
 {
-    private UdpSocket socket;
-    public IPAddress Address { get; private set; }
-    public int Port { get; private set; }
+    private Socket socket;
+    private IPEndPoint remoteEndPoint;
 
-    public ReceiverSocket(int receiveBufferSize)
+    public ReceiverSocket(Socket socket, IPEndPoint remoteEndPoint)
     {
-        socket = new UdpSocket(receiveBufferSize);
+        this.socket = socket;
+        this.remoteEndPoint = remoteEndPoint;
+        socket.Blocking = false;
     }
 
-    public void Ping(IPAddress address, int port)
-    {
-        IPEndPoint remoteEndPoint = new IPEndPoint(address, port);
-        Address = address;
-        Port = port;
-
-        //var bytes = new byte[1];
-        //bytes[0] = 0;
-        socket.SendTo(PacketHelper.createPingReceiverPacketBytes(), remoteEndPoint);
-    }
+    //public void Ping()
+    //{
+    //    socket.SendTo(PacketHelper.createPingReceiverPacketBytes(), remoteEndPoint);
+    //}
 
     public byte[] Receive(out SocketError error)
     {
         var packet = new byte[PacketHelper.PACKET_SIZE];
-        var receiveResult = socket.Receive(packet);
-        int packetSize = receiveResult.Item1;
-        error = receiveResult.Item2;
+        var packetSize = socket.Receive(packet, 0, packet.Length, SocketFlags.None, out error);
 
         if (error != SocketError.Success)
         {
@@ -50,27 +41,8 @@ public class ReceiverSocket
         }
     }
 
-    // Sends a message to the Sender that a Kinect frame was received.
-    public void Send(int frameId, float decoderMs, float frameMs, int packetCount)
+    public int Send(byte[] buffer)
     {
-        var ms = new MemoryStream();
-        ms.WriteByte((byte) ReceiverPacketType.Report);
-        ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
-        ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
-        ms.Write(BitConverter.GetBytes(packetCount), 0, 4);
-        socket.SendTo(ms.ToArray(), new IPEndPoint(Address, Port));
-    }
-
-    public void Send(int frameId, List<int> missingPacketIds)
-    {
-        var ms = new MemoryStream();
-        ms.WriteByte((byte) ReceiverPacketType.Request);
-        ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        foreach(int missingPacketId in missingPacketIds)
-        {
-            ms.Write(BitConverter.GetBytes(missingPacketId), 0, 4);
-        }
-        socket.SendTo(ms.ToArray(), new IPEndPoint(Address, Port));
+        return socket.SendTo(buffer, 0, buffer.Length, SocketFlags.None, remoteEndPoint);
     }
 }
