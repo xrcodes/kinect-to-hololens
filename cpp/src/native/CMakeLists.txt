@@ -14,7 +14,6 @@ add_library(KinectToHololensNative
   kh_audio.h
   kh_audio.cpp
   kh_time.h
-  kh_time.cpp
 )
 target_include_directories(KinectToHololensNative PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

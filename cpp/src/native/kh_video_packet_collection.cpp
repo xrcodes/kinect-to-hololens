@@ -25,21 +25,14 @@ bool VideoPacketCollection::isFull()
     return true;
 }
 
-VideoMessage VideoPacketCollection::toMessage() {
-    int message_size{0};
-    for (auto& packet_data : packet_data_set_)
-        message_size += packet_data->message_data.size();
-
-    std::vector<std::byte> message(message_size);
-    int cursor{0};
-    for (auto& packet_data : packet_data_set_) {
-        memcpy(message.data() + cursor, packet_data->message_data.data(), packet_data->message_data.size());
-        cursor += packet_data->message_data.size();
-    }
-
-    auto packet_collection_time = TimePoint::now() - construction_time_;
-    return VideoMessage::create(frame_id_, std::move(message), packet_collection_time);
-}
+//VideoMessage VideoPacketCollection::toMessage()
+//{
+//    std::vector<gsl::span<std::byte>> video_sender_message_data_set(packet_data_set_.size());
+//    for (gsl::index i{0}; i < packet_data_set_.size(); ++i)
+//        video_sender_message_data_set[i] = gsl::span<std::byte>{packet_data_set_[i]->message_data};
+//
+//    return VideoMessage::create(frame_id_, merge_video_sender_message_bytes(video_sender_message_data_set));
+//}
 
 int VideoPacketCollection::getCollectedPacketCount()
 {

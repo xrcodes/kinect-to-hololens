@@ -33,10 +33,10 @@ void ReceiverSocket::ping(std::string ip_address, unsigned short port)
     socket_.send_to(asio::buffer(&packet_type, 1), remote_endpoint_);
 }
 
-void ReceiverSocket::send(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+void ReceiverSocket::send(int frame_id, float decoder_time_ms,
                           float frame_time_ms, int packet_count, std::error_code& error)
 {
-    const auto report_receiver_packet_data{create_report_receiver_packet_data(frame_id, packet_collection_time_ms,
+    const auto report_receiver_packet_data{create_report_receiver_packet_data(frame_id,
                                                                               decoder_time_ms, frame_time_ms,
                                                                               packet_count)};
     const auto packet_bytes{create_report_receiver_packet_bytes(report_receiver_packet_data)};

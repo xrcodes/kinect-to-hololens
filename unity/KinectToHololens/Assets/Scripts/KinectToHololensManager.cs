@@ -465,27 +465,12 @@ public class KinectToHololensManager : MonoBehaviour
                                     fecFailedPacketIndices.Add(fecPacketIndex);
                                     continue;
                                 }
-
-                                //byte[] fecFramePacket = new byte[PacketHelper.PACKET_SIZE];
+                                
                                 var fecVideoPacketData = new VideoSenderPacketData();
 
-                                //int fecPacketCursor = 0;
-                                //Buffer.BlockCopy(BitConverter.GetBytes(senderSessionId), 0, fecFramePacket, fecPacketCursor, 4);
-                                //fecPacketCursor += 4;
-                                //fecFramePacket[fecPacketCursor] = PacketHelper.SENDER_FRAME_PACKET;
-                                //fecPacketCursor += 1;
-                                //Buffer.BlockCopy(BitConverter.GetBytes(missingFrameId), 0, fecFramePacket, fecPacketCursor, 4);
-                                //fecPacketCursor += 4;
-                                //Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetIndex), 0, fecFramePacket, fecPacketCursor, 4);
-                                //fecPacketCursor += 4;
-                                //Buffer.BlockCopy(BitConverter.GetBytes(videoSenderPacketData.packetCount), 0, fecFramePacket, fecPacketCursor, 4);
-                                //fecPacketCursor += 4;
                                 fecVideoPacketData.frameId = missingFrameId;
                                 fecVideoPacketData.packetIndex = videoSenderPacketData.packetIndex;
                                 fecVideoPacketData.packetCount = videoSenderPacketData.packetCount;
-
-                                //Buffer.BlockCopy(xorPacket, fecPacketCursor, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
-                                //Buffer.BlockCopy(fecPacketData.bytes, 0, fecFramePacket, fecPacketCursor, PacketHelper.MAX_PACKET_CONTENT_SIZE);
                                 fecVideoPacketData.messageData = fecPacketData.bytes;
 
                                 int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;

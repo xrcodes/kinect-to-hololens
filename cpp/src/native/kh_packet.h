@@ -96,6 +96,15 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
 InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+struct VideoSenderMessage
+{
+    int frame_id;
+    float frame_time_stamp;
+    bool keyframe;
+    std::vector<std::byte> color_encoder_frame;
+    std::vector<std::byte> depth_encoder_frame;
+};
+
 struct VideoSenderPacketData
 {
     int frame_id;
@@ -108,10 +117,12 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
                                                          gsl::span<const std::byte> color_encoder_frame,
                                                          gsl::span<const std::byte> depth_encoder_frame);
 std::vector<std::vector<std::byte>> split_video_sender_message_bytes(int session_id, int frame_id,
-                                                                     gsl::span<const std::byte> frame_message);
+                                                                     gsl::span<const std::byte> video_message);
 std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                         gsl::span<const std::byte> packet_content);
 VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set);
+VideoSenderMessage parse_video_sender_message_bytes(int frame_id, gsl::span<const std::byte> message_bytes);
 
 struct FecSenderPacketData
 {
@@ -146,13 +157,12 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
 struct ReportReceiverPacketData
 {
     int frame_id;
-    float packet_collection_time_ms;
     float decoder_time_ms;
     float frame_time_ms;
     int packet_count;
 };
 
-ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float decoder_time_ms,
                                                             float frame_time_ms, int packet_count);
 std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverPacketData& report_receiver_packet_data);
 ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);

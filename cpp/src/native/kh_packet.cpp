@@ -155,6 +155,53 @@ VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte>
     return video_sender_packet_data;
 }
 
+std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set)
+{
+    int message_size{0};
+    for (auto& message_data : video_sender_message_data_set)
+        message_size += message_data.size();
+
+    std::vector<std::byte> message_bytes(message_size);
+    int cursor{0};
+    for (auto& message_data : video_sender_message_data_set) {
+        memcpy(message_bytes.data() + cursor, message_data.data(), message_data.size());
+        cursor += message_data.size();
+    }
+
+    return message_bytes;
+}
+
+VideoSenderMessage parse_video_sender_message_bytes(int frame_id, gsl::span<const std::byte> message_bytes)
+{
+    PacketCursor cursor{};
+    VideoSenderMessage video_sender_message;
+    //copy_from_bytes(video_sender_message.frame_id, message_bytes, cursor);
+    video_sender_message.frame_id = frame_id;
+    copy_from_bytes(video_sender_message.frame_time_stamp, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.keyframe, message_bytes, cursor);
+
+    // Parsing the bytes of the message into the VP8 and TRVL frames.
+    int color_encoder_frame_size;
+    copy_from_bytes(color_encoder_frame_size, message_bytes, cursor);
+
+    video_sender_message.color_encoder_frame = std::vector<std::byte>(color_encoder_frame_size);
+    memcpy(video_sender_message.color_encoder_frame.data(),
+           message_bytes.data() + cursor.position,
+           color_encoder_frame_size);
+    cursor.position += color_encoder_frame_size;
+
+    int depth_encoder_frame_size;
+    copy_from_bytes(depth_encoder_frame_size, message_bytes, cursor);
+
+    video_sender_message.depth_encoder_frame = std::vector<std::byte>(depth_encoder_frame_size);
+    memcpy(video_sender_message.depth_encoder_frame.data(),
+           message_bytes.data() + cursor.position,
+           depth_encoder_frame_size);
+    cursor.position += depth_encoder_frame_size;
+
+    return video_sender_message;
+}
+
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
@@ -249,12 +296,11 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
     return copy_from_bytes<ReceiverPacketType>(packet_bytes, cursor);
 }
 
-ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float packet_collection_time_ms, float decoder_time_ms,
+ReportReceiverPacketData create_report_receiver_packet_data(int frame_id, float decoder_time_ms,
                                                             float frame_time_ms, int packet_count)
 {
     ReportReceiverPacketData report_receiver_packet_data;
     report_receiver_packet_data.frame_id = frame_id;
-    report_receiver_packet_data.packet_collection_time_ms = packet_collection_time_ms;
     report_receiver_packet_data.decoder_time_ms = decoder_time_ms;
     report_receiver_packet_data.frame_time_ms = frame_time_ms;
     report_receiver_packet_data.packet_count = packet_count;
@@ -266,7 +312,6 @@ std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverP
 {
     const int packet_size{gsl::narrow_cast<int>(sizeof(ReceiverPacketType) +
                                                 sizeof(report_receiver_packet_data.frame_id) +
-                                                sizeof(report_receiver_packet_data.packet_collection_time_ms) +
                                                 sizeof(report_receiver_packet_data.decoder_time_ms) +
                                                 sizeof(report_receiver_packet_data.frame_time_ms) +
                                                 sizeof(report_receiver_packet_data.packet_count))};
@@ -275,7 +320,6 @@ std::vector<std::byte> create_report_receiver_packet_bytes(const ReportReceiverP
     PacketCursor cursor;
     copy_to_bytes(ReceiverPacketType::Report, packet_bytes, cursor);
     copy_to_bytes(report_receiver_packet_data.frame_id, packet_bytes, cursor);
-    copy_to_bytes(report_receiver_packet_data.packet_collection_time_ms, packet_bytes, cursor);
     copy_to_bytes(report_receiver_packet_data.decoder_time_ms, packet_bytes, cursor);
     copy_to_bytes(report_receiver_packet_data.frame_time_ms, packet_bytes, cursor);
     copy_to_bytes(report_receiver_packet_data.packet_count, packet_bytes, cursor);
@@ -288,7 +332,6 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
     ReportReceiverPacketData report_receiver_packet_data;
     PacketCursor cursor{1};
     copy_from_bytes(report_receiver_packet_data.frame_id, packet_bytes, cursor);
-    copy_from_bytes(report_receiver_packet_data.packet_collection_time_ms, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet_data.decoder_time_ms, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet_data.frame_time_ms, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet_data.packet_count, packet_bytes, cursor);

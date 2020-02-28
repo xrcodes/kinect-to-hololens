@@ -23,11 +23,9 @@ void handle_receiver_messages(int session_id,
 {
     constexpr int XOR_MAX_GROUP_SIZE = 5;
 
-    //std::unordered_map<int, time_point<steady_clock>> video_frame_send_times;
     std::unordered_map<int, TimePoint> video_frame_send_times;
     std::unordered_map<int, VideoPacketSet> video_packet_sets;
     int last_receiver_video_frame_id{0};
-    //auto video_sender_summary_start{steady_clock::now()};
     auto video_sender_summary_start{TimePoint::now()};
     int video_sender_summary_receiver_frame_count{0};
     int video_sender_summary_receiver_packet_count{0};
@@ -52,23 +50,21 @@ void handle_receiver_messages(int session_id,
                 const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
                 receiver_frame_id = report_receiver_packet_data.frame_id;
 
-                const TimeDuration round_trip_time{TimePoint::now() - video_frame_send_times[receiver_frame_id]};
+                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_frame_id]};
 
-                printf("Frame id: %d, packet: %f ms, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
+                printf("Frame id: %d, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
                        receiver_frame_id,
-                       report_receiver_packet_data.packet_collection_time_ms,
                        report_receiver_packet_data.decoder_time_ms,
                        report_receiver_packet_data.frame_time_ms,
                        round_trip_time.ms());
 
-                std::vector<int> obsolete_frame_ids;
-                for (auto& frame_send_time_pair : video_frame_send_times) {
-                    if (frame_send_time_pair.first <= receiver_frame_id)
-                        obsolete_frame_ids.push_back(frame_send_time_pair.first);
+                for (auto it = video_frame_send_times.begin(); it != video_frame_send_times.end();) {
+                    if (it->first <= receiver_frame_id) {
+                        it = video_frame_send_times.erase(it);
+                    } else {
+                        ++it;
+                    }
                 }
-
-                for (int obsolete_frame_id : obsolete_frame_ids)
-                    video_frame_send_times.erase(obsolete_frame_id);
 
                 ++video_sender_summary_receiver_frame_count;
                 video_sender_summary_receiver_packet_count += report_receiver_packet_data.packet_count;
@@ -129,14 +125,6 @@ void handle_receiver_messages(int session_id,
 
         // Remove elements of frame_packet_sets reserved for filling up missing packets
         // if they are already used from the receiver side.
-        //std::vector<int> obsolete_frame_ids;
-        //for (auto& video_packet_set_pair : video_packet_sets) {
-        //    if (video_packet_set_pair.first <= receiver_frame_id)
-        //        obsolete_frame_ids.push_back(video_packet_set_pair.first);
-        //}
-
-        //for (int obsolete_frame_id : obsolete_frame_ids)
-        //    video_packet_sets.erase(obsolete_frame_id);
         for (auto it = video_packet_sets.begin(); it != video_packet_sets.end();) {
             if (it->first <= receiver_frame_id) {
                 it = video_packet_sets.erase(it);
