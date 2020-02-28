@@ -4,7 +4,7 @@
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "helper/kinect_helper.h"
-#include "native/kh_sender_socket.h"
+#include "native/kh_udp_socket.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
 #include "native/kh_packet.h"
@@ -17,7 +17,7 @@ using VideoPacketSet = std::pair<int, std::vector<std::vector<std::byte>>>;
 
 void handle_receiver_messages(int session_id,
                               bool& stop_threads,
-                              SenderSocket& sender_socket,
+                              UdpSocket& sender_socket,
                               moodycamel::ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
                               int& receiver_frame_id)
 {
@@ -174,6 +174,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
+    socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
 
     std::vector<std::byte> ping_buffer(1);
     asio::ip::udp::endpoint remote_endpoint;
@@ -187,7 +188,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    SenderSocket sender_socket{std::move(socket), remote_endpoint, SENDER_SEND_BUFFER_SIZE};
+    UdpSocket sender_socket{std::move(socket), remote_endpoint};
 
     bool stop_threads{false};
     moodycamel::ReaderWriterQueue<VideoPacketSet> video_packet_queue;

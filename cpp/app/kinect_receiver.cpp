@@ -8,7 +8,7 @@
 #include "helper/opencv_helper.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-#include "native/kh_receiver_socket.h"
+#include "native/kh_udp_socket.h"
 #include "native/kh_video_packet_collection.h"
 #include "native/kh_fec_packet_collection.h"
 #include "native/kh_packet.h"
@@ -18,7 +18,7 @@ namespace kh
 {
 void run_receiver_thread(int sender_session_id,
                          bool& stop_receiver_thread,
-                         ReceiverSocket& receiver,
+                         UdpSocket& receiver,
                          moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
                          int& last_frame_id,
                          int& summary_packet_count)
@@ -242,7 +242,10 @@ void receive_frames(std::string ip_address, int port)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
     asio::io_context io_context;
-    ReceiverSocket receiver{io_context, asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}, RECEIVER_RECEIVE_BUFFER_SIZE};
+    asio::ip::udp::socket socket(io_context);
+    socket.open(asio::ip::udp::v4());
+    socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
+    UdpSocket receiver{std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}};
 
     std::error_code error;
     int sender_session_id;

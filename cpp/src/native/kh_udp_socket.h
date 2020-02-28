@@ -1,16 +1,16 @@
 #pragma once
 
-#include <optional>
-#include <vector>
 #include <asio.hpp>
+#include <optional>
 #include <gsl/gsl>
+#include <k4a/k4a.hpp>
 
 namespace kh
 {
-class ReceiverSocket
+class UdpSocket
 {
 public:
-    ReceiverSocket(asio::io_context& io_context, asio::ip::udp::endpoint remote_endpoint, int receive_buffer_size);
+    UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint);
     std::optional<std::vector<std::byte>> receive(std::error_code& error);
     void send(gsl::span<const std::byte> bytes, std::error_code& error);
 

@@ -4,7 +4,7 @@
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
-#include "native/kh_receiver_socket.h"
+#include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 
 namespace kh
@@ -85,7 +85,10 @@ int main(std::string ip_address, int port)
     }
 
     asio::io_context io_context;
-    ReceiverSocket receiver(io_context, asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}, 1024 * 1024);
+    asio::ip::udp::socket socket(io_context);
+    socket.open(asio::ip::udp::v4());
+    socket.set_option(asio::socket_base::receive_buffer_size{1024 * 1024});
+    UdpSocket receiver(std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)});
     std::error_code error;
     receiver.send(create_ping_receiver_packet_bytes(), error);
 

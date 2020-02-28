@@ -1,8 +1,6 @@
 add_library(KinectToHololensNative
-  kh_receiver_socket.h
-  kh_receiver_socket.cpp
-  kh_sender_socket.h
-  kh_sender_socket.cpp
+  kh_udp_socket.h
+  kh_udp_socket.cpp
   kh_video_packet_collection.h
   kh_video_packet_collection.cpp
   kh_fec_packet_collection.h

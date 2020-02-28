@@ -3,7 +3,7 @@
 #include <asio.hpp>
 #include <opus/opus.h>
 #include "helper/soundio_helper.h"
-#include "native/kh_sender_socket.h"
+#include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 
 namespace kh
@@ -91,6 +91,7 @@ int main(int port)
 
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
+    socket.set_option(asio::socket_base::send_buffer_size{1024 * 1024});
 
     printf("Waiting for a Kinect Audio Receiver...\n");
 
@@ -103,7 +104,7 @@ int main(int port)
         return 1;
     }
 
-    SenderSocket sender(std::move(socket), remote_endpoint, 1024 * 1024);
+    UdpSocket sender{std::move(socket), remote_endpoint};
 
     printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
 
