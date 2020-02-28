@@ -12,7 +12,7 @@ public class KinectReceiver
     private Material azureKinectScreenMaterial;
     private AzureKinectScreen azureKinectScreen;
 
-    private IntPtr textureGroup;
+    private TextureGroup textureGroup;
 
     private UdpSocket udpSocket;
     private bool stopReceiverThread;
@@ -22,7 +22,7 @@ public class KinectReceiver
 
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
-    private UnityTextureGroup unityTextureGroup;
+    private bool preapared;
 
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
@@ -32,7 +32,7 @@ public class KinectReceiver
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         this.azureKinectScreen = azureKinectScreen;
 
-        textureGroup = Plugin.texture_group_reset();
+        textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
         udpSocket = null;
         stopReceiverThread = false;
@@ -42,7 +42,7 @@ public class KinectReceiver
 
         colorDecoder = null;
         depthDecoder = null;
-        unityTextureGroup = null;
+        preapared = false;
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
@@ -51,20 +51,26 @@ public class KinectReceiver
     public void UpdateFrame()
     {
         // If texture is not created, create and assign them to quads.
-        if (unityTextureGroup == null)
+        if (!preapared)
         {
             // Check whether the native plugin has Direct3D textures that
             // can be connected to Unity textures.
-            if (Plugin.texture_group_get_y_texture_view(textureGroup).ToInt64() != 0)
+            if (textureGroup.IsInitialized())
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
-                unityTextureGroup = new UnityTextureGroup(textureGroup, Plugin.texture_group_get_width(textureGroup),
-                                                Plugin.texture_group_get_height(textureGroup));
+                //unityTextureGroup = new UnityTextureGroup(textureGroup.Ptr, textureGroup.GetWidth(),
+                //                                textureGroup.GetHeight());
 
-                azureKinectScreenMaterial.SetTexture("_YTex", unityTextureGroup.YTexture);
-                azureKinectScreenMaterial.SetTexture("_UTex", unityTextureGroup.UTexture);
-                azureKinectScreenMaterial.SetTexture("_VTex", unityTextureGroup.VTexture);
-                azureKinectScreenMaterial.SetTexture("_DepthTex", unityTextureGroup.DepthTexture);
+                //azureKinectScreenMaterial.SetTexture("_YTex", unityTextureGroup.YTexture);
+                //azureKinectScreenMaterial.SetTexture("_UTex", unityTextureGroup.UTexture);
+                //azureKinectScreenMaterial.SetTexture("_VTex", unityTextureGroup.VTexture);
+                //azureKinectScreenMaterial.SetTexture("_DepthTex", unityTextureGroup.DepthTexture);
+                azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.GetYTexture());
+                azureKinectScreenMaterial.SetTexture("_UTex", textureGroup.GetUTexture());
+                azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.GetVTexture());
+                azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
+
+                preapared = true;
 
                 UnityEngine.Debug.Log("textureGroup intialized");
             }
@@ -118,8 +124,8 @@ public class KinectReceiver
 
                 var initSenderPacketData = InitSenderPacketData.Parse(packet);
 
-                Plugin.texture_group_set_width(textureGroup, initSenderPacketData.depthWidth);
-                Plugin.texture_group_set_height(textureGroup, initSenderPacketData.depthHeight);
+                textureGroup.SetWidth(initSenderPacketData.depthWidth);
+                textureGroup.SetHeight(initSenderPacketData.depthHeight);
                 PluginHelper.InitTextureGroup();
 
                 colorDecoder = new Vp8Decoder();
@@ -444,10 +450,12 @@ public class KinectReceiver
         summaryPacketCount = 0;
 
         // Invokes a function to be called in a render thread.
-        if (unityTextureGroup != null)
+        if (preapared)
         {
-            Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
-            Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
+            //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
+            textureGroup.SetFFmpegFrame(ffmpegFrame);
+            //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
+            textureGroup.SetTrvlFrame(trvlFrame);
             PluginHelper.UpdateTextureGroup();
         }
 
