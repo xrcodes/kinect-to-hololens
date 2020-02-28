@@ -19,37 +19,37 @@ public static class Plugin
     public static extern IntPtr get_render_event_function_pointer();
 
     [DllImport(DllName)]
-    public static extern void texture_group_reset();
+    public static extern IntPtr texture_group_reset();
 
     [DllImport(DllName)]
-    public static extern IntPtr texture_group_get_y_texture_view();
+    public static extern IntPtr texture_group_get_y_texture_view(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern IntPtr texture_group_get_u_texture_view();
+    public static extern IntPtr texture_group_get_u_texture_view(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern IntPtr texture_group_get_v_texture_view();
+    public static extern IntPtr texture_group_get_v_texture_view(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern IntPtr texture_group_get_depth_texture_view();
+    public static extern IntPtr texture_group_get_depth_texture_view(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern int texture_group_get_width();
+    public static extern int texture_group_get_width(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_width(int width);
+    public static extern void texture_group_set_width(IntPtr textureGroup, int width);
 
     [DllImport(DllName)]
-    public static extern int texture_group_get_height();
+    public static extern int texture_group_get_height(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_height(int height);
+    public static extern void texture_group_set_height(IntPtr textureGroup, int height);
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_ffmpeg_frame(IntPtr ffmpeg_frame_ptr);
+    public static extern void texture_group_set_ffmpeg_frame(IntPtr textureGroup, IntPtr ffmpeg_frame_ptr);
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_depth_pixels(IntPtr depth_pixels_ptr);
+    public static extern void texture_group_set_depth_pixels(IntPtr textureGroup, IntPtr depth_pixels_ptr);
 
     [DllImport(DllName)]
     public static extern IntPtr create_vp8_decoder();

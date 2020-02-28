@@ -92,8 +92,6 @@ public class KinectToHololensManager : MonoBehaviour
         gestureRecognizer.StartCapturingGestures();
 
         statusText.text = "Waiting for user input.";
-
-        Plugin.texture_group_reset();
     }
 
     void Update()

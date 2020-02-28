@@ -14,8 +14,8 @@ $buildPath = (Get-Location).path + "\cpp\build"
 
 $assetsPath = (Get-Location).path + "\unity\KinecttoHololens\Assets"
 
-Copy-Item "$buildPath\x86\unity\$configuration\KinectToHololensUnity.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$buildPath\x64\unity\$configuration\KinectToHololensUnity.dll" -Destination "$assetsPath\Editor"
+Copy-Item "$buildPath\x86\src\unity\$configuration\KinectToHololensUnity.dll" -Destination "$assetsPath\Plugins\WSA"
+Copy-Item "$buildPath\x64\src\unity\$configuration\KinectToHololensUnity.dll" -Destination "$assetsPath\Editor"
 
 $binPath = (Get-Location).path + "\bin"
 Copy-Item "$binPath\msvcp140.dll" -Destination "$assetsPath\Plugins\WSA"
