@@ -16,46 +16,56 @@
 
 namespace kh
 {
-void run_receiver_thread(int sender_session_id,
-                         bool& stop_receiver_thread,
-                         UdpSocket& receiver,
-                         moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
-                         int& last_frame_id,
-                         int& summary_packet_count)
+void run_receiver_socket_thread(int sender_id,
+                                bool& receiver_stopped,
+                                UdpSocket& udp_socket,
+                                moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
+                                moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
+                                int& summary_packet_count)
+{
+    while (!receiver_stopped) {
+        std::error_code error;
+        while (auto packet_bytes{udp_socket.receive(error)}) {
+            const int session_id{get_session_id_from_sender_packet_bytes(*packet_bytes)};
+            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet_bytes)};
+
+            if (session_id != sender_id)
+                continue;
+
+            if (packet_type == SenderPacketType::Video) {
+                video_packet_data_queue.enqueue(parse_video_sender_packet_bytes(*packet_bytes));
+            } else if (packet_type == SenderPacketType::Fec) {
+                fec_packet_data_queue.enqueue(parse_fec_sender_packet_bytes(*packet_bytes));
+            }
+
+            ++summary_packet_count;
+        }
+
+        if (error != asio::error::would_block)
+            printf("Error from receiving packets: %s\n", error.message().c_str());
+    }
+
+    receiver_stopped = true;
+}
+
+void run_video_packet_thread(bool& receiver_stopped,
+                             UdpSocket& udp_socket,
+                             moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
+                             moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
+                             moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
+                             int& last_frame_id)
 {
     constexpr int FEC_MAX_GROUP_SIZE{5};
 
     std::unordered_map<int, VideoPacketCollection> video_packet_collections;
     std::unordered_map<int, FecPacketCollection> fec_packet_collections;
-    while (!stop_receiver_thread) {
-        std::vector<VideoSenderPacketData> video_packet_data_set;
-        std::vector<FecSenderPacketData> fec_packet_data_set;
-
-        std::error_code error;
-        while (auto packet_bytes{receiver.receive(error)}) {
-            ++summary_packet_count;
-
-            const int session_id{get_session_id_from_sender_packet_bytes(*packet_bytes)};
-            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet_bytes)};
-
-            if (session_id != sender_session_id)
-                continue;
-
-            if (packet_type == SenderPacketType::Video) {
-                video_packet_data_set.push_back(parse_video_sender_packet_bytes(*packet_bytes));
-            } else if (packet_type == SenderPacketType::Fec) {
-                fec_packet_data_set.push_back(parse_fec_sender_packet_bytes(*packet_bytes));
-            }
-        }
-
-        if (error != asio::error::would_block)
-            printf("Error from receiving packets: %s\n", error.message().c_str());
-
+    while (!receiver_stopped) {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
-        for (auto& fec_sender_packet_data : fec_packet_data_set) {
+        FecSenderPacketData fec_sender_packet_data;
+        while (fec_packet_data_queue.try_dequeue(fec_sender_packet_data)) {
             if (fec_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
@@ -68,7 +78,9 @@ void run_receiver_thread(int sender_session_id,
                                   .addPacketData(fec_sender_packet_data.packet_index, std::move(fec_sender_packet_data));
         }
 
-        for (auto& video_sender_packet_data : video_packet_data_set) {
+        VideoSenderPacketData video_sender_packet_data;
+        while (video_packet_data_queue.try_dequeue(video_sender_packet_data)) {
+        //for (auto& video_sender_packet_data : video_packet_data_set) {
             if (video_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
@@ -161,7 +173,7 @@ void run_receiver_thread(int sender_session_id,
                         }
                         
                         std::error_code error;
-                        receiver.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices), error);
+                        udp_socket.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices), error);
 
                         if (error && error != asio::error::would_block)
                             printf("Error requesting missing packets: %s\n", error.message().c_str());
@@ -192,17 +204,6 @@ void run_receiver_thread(int sender_session_id,
             }
         }
 
-        //if(!frame_packet_collections.empty())
-        //    printf("Collection Status:\n");
-
-        //for (auto& collection_pair : frame_packet_collections) {
-        //    const int frame_id{collection_pair.first};
-        //    const auto collected_packet_count{collection_pair.second.getCollectedPacketCount()};
-        //    const auto total_packet_count{collection_pair.second.packet_count()};
-        //    printf("collection frame_id: %d, collected: %d, total: %d\n", frame_id,
-        //           collected_packet_count, total_packet_count);
-        //}
-
         // Clean up frame_packet_collections.
         for (auto it = video_packet_collections.begin(); it != video_packet_collections.end();) {
             if (it->first <= last_frame_id) {
@@ -221,6 +222,8 @@ void run_receiver_thread(int sender_session_id,
             }
         }
     }
+
+    receiver_stopped = true;
 }
 
 void receive_frames(std::string ip_address, int port)
@@ -230,7 +233,7 @@ void receive_frames(std::string ip_address, int port)
     asio::ip::udp::socket socket(io_context);
     socket.open(asio::ip::udp::v4());
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
-    UdpSocket receiver{std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}};
+    UdpSocket udp_socket{std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}};
 
     std::error_code error;
     int sender_session_id;
@@ -241,13 +244,13 @@ void receive_frames(std::string ip_address, int port)
     int ping_count{0};
     for (;;) {
         bool initialized{false};
-        receiver.send(create_ping_receiver_packet_bytes(), error);
+        udp_socket.send(create_ping_receiver_packet_bytes(), error);
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
         Sleep(100);
         
-        while (auto packet = receiver.receive(error)) {
+        while (auto packet = udp_socket.receive(error)) {
             int cursor{0};
             const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
             const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
@@ -274,13 +277,21 @@ void receive_frames(std::string ip_address, int port)
         }
     }
 
-    bool stop_receiver_thread{false};
+    bool receiver_stopped{false};
+    moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue;
+    moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue;
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
     int last_frame_id{-1};
     int summary_packet_count{0};
-    std::thread receiver_thread([&] {
-        run_receiver_thread(sender_session_id, stop_receiver_thread, receiver, video_message_queue,
-                            last_frame_id, summary_packet_count);
+
+    std::thread receiver_socket_thread([&] {
+        run_receiver_socket_thread(sender_session_id, receiver_stopped, udp_socket,
+                                   video_packet_data_queue, fec_packet_data_queue, summary_packet_count);
+    });
+
+    std::thread video_packet_thread([&] {
+        run_video_packet_thread(receiver_stopped, udp_socket, video_packet_data_queue,
+                                fec_packet_data_queue, video_message_queue, last_frame_id);
     });
 
     Vp8Decoder color_decoder;
@@ -288,7 +299,7 @@ void receive_frames(std::string ip_address, int port)
 
     std::map<int, VideoSenderMessageData> frame_messages;
     auto frame_start{TimePoint::now()};
-    for (;;) {
+    while (!receiver_stopped) {
         std::pair<int, VideoSenderMessageData> frame_message;
         while (video_message_queue.try_dequeue(frame_message)) {
             //frame_messages.push_back(frame_message);
@@ -348,7 +359,7 @@ void receive_frames(std::string ip_address, int port)
         frame_start = TimePoint::now();
 
         std::error_code error;
-        receiver.send(create_report_receiver_packet_bytes(last_frame_id,
+        udp_socket.send(create_report_receiver_packet_bytes(last_frame_id,
                                                           decoder_time.ms(),
                                                           frame_time.ms(),
                                                           summary_packet_count), error);
@@ -379,8 +390,8 @@ void receive_frames(std::string ip_address, int port)
         }
     }
 
-    stop_receiver_thread = true;
-    receiver_thread.join();
+    receiver_stopped = true;
+    video_packet_thread.join();
 }
 
 void main()
