@@ -15,7 +15,7 @@ public class KinectReceiver
     private TextureGroup textureGroup;
 
     private UdpSocket udpSocket;
-    private bool stopReceiverThread;
+    private bool receiverStopped;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private int lastFrameId;
     private int summaryPacketCount;
@@ -35,7 +35,7 @@ public class KinectReceiver
         textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
         udpSocket = null;
-        stopReceiverThread = false;
+        receiverStopped = false;
         videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         lastFrameId = -1;
         summaryPacketCount = 0;
@@ -58,13 +58,6 @@ public class KinectReceiver
             if (textureGroup.IsInitialized())
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
-                //unityTextureGroup = new UnityTextureGroup(textureGroup.Ptr, textureGroup.GetWidth(),
-                //                                textureGroup.GetHeight());
-
-                //azureKinectScreenMaterial.SetTexture("_YTex", unityTextureGroup.YTexture);
-                //azureKinectScreenMaterial.SetTexture("_UTex", unityTextureGroup.UTexture);
-                //azureKinectScreenMaterial.SetTexture("_VTex", unityTextureGroup.VTexture);
-                //azureKinectScreenMaterial.SetTexture("_DepthTex", unityTextureGroup.DepthTexture);
                 azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.GetYTexture());
                 azureKinectScreenMaterial.SetTexture("_UTex", textureGroup.GetUTexture());
                 azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.GetVTexture());
@@ -84,7 +77,7 @@ public class KinectReceiver
 
     public void Stop()
     {
-        stopReceiverThread = true;
+        receiverStopped = true;
     }
 
     public void Ping(UdpSocket udpSocket)
@@ -147,23 +140,22 @@ public class KinectReceiver
         }
 
         this.udpSocket = udpSocket;
-
-        Thread receiverThread = new Thread(() => RunReceiverThread(senderSessionId));
-        receiverThread.Start();
+        var videoPacketDataQueue = new ConcurrentQueue<VideoSenderPacketData>();
+        var fecPacketDataQueue = new ConcurrentQueue<FecSenderPacketData>();
+        var receiverSocketThread = new Thread(() => RunReceiverSocketThread(senderSessionId,
+                                                                            videoPacketDataQueue,
+                                                                            fecPacketDataQueue));
+        var videoPacketThread = new Thread(() => RunVideoPacketThread(videoPacketDataQueue, fecPacketDataQueue));
+        receiverSocketThread.Start();
+        videoPacketThread.Start();
     }
 
-    private void RunReceiverThread(int senderSessionId)
+    private void RunReceiverSocketThread(int senderSessionId,
+                                         ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
+                                         ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue)
     {
-        const int XOR_MAX_GROUP_SIZE = 5;
-
-        //int? senderSessionId = null;
-        var videoPacketCollections = new Dictionary<int, VideoPacketCollection>();
-        var fecPacketCollections = new Dictionary<int, FecPacketCollection>();
-        UnityEngine.Debug.Log("Start Receiver Thread");
-        while (!stopReceiverThread)
+        while (!receiverStopped)
         {
-            var videoPacketDataSet = new List<VideoSenderPacketData>();
-            var fecPacketDataSet = new List<FecSenderPacketData>();
             SocketError error = SocketError.WouldBlock;
             while (true)
             {
@@ -181,11 +173,11 @@ public class KinectReceiver
 
                 if (packetType == SenderPacketType.Frame)
                 {
-                    videoPacketDataSet.Add(VideoSenderPacketData.Parse(packet));
+                    videoPacketDataQueue.Enqueue(VideoSenderPacketData.Parse(packet));
                 }
                 else if (packetType == SenderPacketType.Fec)
                 {
-                    fecPacketDataSet.Add(FecSenderPacketData.Parse(packet));
+                    fecPacketDataQueue.Enqueue(FecSenderPacketData.Parse(packet));
                 }
             }
 
@@ -193,12 +185,60 @@ public class KinectReceiver
             {
                 UnityEngine.Debug.Log($"Error from receiving packets: {error.ToString()}");
             }
+        }
+
+        receiverStopped = true;
+    }
+
+    private void RunVideoPacketThread(ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
+                                      ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue)
+    {
+        const int XOR_MAX_GROUP_SIZE = 5;
+
+        //int? senderSessionId = null;
+        var videoPacketCollections = new Dictionary<int, VideoPacketCollection>();
+        var fecPacketCollections = new Dictionary<int, FecPacketCollection>();
+        UnityEngine.Debug.Log("Start Receiver Thread");
+        while (!receiverStopped)
+        {
+            //var videoPacketDataSet = new List<VideoSenderPacketData>();
+            //var fecPacketDataSet = new List<FecSenderPacketData>();
+            //SocketError error = SocketError.WouldBlock;
+            //while (true)
+            //{
+            //    var packet = udpSocket.Receive(out error);
+            //    if (packet == null)
+            //        break;
+
+            //    ++summaryPacketCount;
+
+            //    int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
+            //    var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
+
+            //    if (sessionId != senderSessionId)
+            //        continue;
+
+            //    if (packetType == SenderPacketType.Frame)
+            //    {
+            //        videoPacketDataSet.Add(VideoSenderPacketData.Parse(packet));
+            //    }
+            //    else if (packetType == SenderPacketType.Fec)
+            //    {
+            //        fecPacketDataSet.Add(FecSenderPacketData.Parse(packet));
+            //    }
+            //}
+
+            //if (error != SocketError.WouldBlock)
+            //{
+            //    UnityEngine.Debug.Log($"Error from receiving packets: {error.ToString()}");
+            //}
 
             // The logic for XOR FEC packets are almost the same to frame packets.
             // The operations for XOR FEC packets should happen before the frame packets
             // so that frame packet can be created with XOR FEC packets when a missing
             // frame packet is detected.
-            foreach (var fecSenderPacketData in fecPacketDataSet)
+            //foreach (var fecSenderPacketData in fecPacketDataSet)
+            while (fecPacketDataQueue.TryDequeue(out FecSenderPacketData fecSenderPacketData))
             {
                 if (fecSenderPacketData.frameId <= lastFrameId)
                     continue;
@@ -212,7 +252,8 @@ public class KinectReceiver
                 fecPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, fecSenderPacketData);
             }
 
-            foreach (var videoSenderPacketData in videoPacketDataSet)
+            //foreach (var videoSenderPacketData in videoPacketDataSet)
+            while (videoPacketDataQueue.TryDequeue(out VideoSenderPacketData videoSenderPacketData))
             {
                 if (videoSenderPacketData.frameId <= lastFrameId)
                     continue;
@@ -366,7 +407,8 @@ public class KinectReceiver
                 videoPacketCollections.Remove(obsoleteFrameId);
             }
         }
-        UnityEngine.Debug.Log("Receiver Thread Dead");
+
+        receiverStopped = true;
     }
 
     private void UpdateTextureGroup()
