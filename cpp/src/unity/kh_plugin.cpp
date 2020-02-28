@@ -75,15 +75,13 @@ extern "C"
 
     UNITY_INTERFACE_EXPORT void* UNITY_INTERFACE_API opus_decoder_decode
     (
-        void* decoder_ptr,
-        void* packet_ptr,
+        OpusDecoder* decoder,
+        uint8_t* packet,
         int packet_size,
         int frame_size,
         int channels
     )
     {
-        auto decoder = reinterpret_cast<OpusDecoder*>(decoder_ptr);
-        auto packet = reinterpret_cast<uint8_t*>(packet_ptr);
         auto frame = new std::vector<float>(frame_size * channels);
 
         int decode_result = opus_decode_float(decoder, packet, packet_size, frame->data(), frame_size, 0);
