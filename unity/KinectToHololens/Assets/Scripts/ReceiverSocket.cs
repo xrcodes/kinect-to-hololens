@@ -2,22 +2,17 @@
 using System.Net;
 using System.Net.Sockets;
 
-public class ReceiverSocket
+public class UdpSocket
 {
     private Socket socket;
     private IPEndPoint remoteEndPoint;
 
-    public ReceiverSocket(Socket socket, IPEndPoint remoteEndPoint)
+    public UdpSocket(Socket socket, IPEndPoint remoteEndPoint)
     {
         this.socket = socket;
         this.remoteEndPoint = remoteEndPoint;
         socket.Blocking = false;
     }
-
-    //public void Ping()
-    //{
-    //    socket.SendTo(PacketHelper.createPingReceiverPacketBytes(), remoteEndPoint);
-    //}
 
     public byte[] Receive(out SocketError error)
     {

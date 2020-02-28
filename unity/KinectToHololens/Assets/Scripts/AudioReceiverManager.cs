@@ -8,7 +8,7 @@ public class AudioReceiverManager : MonoBehaviour
     private const int AZURE_KINECT_SAMPLE_RATE = 48000;
     private const int AUDIO_FRAME_SIZE = 960;
     private const int STEREO_CHANNEL_COUNT = 2;
-    private ReceiverSocket receiver;
+    private UdpSocket receiver;
     private RingBuffer ringBuffer;
     private OpusDecoder opusDecoder;
 
@@ -22,7 +22,7 @@ public class AudioReceiverManager : MonoBehaviour
             ReceiveBufferSize = 1024 * 1024
         };
 
-        receiver = new ReceiverSocket(socket, new IPEndPoint(address, port));
+        receiver = new UdpSocket(socket, new IPEndPoint(address, port));
         ringBuffer = new RingBuffer(64 * 1024);
         opusDecoder = new OpusDecoder(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT);
 

@@ -40,7 +40,7 @@ public class KinectToHololensManager : MonoBehaviour
     // Varaibles that represent states of the scene.
     private InputState inputState;
 
-    private ReceiverSocket receiver;
+    private UdpSocket receiver;
     private bool stopReceiverThread;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private int lastFrameId;
@@ -269,7 +269,7 @@ public class KinectToHololensManager : MonoBehaviour
             ReceiveBufferSize = 1024 * 1024
         };
 
-        var receiver = new ReceiverSocket(socket, new IPEndPoint(ipAddress, port));
+        var receiver = new UdpSocket(socket, new IPEndPoint(ipAddress, port));
         int senderSessionId = -1;
         int pingCount = 0;
         while (true)
