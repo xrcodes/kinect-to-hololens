@@ -91,7 +91,6 @@ public class KinectReceiver
             ++pingCount;
             UnityEngine.Debug.Log("Sent ping");
 
-            //yield return new WaitForSeconds(0.1f);
             Thread.Sleep(100);
 
             SocketError error = SocketError.WouldBlock;
@@ -201,43 +200,10 @@ public class KinectReceiver
         UnityEngine.Debug.Log("Start Receiver Thread");
         while (!receiverStopped)
         {
-            //var videoPacketDataSet = new List<VideoSenderPacketData>();
-            //var fecPacketDataSet = new List<FecSenderPacketData>();
-            //SocketError error = SocketError.WouldBlock;
-            //while (true)
-            //{
-            //    var packet = udpSocket.Receive(out error);
-            //    if (packet == null)
-            //        break;
-
-            //    ++summaryPacketCount;
-
-            //    int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
-            //    var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
-
-            //    if (sessionId != senderSessionId)
-            //        continue;
-
-            //    if (packetType == SenderPacketType.Frame)
-            //    {
-            //        videoPacketDataSet.Add(VideoSenderPacketData.Parse(packet));
-            //    }
-            //    else if (packetType == SenderPacketType.Fec)
-            //    {
-            //        fecPacketDataSet.Add(FecSenderPacketData.Parse(packet));
-            //    }
-            //}
-
-            //if (error != SocketError.WouldBlock)
-            //{
-            //    UnityEngine.Debug.Log($"Error from receiving packets: {error.ToString()}");
-            //}
-
             // The logic for XOR FEC packets are almost the same to frame packets.
             // The operations for XOR FEC packets should happen before the frame packets
             // so that frame packet can be created with XOR FEC packets when a missing
             // frame packet is detected.
-            //foreach (var fecSenderPacketData in fecPacketDataSet)
             while (fecPacketDataQueue.TryDequeue(out FecSenderPacketData fecSenderPacketData))
             {
                 if (fecSenderPacketData.frameId <= lastFrameId)
@@ -252,7 +218,6 @@ public class KinectReceiver
                 fecPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, fecSenderPacketData);
             }
 
-            //foreach (var videoSenderPacketData in videoPacketDataSet)
             while (videoPacketDataQueue.TryDequeue(out VideoSenderPacketData videoSenderPacketData))
             {
                 if (videoSenderPacketData.frameId <= lastFrameId)

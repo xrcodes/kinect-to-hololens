@@ -9,8 +9,6 @@
 #include "kh_vp8.h"
 #include "kh_trvl.h"
 #include "native/kh_udp_socket.h"
-#include "native/kh_video_packet_collection.h"
-#include "native/kh_fec_packet_collection.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
 
@@ -57,8 +55,8 @@ void run_video_packet_thread(bool& receiver_stopped,
 {
     constexpr int FEC_MAX_GROUP_SIZE{5};
 
-    std::unordered_map<int, VideoPacketCollection> video_packet_collections;
-    std::unordered_map<int, FecPacketCollection> fec_packet_collections;
+    std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections;
+    std::unordered_map<int, std::vector<std::optional<FecSenderPacketData>>> fec_packet_collections;
     while (!receiver_stopped) {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
@@ -69,18 +67,16 @@ void run_video_packet_thread(bool& receiver_stopped,
             if (fec_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
-            if (fec_packet_collections.find(fec_sender_packet_data.frame_id) == fec_packet_collections.end())
-                fec_packet_collections.insert({fec_sender_packet_data.frame_id,
-                                               FecPacketCollection{fec_sender_packet_data.frame_id,
-                                                                   fec_sender_packet_data.packet_count}});
+            auto fec_packet_iter = fec_packet_collections.find(fec_sender_packet_data.frame_id);
+            if (fec_packet_iter == fec_packet_collections.end())
+                std::tie(fec_packet_iter, std::ignore) = fec_packet_collections.insert({fec_sender_packet_data.frame_id,
+                                                                                        std::vector<std::optional<FecSenderPacketData>>(fec_sender_packet_data.packet_count)});
 
-            fec_packet_collections.at(fec_sender_packet_data.frame_id)
-                                  .addPacketData(fec_sender_packet_data.packet_index, std::move(fec_sender_packet_data));
+            fec_packet_iter->second[fec_sender_packet_data.packet_index] = std::move(fec_sender_packet_data);
         }
 
         VideoSenderPacketData video_sender_packet_data;
         while (video_packet_data_queue.try_dequeue(video_sender_packet_data)) {
-        //for (auto& video_sender_packet_data : video_packet_data_set) {
             if (video_sender_packet_data.frame_id <= last_frame_id)
                 continue;
 
@@ -89,8 +85,7 @@ void run_video_packet_thread(bool& receiver_stopped,
             // If using the xor packets fails, request the sender to retransmit the packets.
             if (video_packet_collections.find(video_sender_packet_data.frame_id) == video_packet_collections.end()) {
                 video_packet_collections.insert({video_sender_packet_data.frame_id,
-                                                 VideoPacketCollection(video_sender_packet_data.frame_id,
-                                                                       video_sender_packet_data.packet_count)});
+                                                 std::vector<std::optional<VideoSenderPacketData>>(video_sender_packet_data.packet_count)});
 
                 ///////////////////////////////////
                 // Forward Error Correction Start//
@@ -99,7 +94,11 @@ void run_video_packet_thread(bool& receiver_stopped,
                 for (auto& collection_pair : video_packet_collections) {
                     if (collection_pair.first < video_sender_packet_data.frame_id) {
                         const int missing_frame_id{collection_pair.first};
-                        const auto missing_packet_indices{collection_pair.second.getMissingPacketIndices()};
+                        std::vector<int> missing_packet_indices;
+                        for (int i = 0; i < collection_pair.second.size(); ++i) {
+                            if (!collection_pair.second[i])
+                                missing_packet_indices.push_back(i);
+                        }
 
                         // Try correction using XOR FEC packets.
                         std::vector<int> fec_failed_packet_indices;
@@ -134,7 +133,7 @@ void run_video_packet_thread(bool& receiver_stopped,
                                 continue;
                             }
 
-                            const auto fec_packet_data{fec_packet_collections.at(missing_frame_id).GetPacketData(xor_packet_index)};
+                            const auto fec_packet_data{fec_packet_collections.at(missing_frame_id)[xor_packet_index]};
                             // Give up if there is no xor packet yet.
                             if (!fec_packet_data) {
                                 fec_failed_packet_indices.push_back(fec_packet_index);
@@ -150,22 +149,21 @@ void run_video_packet_thread(bool& receiver_stopped,
                             fec_video_packet_data.message_data = fec_packet_data->bytes;
 
                             const int begin_frame_packet_index{xor_packet_index * FEC_MAX_GROUP_SIZE};
-                            const int end_frame_packet_index{std::min(begin_frame_packet_index + FEC_MAX_GROUP_SIZE,
-                                                                      collection_pair.second.packet_count())};
+                            const int end_frame_packet_index{std::min<int>(begin_frame_packet_index + FEC_MAX_GROUP_SIZE,
+                                                                           collection_pair.second.size())};
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                             for (gsl::index i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
                                 if (i == fec_packet_index)
                                     continue;
 
                                 for (gsl::index j{0}; j < fec_video_packet_data.message_data.size(); ++j)
-                                    fec_video_packet_data.message_data[j] ^= collection_pair.second.packet_data_set()[i]->message_data[j];
+                                    fec_video_packet_data.message_data[j] ^= collection_pair.second[i]->message_data[j];
                             }
 
                             const auto fec_time{TimePoint::now() - fec_start};
 
                             //printf("restored %d %d %lf\n", missing_frame_id, fec_packet_index, fec_time.count() / 1000000.0f);
-                            video_packet_collections.at(missing_frame_id)
-                                                    .addPacketData(fec_packet_index, std::move(fec_video_packet_data));
+                            video_packet_collections.at(missing_frame_id)[fec_packet_index] = std::move(fec_video_packet_data);
                         } // end of for (int missing_packet_index : missing_packet_indices)
 
                         for (int fec_failed_packet_index : fec_failed_packet_indices) {
@@ -186,18 +184,25 @@ void run_video_packet_thread(bool& receiver_stopped,
             // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
             // which was for reacting to a packet for a new frame.
 
-            video_packet_collections.at(video_sender_packet_data.frame_id)
-                                    .addPacketData(video_sender_packet_data.packet_index, std::move(video_sender_packet_data));
+            video_packet_collections.at(video_sender_packet_data.frame_id)[video_sender_packet_data.packet_index] = std::move(video_sender_packet_data);
         }
 
         // Find all full collections and extract messages from them.
         for (auto it = video_packet_collections.begin(); it != video_packet_collections.end();) {
-            if (it->second.isFull()) {
-                std::vector<gsl::span<std::byte>> video_sender_message_data_set(it->second.packet_data_set().size());
-                for (gsl::index i{0}; i < video_sender_message_data_set.size(); ++i)
-                    video_sender_message_data_set[i] = gsl::span<std::byte>{it->second.packet_data_set()[i]->message_data};
+            bool full = true;
+            for (auto& video_sender_packet_data : it->second) {
+                if (!video_sender_packet_data) {
+                    full = false;
+                    break;
+                }
+            }
 
-                video_message_queue.enqueue({it->second.frame_id(), parse_video_sender_message_bytes(merge_video_sender_message_bytes(video_sender_message_data_set))});
+            if (full) {
+                std::vector<gsl::span<std::byte>> video_sender_message_data_set(it->second.size());
+                for (gsl::index i{0}; i < video_sender_message_data_set.size(); ++i)
+                    video_sender_message_data_set[i] = gsl::span<std::byte>{it->second[i]->message_data};
+
+                video_message_queue.enqueue({it->first, parse_video_sender_message_bytes(merge_video_sender_message_bytes(video_sender_message_data_set))});
                 it = video_packet_collections.erase(it);
             } else {
                 ++it;
@@ -259,7 +264,7 @@ void receive_frames(std::string ip_address, int port)
                 continue;
             }
 
-            sender_session_id = session_id;;
+            sender_session_id = session_id;
 
             const auto init_sender_packet_data{parse_init_sender_packet_bytes(*packet)};
             depth_width = init_sender_packet_data.depth_width;
