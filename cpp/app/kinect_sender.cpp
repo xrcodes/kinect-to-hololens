@@ -157,7 +157,6 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     constexpr short CHANGE_THRESHOLD = 10;
     constexpr int INVALID_THRESHOLD = 2;
     constexpr int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
-    //const int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 

@@ -24,15 +24,15 @@ enum class ReceiverPacketType : std::uint8_t
     Request = 2,
 };
 
-const int KH_PACKET_SIZE = 1472;
+constexpr int KH_PACKET_SIZE = 1472;
 
 // Video packets need more information for reassembly of packets.
-const int KH_VIDEO_PACKET_HEADER_SIZE = 17;
-const int KH_MAX_VIDEO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_VIDEO_PACKET_HEADER_SIZE;
+constexpr int KH_VIDEO_PACKET_HEADER_SIZE = 17;
+constexpr int KH_MAX_VIDEO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_VIDEO_PACKET_HEADER_SIZE;
 
 // Opus packets are small enough to fit in UDP.
-const int KH_AUDIO_PACKET_HEADER_SIZE = 13;
-const int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_AUDIO_PACKET_HEADER_SIZE;
+constexpr int KH_AUDIO_PACKET_HEADER_SIZE = 13;
+constexpr int KH_MAX_AUDIO_PACKET_CONTENT_SIZE = KH_PACKET_SIZE - KH_AUDIO_PACKET_HEADER_SIZE;
 
 struct PacketCursor
 {
