@@ -55,7 +55,8 @@ int main(int port)
     }
 
     UdpSocket udp_socket{std::move(socket), remote_endpoint};
-    AudioEncoder audio_encoder{KINECT_MICROPHONE_SAMPLE_RATE, STEREO_CHANNEL_COUNT};
+    // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
+    AudioEncoder audio_encoder{KINECT_MICROPHONE_SAMPLE_RATE, STEREO_CHANNEL_COUNT, false};
 
     kinect_microphone_stream.start();
 

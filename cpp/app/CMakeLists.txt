@@ -85,7 +85,6 @@ target_include_directories(KinectAudioSender PRIVATE
 )
 target_link_libraries(KinectAudioSender
   KinectToHololensNative
-  Opus::opus
 )
 set_target_properties(KinectAudioSender PROPERTIES
   CXX_STANDARD 17
@@ -100,7 +99,6 @@ target_include_directories(KinectAudioReceiver PRIVATE
 )
 target_link_libraries(KinectAudioReceiver
   KinectToHololensNative
-  Opus::opus
 )
 set_target_properties(KinectAudioReceiver PROPERTIES
   CXX_STANDARD 17

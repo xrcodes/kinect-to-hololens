@@ -12,6 +12,7 @@ target_include_directories(KinectToHololensNative PRIVATE
 )
 target_link_libraries(KinectToHololensNative
   KinectToHololens
+  Opus::opus
 )
 set_target_properties(KinectToHololensNative PROPERTIES
   CXX_STANDARD 17

@@ -47,12 +47,7 @@ int main(std::string ip_address, int port)
     std::error_code asio_error;
     udp_socket.send(create_ping_receiver_packet_bytes(), asio_error);
 
-    int error;
-    OpusDecoder* opus_decoder = opus_decoder_create(KINECT_MICROPHONE_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &error);
-    if (error < 0) {
-        printf("failed to create decoder: %s\n", opus_strerror(error));
-        return 1;
-    }
+    AudioDecoder audio_decoder{KINECT_MICROPHONE_SAMPLE_RATE, STEREO_CHANNEL_COUNT};
 
     default_speaker_stream.start();
 
@@ -104,15 +99,19 @@ int main(std::string ip_address, int port)
                 // use it and erase it.
                 //int opus_frame_size = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
                 //frame_size = opus_decode_float(opus_decoder, reinterpret_cast<unsigned char*>(packet_it->second.data()) + audio_packet_cursor.position, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
-                frame_size = opus_decode_float(opus_decoder,
-                                               reinterpret_cast<unsigned char*>(audio_sender_packet_data.opus_frame.data()),
-                                               audio_sender_packet_data.opus_frame.size(),
-                                               out,
-                                               AUDIO_FRAME_SIZE, 0);
+                //frame_size = opus_decode_float(opus_decoder,
+                //                               reinterpret_cast<unsigned char*>(audio_sender_packet_data.opus_frame.data()),
+                //                               audio_sender_packet_data.opus_frame.size(),
+                //                               out,
+                //                               AUDIO_FRAME_SIZE, 0);
+                frame_size = audio_decoder.decode(audio_sender_packet_data.opus_frame,
+                                                  out,
+                                                  AUDIO_FRAME_SIZE, 0);
                 packet_it = packets.erase(packet_it);
             } else {
                 // If not, let opus know there is a packet loss.
-                frame_size = opus_decode_float(opus_decoder, nullptr, 0, out, AUDIO_FRAME_SIZE, 0);
+                //frame_size = opus_decode_float(opus_decoder, nullptr, 0, out, AUDIO_FRAME_SIZE, 0);
+                frame_size = audio_decoder.decode(std::nullopt, out, AUDIO_FRAME_SIZE, 0);
             }
 
             if (frame_size < 0) {
@@ -137,7 +136,6 @@ int main(std::string ip_address, int port)
             summary_time = std::chrono::steady_clock::now();
         }
     }
-    opus_decoder_destroy(opus_decoder);
     return 0;
 }
 }
