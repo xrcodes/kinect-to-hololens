@@ -45,7 +45,7 @@ int main()
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     int capacity{gsl::narrow_cast<int>(MICROPHONE_LATENCY * 2 * kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * STEREO_CHANNEL_COUNT)};
     soundio_helper::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
-    if (soundio_helper::ring_buffer) {
+    if (!soundio_helper::ring_buffer) {
         printf("unable to create ring buffer\n");
         return 1;
     }
