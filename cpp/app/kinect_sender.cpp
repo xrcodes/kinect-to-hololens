@@ -12,19 +12,18 @@
 
 namespace kh
 {
-// Pair of the frame's id and its packets.
-using VideoPacketSet = std::pair<int, std::vector<std::vector<std::byte>>>;
+using Bytes = std::vector<std::byte>;
 
 void handle_receiver_messages(int session_id,
                               bool& stop_threads,
                               UdpSocket& sender_socket,
-                              moodycamel::ReaderWriterQueue<VideoPacketSet>& video_packet_queue,
+                              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
                               int& receiver_frame_id)
 {
     constexpr int XOR_MAX_GROUP_SIZE = 5;
 
     std::unordered_map<int, TimePoint> video_frame_send_times;
-    std::unordered_map<int, VideoPacketSet> video_packet_sets;
+    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
     int last_receiver_video_frame_id{0};
     auto video_sender_summary_start{TimePoint::now()};
     int video_sender_summary_receiver_frame_count{0};
@@ -88,7 +87,7 @@ void handle_receiver_messages(int session_id,
             }
         }
 
-        VideoPacketSet video_packet_set;
+        std::pair<int, std::vector<Bytes>> video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
             auto xor_packets{create_fec_sender_packet_bytes_vector(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
 
@@ -191,7 +190,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     UdpSocket sender_socket{std::move(socket), remote_endpoint};
 
     bool stop_threads{false};
-    moodycamel::ReaderWriterQueue<VideoPacketSet> video_packet_queue;
+    moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>> video_packet_queue;
     // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
     int receiver_frame_id{-1};
     std::thread video_sender_thread([&] {

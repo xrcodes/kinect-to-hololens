@@ -195,8 +195,8 @@ public class KinectReceiver
         const int XOR_MAX_GROUP_SIZE = 5;
 
         //int? senderSessionId = null;
-        var videoPacketCollections = new Dictionary<int, VideoPacketCollection>();
-        var fecPacketCollections = new Dictionary<int, FecPacketCollection>();
+        var videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
+        var fecPacketCollections = new Dictionary<int, FecSenderPacketData[]>();
         UnityEngine.Debug.Log("Start Receiver Thread");
         while (!receiverStopped)
         {
@@ -211,11 +211,10 @@ public class KinectReceiver
 
                 if (!fecPacketCollections.ContainsKey(fecSenderPacketData.frameId))
                 {
-                    fecPacketCollections[fecSenderPacketData.frameId] = new FecPacketCollection(fecSenderPacketData.frameId,
-                                                                                                fecSenderPacketData.packetCount);
+                    fecPacketCollections[fecSenderPacketData.frameId] = new FecSenderPacketData[fecSenderPacketData.packetCount];
                 }
 
-                fecPacketCollections[fecSenderPacketData.frameId].AddPacket(fecSenderPacketData.packetIndex, fecSenderPacketData);
+                fecPacketCollections[fecSenderPacketData.frameId][fecSenderPacketData.packetIndex] = fecSenderPacketData;
             }
 
             while (videoPacketDataQueue.TryDequeue(out VideoSenderPacketData videoSenderPacketData))
@@ -228,8 +227,7 @@ public class KinectReceiver
                 // If using the xor packets fails, request the sender to retransmit the packets.
                 if (!videoPacketCollections.ContainsKey(videoSenderPacketData.frameId))
                 {
-                    videoPacketCollections[videoSenderPacketData.frameId] = new VideoPacketCollection(videoSenderPacketData.frameId,
-                                                                                                      videoSenderPacketData.packetCount);
+                    videoPacketCollections[videoSenderPacketData.frameId] = new VideoSenderPacketData[videoSenderPacketData.packetCount];
 
                     ///////////////////////////////////
                     // Forward Error Correction Start//
@@ -240,7 +238,16 @@ public class KinectReceiver
                         if (collectionPair.Key < videoSenderPacketData.frameId)
                         {
                             int missingFrameId = collectionPair.Key;
-                            var missingPacketIndices = collectionPair.Value.GetMissingPacketIds();
+                            //var missingPacketIndices = collectionPair.Value.GetMissingPacketIds();
+
+                            var missingPacketIndices = new List<int>();
+                            for (int i = 0; i < collectionPair.Value.Length; ++i)
+                            {
+                                if (collectionPair.Value[i] == null)
+                                {
+                                    missingPacketIndices.Add(i);
+                                }
+                            }
 
                             // Try correction using XOR FEC packets.
                             var fecFailedPacketIndices = new List<int>();
@@ -283,7 +290,7 @@ public class KinectReceiver
                                     continue;
                                 }
 
-                                var fecPacketData = fecPacketCollections[missingFrameId].GetPacketData(xorPacketIndex);
+                                var fecPacketData = fecPacketCollections[missingFrameId][xorPacketIndex];
                                 // Give up if there is no xor packet yet.
                                 if (fecPacketData == null)
                                 {
@@ -299,7 +306,7 @@ public class KinectReceiver
                                 fecVideoPacketData.messageData = fecPacketData.bytes;
 
                                 int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;
-                                int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.PacketCount);
+                                int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.Length);
 
                                 // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                                 for (int i = beginFramePacketIndex; i < endFramePacketIndex; ++i)
@@ -310,11 +317,11 @@ public class KinectReceiver
                                     //for (int j = PacketHelper.PACKET_HEADER_SIZE; j < PacketHelper.PACKET_SIZE; ++j)
                                     //    fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
                                     for (int j = 0; j < fecVideoPacketData.messageData.Length; ++j)
-                                        fecVideoPacketData.messageData[j] ^= collectionPair.Value.PacketDataSet[i].messageData[j];
+                                        fecVideoPacketData.messageData[j] ^= collectionPair.Value[i].messageData[j];
                                 }
 
                                 //framePacketCollections[missingFrameId].AddPacket(fecPacketIndex, fecFramePacket);
-                                videoPacketCollections[missingFrameId].AddPacketData(fecPacketIndex, fecVideoPacketData);
+                                videoPacketCollections[missingFrameId][fecPacketIndex] = fecVideoPacketData;
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
                             udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(collectionPair.Key, fecFailedPacketIndices));
@@ -327,14 +334,24 @@ public class KinectReceiver
                 // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
                 // which was for reacting to a packet for a new frame.
 
-                videoPacketCollections[videoSenderPacketData.frameId].AddPacketData(videoSenderPacketData.packetIndex, videoSenderPacketData);
+                videoPacketCollections[videoSenderPacketData.frameId][videoSenderPacketData.packetIndex] = videoSenderPacketData;
             }
 
             // Find all full collections and their frame_ids.
             var fullFrameIds = new List<int>();
             foreach (var collectionPair in videoPacketCollections)
             {
-                if (collectionPair.Value.IsFull())
+                bool full = true;
+                foreach (var packetData in collectionPair.Value)
+                {
+                    if (packetData == null)
+                    {
+                        full = false;
+                        break;
+                    }
+                }
+
+                if (full)
                 {
                     int frameId = collectionPair.Key;
                     fullFrameIds.Add(frameId);
@@ -346,7 +363,7 @@ public class KinectReceiver
             {
                 //frameMessageQueue.Enqueue(videoPacketCollections[fullFrameId].ToMessage());
                 var ms = new MemoryStream();
-                foreach (var packetData in videoPacketCollections[fullFrameId].PacketDataSet)
+                foreach (var packetData in videoPacketCollections[fullFrameId])
                 {
                     ms.Write(packetData.messageData, 0, packetData.messageData.Length);
                 }
