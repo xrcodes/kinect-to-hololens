@@ -314,13 +314,10 @@ public class KinectReceiver
                                     if (i == fecPacketIndex)
                                         continue;
 
-                                    //for (int j = PacketHelper.PACKET_HEADER_SIZE; j < PacketHelper.PACKET_SIZE; ++j)
-                                    //    fecFramePacket[j] ^= collectionPair.Value.Packets[i][j];
                                     for (int j = 0; j < fecVideoPacketData.messageData.Length; ++j)
                                         fecVideoPacketData.messageData[j] ^= collectionPair.Value[i].messageData[j];
                                 }
 
-                                //framePacketCollections[missingFrameId].AddPacket(fecPacketIndex, fecFramePacket);
                                 videoPacketCollections[missingFrameId][fecPacketIndex] = fecVideoPacketData;
                             } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
@@ -361,7 +358,6 @@ public class KinectReceiver
             // Extract messages from the full collections.
             foreach (int fullFrameId in fullFrameIds)
             {
-                //frameMessageQueue.Enqueue(videoPacketCollections[fullFrameId].ToMessage());
                 var ms = new MemoryStream();
                 foreach (var packetData in videoPacketCollections[fullFrameId])
                 {

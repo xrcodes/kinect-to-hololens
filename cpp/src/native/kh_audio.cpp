@@ -2,9 +2,18 @@
 
 namespace kh
 {
-Audio::Audio(SoundIo* ptr)
-    : ptr_(ptr)
+Audio::Audio()
+    : ptr_(soundio_create())
 {
+    if (!ptr_)
+        throw std::exception("Failed to construct Audio...");
+
+    int err = soundio_connect(ptr_);
+    if (err) {
+        throw std::exception("Failed to connect Audio...");
+    }
+
+    soundio_flush_events(ptr_);
 }
 
 Audio::Audio(Audio&& other) noexcept
@@ -19,40 +28,40 @@ Audio::~Audio()
         soundio_destroy(ptr_);
 }
 
-std::optional<Audio> Audio::create()
+std::vector<AudioDevice> Audio::getInputDevices() const
 {
-    SoundIo* ptr = soundio_create();
-    if (!ptr) {
-        printf("Failed to Create Audio...");
-        return std::nullopt;
+    int input_device_count{soundio_input_device_count(ptr_)};
+    std::vector<AudioDevice> input_devices;
+    for (int i = 0; i < input_device_count; ++i)
+    {
+        auto device_ptr{soundio_get_input_device(ptr_, i)};
+        if (!device_ptr)
+            printf("Failed to get Input Devices...");
+
+        input_devices.emplace_back(device_ptr);
     }
-    return Audio(ptr);
+
+    return input_devices;
 }
 
-// Declarations are inside the declaration of class Audio above.
-std::optional<AudioDevice> Audio::getInputDevice(int device_index)
+AudioDevice Audio::getDefaultOutputDevice() const
 {
-    SoundIoDevice* device_ptr = soundio_get_input_device(ptr_, device_index);
-    if (!device_ptr) {
-        printf("Failed to get input AudioDevice...");
-        return std::nullopt;
-    }
-    return AudioDevice(device_ptr);
-}
+    auto device_ptr{soundio_get_output_device(ptr_, soundio_default_output_device_index(ptr_))};
+    if (!device_ptr)
+        printf("Failed to get the Default Output Device...");
 
-std::optional<AudioDevice> Audio::getOutputDevice(int device_index)
-{
-    SoundIoDevice* device_ptr = soundio_get_output_device(ptr_, device_index);
-    if (!device_ptr) {
-        printf("Failed to get output AudioDevice...");
-        return std::nullopt;
-    }
     return AudioDevice(device_ptr);
 }
 
 AudioDevice::AudioDevice(SoundIoDevice* ptr)
     : ptr_(ptr)
 {
+}
+
+AudioDevice::AudioDevice(const AudioDevice& other)
+    : ptr_(other.ptr_)
+{
+    soundio_device_ref(ptr_);
 }
 
 AudioDevice::AudioDevice(AudioDevice&& other) noexcept
@@ -67,9 +76,11 @@ AudioDevice::~AudioDevice()
         soundio_device_unref(ptr_);
 }
 
-AudioInStream::AudioInStream(SoundIoInStream* ptr)
-    : ptr_(ptr)
+AudioInStream::AudioInStream(AudioDevice& device)
+    : ptr_(soundio_instream_create(device.get()))
 {
+    if (!ptr_)
+        throw std::exception("Failed to construct AudioInStream...");
 }
 
 AudioInStream::AudioInStream(AudioInStream&& other) noexcept
@@ -84,19 +95,11 @@ AudioInStream::~AudioInStream()
         soundio_instream_destroy(ptr_);
 }
 
-std::optional<AudioInStream> AudioInStream::create(AudioDevice& device)
+AudioOutStream::AudioOutStream(AudioDevice& device)
+    : ptr_(soundio_outstream_create(device.get()))
 {
-    SoundIoInStream* ptr = soundio_instream_create(device.ptr());
-    if (!ptr) {
-        printf("Failed to Create AudioInStream...");
-        return std::nullopt;
-    }
-    return AudioInStream(ptr);
-}
-
-AudioOutStream::AudioOutStream(SoundIoOutStream* ptr)
-    : ptr_(ptr)
-{
+    if (!ptr_)
+        throw std::exception("Failed to construct AudioOutStream...");
 }
 
 AudioOutStream::AudioOutStream(AudioOutStream&& other) noexcept
@@ -111,13 +114,17 @@ AudioOutStream::~AudioOutStream()
         soundio_outstream_destroy(ptr_);
 }
 
-std::optional<AudioOutStream> AudioOutStream::create(AudioDevice& device)
+AudioDevice find_kinect_microphone(const Audio& audio)
 {
-    SoundIoOutStream* ptr = soundio_outstream_create(device.ptr());
-    if (!ptr) {
-        printf("Failed to Create AudioOutStream...");
-        return std::nullopt;
+    auto input_devices{audio.getInputDevices()};
+    for (auto& input_device : input_devices) {
+        if (!input_device.is_raw()) {
+            std::string device_name{input_device.name()};
+            if (device_name.find("Azure Kinect Microphone Array") != device_name.npos)
+                return input_device;
+        }
     }
-    return AudioOutStream(ptr);
+
+    throw std::exception("Could not find a Kinect Microphone...");
 }
 }

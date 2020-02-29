@@ -1,6 +1,8 @@
 #pragma once
 
 #include <optional>
+#include <vector>
+#include <string>
 #include <soundio.h>
 
 namespace kh
@@ -9,36 +11,18 @@ class AudioDevice;
 
 class Audio
 {
-private:
-    Audio(SoundIo* ptr);
 public:
+    Audio();
     Audio(Audio&& other) noexcept;
     ~Audio();
-    static std::optional<Audio> create();
     // Defined below since it needs the constructor of AudioDevice.
-    std::optional<AudioDevice> getInputDevice(int device_index);
-    std::optional<AudioDevice> getOutputDevice(int device_index);
-    int connect()
-    {
-        return soundio_connect(ptr_);
-    }
+    std::vector<AudioDevice> getInputDevices() const;
+    AudioDevice getDefaultOutputDevice() const;
     void flushEvents()
     {
         soundio_flush_events(ptr_);
     }
-    int getInputDeviceCount()
-    {
-        return soundio_input_device_count(ptr_);
-    }
-    int getOutputDeviceCount()
-    {
-        return soundio_output_device_count(ptr_);
-    }
-    int getDefaultOutputDeviceIndex()
-    {
-        return soundio_default_output_device_index(ptr_);
-    }
-    SoundIo* ptr() { return ptr_; }
+    SoundIo* get() { return ptr_; }
 
 private:
     SoundIo* ptr_;
@@ -48,9 +32,10 @@ class AudioDevice
 {
 public:
     AudioDevice(SoundIoDevice* ptr);
+    AudioDevice(const AudioDevice& other);
     AudioDevice(AudioDevice&& other) noexcept;
     ~AudioDevice();
-    SoundIoDevice* ptr() { return ptr_; }
+    SoundIoDevice* get() { return ptr_; }
     char* name() { return ptr_->name; }
     bool is_raw() { return ptr_->is_raw; }
 
@@ -60,13 +45,11 @@ private:
 
 class AudioInStream
 {
-private:
-    AudioInStream(SoundIoInStream* ptr);
 public:
+    AudioInStream(AudioDevice& device);
     AudioInStream(AudioInStream&& other) noexcept;
     ~AudioInStream();
-    static std::optional<AudioInStream> create(AudioDevice& device);
-    SoundIoInStream* ptr() { return ptr_; }
+    SoundIoInStream* get() { return ptr_; }
     void set_format(SoundIoFormat format) { ptr_->format = format; }
     int sample_rate() { return ptr_->sample_rate; }
     void set_sample_rate(int sample_rate) { ptr_->sample_rate = sample_rate; }
@@ -96,13 +79,11 @@ private:
 
 class AudioOutStream
 {
-private:
-    AudioOutStream(SoundIoOutStream* ptr);
 public:
+    AudioOutStream(AudioDevice& device);
     AudioOutStream(AudioOutStream&& other) noexcept;
     ~AudioOutStream();
-    static std::optional<AudioOutStream> create(AudioDevice& device);
-    SoundIoOutStream* ptr() { return ptr_; }
+    SoundIoOutStream* get() { return ptr_; }
     void set_format(SoundIoFormat format) { ptr_->format = format; }
     int sample_rate() { return ptr_->sample_rate; }
     void set_sample_rate(int sample_rate) { ptr_->sample_rate = sample_rate; }
@@ -132,12 +113,13 @@ private:
 
 class AudioRingBuffer
 {
-private:
-    AudioRingBuffer(SoundIoRingBuffer* ptr)
-        : ptr_(ptr)
-    {
-    }
 public:
+    AudioRingBuffer(Audio& audio, int capacity)
+        : ptr_(soundio_ring_buffer_create(audio.get(), capacity))
+    {
+        if (!ptr_)
+            throw std::exception("Failed to construct AudioRingBuffer...");
+    }
     AudioRingBuffer::AudioRingBuffer(AudioRingBuffer&& other) noexcept
     {
         ptr_ = other.ptr_;
@@ -147,16 +129,7 @@ public:
     {
         soundio_ring_buffer_destroy(ptr_);
     }
-    static std::optional<AudioRingBuffer> create(Audio& audio, int capacity)
-    {
-        SoundIoRingBuffer* ptr = soundio_ring_buffer_create(audio.ptr(), capacity);
-        if (!ptr) {
-            printf("Failed to Create AudioRingBuffer...");
-            return std::nullopt;
-        }
-        return AudioRingBuffer(ptr);
-    }
-    SoundIoRingBuffer* ptr() { return ptr_; }
+    SoundIoRingBuffer* get() { return ptr_; }
     char* getReadPtr()
     {
         return soundio_ring_buffer_read_ptr(ptr_);
@@ -185,4 +158,6 @@ public:
 private:
     SoundIoRingBuffer* ptr_;
 };
+
+AudioDevice find_kinect_microphone(const Audio& audio);
 }

@@ -11,55 +11,24 @@ namespace kh
 {
 int main(std::string ip_address, int port)
 {
-    const int AZURE_KINECT_SAMPLE_RATE = 48000;
-    const double MICROPHONE_LATENCY = 0.2; // seconds
-    const int AUDIO_FRAME_SIZE = 960;
+    constexpr int AZURE_KINECT_SAMPLE_RATE = 48000;
+    constexpr double MICROPHONE_LATENCY = 0.2; // seconds
+    constexpr int AUDIO_FRAME_SIZE = 960;
 
-    auto audio = Audio::create();
-    if (!audio) {
-        printf("out of memory\n");
-        return 1;
-    }
-    int err = audio->connect();
-    if (err) {
-        printf("error connecting: %s\n", soundio_strerror(err));
-        return 1;
-    }
-    audio->flushEvents();
-
-    for (int i = 0; i < audio->getInputDeviceCount(); ++i) {
-        printf("input_device[%d]: %s\n", i, audio->getInputDevice(i)->name());
-    }
-    for (int i = 0; i < audio->getOutputDeviceCount(); ++i) {
-        printf("output_device[%d]: %s\n", i, audio->getOutputDevice(i)->name());
-    }
-
-    int default_out_device_index = audio->getDefaultOutputDeviceIndex();
-    if (default_out_device_index < 0) {
-        printf("no output device found\n");
-        return 1;
-    }
-
-    auto out_device = audio->getOutputDevice(default_out_device_index);
-    if (!out_device) {
-        printf("could not get output device: out of memory\n");
-        return 1;
-    }
-
-    auto out_stream = AudioOutStream::create(*out_device);
-    if (!out_stream) {
-        printf("out of memory\n");
-        return 1;
-    }
+    Audio audio;
+    auto out_device{audio.getDefaultOutputDevice()};
+    AudioOutStream out_stream(out_device);
     // These settings are those generic and similar to Azure Kinect's.
     // It is set to be Stereo, which is the default setting of Unity3D.
-    out_stream->set_format(SoundIoFormatFloat32LE);
-    out_stream->set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
-    out_stream->set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
-    out_stream->set_software_latency(MICROPHONE_LATENCY);
-    out_stream->set_write_callback(soundio_helper::write_callback);
-    out_stream->set_underflow_callback(soundio_helper::underflow_callback);
-    if (err = out_stream->open()) {
+    out_stream.set_format(SoundIoFormatFloat32LE);
+    out_stream.set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
+    out_stream.set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
+    out_stream.set_software_latency(MICROPHONE_LATENCY);
+    out_stream.set_write_callback(soundio_helper::write_callback);
+    out_stream.set_underflow_callback(soundio_helper::underflow_callback);
+
+    int err;
+    if (err = out_stream.open()) {
         printf("unable to open output stream: %s\n", soundio_strerror(err));
         return 1;
     }
@@ -67,35 +36,30 @@ int main(std::string ip_address, int port)
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     const int STEREO_CHANNEL_COUNT = 2;
-    int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT;
-    //int capacity = MICROPHONE_LATENCY * 2 * out_stream->sample_rate() * out_stream->bytes_per_sample() * STEREO_CHANNEL_COUNT / 2;
-    //soundio_helper::ring_buffer = soundio_ring_buffer_create(audio->ptr(), capacity);
-    auto ring_buffer = AudioRingBuffer::create(*audio, capacity);
-    if (!ring_buffer) {
-        printf("unable to create ring buffer: out of memory\n");
-    }
-    soundio_helper::ring_buffer = ring_buffer->ptr();
+    int capacity = MICROPHONE_LATENCY * 2 * out_stream.sample_rate() * out_stream.bytes_per_sample() * STEREO_CHANNEL_COUNT;
+    AudioRingBuffer ring_buffer(audio, capacity);
+    soundio_helper::ring_buffer = ring_buffer.get();
 
-    int actual_capacity = soundio_ring_buffer_capacity(ring_buffer->ptr());
+    int actual_capacity = soundio_ring_buffer_capacity(ring_buffer.get());
     printf("actual_capacity: %d, capacity: %d\n", actual_capacity, capacity);
-
-    if (err = out_stream->start()) {
-        printf("unable to start output device: %s\n", soundio_strerror(err));
-        return 1;
-    }
 
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context);
     socket.open(asio::ip::udp::v4());
     socket.set_option(asio::socket_base::receive_buffer_size{1024 * 1024});
-    UdpSocket receiver(std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)});
+    UdpSocket udp_socket(std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)});
     std::error_code error;
-    receiver.send(create_ping_receiver_packet_bytes(), error);
+    udp_socket.send(create_ping_receiver_packet_bytes(), error);
 
     printf("start for loop\n");
     OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
     if (err < 0) {
         printf("failed to create decoder: %s\n", opus_strerror(err));
+        return 1;
+    }
+
+    if (err = out_stream.start()) {
+        printf("unable to start output device: %s\n", soundio_strerror(err));
         return 1;
     }
 
@@ -106,10 +70,10 @@ int main(std::string ip_address, int port)
     int last_frame_id = -1;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
-        audio->flushEvents();
+        audio.flushEvents();
 
         std::error_code error;
-        while (auto packet = receiver.receive(error)) {
+        while (auto packet = udp_socket.receive(error)) {
             received_byte_count += packet->size();
 
             PacketCursor cursor{5};
@@ -117,13 +81,13 @@ int main(std::string ip_address, int port)
             packets.insert({ frame_id, std::move(*packet) });
         }
 
-        while (packets.size() > 20) {
-            printf("remove packet");
-            packets.erase(packets.begin());
-        }
+        //while (packets.size() > 20) {
+        //    printf("remove packet");
+        //    packets.erase(packets.begin());
+        //}
 
-        char* write_ptr = ring_buffer->getWritePtr();
-        int free_bytes = ring_buffer->getFreeCount();
+        char* write_ptr = ring_buffer.getWritePtr();
+        int free_bytes = ring_buffer.getFreeCount();
         //printf("free_bytes: %d\n", free_bytes);
         //printf("latency: %f\n", ring_buffer->getFillCount() / static_cast<float>(out_stream->sample_rate() * out_stream->bytes_per_frame()));
         //printf("packet size: %ld\n", packets.size());
@@ -137,8 +101,6 @@ int main(std::string ip_address, int port)
                 break;
 
             auto audio_sender_packet_data{parse_audio_sender_packet_bytes(packet_it->second)};
-            //PacketCursor audio_packet_cursor{5};
-            //int frame_id = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
 
             int frame_size;
             if (audio_sender_packet_data.frame_id <= last_frame_id) {
@@ -173,7 +135,7 @@ int main(std::string ip_address, int port)
             write_cursor += FRAME_BYTE_SIZE;
         }
 
-        ring_buffer->advanceWritePtr(write_cursor);
+        ring_buffer.advanceWritePtr(write_cursor);
 
         auto summary_diff = std::chrono::steady_clock::now() - summary_time;
         if (summary_diff > std::chrono::seconds(5))

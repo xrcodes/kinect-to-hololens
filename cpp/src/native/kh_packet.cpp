@@ -279,7 +279,10 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
     AudioSenderPacketData audio_sender_packet_data;
     copy_from_bytes(audio_sender_packet_data.frame_id, packet_bytes, cursor);
 
-    memcpy(audio_sender_packet_data.opus_frame.data(), packet_bytes.data() + cursor.position, packet_bytes.size() - cursor.position);
+    audio_sender_packet_data.opus_frame.resize(packet_bytes.size() - cursor.position);
+    memcpy(audio_sender_packet_data.opus_frame.data(),
+           packet_bytes.data() + cursor.position,
+           audio_sender_packet_data.opus_frame.size());
 
     return audio_sender_packet_data;
 }
