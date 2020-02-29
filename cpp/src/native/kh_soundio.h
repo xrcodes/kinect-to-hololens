@@ -9,6 +9,19 @@
 
 namespace kh
 {
+// The samples per seconds the Kinect's microphone produces.
+// This is also a number Unity supports.
+constexpr int KH_SAMPLE_RATE{48000};
+// We will use Stereo in our system.
+// While Kinect can collect 7, it is hard to use them all of them well.
+constexpr int KH_CHANNEL_COUNT{2};
+constexpr double KH_LATENCY_SECONDS{0.2}; // seconds
+// The number of frames per a sample.
+// This means the microphone produces a frame
+// every KINECT_MICROPHONE_SAMPLE_RATE / KINECT_MICROPHONE_SAMPLES_PER_FRAME sec.
+constexpr int KH_SAMPLES_PER_FRAME{960};
+constexpr int KH_BYTES_PER_SECOND{KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float)};
+
 class AudioDevice;
 
 class Audio

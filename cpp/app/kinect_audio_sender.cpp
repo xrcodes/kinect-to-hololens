@@ -11,10 +11,16 @@ namespace kh
 {
 int main(int port)
 {
+    // The samples per seconds the Kinect's microphone produces.
     constexpr int KINECT_MICROPHONE_SAMPLE_RATE{48000};
-    constexpr int STEREO_CHANNEL_COUNT{2};
-    constexpr double MICROPHONE_LATENCY{0.2}; // seconds
-    constexpr int AUDIO_FRAME_SIZE{960};
+    // We will use Stereo in our system.
+    // While Kinect can collect 7, it is hard to use them all of them well.
+    constexpr int CHANNEL_COUNT{2};
+    constexpr double LATENCY_SECOND{0.2}; // seconds
+    // The number of frames per a sample.
+    // This means the microphone produces a frame
+    // every SAMPLE_PER_FRAME / KINECT_MICROPHONE_SAMPLE_RATE sec.
+    constexpr int SAMPLE_PER_FRAME{960};
     
     Audio audio;
     auto kinect_microphone{find_kinect_microphone(audio)};
@@ -23,15 +29,15 @@ int main(int port)
     kinect_microphone_stream.get()->format = SoundIoFormatFloat32LE;
     kinect_microphone_stream.get()->sample_rate = KINECT_MICROPHONE_SAMPLE_RATE;
     kinect_microphone_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
-    kinect_microphone_stream.get()->software_latency = MICROPHONE_LATENCY;
+    kinect_microphone_stream.get()->software_latency = LATENCY_SECOND;
     kinect_microphone_stream.get()->read_callback = soundio_callback::azure_kinect_read_callback;
     kinect_microphone_stream.get()->overflow_callback = soundio_callback::overflow_callback;
     kinect_microphone_stream.open();
 
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
-    const int bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * STEREO_CHANNEL_COUNT};
-    const int capacity{gsl::narrow_cast<int>(MICROPHONE_LATENCY * 2 * bytes_per_second)};
+    const int bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * CHANNEL_COUNT};
+    const int capacity{gsl::narrow_cast<int>(LATENCY_SECOND * 2 * bytes_per_second)};
 
     soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
     if (!soundio_callback::ring_buffer) {
@@ -56,26 +62,26 @@ int main(int port)
 
     UdpSocket udp_socket{std::move(socket), remote_endpoint};
     // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
-    AudioEncoder audio_encoder{KINECT_MICROPHONE_SAMPLE_RATE, STEREO_CHANNEL_COUNT, false};
+    AudioEncoder audio_encoder{KINECT_MICROPHONE_SAMPLE_RATE, CHANNEL_COUNT, false};
 
     kinect_microphone_stream.start();
 
     int frame_id{0};
     int sent_byte_count{0};
+    std::array<float, SAMPLE_PER_FRAME * STEREO_CHANNEL_COUNT> pcm;
     auto summary_time{TimePoint::now()};
     for (;;) {
         soundio_flush_events(audio.get());
         char* read_ptr = soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(soundio_callback::ring_buffer);
 
-        constexpr int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
+        constexpr int FRAME_BYTE_SIZE = sizeof(float) * pcm.size();
         int cursor = 0;
         while ((fill_bytes - cursor) > FRAME_BYTE_SIZE) {
-            unsigned char pcm_bytes[FRAME_BYTE_SIZE];
-            memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
+            memcpy(pcm.data(), read_ptr + cursor, FRAME_BYTE_SIZE);
 
             std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
-            int opus_frame_size = audio_encoder.encode(opus_frame.data(), reinterpret_cast<float*>(pcm_bytes), AUDIO_FRAME_SIZE, KH_PACKET_SIZE);
+            int opus_frame_size = audio_encoder.encode(opus_frame.data(), pcm.data(), SAMPLE_PER_FRAME, KH_PACKET_SIZE);
             opus_frame.resize(opus_frame_size);
 
             udp_socket.send(create_audio_sender_packet_bytes(0, frame_id++, opus_frame), asio_error);
