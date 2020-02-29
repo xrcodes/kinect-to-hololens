@@ -95,6 +95,18 @@ AudioInStream::~AudioInStream()
         soundio_instream_destroy(ptr_);
 }
 
+void AudioInStream::open()
+{
+    if (int error = soundio_instream_open(ptr_))
+        throw std::runtime_error(std::string("Failed to open AudioInStream: ") + std::to_string(error));
+}
+
+void AudioInStream::start()
+{
+    if (int error = soundio_instream_start(ptr_))
+        throw std::runtime_error(std::string("Failed to start AudioInStream: ") + std::to_string(error));
+}
+
 AudioOutStream::AudioOutStream(AudioDevice& device)
     : ptr_(soundio_outstream_create(device.get()))
 {
@@ -114,12 +126,24 @@ AudioOutStream::~AudioOutStream()
         soundio_outstream_destroy(ptr_);
 }
 
+void AudioOutStream::open()
+{
+    if (int error = soundio_outstream_open(ptr_))
+        throw std::runtime_error(std::string("Failed to open AudioOutStream: ") + std::to_string(error));
+}
+
+void AudioOutStream::start()
+{
+    if (int error = soundio_outstream_start(ptr_))
+        throw std::runtime_error(std::string("Failed to start AudioOutStream: ") + std::to_string(error));
+}
+
 AudioDevice find_kinect_microphone(const Audio& audio)
 {
     auto input_devices{audio.getInputDevices()};
     for (auto& input_device : input_devices) {
-        if (!input_device.is_raw()) {
-            std::string device_name{input_device.name()};
+        if (!input_device.get()->is_raw) {
+            std::string device_name{input_device.get()->name};
             if (device_name.find("Azure Kinect Microphone Array") != device_name.npos)
                 return input_device;
         }

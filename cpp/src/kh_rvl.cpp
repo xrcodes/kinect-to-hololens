@@ -1,8 +1,8 @@
 #include "kh_rvl.h"
 
-// Code inside namespace wilson is from the RVL paper (Wilson, 2017).
+// Code inside this namespace is from the RVL paper (Wilson, 2017).
 // The code has been modified to be thread-safe (i.e. removed global variables).
-namespace wilson
+namespace
 {
 void EncodeVLE(int value, int*& pBuffer, int& word, int& nibblesWritten) noexcept
 {
@@ -90,32 +90,33 @@ void DecompressRVL(char* input, short* output, int numPixels) noexcept
         }
     }
 }
-} // end of namespace wilson
+}
 
 namespace kh
 {
 namespace rvl
 {
 // Compresses depth pixels using RVL.
-std::vector<std::byte> compress(gsl::span<const int16_t> input, int num_pixels)
+std::vector<std::byte> compress(gsl::span<const std::int16_t> input, int num_pixels)
 {
     std::vector<std::byte> output(num_pixels);
-    int size{wilson::CompressRVL(const_cast<short*>(input.data()),
+    int size{CompressRVL(const_cast<short*>(input.data()),
                                  reinterpret_cast<char*>(output.data()), num_pixels)};
     // This is theoretically possible to happen since lossless compression does not guarantee reduction of size.
     // However, it is very unlikely to happen.
     if (size > num_pixels)
         throw std::exception("RVL compression failed to reduce the size of its input.");
+    
     output.resize(size);
     output.shrink_to_fit();
     return output;
 }
 
-std::vector<int16_t> decompress(gsl::span<const std::byte> input, int num_pixels) noexcept
+std::vector<std::int16_t> decompress(gsl::span<const std::byte> input, int num_pixels) noexcept
 {
-    std::vector<int16_t> output(num_pixels);
-    wilson::DecompressRVL(const_cast<char*>(reinterpret_cast<const char*>(input.data())),
-                          reinterpret_cast<short*>(output.data()), num_pixels);
+    std::vector<std::int16_t> output(num_pixels);
+    DecompressRVL(const_cast<char*>(reinterpret_cast<const char*>(input.data())),
+                  reinterpret_cast<short*>(output.data()), num_pixels);
     return output;
 }
 }

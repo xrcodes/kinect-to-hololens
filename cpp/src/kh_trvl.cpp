@@ -14,7 +14,8 @@ std::int16_t absolute_difference(std::int16_t x, std::int16_t y)
         return y - x;
 }
 
-void update_pixel(TrvlPixel& pixel, std::int16_t raw_value, std::int16_t change_threshold, int invalidation_threshold) {
+void update_pixel(TrvlPixel& pixel, const std::int16_t raw_value, const std::int16_t change_threshold, const int invalidation_threshold)
+{
     if (pixel.value == 0) {
         if (raw_value > 0)
             pixel.value = raw_value;
@@ -31,6 +32,7 @@ void update_pixel(TrvlPixel& pixel, std::int16_t raw_value, std::int16_t change_
         }
         return;
     }
+
     pixel.invalid_count = 0;
 
     // Update pixel value when change is detected.
@@ -39,8 +41,8 @@ void update_pixel(TrvlPixel& pixel, std::int16_t raw_value, std::int16_t change_
 }
 }
 
-TrvlEncoder::TrvlEncoder(int frame_size, int16_t change_threshold, int invalid_threshold)
-    : pixels_{frame_size}, change_threshold_{change_threshold}, invalid_threshold_{invalid_threshold}
+TrvlEncoder::TrvlEncoder(int pixel_count, int16_t change_threshold, int invalid_threshold)
+    : pixels_(pixel_count), change_threshold_{change_threshold}, invalid_threshold_{invalid_threshold}
 {
 }
 
@@ -67,21 +69,21 @@ std::vector<std::byte> TrvlEncoder::encode(gsl::span<const int16_t> depth_buffer
     return rvl::compress(pixel_diffs, frame_size);
 }
 
-TrvlDecoder::TrvlDecoder(int frame_size)
-    : prev_pixel_values_(frame_size, 0)
+TrvlDecoder::TrvlDecoder(int pixel_count)
+    : prev_pixel_values_(pixel_count, 0)
 {
 }
 
 std::vector<int16_t> TrvlDecoder::decode(gsl::span<const std::byte> trvl_frame, bool keyframe) noexcept
 {
-    const int frame_size{gsl::narrow_cast<int>(prev_pixel_values_.size())};
+    const int pixel_count{gsl::narrow_cast<int>(prev_pixel_values_.size())};
     if (keyframe) {
-        prev_pixel_values_ = rvl::decompress(trvl_frame, frame_size);
+        prev_pixel_values_ = rvl::decompress(trvl_frame, pixel_count);
         return prev_pixel_values_;
     }
 
-    const auto pixel_diffs{rvl::decompress(trvl_frame, frame_size)};
-    for (gsl::index i = 0; i < frame_size; ++i)
+    const auto pixel_diffs{rvl::decompress(trvl_frame, pixel_count)};
+    for (gsl::index i = 0; i < pixel_count; ++i)
         prev_pixel_values_[i] += pixel_diffs[i];
 
     return prev_pixel_values_;

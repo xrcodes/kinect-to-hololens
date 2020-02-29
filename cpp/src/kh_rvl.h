@@ -10,10 +10,8 @@ namespace kh
 {
 namespace rvl
 {
-// Compresses depth pixels using RVL.
 // It has to be int16_t not uint16_t to work with TRVL.
-std::vector<std::byte> compress(gsl::span<const int16_t> input, int num_pixels);
-// Decompress depth pixels using RVL.
-std::vector<int16_t> decompress(gsl::span<const std::byte> input, int num_pixels) noexcept;
+std::vector<std::byte> compress(gsl::span<const std::int16_t> input, int num_pixels);
+std::vector<std::int16_t> decompress(gsl::span<const std::byte> input, int num_pixels) noexcept;
 }
 }

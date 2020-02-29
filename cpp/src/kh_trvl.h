@@ -14,7 +14,7 @@ struct TrvlPixel
 class TrvlEncoder
 {
 public:
-    TrvlEncoder(int frame_size, std::int16_t change_threshold, int invalid_threshold);
+    TrvlEncoder(int pixel_count, std::int16_t change_threshold, int invalid_threshold);
     std::vector<std::byte> encode(gsl::span<const std::int16_t> depth_buffer, bool keyframe);
 
 private:
@@ -26,7 +26,7 @@ private:
 class TrvlDecoder
 {
 public:
-    TrvlDecoder(int frame_size);
+    TrvlDecoder(int pixel_count);
     std::vector<int16_t> decode(gsl::span<const std::byte> trvl_frame, bool keyframe) noexcept;
 
 private:

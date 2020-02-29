@@ -20,22 +20,18 @@ int main(int port)
     auto kinect_microphone{find_kinect_microphone(audio)};
     AudioInStream in_stream{kinect_microphone};
     // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
-    in_stream.set_format(SoundIoFormatFloat32LE);
-    in_stream.set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
-    in_stream.set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0));
-    in_stream.set_software_latency(MICROPHONE_LATENCY);
-    in_stream.set_read_callback(soundio_helper::azure_kinect_read_callback);
-    in_stream.set_overflow_callback(soundio_helper::overflow_callback);
+    in_stream.get()->format = SoundIoFormatFloat32LE;
+    in_stream.get()->sample_rate = AZURE_KINECT_SAMPLE_RATE;
+    in_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
+    in_stream.get()->software_latency = MICROPHONE_LATENCY;
+    in_stream.get()->read_callback = soundio_helper::azure_kinect_read_callback;
+    in_stream.get()->overflow_callback = soundio_helper::overflow_callback;
 
-    int error;
-    if (error = in_stream.open()) {
-        printf("unable to open input stream: %s\n", soundio_strerror(error));
-        return 1;
-    }
+    in_stream.open();
 
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
-    const int capacity{gsl::narrow_cast<int>(MICROPHONE_LATENCY * 2 * in_stream.sample_rate() * in_stream.bytes_per_sample() * STEREO_CHANNEL_COUNT)};
+    const int capacity{gsl::narrow_cast<int>(MICROPHONE_LATENCY * 2 * in_stream.get()->sample_rate * in_stream.get()->bytes_per_sample * STEREO_CHANNEL_COUNT)};
     AudioRingBuffer ring_buffer{audio, capacity};
     soundio_helper::ring_buffer = ring_buffer.get();
 
@@ -54,12 +50,10 @@ int main(int port)
         return 1;
     }
 
-    if (error = in_stream.start()) {
-        printf("unable to start input device: %s\n", soundio_strerror(error));
-        return 1;
-    }
+    in_stream.start();
 
     UdpSocket udp_socket{std::move(socket), remote_endpoint};
+    int error;
     OpusEncoder* opus_encoder{opus_encoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, OPUS_APPLICATION_VOIP, &error)};
     if (error < 0) {
         printf("failed to create an encoder: %s\n", opus_strerror(error));
@@ -71,7 +65,7 @@ int main(int port)
     int sent_byte_count{0};
     auto summary_time{TimePoint::now()};
     for (;;) {
-        audio.flushEvents();
+        soundio_flush_events(audio.get());
         char* read_ptr = ring_buffer.getReadPtr();
         int fill_bytes = ring_buffer.getFillCount();
 

@@ -20,23 +20,19 @@ int main(std::string ip_address, int port)
     AudioOutStream out_stream(out_device);
     // These settings are those generic and similar to Azure Kinect's.
     // It is set to be Stereo, which is the default setting of Unity3D.
-    out_stream.set_format(SoundIoFormatFloat32LE);
-    out_stream.set_sample_rate(AZURE_KINECT_SAMPLE_RATE);
-    out_stream.set_layout(*soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo));
-    out_stream.set_software_latency(MICROPHONE_LATENCY);
-    out_stream.set_write_callback(soundio_helper::write_callback);
-    out_stream.set_underflow_callback(soundio_helper::underflow_callback);
-
-    int err;
-    if (err = out_stream.open()) {
-        printf("unable to open output stream: %s\n", soundio_strerror(err));
-        return 1;
-    }
+    out_stream.get()->format = SoundIoFormatFloat32LE;
+    out_stream.get()->sample_rate = AZURE_KINECT_SAMPLE_RATE;
+    out_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+    out_stream.get()->software_latency = MICROPHONE_LATENCY;
+    out_stream.get()->write_callback = soundio_helper::write_callback;
+    out_stream.get()->underflow_callback = soundio_helper::underflow_callback;
+    
+    out_stream.open();
 
     //int capacity = microphone_latency * 2 * in_stream->ptr()->sample_rate * in_stream->ptr()->bytes_per_frame;
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     const int STEREO_CHANNEL_COUNT = 2;
-    int capacity = MICROPHONE_LATENCY * 2 * out_stream.sample_rate() * out_stream.bytes_per_sample() * STEREO_CHANNEL_COUNT;
+    int capacity = MICROPHONE_LATENCY * 2 * out_stream.get()->sample_rate * out_stream.get()->bytes_per_sample * STEREO_CHANNEL_COUNT;
     AudioRingBuffer ring_buffer(audio, capacity);
     soundio_helper::ring_buffer = ring_buffer.get();
 
@@ -48,20 +44,18 @@ int main(std::string ip_address, int port)
     socket.open(asio::ip::udp::v4());
     socket.set_option(asio::socket_base::receive_buffer_size{1024 * 1024});
     UdpSocket udp_socket(std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)});
-    std::error_code error;
-    udp_socket.send(create_ping_receiver_packet_bytes(), error);
+    std::error_code asio_error;
+    udp_socket.send(create_ping_receiver_packet_bytes(), asio_error);
 
     printf("start for loop\n");
-    OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &err);
-    if (err < 0) {
-        printf("failed to create decoder: %s\n", opus_strerror(err));
+    int error;
+    OpusDecoder* opus_decoder = opus_decoder_create(AZURE_KINECT_SAMPLE_RATE, STEREO_CHANNEL_COUNT, &error);
+    if (error < 0) {
+        printf("failed to create decoder: %s\n", opus_strerror(error));
         return 1;
     }
 
-    if (err = out_stream.start()) {
-        printf("unable to start output device: %s\n", soundio_strerror(err));
-        return 1;
-    }
+    out_stream.start();
 
     float out[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
 
@@ -70,7 +64,7 @@ int main(std::string ip_address, int port)
     int last_frame_id = -1;
     auto summary_time = std::chrono::steady_clock::now();
     for (;;) {
-        audio.flushEvents();
+        soundio_flush_events(audio.get());
 
         std::error_code error;
         while (auto packet = udp_socket.receive(error)) {

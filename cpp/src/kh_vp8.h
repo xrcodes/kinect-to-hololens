@@ -1,15 +1,12 @@
 #pragma once
 
 #include <memory>
+extern "C" {
+#include <libavcodec/avcodec.h>
+}
 #include <vpx/vp8cx.h>
 #include <vpx/vpx_codec.h>
 #include <gsl/gsl>
-
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-}
-
 #include "kh_yuv.h"
 
 namespace kh
@@ -24,7 +21,7 @@ public:
     std::vector<std::byte> encode(const YuvImage& yuv_image, bool keyframe);
 
 private:
-    vpx_codec_ctx_t codec_;
+    vpx_codec_ctx_t codec_context_;
     vpx_image_t image_;
     int frame_index_;
 };
