@@ -1,7 +1,5 @@
 #include "kh_audio.h"
 
-#include "kh_packet.h"
-
 namespace kh
 {
 Audio::Audio()
@@ -174,20 +172,18 @@ AudioEncoder::~AudioEncoder()
     opus_encoder_destroy(opus_encoder_);
 }
 
-std::vector<std::byte> AudioEncoder::encode(const float* pcm, int frame_size, opus_int32 max_data_bytes)
+int AudioEncoder::encode(std::byte* opus_frame_data, const float* pcm, int frame_size, opus_int32 max_data_bytes)
 {
-    std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
     int opus_frame_size = opus_encode_float(opus_encoder_,
                                             pcm,
                                             frame_size,
-                                            reinterpret_cast<unsigned char*>(opus_frame.data()),
+                                            reinterpret_cast<unsigned char*>(opus_frame_data),
                                             max_data_bytes);
 
     if (opus_frame_size < 0)
         throw std::runtime_error(std::string("Failed to encode a Opus frame: ") + opus_strerror(opus_frame_size));
 
-    opus_frame.resize(opus_frame_size);
-    return opus_frame;
+    return opus_frame_size;
 }
 
 AudioDecoder::AudioDecoder(int sample_rate, int channel_count)

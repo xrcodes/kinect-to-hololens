@@ -73,7 +73,10 @@ int main(int port)
         while ((fill_bytes - cursor) > FRAME_BYTE_SIZE) {
             unsigned char pcm_bytes[FRAME_BYTE_SIZE];
             memcpy(pcm_bytes, read_ptr + cursor, FRAME_BYTE_SIZE);
-            auto opus_frame{audio_encoder.encode(reinterpret_cast<float*>(pcm_bytes), AUDIO_FRAME_SIZE, KH_PACKET_SIZE)};
+
+            std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
+            int opus_frame_size = audio_encoder.encode(opus_frame.data(), reinterpret_cast<float*>(pcm_bytes), AUDIO_FRAME_SIZE, KH_PACKET_SIZE);
+            opus_frame.resize(opus_frame_size);
 
             udp_socket.send(create_audio_sender_packet_bytes(0, frame_id++, opus_frame), asio_error);
             if (asio_error) {

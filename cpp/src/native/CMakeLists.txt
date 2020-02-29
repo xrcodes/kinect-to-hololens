@@ -3,8 +3,6 @@ add_library(KinectToHololensNative
   kh_udp_socket.cpp
   kh_packet.h
   kh_packet.cpp
-  kh_audio.h
-  kh_audio.cpp
   kh_time.h
 )
 target_include_directories(KinectToHololensNative PRIVATE
@@ -12,7 +10,6 @@ target_include_directories(KinectToHololensNative PRIVATE
 )
 target_link_libraries(KinectToHololensNative
   KinectToHololens
-  Opus::opus
 )
 set_target_properties(KinectToHololensNative PROPERTIES
   CXX_STANDARD 17

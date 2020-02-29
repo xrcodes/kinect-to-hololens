@@ -75,7 +75,7 @@ class AudioEncoder
 public:
     AudioEncoder(int sample_rate, int channel_count, bool fec);
     ~AudioEncoder();
-    std::vector<std::byte> encode(const float* pcm, int frame_size, opus_int32 max_data_bytes);
+    int encode(std::byte* opus_frame_data, const float* pcm, int frame_size, opus_int32 max_data_bytes);
 
 private:
     OpusEncoder* opus_encoder_;
