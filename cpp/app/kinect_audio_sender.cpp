@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <asio.hpp>
-#include <opus/opus.h>
+#include "kh_opus.h"
 #include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"

@@ -2,6 +2,7 @@
 #include "interfaces/IUnityInterface.h"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
+#include "kh_opus.h"
 
 // External functions for Unity C# scripts.
 //"C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API create_vp8_decoder()
@@ -58,53 +59,28 @@ extern "C"
         delete ptr;
     }
 
-    UNITY_INTERFACE_EXPORT void* UNITY_INTERFACE_API create_opus_decoder(int sample_rate, int channels)
+    UNITY_INTERFACE_EXPORT kh::AudioDecoder* UNITY_INTERFACE_API create_audio_decoder(int sample_rate, int channel_count)
     {
-        int err;
-        auto opus_decoder = opus_decoder_create(sample_rate, channels, &err);
-        if (err < 0)
-            throw std::exception("Error from create_opus_decoder.");
-
-        return opus_decoder;
+        return new kh::AudioDecoder(sample_rate, channel_count);
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API destroy_opus_decoder(void* ptr)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API destroy_audio_decoder(kh::AudioDecoder* ptr)
     {
-        opus_decoder_destroy(reinterpret_cast<OpusDecoder*>(ptr));
+        delete ptr;
     }
 
-    UNITY_INTERFACE_EXPORT void* UNITY_INTERFACE_API opus_decoder_decode
+    UNITY_INTERFACE_EXPORT int UNITY_INTERFACE_API audio_decoder_decode
     (
-        OpusDecoder* decoder,
-        uint8_t* packet,
-        int packet_size,
-        int frame_size,
-        int channels
+        kh::AudioDecoder* decoder,
+        std::byte* opus_frame_data,
+        int opus_frame_size,
+        float* pcm_data,
+        int frame_size
     )
     {
-        auto frame = new std::vector<float>(frame_size * channels);
-
-        int decode_result = opus_decode_float(decoder, packet, packet_size, frame->data(), frame_size, 0);
-        if (decode_result < 0)
-            throw std::exception("Error from opus_decoder_decode.");
-
-        return frame;
-    }
-
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_opus_frame(void* ptr)
-    {
-        delete reinterpret_cast<std::vector<float>*>(ptr);
-    }
-
-    UNITY_INTERFACE_EXPORT void* UNITY_INTERFACE_API opus_frame_get_data(void* ptr)
-    {
-        auto opus_frame = reinterpret_cast<std::vector<float>*>(ptr);
-        return opus_frame->data();
-    }
-
-    UNITY_INTERFACE_EXPORT int UNITY_INTERFACE_API opus_frame_get_size(void* ptr)
-    {
-        auto opus_frame = reinterpret_cast<std::vector<float>*>(ptr);
-        return opus_frame->size();
+        if(opus_frame_data)
+            return decoder->decode(gsl::span<std::byte>{opus_frame_data, opus_frame_size}, pcm_data, frame_size, 0);
+        else
+            return decoder->decode(std::nullopt, pcm_data, frame_size, 0);
     }
 }

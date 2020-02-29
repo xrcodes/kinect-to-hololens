@@ -76,20 +76,11 @@ public static class Plugin
     public static extern void delete_depth_pixels(IntPtr ptr);
 
     [DllImport(DllName)]
-    public static extern IntPtr create_opus_decoder(int sample_rate, int channels);
+    public static extern IntPtr create_audio_decoder(int sample_rate, int channel_count);
 
     [DllImport(DllName)]
-    public static extern void destroy_opus_decoder(IntPtr ptr);
+    public static extern void destroy_audio_decoder(IntPtr ptr);
 
     [DllImport(DllName)]
-    public static extern IntPtr opus_decoder_decode(IntPtr decoder_ptr, IntPtr packet_ptr, int packet_size, int frame_size, int channels);
-
-    [DllImport(DllName)]
-    public static extern void delete_opus_frame(IntPtr ptr);
-
-    [DllImport(DllName)]
-    public static extern IntPtr opus_frame_get_data(IntPtr ptr);
-
-    [DllImport(DllName)]
-    public static extern int opus_frame_get_size(IntPtr ptr);
+    public static extern int audio_decoder_decode(IntPtr decoder_ptr, IntPtr opus_frame_data, int opus_frame_size, IntPtr pcm_data, int frame_size);
 }

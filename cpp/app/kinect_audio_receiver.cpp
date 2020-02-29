@@ -2,7 +2,7 @@
 #include <iostream>
 #include <map>
 #include <asio.hpp>
-#include <opus/opus.h>
+#include "kh_opus.h"
 #include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 #include "helper/soundio_callback.h"
@@ -51,7 +51,7 @@ int main(std::string ip_address, int port)
 
     default_speaker_stream.start();
 
-    float out[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
+    std::array<float, AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT> pcm;
 
     std::map<int, std::vector<std::byte>> packets;
     int received_byte_count = 0;
@@ -68,16 +68,8 @@ int main(std::string ip_address, int port)
             packets.insert({ frame_id, std::move(*packet) });
         }
 
-        //while (packets.size() > 20) {
-        //    printf("remove packet");
-        //    packets.erase(packets.begin());
-        //}
-
         char* write_ptr = soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer);
         int free_bytes = soundio_ring_buffer_free_count(soundio_callback::ring_buffer);
-        //printf("free_bytes: %d\n", free_bytes);
-        //printf("latency: %f\n", ring_buffer->getFillCount() / static_cast<float>(out_stream->sample_rate() * out_stream->bytes_per_frame()));
-        //printf("packet size: %ld\n", packets.size());
 
         const int FRAME_BYTE_SIZE = sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT;
 
@@ -97,21 +89,11 @@ int main(std::string ip_address, int port)
             } else if (audio_sender_packet_data.frame_id == last_frame_id + 1) {
                 // When the packet for the next audio frame is found,
                 // use it and erase it.
-                //int opus_frame_size = copy_from_bytes<int>(packet_it->second, audio_packet_cursor);
-                //frame_size = opus_decode_float(opus_decoder, reinterpret_cast<unsigned char*>(packet_it->second.data()) + audio_packet_cursor.position, opus_frame_size, out, AUDIO_FRAME_SIZE, 0);
-                //frame_size = opus_decode_float(opus_decoder,
-                //                               reinterpret_cast<unsigned char*>(audio_sender_packet_data.opus_frame.data()),
-                //                               audio_sender_packet_data.opus_frame.size(),
-                //                               out,
-                //                               AUDIO_FRAME_SIZE, 0);
-                frame_size = audio_decoder.decode(audio_sender_packet_data.opus_frame,
-                                                  out,
-                                                  AUDIO_FRAME_SIZE, 0);
+                frame_size = audio_decoder.decode(audio_sender_packet_data.opus_frame, pcm.data(), AUDIO_FRAME_SIZE, 0);
                 packet_it = packets.erase(packet_it);
             } else {
                 // If not, let opus know there is a packet loss.
-                //frame_size = opus_decode_float(opus_decoder, nullptr, 0, out, AUDIO_FRAME_SIZE, 0);
-                frame_size = audio_decoder.decode(std::nullopt, out, AUDIO_FRAME_SIZE, 0);
+                frame_size = audio_decoder.decode(std::nullopt, pcm.data(), AUDIO_FRAME_SIZE, 0);
             }
 
             if (frame_size < 0) {
@@ -119,8 +101,9 @@ int main(std::string ip_address, int port)
                 return 1;
             }
 
-            //printf("frame_id: %d, opus_frame_size: %d, frame_size: %d\n", frame_id, opus_frame_size, frame_size);
-            memcpy(write_ptr + write_cursor, out, FRAME_BYTE_SIZE);
+            printf("frame_size: %d\n", frame_size);
+
+            memcpy(write_ptr + write_cursor, pcm.data(), FRAME_BYTE_SIZE);
 
             ++last_frame_id;
             write_cursor += FRAME_BYTE_SIZE;

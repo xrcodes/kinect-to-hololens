@@ -11,15 +11,14 @@ add_library(KinectToHololens
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_audio.h
-  kh_audio.cpp
+  kh_opus.h
+  kh_opus.cpp
  )
 target_include_directories(KinectToHololens PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectToHololens
   ${FFMPEG_LIBRARIES}
-  libsoundio::libsoundio
   Opus::opus
 )
 set_target_properties(KinectToHololens PROPERTIES
