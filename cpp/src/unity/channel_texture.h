@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <d3d11.h>
-#include "kh_core.h"
+#include "kh_yuv.h"
 
 namespace kh
 {

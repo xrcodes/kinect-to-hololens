@@ -2,8 +2,8 @@
 # which does not directly relate to Kinects.
 # Also, azure_kinect currently imports a 64-bit .lib file.
 add_library(KinectToHololens
-  kh_core.h
-  kh_core.cpp
+  kh_yuv.h
+  kh_yuv.cpp
   kh_vp8.h
   kh_vp8_encoder.cpp
   kh_vp8_decoder.cpp
