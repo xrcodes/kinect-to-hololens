@@ -199,29 +199,29 @@ VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byt
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<std::vector<std::byte>> create_fec_sender_packet_bytes_vector(int session_id, int frame_id, int max_group_size,
-                                                                          gsl::span<const std::vector<std::byte>> video_packet_bytes_span)
+std::vector<std::vector<std::byte>> create_fec_sender_packet_bytes_set(int session_id, int frame_id, int max_group_size,
+                                                                       gsl::span<const std::vector<std::byte>> video_packet_bytes_span)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
     const int fec_packet_count{gsl::narrow_cast<int>(video_packet_bytes_span.size() - 1) / max_group_size + 1};
 
-    std::vector<std::vector<std::byte>> fec_packets;
+    std::vector<std::vector<std::byte>> frame_packet_bytes_set;
     for (gsl::index fec_packet_index{0}; fec_packet_index < fec_packet_count; ++fec_packet_index) {
         const int frame_packet_bytes_cursor{gsl::narrow<int>(fec_packet_index * max_group_size)};
         const int fec_frame_packet_count{std::min<int>(max_group_size, video_packet_bytes_span.size() - frame_packet_bytes_cursor)};
-        fec_packets.push_back(create_fec_sender_packet_bytes(session_id, frame_id, fec_packet_index, fec_packet_count,
-                                                             gsl::span<const std::vector<std::byte>>(&video_packet_bytes_span[frame_packet_bytes_cursor],
-                                                                                                     fec_frame_packet_count)));
+        frame_packet_bytes_set.push_back(create_fec_sender_packet_bytes(session_id, frame_id, fec_packet_index, fec_packet_count,
+                                                                        gsl::span<const std::vector<std::byte>>(&video_packet_bytes_span[frame_packet_bytes_cursor],
+                                                                                                                fec_frame_packet_count)));
     }
-    return fec_packets;
+    return frame_packet_bytes_set;
 }
 
 std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
-                                                      gsl::span<const std::vector<std::byte>> video_packet_bytes_vector)
+                                                      gsl::span<const std::vector<std::byte>> frame_packet_bytes_set)
 {
     // Copy packets[begin_index] instead of filling in everything zero
     // to reduce an XOR operation for contents once.
-    std::vector<std::byte> packet_bytes{video_packet_bytes_vector[0]};
+    std::vector<std::byte> packet_bytes{frame_packet_bytes_set[0]};
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
     copy_to_bytes(SenderPacketType::Fec, packet_bytes, cursor);
@@ -229,9 +229,9 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
     copy_to_bytes(packet_index, packet_bytes, cursor);
     copy_to_bytes(packet_count, packet_bytes, cursor);
 
-    for (gsl::index i{1}; i < video_packet_bytes_vector.size(); ++i) {
+    for (gsl::index i{1}; i < frame_packet_bytes_set.size(); ++i) {
         for (gsl::index j{KH_VIDEO_PACKET_HEADER_SIZE}; j < KH_PACKET_SIZE; ++j) {
-            packet_bytes[j] ^= video_packet_bytes_vector[i][j];
+            packet_bytes[j] ^= frame_packet_bytes_set[i][j];
         }
     }
 
@@ -298,13 +298,12 @@ std::vector<std::byte> create_ping_receiver_packet_bytes()
     return std::vector<std::byte>{static_cast<std::byte>(ReceiverPacketType::Ping)};
 }
 
-std::vector<std::byte> create_report_receiver_packet_bytes(int frame_id, float decoder_time_ms, float frame_time_ms, int packet_count)
+std::vector<std::byte> create_report_receiver_packet_bytes(int frame_id, float decoder_time_ms, float frame_time_ms)
 {
     const int packet_size{gsl::narrow_cast<int>(sizeof(ReceiverPacketType) +
                                                 sizeof(frame_id) +
                                                 sizeof(decoder_time_ms) +
-                                                sizeof(frame_time_ms) +
-                                                sizeof(packet_count))};
+                                                sizeof(frame_time_ms))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
@@ -312,7 +311,6 @@ std::vector<std::byte> create_report_receiver_packet_bytes(int frame_id, float d
     copy_to_bytes(frame_id, packet_bytes, cursor);
     copy_to_bytes(decoder_time_ms, packet_bytes, cursor);
     copy_to_bytes(frame_time_ms, packet_bytes, cursor);
-    copy_to_bytes(packet_count, packet_bytes, cursor);
 
     return packet_bytes;
 }
@@ -324,7 +322,6 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
     copy_from_bytes(report_receiver_packet_data.frame_id, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet_data.decoder_time_ms, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet_data.frame_time_ms, packet_bytes, cursor);
-    copy_from_bytes(report_receiver_packet_data.packet_count, packet_bytes, cursor);
 
     return report_receiver_packet_data;
 }

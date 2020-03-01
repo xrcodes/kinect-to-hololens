@@ -9,28 +9,37 @@
 #include "kh_vp8.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
-#include "helper/soundio_callback.h"
+#include "helper/soundio_helper.h"
 #include "kh_opus.h"
 
 namespace kh
 {
 using Bytes = std::vector<std::byte>;
 
-void handle_receiver_messages(int session_id,
+struct ReceiverState
+{
+    // The video frame ID before any report from the receiver.
+    static constexpr int INITIAL_VIDEO_FRAME_ID{-1};
+    int video_frame_id{INITIAL_VIDEO_FRAME_ID};
+};
+
+struct HandleReceiverMessageSummary
+{
+    TimePoint start_time{TimePoint::now()};
+    int received_report_count{0};
+};
+
+void handle_receiver_messages(const int session_id,
                               bool& stopped,
                               UdpSocket& sender_socket,
                               moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-                              int& receiver_video_frame_id)
+                              ReceiverState& receiver_state)
 {
     constexpr int XOR_MAX_GROUP_SIZE = 5;
 
-    std::unordered_map<int, TimePoint> video_frame_send_times;
     std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
-    int last_receiver_video_frame_id{0};
-    auto video_sender_summary_start{TimePoint::now()};
-    int video_sender_summary_receiver_frame_count{0};
-    int video_sender_summary_receiver_packet_count{0};
-    int video_sender_summary_packet_count{0};
+    std::unordered_map<int, TimePoint> video_frame_send_times;
+    HandleReceiverMessageSummary summary;
     while (!stopped) {
         for (;;) {
             std::error_code error;
@@ -40,8 +49,7 @@ void handle_receiver_messages(int session_id,
                 if (error == asio::error::would_block) {
                     break;
                 } else {
-                    printf("Error receving a packet: %s\n", error.message().c_str());
-                    goto handle_receiver_messages_end;
+                    throw std::runtime_error(std::string("Failed to received a packet: ") + error.message());
                 }
             }
 
@@ -49,26 +57,16 @@ void handle_receiver_messages(int session_id,
 
             if (message_type == ReceiverPacketType::Report) {
                 const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
-                receiver_video_frame_id = report_receiver_packet_data.frame_id;
+                receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
 
-                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_video_frame_id]};
+                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
 
-                printf("Frame id: %d, decoder: %f ms, frame: %f ms, round_trip: %f ms\n",
-                       receiver_video_frame_id,
-                       report_receiver_packet_data.decoder_time_ms,
-                       report_receiver_packet_data.frame_time_ms,
-                       round_trip_time.ms());
-
-                for (auto it = video_frame_send_times.begin(); it != video_frame_send_times.end();) {
-                    if (it->first <= receiver_video_frame_id) {
-                        it = video_frame_send_times.erase(it);
-                    } else {
-                        ++it;
-                    }
-                }
-
-                ++video_sender_summary_receiver_frame_count;
-                video_sender_summary_receiver_packet_count += report_receiver_packet_data.packet_count;
+                std::cout << "Receiver Report - frame id: " << report_receiver_packet_data.frame_id << ", "
+                          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
+                          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
+                          << "round trip: " << round_trip_time.ms() << " ms\n";
+                
+                ++summary.received_report_count;
             } else if (message_type == ReceiverPacketType::Request) {
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
 
@@ -77,49 +75,32 @@ void handle_receiver_messages(int session_id,
                         continue;
 
                     sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index], error);
-                    if (error == asio::error::would_block) {
-                        printf("Failed to fill in a packet as the buffer was full...\n");
-                    } else if (error) {
-                        printf("Error while filling in a packet: %s\n", error.message().c_str());
-                        goto handle_receiver_messages_end;
-                    }
 
-                    ++video_sender_summary_packet_count;
+                    if (error)
+                        throw std::runtime_error(std::string("Failed to send a requested video packet: ") + error.message());
                 }
             }
         }
 
         std::pair<int, std::vector<Bytes>> video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
-            auto xor_packets{create_fec_sender_packet_bytes_vector(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
+            auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
 
             video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
             for (auto& packet : video_packet_set.second) {
                 std::error_code error;
                 sender_socket.send(packet, error);
 
-                if (error == asio::error::would_block) {
-                    printf("Failed to send a frame packet as the buffer was full...\n");
-                } else if (error) {
-                    printf("Error from sending a frame packet: %s\n", error.message().c_str());
-                    goto handle_receiver_messages_end;
-                }
-
-                ++video_sender_summary_packet_count;
+                if (error)
+                    throw std::runtime_error(std::string("Failed to send a video packet: ") + error.message());
             }
 
-            for (auto packet : xor_packets) {
+            for (auto fec_packet_bytes : fec_packet_bytes_set) {
                 std::error_code error;
-                sender_socket.send(packet, error);
+                sender_socket.send(fec_packet_bytes, error);
 
-                if (error == asio::error::would_block) {
-                    printf("Failed to send an xor packet as the buffer was full...\n");
-                } else if (error) {
-                    printf("Error from sending an xor packet: %s\n", error.message().c_str());
-                    goto handle_receiver_messages_end;
-                }
-
-                ++video_sender_summary_packet_count;
+                if (error)
+                    throw std::runtime_error(std::string("Failed to send a fec packet: ") + error.message());
             }
             video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
         }
@@ -127,47 +108,62 @@ void handle_receiver_messages(int session_id,
         // Remove elements of frame_packet_sets reserved for filling up missing packets
         // if they are already used from the receiver side.
         for (auto it = video_packet_sets.begin(); it != video_packet_sets.end();) {
-            if (it->first <= receiver_video_frame_id) {
+            if (it->first <= receiver_state.video_frame_id) {
                 it = video_packet_sets.erase(it);
             } else {
                 ++it;
             }
         }
 
-        if ((receiver_video_frame_id / 100) > (last_receiver_video_frame_id / 100)) {
-            const auto send_summary_time_interval{TimePoint::now() - video_sender_summary_start};
-            const float packet_loss{1.0f - video_sender_summary_receiver_packet_count / static_cast<float>(video_sender_summary_packet_count)};
-            printf("Send Summary: Receiver FPS: %lf, Packet Loss: %f%%\n",
-                   video_sender_summary_receiver_frame_count / send_summary_time_interval.sec(),
-                   gsl::narrow_cast<float>(packet_loss * 100.0f));
-
-            video_sender_summary_start = TimePoint::now();
-            video_sender_summary_receiver_frame_count = 0;
-            video_sender_summary_packet_count = 0;
-            video_sender_summary_receiver_packet_count = 0;
+        for (auto it = video_frame_send_times.begin(); it != video_frame_send_times.end();) {
+            if (it->first <= receiver_state.video_frame_id) {
+                it = video_frame_send_times.erase(it);
+            } else {
+                ++it;
+            }
         }
-        last_receiver_video_frame_id = receiver_video_frame_id;
+
+        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
+        if(summary_duration.sec() > 10.0f) {
+            std::cout << "Receiver reported "
+                      << summary.received_report_count / summary_duration.sec()
+                      << " times per second\n";
+            summary = HandleReceiverMessageSummary{};
+        }
     }
-handle_receiver_messages_end:
+
     stopped = true;
 }
 
-void send_audio_frames(int session_id,
-                       bool& stopped,
-                       UdpSocket& udp_socket,
-                       Audio& audio,
-                       AudioInStream& kinect_microphone_stream)
+struct AudioSenderState
 {
+    int frame_id{0};
+};
+
+struct SendAudioFrameSummary
+{
+    TimePoint start_time{TimePoint::now()};
+    int sent_byte_count{0};
+};
+
+void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
+{
+    Audio audio;
+    AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
+
+    constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
+    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
+    if (!soundio_callback::ring_buffer)
+        throw std::exception("Failed in soundio_ring_buffer_create()...");
+
     // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
     AudioEncoder audio_encoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false};
 
     kinect_microphone_stream.start();
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
-
-    int audio_frame_id{0};
-    int sent_byte_count{0};
-    auto summary_time{TimePoint::now()};
+    AudioSenderState audio_state;
+    SendAudioFrameSummary summary;
     while (!stopped) {
         soundio_flush_events(audio.get());
         char* read_ptr = soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer);
@@ -183,36 +179,51 @@ void send_audio_frames(int session_id,
             opus_frame.resize(opus_frame_size);
 
             std::error_code error;
-            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_frame_id++, opus_frame), error);
+            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame), error);
             if (error)
                 throw std::runtime_error(std::string("Error sending audio packets: ") + error.message());
 
             cursor += BYTES_PER_FRAME;
-            sent_byte_count += opus_frame.size();
+            summary.sent_byte_count += opus_frame.size();
         }
 
         soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer, cursor);
 
-        auto summary_diff = TimePoint::now() - summary_time;
-        if (summary_diff.sec() > 5)
-        {
-            printf("Bandwidth: %f Mbps\n", (sent_byte_count / (1024.0f * 1024.0f / 8.0f)) / summary_diff.sec());
-            sent_byte_count = 0;
-            summary_time = std::chrono::steady_clock::now();
+        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
+        if (summary_duration.sec() > 10.0f) {
+            std::cout << "SendAudioFrameSummary - Bandwidth: "
+                      << summary.sent_byte_count / (1024.0f * 1024.0f / 8.0f) / summary_duration.sec()
+                      << " Mbps\n";
+            summary = SendAudioFrameSummary{};
         }
     }
 
     stopped = true;
 }
 
-void send_frames(int port, int session_id, KinectDevice& kinect_device, Audio& audio, AudioInStream& kinect_microphone_stream)
+struct VideoSenderState
+{
+    int frame_id{0};
+};
+
+struct SendVideoFrameSummary
+{
+    TimePoint start_time{TimePoint::now()};
+    int frame_count{0};
+    int byte_count{0};
+    int keyframe_count{0};
+};
+
+void send_video_frames(const int session_id,
+                        bool& stopped,
+                        UdpSocket& udp_socket,
+                        KinectDevice& kinect_device,
+                        moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+                        ReceiverState& receiver_state)
 {
     constexpr int TARGET_BITRATE = 2000;
     constexpr short CHANGE_THRESHOLD = 10;
     constexpr int INVALID_THRESHOLD = 2;
-    constexpr int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
-
-    printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
     const auto calibration{kinect_device.getCalibration()};
     k4a::transformation transformation{calibration};
@@ -220,90 +231,51 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device, Audio& a
     const int depth_width{calibration.depth_camera_calibration.resolution_width};
     const int depth_height{calibration.depth_camera_calibration.resolution_height};
 
-    constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
     Vp8Encoder color_encoder{depth_width, depth_height, TARGET_BITRATE};
     TrvlEncoder depth_encoder{depth_width * depth_height, CHANGE_THRESHOLD, INVALID_THRESHOLD};
 
-    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
-    if (!soundio_callback::ring_buffer)
-        throw std::exception("Failed in soundio_ring_buffer_create()...");
-
-    asio::io_context io_context;
-    asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
-    socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
-
-    std::vector<std::byte> ping_buffer(1);
-    asio::ip::udp::endpoint remote_endpoint;
-    std::error_code error;
-    socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0, error);
-    if (error) {
-        printf("Error receiving ping: %s\n", error.message().c_str());
-        return;
-    }
-
-    printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
-
-    // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    UdpSocket udp_socket{std::move(socket), remote_endpoint};
-
-    bool stopped{false};
-    moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>> video_packet_queue;
-    // receiver_frame_id is the ID that the receiver sent back saying it received the frame of that ID.
-    int receiver_video_frame_id{-1};
-    
-    std::thread handle_reciever_messages_thread([&] {
-        handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_video_frame_id);
-    });
-    std::thread send_audio_frames_thread([&] {
-        send_audio_frames(session_id, stopped, udp_socket, audio, kinect_microphone_stream);
-    });
-
     // frame_id is the ID of the frame the sender sends.
-    int video_frame_id{0};
+    VideoSenderState video_state;
 
     // Variables for profiling the sender.
-    int main_summary_keyframe_count{0};
     auto last_device_time_stamp{std::chrono::microseconds::zero()};
 
-    auto main_summary_start{TimePoint::now()};
-    size_t main_summary_frame_size_sum{0};
-    for (;;) {
-        // Stop if the sender thread stopped.
-        if (stopped)
-            break;
-
-        if (receiver_video_frame_id == -1) {
+    SendVideoFrameSummary summary;
+    while (!stopped) {
+        if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
             const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
+            std::error_code error;
             udp_socket.send(init_packet_bytes, error);
-            if (error) {
-                printf("Error sending init packet: %s\n", error.message().c_str());
-                return;
-            }
+            if (error)
+                throw std::runtime_error(std::string("Error sending init packet: ") + error.message());
+
             Sleep(100);
         }
 
         const auto capture{kinect_device.getCapture()};
-        if (!capture)
+        if (!capture) {
+            std::cout << "no capture...\n";
             continue;
+        }
 
         const auto color_image{capture->get_color_image()};
         if (!color_image) {
-            printf("get_color_image() failed...\n");
+            std::cout << "get_color_image() failed...\n";
             continue;
         }
 
         const auto depth_image{capture->get_depth_image()};
         if (!depth_image) {
-            printf("get_depth_image() failed...\n");
+            std::cout << "get_depth_image() failed...\n";
             continue;
         }
 
         const auto device_time_stamp{color_image.get_device_timestamp()};
         const auto device_time_diff{device_time_stamp - last_device_time_stamp};
-        const int device_frame_diff{static_cast<int>(device_time_diff.count() / 33000.0f + 0.5f)};
-        const int frame_id_diff{video_frame_id - receiver_video_frame_id};
+        const int device_frame_diff{gsl::narrow_cast<int>(device_time_diff.count() / 33000.0f + 0.5f)};
+        const int frame_id_diff{video_state.frame_id - receiver_state.video_frame_id};
+
         if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3)))
             continue;
 
@@ -327,32 +299,68 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device, Audio& a
                                                             keyframe)};
 
         const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
-        const auto message{create_video_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
-        auto packets{split_video_sender_message_bytes(session_id, video_frame_id, message)};
-        video_packet_queue.enqueue({video_frame_id, std::move(packets)});
+        const auto message_bytes{create_video_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
+        auto packet_bytes_set{split_video_sender_message_bytes(session_id, video_state.frame_id, message_bytes)};
+        video_packet_queue.enqueue({video_state.frame_id, std::move(packet_bytes_set)});
 
         // Updating variables for profiling.
         if (keyframe)
-            ++main_summary_keyframe_count;
-        main_summary_frame_size_sum += (vp8_frame.size() + depth_encoder_frame.size());
+            ++summary.keyframe_count;
+        ++summary.frame_count;
+        summary.byte_count += (vp8_frame.size() + depth_encoder_frame.size());
 
-        // Print profile measures every 100 frames.
-        if (video_frame_id % 100 == 0) {
-            const auto main_summary_time_interval{TimePoint::now() - main_summary_start};
-            printf("Main Summary id: %d, FPS: %lf, Keyframe Ratio: %d%%, Bandwidth: %lf Mbps\n",
-                   video_frame_id,
-                   100 / main_summary_time_interval.sec(),
-                   main_summary_keyframe_count,
-                   main_summary_frame_size_sum / (main_summary_time_interval.sec() * 131072));
-
-            main_summary_start = TimePoint::now();
-            main_summary_keyframe_count = 0;
-            main_summary_frame_size_sum = 0;
+        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
+        if (summary_duration.sec() > 10.0f) {
+            std::cout << "Video Frame Summary - "
+                      << "id: " << video_state.frame_id << ", "
+                      << "FPS: " << summary.frame_count / summary_duration.sec() << ", "
+                      << "Bandwidth: " << summary.byte_count / summary_duration.sec() << ", "
+                      << "Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << "\n";
+            summary = SendVideoFrameSummary{};
         }
-        ++video_frame_id;
+        ++video_state.frame_id;
     }
+
     stopped = true;
+}
+
+void send_frames(int port, int session_id, KinectDevice& kinect_device)
+{
+    constexpr int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
+
+    printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
+
+    asio::io_context io_context;
+    asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
+    socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
+
+    std::vector<std::byte> ping_buffer(1);
+    asio::ip::udp::endpoint remote_endpoint;
+    std::error_code error;
+    socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0, error);
+    if (error)
+        throw std::runtime_error(std::string("Error receiving ping: ") + error.message());
+
+    printf("Found a Receiver at %s:%d\n", remote_endpoint.address().to_string().c_str(), remote_endpoint.port());
+
+    // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
+    UdpSocket udp_socket{std::move(socket), remote_endpoint};
+
+    bool stopped{false};
+    moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>> video_packet_queue;
+    
+    ReceiverState receiver_state;
+    
+    std::thread handle_reciever_messages_thread([&] {
+        handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_state);
+    });
+    std::thread send_audio_frames_thread([&] {
+        send_audio_frames(session_id, stopped, udp_socket);
+    });
+    send_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state);
+
     handle_reciever_messages_thread.join();
+    send_audio_frames_thread.join();
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.
@@ -379,28 +387,14 @@ void main()
         KinectDevice kinect_device{configuration, timeout};
         kinect_device.start();
 
-        Audio audio;
-        auto kinect_microphone{find_kinect_microphone(audio)};
-        AudioInStream kinect_microphone_stream{kinect_microphone};
-        // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
-        kinect_microphone_stream.get()->format = SoundIoFormatFloat32LE;
-        kinect_microphone_stream.get()->sample_rate = KH_SAMPLE_RATE;
-        kinect_microphone_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
-        kinect_microphone_stream.get()->software_latency = KH_LATENCY_SECONDS;
-        kinect_microphone_stream.get()->read_callback = soundio_callback::kinect_microphone_read_callback;
-        kinect_microphone_stream.get()->overflow_callback = soundio_callback::overflow_callback;
-        kinect_microphone_stream.open();
-
-        const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
-        assert(KH_BYTES_PER_SECOND == kinect_microphone_bytes_per_second);
-
-        send_frames(port, session_id, kinect_device, audio, kinect_microphone_stream);
+        send_frames(port, session_id, kinect_device);
     }
 }
 }
 
 int main()
 {
+    std::ios_base::sync_with_stdio(false);
     kh::main();
     return 0;
 }

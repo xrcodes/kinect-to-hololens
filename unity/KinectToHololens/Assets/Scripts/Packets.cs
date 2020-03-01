@@ -40,14 +40,13 @@ public static class PacketHelper
         return bytes;
     }
 
-    public static byte[] createReportReceiverPacketBytes(int frameId, float decoderMs, float frameMs, int packetCount)
+    public static byte[] createReportReceiverPacketBytes(int frameId, float decoderMs, float frameMs)
     {
         var ms = new MemoryStream();
         ms.WriteByte((byte)ReceiverPacketType.Report);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
         ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
-        ms.Write(BitConverter.GetBytes(packetCount), 0, 4);
         return ms.ToArray();
     }
 

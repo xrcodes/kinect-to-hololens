@@ -26,6 +26,7 @@ add_custom_command(TARGET KinectReader POST_BUILD
 add_executable(KinectSender
   kinect_sender.cpp
   helper/kinect_helper.h
+  helper/soundio_helper.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -50,6 +51,7 @@ add_custom_command(TARGET KinectSender POST_BUILD
 add_executable(KinectReceiver
   kinect_receiver.cpp
   helper/opencv_helper.h
+  helper/soundio_helper.h
 )
 target_include_directories(KinectReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -64,7 +66,7 @@ set_target_properties(KinectReceiver PROPERTIES
 
 add_executable(KinectListener
   kinect_listener.cpp
-  helper/soundio_callback.h
+  helper/soundio_helper.h
 )
 target_include_directories(KinectListener PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -78,7 +80,7 @@ set_target_properties(KinectListener PROPERTIES
 
 add_executable(KinectAudioSender
   kinect_audio_sender.cpp
-  helper/soundio_callback.h
+  helper/soundio_helper.h
 )
 target_include_directories(KinectAudioSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -92,7 +94,7 @@ set_target_properties(KinectAudioSender PROPERTIES
 
 add_executable(KinectAudioReceiver
   kinect_audio_receiver.cpp
-  helper/soundio_callback.h
+  helper/soundio_helper.h
 )
 target_include_directories(KinectAudioReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

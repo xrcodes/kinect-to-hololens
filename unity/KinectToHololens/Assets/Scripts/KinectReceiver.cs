@@ -17,8 +17,7 @@ public class KinectReceiver
     private UdpSocket udpSocket;
     private bool receiverStopped;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
-    private int lastFrameId;
-    private int summaryPacketCount;
+    private int lastVideoFrameId;
 
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
@@ -37,8 +36,7 @@ public class KinectReceiver
         udpSocket = null;
         receiverStopped = false;
         videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
-        lastFrameId = -1;
-        summaryPacketCount = 0;
+        lastVideoFrameId = -1;
 
         colorDecoder = null;
         depthDecoder = null;
@@ -162,8 +160,6 @@ public class KinectReceiver
                 if (packet == null)
                     break;
 
-                ++summaryPacketCount;
-
                 int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
                 var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
 
@@ -206,7 +202,7 @@ public class KinectReceiver
             // frame packet is detected.
             while (fecPacketDataQueue.TryDequeue(out FecSenderPacketData fecSenderPacketData))
             {
-                if (fecSenderPacketData.frameId <= lastFrameId)
+                if (fecSenderPacketData.frameId <= lastVideoFrameId)
                     continue;
 
                 if (!fecPacketCollections.ContainsKey(fecSenderPacketData.frameId))
@@ -219,7 +215,7 @@ public class KinectReceiver
 
             while (videoPacketDataQueue.TryDequeue(out VideoSenderPacketData videoSenderPacketData))
             {
-                if (videoSenderPacketData.frameId <= lastFrameId)
+                if (videoSenderPacketData.frameId <= lastVideoFrameId)
                     continue;
 
                 // If there is a packet for a new frame, check the previous frames, and if
@@ -374,7 +370,7 @@ public class KinectReceiver
             var obsoleteFrameIds = new List<int>();
             foreach (var collectionPair in videoPacketCollections)
             {
-                if (collectionPair.Key <= lastFrameId)
+                if (collectionPair.Key <= lastVideoFrameId)
                 {
                     obsoleteFrameIds.Add(collectionPair.Key);
                 }
@@ -410,7 +406,7 @@ public class KinectReceiver
         // If there is a key frame, use the most recent one.
         foreach (var frameMessagePair in videoMessages)
         {
-            if (frameMessagePair.Key <= lastFrameId)
+            if (frameMessagePair.Key <= lastVideoFrameId)
                 continue;
 
             if (frameMessagePair.Value.keyframe)
@@ -421,9 +417,9 @@ public class KinectReceiver
         // if there is the one right after the previously rendered one.
         if (!beginFrameId.HasValue)
         {
-            if (videoMessages.ContainsKey(lastFrameId + 1))
+            if (videoMessages.ContainsKey(lastVideoFrameId + 1))
             {
-                beginFrameId = lastFrameId + 1;
+                beginFrameId = lastVideoFrameId + 1;
             }
             else
             {
@@ -447,7 +443,7 @@ public class KinectReceiver
                 break;
 
             var frameMessage = videoMessages[i];
-            lastFrameId = i;
+            lastVideoFrameId = i;
 
             var colorEncoderFrame = frameMessage.colorEncoderFrame;
             var depthEncoderFrame = frameMessage.depthEncoderFrame;
@@ -465,9 +461,9 @@ public class KinectReceiver
         //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
         //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
-        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(lastFrameId, (float)decoderTime.TotalMilliseconds,
-                                                                   (float)frameTime.TotalMilliseconds, summaryPacketCount));
-        summaryPacketCount = 0;
+        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(lastVideoFrameId,
+                                                                    (float)decoderTime.TotalMilliseconds,
+                                                                    (float)frameTime.TotalMilliseconds));
 
         // Invokes a function to be called in a render thread.
         if (preapared)
@@ -487,7 +483,7 @@ public class KinectReceiver
         }
         foreach (int key in frameMessageKeys)
         {
-            if (key < lastFrameId)
+            if (key < lastVideoFrameId)
             {
                 videoMessages.Remove(key);
             }

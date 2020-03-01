@@ -214,4 +214,43 @@ static void overflow_callback(struct SoundIoInStream* instream) {
 }
 }
 
+AudioInStream create_kinect_microphone_stream(const Audio& audio)
+{
+    AudioInStream kinect_microphone_stream{find_kinect_microphone(audio)};
+    // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
+    kinect_microphone_stream.get()->format = SoundIoFormatFloat32LE;
+    kinect_microphone_stream.get()->sample_rate = KH_SAMPLE_RATE;
+    kinect_microphone_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
+    kinect_microphone_stream.get()->software_latency = KH_LATENCY_SECONDS;
+    kinect_microphone_stream.get()->read_callback = soundio_callback::kinect_microphone_read_callback;
+    kinect_microphone_stream.get()->overflow_callback = soundio_callback::overflow_callback;
+    kinect_microphone_stream.open();
+
+    const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
+    if (KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second)
+        throw std::exception("KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second");
+
+    return kinect_microphone_stream;
+}
+
+AudioOutStream create_default_speaker_stream(const Audio& audio)
+{
+    auto default_speaker{audio.getDefaultOutputDevice()};
+    AudioOutStream default_speaker_stream(default_speaker);
+    // These settings are those generic and similar to Azure Kinect's.
+    // It is set to be Stereo, which is the default setting of Unity3D.
+    default_speaker_stream.get()->format = SoundIoFormatFloat32LE;
+    default_speaker_stream.get()->sample_rate = KH_SAMPLE_RATE;
+    default_speaker_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+    default_speaker_stream.get()->software_latency = KH_LATENCY_SECONDS;
+    default_speaker_stream.get()->write_callback = soundio_callback::write_callback;
+    default_speaker_stream.get()->underflow_callback = soundio_callback::underflow_callback;
+    default_speaker_stream.open();
+
+    const int default_speaker_bytes_per_second{default_speaker_stream.get()->sample_rate * default_speaker_stream.get()->bytes_per_frame};
+    if (KH_BYTES_PER_SECOND != default_speaker_bytes_per_second)
+        throw std::exception("KH_BYTES_PER_SECOND != default_speaker_bytes_per_second");
+
+    return default_speaker_stream;
+}
 }

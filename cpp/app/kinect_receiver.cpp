@@ -11,7 +11,7 @@
 #include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
-#include "helper/soundio_callback.h"
+#include "helper/soundio_helper.h"
 #include "kh_opus.h"
 
 namespace kh
@@ -21,8 +21,7 @@ void receive_sender_packets(int sender_id,
                             UdpSocket& udp_socket,
                             moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
                             moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-                            moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue,
-                            int& summary_packet_count)
+                            moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
 {
     while (!stopped) {
         std::error_code error;
@@ -40,8 +39,6 @@ void receive_sender_packets(int sender_id,
             } else if (packet_type == SenderPacketType::Audio) {
                 audio_packet_data_queue.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
             }
-
-            ++summary_packet_count;
         }
 
         if (error != asio::error::would_block)
@@ -377,19 +374,16 @@ void receive_frames(std::string ip_address, int port)
     moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue;
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
     int last_video_frame_id{-1};
-    int summary_packet_count{0};
 
     std::thread receive_sender_packets_thread([&] {
         receive_sender_packets(sender_session_id, stopped, udp_socket,
                                    video_packet_data_queue, fec_packet_data_queue,
-                                   audio_packet_data_queue, summary_packet_count);
+                                   audio_packet_data_queue);
     });
-
     std::thread reassemble_video_messages_thread([&] {
         reassemble_video_messages(stopped, udp_socket, video_packet_data_queue,
                                   fec_packet_data_queue, video_message_queue, last_video_frame_id);
     });
-
     std::thread consume_audio_packets_thread([&] {
         consume_audio_packets(stopped, audio_packet_data_queue);
     });
@@ -460,14 +454,11 @@ void receive_frames(std::string ip_address, int port)
 
         std::error_code error;
         udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
-                                                          decoder_time.ms(),
-                                                          frame_time.ms(),
-                                                          summary_packet_count), error);
+                                                            decoder_time.ms(),
+                                                            frame_time.ms()), error);
 
         if (error && error != asio::error::would_block)
             printf("Error sending receiver status: %s\n", error.message().c_str());
-
-        summary_packet_count = 0;
 
         auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
         auto depth_mat{createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()),
@@ -491,7 +482,9 @@ void receive_frames(std::string ip_address, int port)
     }
 
     stopped = true;
+    receive_sender_packets_thread.join();
     reassemble_video_messages_thread.join();
+    consume_audio_packets_thread.join();
 }
 
 void main()
