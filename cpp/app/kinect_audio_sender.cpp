@@ -21,7 +21,7 @@ int main(int port)
     kinect_microphone_stream.get()->sample_rate = KH_SAMPLE_RATE;
     kinect_microphone_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
     kinect_microphone_stream.get()->software_latency = KH_LATENCY_SECONDS;
-    kinect_microphone_stream.get()->read_callback = soundio_callback::azure_kinect_read_callback;
+    kinect_microphone_stream.get()->read_callback = soundio_callback::kinect_microphone_read_callback;
     kinect_microphone_stream.get()->overflow_callback = soundio_callback::overflow_callback;
     kinect_microphone_stream.open();
 

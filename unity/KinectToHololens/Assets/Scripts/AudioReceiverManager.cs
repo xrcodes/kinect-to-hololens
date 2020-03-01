@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using UnityEngine;
 
 public class AudioReceiverManager : MonoBehaviour
@@ -16,6 +14,7 @@ public class AudioReceiverManager : MonoBehaviour
     private UdpSocket udpSocket;
     private RingBuffer ringBuffer;
     private AudioDecoder audioDecoder;
+    private int lastFrameId;
 
     void Start()
     {
@@ -30,6 +29,7 @@ public class AudioReceiverManager : MonoBehaviour
         ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
         udpSocket = new UdpSocket(socket, new IPEndPoint(address, port));
         audioDecoder = new AudioDecoder(KH_SAMPLE_RATE, KH_CHANNEL_COUNT);
+        lastFrameId = -1;
 
         udpSocket.Send(PacketHelper.createPingReceiverPacketBytes());
     }
@@ -44,9 +44,10 @@ public class AudioReceiverManager : MonoBehaviour
             if (packet == null)
                 break;
 
-            var audioPacketData = AudioSenderPacketData.Parse(packet);
-            audioPacketDataSet.Add(audioPacketData);
+            audioPacketDataSet.Add(AudioSenderPacketData.Parse(packet));
         }
+
+        audioPacketDataSet.Sort((x, y) => x.frameId.CompareTo(y.frameId));
 
         float[] pcm = new float[KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT];
         int index = 0;
@@ -55,15 +56,26 @@ public class AudioReceiverManager : MonoBehaviour
             if (index >= audioPacketDataSet.Count)
                 break;
 
-            var audioPacketData = audioPacketDataSet[index++];
+            var audioPacketData = audioPacketDataSet[index];
 
-            IntPtr nativePcm = Marshal.AllocHGlobal(sizeof(float) * pcm.Length);
-            int pcmFrameSize = audioDecoder.Decode(audioPacketData.opusFrame, ref nativePcm, KH_SAMPLES_PER_FRAME);
-            Marshal.Copy(nativePcm, pcm, 0, pcm.Length);
-            Marshal.FreeHGlobal(nativePcm);
-            ringBuffer.Write(pcm);
+            if (audioPacketData.frameId <= lastFrameId)
+            {
+                ++index;
+                continue;
+            }
+            else if(audioPacketData.frameId == lastFrameId + 1)
+            {
+                audioDecoder.Decode(audioPacketData.opusFrame, pcm, KH_SAMPLES_PER_FRAME);
+                ringBuffer.Write(pcm);
+                ++index;
+            }
+            else
+            {
+                int pcmFrameSize = audioDecoder.Decode(null, pcm, KH_SAMPLES_PER_FRAME);
+                ringBuffer.Write(pcm);
+            }
 
-            print($"frameId: {audioPacketData.frameId}, pcmFrameSize: {pcmFrameSize}");
+            ++lastFrameId;
         }
     }
 

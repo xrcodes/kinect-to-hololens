@@ -51,7 +51,7 @@ int main(std::string ip_address, int port)
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
 
-    std::map<int, AudioSenderPacketData> audio_packet_data_set;
+    std::vector<AudioSenderPacketData> audio_packet_data_set;
     int received_byte_count{0};
     int last_frame_id{-1};
     auto summary_time{TimePoint::now()};
@@ -60,10 +60,13 @@ int main(std::string ip_address, int port)
 
         while (auto packet = udp_socket.receive(asio_error)) {
             received_byte_count += packet->size();
-
-            auto audio_packet_data{parse_audio_sender_packet_bytes(*packet)};
-            audio_packet_data_set.insert({audio_packet_data.frame_id, audio_packet_data});
+            
+            audio_packet_data_set.push_back(parse_audio_sender_packet_bytes(*packet));
         }
+
+        std::sort(audio_packet_data_set.begin(),
+                  audio_packet_data_set.end(),
+                  [](AudioSenderPacketData& a, AudioSenderPacketData& b) { return a.frame_id < b.frame_id; });
 
         char* write_ptr = soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer);
         int free_bytes = soundio_ring_buffer_free_count(soundio_callback::ring_buffer);
@@ -77,14 +80,14 @@ int main(std::string ip_address, int port)
                 break;
 
             int frame_size;
-            if (packet_it->first <= last_frame_id) {
+            if (packet_it->frame_id <= last_frame_id) {
                 // If a packet is about the past, throw it away and try again.
                 packet_it = audio_packet_data_set.erase(packet_it);
                 continue;
-            } else if (packet_it->first == last_frame_id + 1) {
+            } else if (packet_it->frame_id == last_frame_id + 1) {
                 // When the packet for the next audio frame is found,
                 // use it and erase it.
-                frame_size = audio_decoder.decode(packet_it->second.opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
+                frame_size = audio_decoder.decode(packet_it->opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
                 packet_it = audio_packet_data_set.erase(packet_it);
             } else {
                 // If not, let opus know there is a packet loss.

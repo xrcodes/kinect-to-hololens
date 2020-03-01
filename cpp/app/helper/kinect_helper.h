@@ -6,25 +6,11 @@ namespace kh
 // For having an interface combining devices and playbacks one day in the future...
 class KinectDevice
 {
-private:
-    KinectDevice(k4a::device&& device,
-                 k4a_device_configuration_t configuration,
-                 std::chrono::milliseconds timeout)
-        : device_(std::move(device)), configuration_(configuration), timeout_(timeout)
-    {
-    }
-
 public:
-    static std::optional<KinectDevice> create(k4a_device_configuration_t configuration,
-                                              std::chrono::milliseconds time_out)
+    KinectDevice(k4a_device_configuration_t configuration,
+                 std::chrono::milliseconds timeout)
+        : device_{k4a::device::open(K4A_DEVICE_DEFAULT)}, configuration_{configuration}, timeout_{timeout}
     {
-        try {
-            auto device = k4a::device::open(K4A_DEVICE_DEFAULT);
-            return KinectDevice(std::move(device), configuration, time_out);
-        } catch (std::exception e) {
-            printf("Error opening k4a::device in KinectDevice: %s\n", e.what());
-            return std::nullopt;
-        }
     }
 
     void start()

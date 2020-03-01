@@ -13,74 +13,15 @@
 
 namespace kh
 {
-// The functions inside this namesapce are from sio_microphone.c example of libsoundio.
+// Most of the functions inside this namesapce are from example/sio_microphone.c of libsoundio (https://github.com/andrewrk/libsoundio).
+// The kinect_microphone_read_callback() is modification of read_callback() that uses only the first two channels
+// from the kinect microphone which actually has 7 channels.
 namespace soundio_callback
 {
-static SoundIoRingBuffer* ring_buffer = NULL;
+static SoundIoRingBuffer* ring_buffer{nullptr};
 
-static void azure_kinect_read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max) {
-    //const int AZURE_KINECT_CHANNEL_COUNT = 7;
-    // Stereo is the default setup of Unity3D, so...
-    const int STEREO_CHANNEL_COUNT = 2;
-
-    SoundIoChannelArea* areas;
-    int err;
-    char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
-    int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
-    // Using only the first two channels of Azure Kinect...
-    //int bytes_per_stereo_frame = instream->bytes_per_sample / AZURE_KINECT_CHANNEL_COUNT * STEREO_CHANNEL_COUNT;
-    int bytes_per_stereo_frame = instream->bytes_per_sample * STEREO_CHANNEL_COUNT;
-    int free_count = free_bytes / bytes_per_stereo_frame;
-
-    if (frame_count_min > free_count) {
-        printf("ring buffer overflow\n");
-        //abort();
-        return;
-    }
-
-    int write_frames = std::min<int>(free_count, frame_count_max);
-    int frames_left = write_frames;
-    for (;;) {
-        int frame_count = frames_left;
-
-        if ((err = soundio_instream_begin_read(instream, &areas, &frame_count))) {
-            printf("begin read error: %s", soundio_strerror(err));
-            abort();
-        }
-
-        if (!frame_count)
-            break;
-
-        if (!areas) {
-            // Due to an overflow there is a hole. Fill the ring buffer with
-            // silence for the size of the hole.
-            memset(write_ptr, 0, frame_count * bytes_per_stereo_frame);
-            printf("Dropped %d frames due to internal overflow\n", frame_count);
-        } else {
-            for (int frame = 0; frame < frame_count; frame += 1) {
-                for (int ch = 0; ch < STEREO_CHANNEL_COUNT; ch += 1) {
-                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
-                    areas[ch].ptr += areas[ch].step;
-                    write_ptr += instream->bytes_per_sample;
-                }
-            }
-        }
-
-        if ((err = soundio_instream_end_read(instream))) {
-            printf("end read error: %s", soundio_strerror(err));
-            abort();
-        }
-
-        frames_left -= frame_count;
-        if (frames_left <= 0)
-            break;
-    }
-
-    int advance_bytes = write_frames * bytes_per_stereo_frame;
-    soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
-}
-
-static void read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max) {
+static void read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max)
+{
     SoundIoChannelArea* areas;
     int err;
     char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
@@ -135,6 +76,63 @@ static void read_callback(SoundIoInStream* instream, int frame_count_min, int fr
     soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
 }
 
+static void kinect_microphone_read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max)
+{
+    SoundIoChannelArea* areas;
+    int err;
+    char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
+    int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
+    // Using only the first two channels of Azure Kinect...
+    int kinect_microphone_bytes_per_frame = instream->bytes_per_sample * KH_CHANNEL_COUNT;
+    int free_count = free_bytes / kinect_microphone_bytes_per_frame;
+
+    if (frame_count_min > free_count) {
+        printf("ring buffer overflow\n");
+        return;
+    }
+
+    int write_frames = std::min<int>(free_count, frame_count_max);
+    int frames_left = write_frames;
+    for (;;) {
+        int frame_count = frames_left;
+
+        if ((err = soundio_instream_begin_read(instream, &areas, &frame_count))) {
+            printf("begin read error: %s", soundio_strerror(err));
+            abort();
+        }
+
+        if (!frame_count)
+            break;
+
+        if (!areas) {
+            // Due to an overflow there is a hole. Fill the ring buffer with
+            // silence for the size of the hole.
+            memset(write_ptr, 0, frame_count * kinect_microphone_bytes_per_frame);
+            printf("Dropped %d frames due to internal overflow\n", frame_count);
+        } else {
+            for (int frame = 0; frame < frame_count; frame += 1) {
+                for (int ch = 0; ch < KH_CHANNEL_COUNT; ch += 1) {
+                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
+                    areas[ch].ptr += areas[ch].step;
+                    write_ptr += instream->bytes_per_sample;
+                }
+            }
+        }
+
+        if ((err = soundio_instream_end_read(instream))) {
+            printf("end read error: %s", soundio_strerror(err));
+            abort();
+        }
+
+        frames_left -= frame_count;
+        if (frames_left <= 0)
+            break;
+    }
+
+    int advance_bytes = write_frames * kinect_microphone_bytes_per_frame;
+    soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
+}
+
 static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max) {
     struct SoundIoChannelArea* areas;
     int frames_left;
@@ -144,7 +142,6 @@ static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int
     char* read_ptr = soundio_ring_buffer_read_ptr(ring_buffer);
     int fill_bytes = soundio_ring_buffer_fill_count(ring_buffer);
     int fill_count = fill_bytes / outstream->bytes_per_frame;
-    //printf("write_callback free_bytes: %d, fill_bytes: %d\n", soundio_ring_buffer_free_count(soundio_helper::ring_buffer), fill_bytes);
 
     if (frame_count_min > fill_count) {
         // Ring buffer does not have enough data, fill with zeroes.

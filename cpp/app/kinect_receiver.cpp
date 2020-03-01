@@ -34,6 +34,8 @@ void run_receiver_socket_thread(int sender_id,
                 video_packet_data_queue.enqueue(parse_video_sender_packet_bytes(*packet_bytes));
             } else if (packet_type == SenderPacketType::Fec) {
                 fec_packet_data_queue.enqueue(parse_fec_sender_packet_bytes(*packet_bytes));
+            } else if (packet_type == SenderPacketType::Audio) {
+                printf("audio!!\n");
             }
 
             ++summary_packet_count;
