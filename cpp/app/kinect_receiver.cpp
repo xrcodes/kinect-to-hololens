@@ -11,17 +11,20 @@
 #include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
+#include "helper/soundio_callback.h"
+#include "kh_opus.h"
 
 namespace kh
 {
-void run_receiver_socket_thread(int sender_id,
-                                bool& receiver_stopped,
-                                UdpSocket& udp_socket,
-                                moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
-                                moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-                                int& summary_packet_count)
+void receive_sender_packets(int sender_id,
+                            bool& stopped,
+                            UdpSocket& udp_socket,
+                            moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
+                            moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
+                            moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue,
+                            int& summary_packet_count)
 {
-    while (!receiver_stopped) {
+    while (!stopped) {
         std::error_code error;
         while (auto packet_bytes{udp_socket.receive(error)}) {
             const int session_id{get_session_id_from_sender_packet_bytes(*packet_bytes)};
@@ -35,7 +38,7 @@ void run_receiver_socket_thread(int sender_id,
             } else if (packet_type == SenderPacketType::Fec) {
                 fec_packet_data_queue.enqueue(parse_fec_sender_packet_bytes(*packet_bytes));
             } else if (packet_type == SenderPacketType::Audio) {
-                printf("audio!!\n");
+                audio_packet_data_queue.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
             }
 
             ++summary_packet_count;
@@ -45,28 +48,28 @@ void run_receiver_socket_thread(int sender_id,
             printf("Error from receiving packets: %s\n", error.message().c_str());
     }
 
-    receiver_stopped = true;
+    stopped = true;
 }
 
-void run_video_packet_thread(bool& receiver_stopped,
-                             UdpSocket& udp_socket,
-                             moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
-                             moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-                             moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
-                             int& last_frame_id)
+void reassemble_video_messages(bool& stopped,
+                               UdpSocket& udp_socket,
+                               moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
+                               moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
+                               moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
+                               int& last_video_frame_id)
 {
     constexpr int FEC_MAX_GROUP_SIZE{5};
 
     std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections;
     std::unordered_map<int, std::vector<std::optional<FecSenderPacketData>>> fec_packet_collections;
-    while (!receiver_stopped) {
+    while (!stopped) {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
         FecSenderPacketData fec_sender_packet_data;
         while (fec_packet_data_queue.try_dequeue(fec_sender_packet_data)) {
-            if (fec_sender_packet_data.frame_id <= last_frame_id)
+            if (fec_sender_packet_data.frame_id <= last_video_frame_id)
                 continue;
 
             auto fec_packet_iter = fec_packet_collections.find(fec_sender_packet_data.frame_id);
@@ -79,7 +82,7 @@ void run_video_packet_thread(bool& receiver_stopped,
 
         VideoSenderPacketData video_sender_packet_data;
         while (video_packet_data_queue.try_dequeue(video_sender_packet_data)) {
-            if (video_sender_packet_data.frame_id <= last_frame_id)
+            if (video_sender_packet_data.frame_id <= last_video_frame_id)
                 continue;
 
             // If there is a packet for a new frame, check the previous frames, and if
@@ -213,7 +216,7 @@ void run_video_packet_thread(bool& receiver_stopped,
 
         // Clean up frame_packet_collections.
         for (auto it = video_packet_collections.begin(); it != video_packet_collections.end();) {
-            if (it->first <= last_frame_id) {
+            if (it->first <= last_video_frame_id) {
                 it = video_packet_collections.erase(it);
             } else {
                 ++it;
@@ -222,7 +225,7 @@ void run_video_packet_thread(bool& receiver_stopped,
 
         // Clean up xor_packet_collections.
         for (auto it = fec_packet_collections.begin(); it != fec_packet_collections.end();) {
-            if (it->first <= last_frame_id) {
+            if (it->first <= last_video_frame_id) {
                 it = fec_packet_collections.erase(it);
             } else {
                 ++it;
@@ -230,7 +233,91 @@ void run_video_packet_thread(bool& receiver_stopped,
         }
     }
 
-    receiver_stopped = true;
+    stopped = true;
+}
+
+void consume_audio_packets(bool& stopped,
+                           moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
+{
+    Audio audio;
+    auto default_speaker{audio.getDefaultOutputDevice()};
+    AudioOutStream default_speaker_stream(default_speaker);
+    // These settings are those generic and similar to Azure Kinect's.
+    // It is set to be Stereo, which is the default setting of Unity3D.
+    default_speaker_stream.get()->format = SoundIoFormatFloat32LE;
+    default_speaker_stream.get()->sample_rate = KH_SAMPLE_RATE;
+    default_speaker_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
+    default_speaker_stream.get()->software_latency = KH_LATENCY_SECONDS;
+    default_speaker_stream.get()->write_callback = soundio_callback::write_callback;
+    default_speaker_stream.get()->underflow_callback = soundio_callback::underflow_callback;
+    default_speaker_stream.open();
+
+    const int default_speaker_bytes_per_second{default_speaker_stream.get()->sample_rate * default_speaker_stream.get()->bytes_per_frame};
+    assert(KH_BYTES_PER_SECOND == default_speaker_bytes_per_second);
+
+    constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
+
+    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
+    if (!soundio_callback::ring_buffer)
+        throw std::exception("Failed in soundio_ring_buffer_create()...");
+
+    AudioDecoder audio_decoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT};
+
+    default_speaker_stream.start();
+
+    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
+
+    std::vector<AudioSenderPacketData> audio_packet_data_set;
+    int last_audio_frame_id{-1};
+    for (;;) {
+        soundio_flush_events(audio.get());
+
+        AudioSenderPacketData audio_sender_packet_data;
+        while (audio_packet_data_queue.try_dequeue(audio_sender_packet_data))
+            audio_packet_data_set.push_back(audio_sender_packet_data);
+
+        std::sort(audio_packet_data_set.begin(),
+                  audio_packet_data_set.end(),
+                  [](AudioSenderPacketData& a, AudioSenderPacketData& b) { return a.frame_id < b.frame_id; });
+
+        char* write_ptr = soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer);
+        int free_bytes = soundio_ring_buffer_free_count(soundio_callback::ring_buffer);
+
+        constexpr int FRAME_BYTE_SIZE{sizeof(float) * pcm.size()};
+
+        int write_cursor = 0;
+        auto packet_it = audio_packet_data_set.begin();
+        while ((free_bytes - write_cursor) >= FRAME_BYTE_SIZE) {
+            if (packet_it == audio_packet_data_set.end())
+                break;
+
+            int frame_size;
+            if (packet_it->frame_id <= last_audio_frame_id) {
+                // If a packet is about the past, throw it away and try again.
+                packet_it = audio_packet_data_set.erase(packet_it);
+                continue;
+            } else if (packet_it->frame_id == last_audio_frame_id + 1) {
+                // When the packet for the next audio frame is found,
+                // use it and erase it.
+                frame_size = audio_decoder.decode(packet_it->opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
+                packet_it = audio_packet_data_set.erase(packet_it);
+            } else {
+                // If not, let opus know there is a packet loss.
+                frame_size = audio_decoder.decode(std::nullopt, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
+            }
+
+            if (frame_size < 0) {
+                throw std::runtime_error(std::string("Failed to decode audio: ") + opus_strerror(frame_size));
+            }
+
+            memcpy(write_ptr + write_cursor, pcm.data(), FRAME_BYTE_SIZE);
+
+            ++last_audio_frame_id;
+            write_cursor += FRAME_BYTE_SIZE;
+        }
+
+        soundio_ring_buffer_advance_write_ptr(soundio_callback::ring_buffer, write_cursor);
+    }
 }
 
 void receive_frames(std::string ip_address, int port)
@@ -284,21 +371,27 @@ void receive_frames(std::string ip_address, int port)
         }
     }
 
-    bool receiver_stopped{false};
+    bool stopped{false};
     moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue;
     moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue;
+    moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue;
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
-    int last_frame_id{-1};
+    int last_video_frame_id{-1};
     int summary_packet_count{0};
 
-    std::thread receiver_socket_thread([&] {
-        run_receiver_socket_thread(sender_session_id, receiver_stopped, udp_socket,
-                                   video_packet_data_queue, fec_packet_data_queue, summary_packet_count);
+    std::thread receive_sender_packets_thread([&] {
+        receive_sender_packets(sender_session_id, stopped, udp_socket,
+                                   video_packet_data_queue, fec_packet_data_queue,
+                                   audio_packet_data_queue, summary_packet_count);
     });
 
-    std::thread video_packet_thread([&] {
-        run_video_packet_thread(receiver_stopped, udp_socket, video_packet_data_queue,
-                                fec_packet_data_queue, video_message_queue, last_frame_id);
+    std::thread reassemble_video_messages_thread([&] {
+        reassemble_video_messages(stopped, udp_socket, video_packet_data_queue,
+                                  fec_packet_data_queue, video_message_queue, last_video_frame_id);
+    });
+
+    std::thread consume_audio_packets_thread([&] {
+        consume_audio_packets(stopped, audio_packet_data_queue);
     });
 
     Vp8Decoder color_decoder;
@@ -306,7 +399,7 @@ void receive_frames(std::string ip_address, int port)
 
     std::map<int, VideoSenderMessageData> frame_messages;
     auto frame_start{TimePoint::now()};
-    while (!receiver_stopped) {
+    while (!stopped) {
         std::pair<int, VideoSenderMessageData> frame_message;
         while (video_message_queue.try_dequeue(frame_message)) {
             //frame_messages.push_back(frame_message);
@@ -319,7 +412,7 @@ void receive_frames(std::string ip_address, int port)
         std::optional<int> begin_frame_id;
         // If there is a key frame, use the most recent one.
         for (auto& frame_message_pair : frame_messages) {
-            if (frame_message_pair.first <= last_frame_id)
+            if (frame_message_pair.first <= last_video_frame_id)
                 continue;
 
             if (frame_message_pair.second.keyframe)
@@ -330,8 +423,8 @@ void receive_frames(std::string ip_address, int port)
         // if there is the one right after the previously rendered one.
         if (!begin_frame_id) {
             // If a frame message with frame_id == (last_frame_id + 1) is found
-            if(frame_messages.find(last_frame_id + 1) != frame_messages.end()){
-                begin_frame_id = last_frame_id + 1;
+            if(frame_messages.find(last_video_frame_id + 1) != frame_messages.end()){
+                begin_frame_id = last_video_frame_id + 1;
             } else {
                 // Wait for more frames if there is way to render without glitches.
                 continue;
@@ -350,7 +443,7 @@ void receive_frames(std::string ip_address, int port)
 
             const bool keyframe{frame_message_pair_ptr->keyframe};
 
-            last_frame_id = i;
+            last_video_frame_id = i;
 
             const auto color_encoder_frame{frame_message_pair_ptr->color_encoder_frame};
             const auto depth_encoder_frame{frame_message_pair_ptr->depth_encoder_frame};
@@ -366,7 +459,7 @@ void receive_frames(std::string ip_address, int port)
         frame_start = TimePoint::now();
 
         std::error_code error;
-        udp_socket.send(create_report_receiver_packet_bytes(last_frame_id,
+        udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
                                                           decoder_time.ms(),
                                                           frame_time.ms(),
                                                           summary_packet_count), error);
@@ -389,7 +482,7 @@ void receive_frames(std::string ip_address, int port)
 
         // Remove frame messages before the rendered frame.
         for (auto it = frame_messages.begin(); it != frame_messages.end();) {
-            if (it->first < last_frame_id) {
+            if (it->first < last_video_frame_id) {
                 it = frame_messages.erase(it);
             } else {
                 ++it;
@@ -397,8 +490,8 @@ void receive_frames(std::string ip_address, int port)
         }
     }
 
-    receiver_stopped = true;
-    video_packet_thread.join();
+    stopped = true;
+    reassemble_video_messages_thread.join();
 }
 
 void main()
