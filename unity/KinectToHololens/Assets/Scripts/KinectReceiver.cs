@@ -9,6 +9,12 @@ using UnityEngine;
 
 public class KinectReceiver
 {
+    private const int KH_SAMPLE_RATE = 48000;
+    private const int KH_CHANNEL_COUNT = 2;
+    private const double KH_LATENCY_SECONDS = 0.2;
+    private const int KH_SAMPLES_PER_FRAME = 960;
+    private const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
+
     private Material azureKinectScreenMaterial;
     private AzureKinectScreen azureKinectScreen;
 
@@ -23,8 +29,20 @@ public class KinectReceiver
     private TrvlDecoder depthDecoder;
     private bool preapared;
 
+    private RingBuffer ringBuffer;
+    private AudioDecoder audioDecoder;
+    private int lastAudioFrameId;
+
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
+
+    public RingBuffer RingBuffer
+    {
+        get
+        {
+            return ringBuffer;
+        }
+    }
 
     public KinectReceiver(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen)
     {
@@ -41,6 +59,10 @@ public class KinectReceiver
         colorDecoder = null;
         depthDecoder = null;
         preapared = false;
+
+        ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
+        audioDecoder = new AudioDecoder(KH_SAMPLE_RATE, KH_CHANNEL_COUNT);
+        lastAudioFrameId = -1;
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
@@ -139,17 +161,23 @@ public class KinectReceiver
         this.udpSocket = udpSocket;
         var videoPacketDataQueue = new ConcurrentQueue<VideoSenderPacketData>();
         var fecPacketDataQueue = new ConcurrentQueue<FecSenderPacketData>();
-        var receiverSocketThread = new Thread(() => RunReceiverSocketThread(senderSessionId,
-                                                                            videoPacketDataQueue,
-                                                                            fecPacketDataQueue));
-        var videoPacketThread = new Thread(() => RunVideoPacketThread(videoPacketDataQueue, fecPacketDataQueue));
-        receiverSocketThread.Start();
-        videoPacketThread.Start();
+        var audioPacketDataQueue = new ConcurrentQueue<AudioSenderPacketData>();
+        var receiveSenderPacketsThread = new Thread(() => ReceiveSenderPackets(senderSessionId,
+                                                                               videoPacketDataQueue,
+                                                                               fecPacketDataQueue,
+                                                                               audioPacketDataQueue));
+        var reassembleVideoMessagesThread = new Thread(() => ReassembleVideoMessages(videoPacketDataQueue, fecPacketDataQueue));
+        var consumeAudioPacketsThread = new Thread(() => ConsumeAudioPackets(audioPacketDataQueue));
+
+        receiveSenderPacketsThread.Start();
+        reassembleVideoMessagesThread.Start();
+        consumeAudioPacketsThread.Start();
     }
 
-    private void RunReceiverSocketThread(int senderSessionId,
-                                         ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
-                                         ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue)
+    private void ReceiveSenderPackets(int senderSessionId,
+                                      ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
+                                      ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue,
+                                      ConcurrentQueue<AudioSenderPacketData> audioPacketDataQueue)
     {
         while (!receiverStopped)
         {
@@ -174,6 +202,10 @@ public class KinectReceiver
                 {
                     fecPacketDataQueue.Enqueue(FecSenderPacketData.Parse(packet));
                 }
+                else if (packetType == SenderPacketType.Audio)
+                {
+                    audioPacketDataQueue.Enqueue(AudioSenderPacketData.Parse(packet));
+                }
             }
 
             if (error != SocketError.WouldBlock)
@@ -185,8 +217,8 @@ public class KinectReceiver
         receiverStopped = true;
     }
 
-    private void RunVideoPacketThread(ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
-                                      ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue)
+    private void ReassembleVideoMessages(ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
+                                         ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue)
     {
         const int XOR_MAX_GROUP_SIZE = 5;
 
@@ -379,6 +411,40 @@ public class KinectReceiver
             foreach (int obsoleteFrameId in obsoleteFrameIds)
             {
                 videoPacketCollections.Remove(obsoleteFrameId);
+            }
+        }
+
+        receiverStopped = true;
+    }
+
+    private void ConsumeAudioPackets(ConcurrentQueue<AudioSenderPacketData> audioPacketDataQueue)
+    {
+        while (!receiverStopped)
+        {
+            var audioPacketDataSet = new List<AudioSenderPacketData>();
+            while (audioPacketDataQueue.TryDequeue(out AudioSenderPacketData audioPacketData))
+            {
+                audioPacketDataSet.Add(audioPacketData);
+            }
+
+            audioPacketDataSet.Sort((x, y) => x.frameId.CompareTo(y.frameId));
+
+            UnityEngine.Debug.Log($"audioPacketDataSet: {audioPacketDataSet.Count}");
+
+            float[] pcm = new float[KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT];
+            int index = 0;
+            while (ringBuffer.FreeSamples >= pcm.Length)
+            {
+                if (index >= audioPacketDataSet.Count)
+                    break;
+
+                var audioPacketData = audioPacketDataSet[index++];
+                if (audioPacketData.frameId <= lastAudioFrameId)
+                    continue;
+
+                audioDecoder.Decode(audioPacketData.opusFrame, pcm, KH_SAMPLES_PER_FRAME);
+                ringBuffer.Write(pcm);
+                lastAudioFrameId = audioPacketData.frameId;
             }
         }
 

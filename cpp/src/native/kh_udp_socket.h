@@ -23,6 +23,7 @@ class UdpSocket
 {
 public:
     UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint);
+    ~UdpSocket();
     std::optional<std::vector<std::byte>> receive();
     void send(gsl::span<const std::byte> bytes);
 

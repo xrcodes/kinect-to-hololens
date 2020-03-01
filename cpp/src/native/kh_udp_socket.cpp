@@ -10,6 +10,12 @@ UdpSocket::UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint rem
     socket_.non_blocking(true);
 }
 
+UdpSocket::~UdpSocket()
+{
+    socket_.shutdown(asio::socket_base::shutdown_both);
+    socket_.close();
+}
+
 std::optional<std::vector<std::byte>> UdpSocket::receive()
 {
     std::vector<std::byte> packet(KH_PACKET_SIZE);

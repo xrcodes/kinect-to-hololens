@@ -50,18 +50,21 @@ int main(std::string ip_address, int port)
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
 
-    std::vector<AudioSenderPacketData> audio_packet_data_set;
     int received_byte_count{0};
     int last_frame_id{-1};
     auto summary_time{TimePoint::now()};
     for (;;) {
         soundio_flush_events(audio.get());
 
+        std::vector<AudioSenderPacketData> audio_packet_data_set;
         while (auto packet = udp_socket.receive()) {
             received_byte_count += packet->size();
             
             audio_packet_data_set.push_back(parse_audio_sender_packet_bytes(*packet));
         }
+
+        if (audio_packet_data_set.empty())
+            continue;
 
         std::sort(audio_packet_data_set.begin(),
                   audio_packet_data_set.end(),
@@ -81,17 +84,11 @@ int main(std::string ip_address, int port)
             int frame_size;
             if (packet_it->frame_id <= last_frame_id) {
                 // If a packet is about the past, throw it away and try again.
-                packet_it = audio_packet_data_set.erase(packet_it);
+                ++packet_it;
                 continue;
-            } else if (packet_it->frame_id == last_frame_id + 1) {
-                // When the packet for the next audio frame is found,
-                // use it and erase it.
-                frame_size = audio_decoder.decode(packet_it->opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
-                packet_it = audio_packet_data_set.erase(packet_it);
-            } else {
-                // If not, let opus know there is a packet loss.
-                frame_size = audio_decoder.decode(std::nullopt, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
             }
+
+            frame_size = audio_decoder.decode(packet_it->opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
 
             if (frame_size < 0) {
                 throw std::runtime_error(std::string("Failed to decode audio: ") + opus_strerror(frame_size));
@@ -99,7 +96,8 @@ int main(std::string ip_address, int port)
 
             memcpy(write_ptr + write_cursor, pcm.data(), FRAME_BYTE_SIZE);
 
-            ++last_frame_id;
+            last_frame_id = packet_it->frame_id;
+            ++packet_it;
             write_cursor += FRAME_BYTE_SIZE;
         }
 

@@ -113,6 +113,21 @@ public class KinectToHololensManager : MonoBehaviour
         kinectReceiver.Stop();
     }
 
+    void OnAudioFilterRead(float[] data, int channels)
+    {
+        print($"FillSamples: {kinectReceiver.RingBuffer.FillSamples}, FreeSamples: {kinectReceiver.RingBuffer.FreeSamples}");
+        kinectReceiver.RingBuffer.Read(data);
+
+        float sum = 0.0f;
+        foreach (var d in data)
+        {
+            sum += d;
+        }
+
+        print($"data.Length: {data.Length}, channels: {channels}");
+        print($"average: {sum / data.Length}");
+    }
+
     private void OnTapped(TappedEventArgs args)
     {
         // Place the scene in front of the camera when the user taps.

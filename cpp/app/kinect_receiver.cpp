@@ -256,14 +256,17 @@ void consume_audio_packets(bool& stopped,
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
 
-    std::vector<AudioSenderPacketData> audio_packet_data_set;
     int last_audio_frame_id{-1};
     while (!stopped) {
         soundio_flush_events(audio.get());
 
+        std::vector<AudioSenderPacketData> audio_packet_data_set;
         AudioSenderPacketData audio_sender_packet_data;
         while (audio_packet_data_queue.try_dequeue(audio_sender_packet_data))
             audio_packet_data_set.push_back(audio_sender_packet_data);
+
+        if (audio_packet_data_set.empty())
+            continue;
 
         std::sort(audio_packet_data_set.begin(),
                   audio_packet_data_set.end(),
@@ -283,17 +286,11 @@ void consume_audio_packets(bool& stopped,
             int frame_size;
             if (packet_it->frame_id <= last_audio_frame_id) {
                 // If a packet is about the past, throw it away and try again.
-                packet_it = audio_packet_data_set.erase(packet_it);
+                ++packet_it;
                 continue;
-            } else if (packet_it->frame_id == last_audio_frame_id + 1) {
-                // When the packet for the next audio frame is found,
-                // use it and erase it.
-                frame_size = audio_decoder.decode(packet_it->opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
-                packet_it = audio_packet_data_set.erase(packet_it);
-            } else {
-                // If not, let opus know there is a packet loss.
-                frame_size = audio_decoder.decode(std::nullopt, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
             }
+
+            frame_size = audio_decoder.decode(packet_it->opus_frame, pcm.data(), KH_SAMPLES_PER_FRAME, 0);
 
             if (frame_size < 0) {
                 throw std::runtime_error(std::string("Failed to decode audio: ") + opus_strerror(frame_size));
@@ -301,7 +298,8 @@ void consume_audio_packets(bool& stopped,
 
             memcpy(write_ptr + write_cursor, pcm.data(), FRAME_BYTE_SIZE);
 
-            ++last_audio_frame_id;
+            last_audio_frame_id = packet_it->frame_id;
+            ++packet_it;
             write_cursor += FRAME_BYTE_SIZE;
         }
 
@@ -403,7 +401,7 @@ void consume_video_message(bool& stopped,
 
 void receive_frames(std::string ip_address, int port)
 {
-    constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
+    constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 128 * 1024;
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context);
     socket.open(asio::ip::udp::v4());
@@ -429,7 +427,7 @@ void receive_frames(std::string ip_address, int port)
             const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
             const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
             if (packet_type != SenderPacketType::Init) {
-                printf("A different kind of a packet received before an init packet: %d\n", packet_type);
+                std::cout << "A different kind of a packet was received before an init packet: " << static_cast<int>(packet_type) << "\n";
                 continue;
             }
 
@@ -481,7 +479,7 @@ void main()
 {
     for (;;) {
         // Receive IP address from the user.
-        printf("Enter an IP address to start receiving frames: ");
+        std::cout << "Enter an IP address to start receiving frames: ";
         std::string ip_address;
         std::getline(std::cin, ip_address);
         // The default IP address is 127.0.0.1.
@@ -489,7 +487,7 @@ void main()
             ip_address = "127.0.0.1";
 
         // Receive port from the user.
-        printf("Enter a port number to start receiving frames: ");
+        std::cout << "Enter a port number to start receiving frames: ";
         std::string port_line;
         std::getline(std::cin, port_line);
         // The default port is 7777.

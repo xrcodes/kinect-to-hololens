@@ -14,7 +14,7 @@ public class AudioReceiverManager : MonoBehaviour
     private UdpSocket udpSocket;
     private RingBuffer ringBuffer;
     private AudioDecoder audioDecoder;
-    private int lastFrameId;
+    private int lastAudioFrameId;
 
     void Start()
     {
@@ -29,14 +29,14 @@ public class AudioReceiverManager : MonoBehaviour
         ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
         udpSocket = new UdpSocket(socket, new IPEndPoint(address, port));
         audioDecoder = new AudioDecoder(KH_SAMPLE_RATE, KH_CHANNEL_COUNT);
-        lastFrameId = -1;
+        lastAudioFrameId = -1;
 
         udpSocket.Send(PacketHelper.createPingReceiverPacketBytes());
     }
 
     private void Update()
     {
-        var audioPacketDataSet = new List<AudioSenderPacketData>(); ;
+        var audioPacketDataSet = new List<AudioSenderPacketData>();
         SocketError error = SocketError.WouldBlock;
         while (true)
         {
@@ -56,26 +56,13 @@ public class AudioReceiverManager : MonoBehaviour
             if (index >= audioPacketDataSet.Count)
                 break;
 
-            var audioPacketData = audioPacketDataSet[index];
-
-            if (audioPacketData.frameId <= lastFrameId)
-            {
-                ++index;
+            var audioPacketData = audioPacketDataSet[index++];
+            if (audioPacketData.frameId <= lastAudioFrameId)
                 continue;
-            }
-            else if(audioPacketData.frameId == lastFrameId + 1)
-            {
-                audioDecoder.Decode(audioPacketData.opusFrame, pcm, KH_SAMPLES_PER_FRAME);
-                ringBuffer.Write(pcm);
-                ++index;
-            }
-            else
-            {
-                int pcmFrameSize = audioDecoder.Decode(null, pcm, KH_SAMPLES_PER_FRAME);
-                ringBuffer.Write(pcm);
-            }
 
-            ++lastFrameId;
+            audioDecoder.Decode(audioPacketData.opusFrame, pcm, KH_SAMPLES_PER_FRAME);
+            ringBuffer.Write(pcm);
+            lastAudioFrameId = audioPacketData.frameId;
         }
     }
 

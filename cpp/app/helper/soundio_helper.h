@@ -205,7 +205,8 @@ static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int
 
 static void underflow_callback(struct SoundIoOutStream* outstream) {
     static int count = 0;
-    printf("underflow %d\n", ++count);
+    // Is too loud...
+    //printf("underflow %d\n", ++count);
 }
 
 static void overflow_callback(struct SoundIoInStream* instream) {

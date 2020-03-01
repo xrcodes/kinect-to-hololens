@@ -300,7 +300,7 @@ void send_video_frames(const int session_id,
 
 void send_frames(int port, int session_id, KinectDevice& kinect_device)
 {
-    constexpr int SENDER_SEND_BUFFER_SIZE = 1024 * 1024;
+    constexpr int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
 
     printf("Start Sending Frames (session_id: %d, port: %d)\n", session_id, port);
 
