@@ -209,3 +209,22 @@ public class FecSenderPacketData
         return fecSenderPacketData;
     }
 }
+
+public class AudioSenderPacketData
+{
+    public int frameId;
+    public byte[] opusFrame;
+
+    public static AudioSenderPacketData Parse(byte[] packetBytes)
+    {
+        var reader = new BinaryReader(new MemoryStream(packetBytes));
+        reader.BaseStream.Position = 5;
+
+        var audioSenderPacketData = new AudioSenderPacketData();
+        audioSenderPacketData.frameId = reader.ReadInt32();
+
+        audioSenderPacketData.opusFrame = reader.ReadBytes(packetBytes.Length - (int)reader.BaseStream.Position);
+
+        return audioSenderPacketData;
+    }
+}

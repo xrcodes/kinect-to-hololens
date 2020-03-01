@@ -51,7 +51,6 @@ int main(std::string ip_address, int port)
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
 
-    //std::map<int, std::vector<std::byte>> packets;
     std::map<int, AudioSenderPacketData> audio_packet_data_set;
     int received_byte_count{0};
     int last_frame_id{-1};
@@ -73,7 +72,7 @@ int main(std::string ip_address, int port)
 
         int write_cursor = 0;
         auto packet_it = audio_packet_data_set.begin();
-        while((free_bytes - write_cursor) > FRAME_BYTE_SIZE) {
+        while((free_bytes - write_cursor) >= FRAME_BYTE_SIZE) {
             if (packet_it == audio_packet_data_set.end())
                 break;
 

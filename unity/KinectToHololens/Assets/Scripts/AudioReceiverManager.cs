@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -6,9 +7,12 @@ using UnityEngine;
 
 public class AudioReceiverManager : MonoBehaviour
 {
-    private const int KINECT_MICROPHONE_SAMPLE_RATE = 48000;
-    private const int STEREO_CHANNEL_COUNT = 2;
-    private const int AUDIO_FRAME_SIZE = 960;
+    private const int KH_SAMPLE_RATE = 48000;
+    private const int KH_CHANNEL_COUNT = 2;
+    private const double KH_LATENCY_SECONDS = 0.2;
+    private const int KH_SAMPLES_PER_FRAME = 960;
+    private const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
+
     private UdpSocket udpSocket;
     private RingBuffer ringBuffer;
     private AudioDecoder audioDecoder;
@@ -23,15 +27,16 @@ public class AudioReceiverManager : MonoBehaviour
             ReceiveBufferSize = 1024 * 1024
         };
 
+        ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
         udpSocket = new UdpSocket(socket, new IPEndPoint(address, port));
-        ringBuffer = new RingBuffer(64 * 1024);
-        audioDecoder = new AudioDecoder(KINECT_MICROPHONE_SAMPLE_RATE, STEREO_CHANNEL_COUNT);
+        audioDecoder = new AudioDecoder(KH_SAMPLE_RATE, KH_CHANNEL_COUNT);
 
         udpSocket.Send(PacketHelper.createPingReceiverPacketBytes());
     }
 
     private void Update()
     {
+        var audioPacketDataSet = new List<AudioSenderPacketData>(); ;
         SocketError error = SocketError.WouldBlock;
         while (true)
         {
@@ -39,19 +44,26 @@ public class AudioReceiverManager : MonoBehaviour
             if (packet == null)
                 break;
 
-            int cursor = 5;
-            int frameId = BitConverter.ToInt32(packet, cursor);
-            cursor += 4;
+            var audioPacketData = AudioSenderPacketData.Parse(packet);
+            audioPacketDataSet.Add(audioPacketData);
+        }
 
-            var opusFrame = new ArraySegment<byte>(packet, cursor, packet.Length - cursor);
-            IntPtr nativePcm = Marshal.AllocHGlobal(sizeof(float) * AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT);
-            int pcmFrameSize = audioDecoder.Decode(opusFrame, ref nativePcm, AUDIO_FRAME_SIZE);
-            float[] pcm = new float[AUDIO_FRAME_SIZE * STEREO_CHANNEL_COUNT];
+        float[] pcm = new float[KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT];
+        int index = 0;
+        while (ringBuffer.FreeSamples >= pcm.Length)
+        {
+            if (index >= audioPacketDataSet.Count)
+                break;
+
+            var audioPacketData = audioPacketDataSet[index++];
+
+            IntPtr nativePcm = Marshal.AllocHGlobal(sizeof(float) * pcm.Length);
+            int pcmFrameSize = audioDecoder.Decode(audioPacketData.opusFrame, ref nativePcm, KH_SAMPLES_PER_FRAME);
             Marshal.Copy(nativePcm, pcm, 0, pcm.Length);
             Marshal.FreeHGlobal(nativePcm);
             ringBuffer.Write(pcm);
 
-            print($"frameId: {frameId}, pcmFrameSize: {pcmFrameSize}");
+            print($"frameId: {audioPacketData.frameId}, pcmFrameSize: {pcmFrameSize}");
         }
     }
 
