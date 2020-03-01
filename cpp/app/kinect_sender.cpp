@@ -42,16 +42,9 @@ void handle_receiver_messages(const int session_id,
     HandleReceiverMessageSummary summary;
     while (!stopped) {
         for (;;) {
-            std::error_code error;
-            std::optional<std::vector<std::byte>> received_packet{sender_socket.receive(error)};
-
-            if (!received_packet) {
-                if (error == asio::error::would_block) {
-                    break;
-                } else {
-                    throw std::runtime_error(std::string("Failed to received a packet: ") + error.message());
-                }
-            }
+            std::optional<std::vector<std::byte>> received_packet{sender_socket.receive()};
+            if (!received_packet)
+                break;
 
             const auto message_type{get_packet_type_from_receiver_packet_bytes(*received_packet)};
 
@@ -74,10 +67,7 @@ void handle_receiver_messages(const int session_id,
                     if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
                         continue;
 
-                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index], error);
-
-                    if (error)
-                        throw std::runtime_error(std::string("Failed to send a requested video packet: ") + error.message());
+                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index]);
                 }
             }
         }
@@ -89,18 +79,12 @@ void handle_receiver_messages(const int session_id,
             video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
             for (auto& packet : video_packet_set.second) {
                 std::error_code error;
-                sender_socket.send(packet, error);
-
-                if (error)
-                    throw std::runtime_error(std::string("Failed to send a video packet: ") + error.message());
+                sender_socket.send(packet);
             }
 
-            for (auto fec_packet_bytes : fec_packet_bytes_set) {
+            for (auto& fec_packet_bytes : fec_packet_bytes_set) {
                 std::error_code error;
-                sender_socket.send(fec_packet_bytes, error);
-
-                if (error)
-                    throw std::runtime_error(std::string("Failed to send a fec packet: ") + error.message());
+                sender_socket.send(fec_packet_bytes);
             }
             video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
         }
@@ -131,8 +115,6 @@ void handle_receiver_messages(const int session_id,
             summary = HandleReceiverMessageSummary{};
         }
     }
-
-    stopped = true;
 }
 
 struct AudioSenderState
@@ -179,9 +161,7 @@ void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
             opus_frame.resize(opus_frame_size);
 
             std::error_code error;
-            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame), error);
-            if (error)
-                throw std::runtime_error(std::string("Error sending audio packets: ") + error.message());
+            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame));
 
             cursor += BYTES_PER_FRAME;
             summary.sent_byte_count += opus_frame.size();
@@ -197,8 +177,6 @@ void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
             summary = SendAudioFrameSummary{};
         }
     }
-
-    stopped = true;
 }
 
 struct VideoSenderState
@@ -246,9 +224,7 @@ void send_video_frames(const int session_id,
         if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
             const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
             std::error_code error;
-            udp_socket.send(init_packet_bytes, error);
-            if (error)
-                throw std::runtime_error(std::string("Error sending init packet: ") + error.message());
+            udp_socket.send(init_packet_bytes);
 
             Sleep(100);
         }
@@ -320,8 +296,6 @@ void send_video_frames(const int session_id,
         }
         ++video_state.frame_id;
     }
-
-    stopped = true;
 }
 
 void send_frames(int port, int session_id, KinectDevice& kinect_device)
@@ -352,12 +326,28 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     ReceiverState receiver_state;
     
     std::thread handle_reciever_messages_thread([&] {
-        handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_state);
+        try {
+            handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_state);
+        } catch (UdpSocketRuntimeError e) {
+            std::cout << "UdpSocketRuntimeError from handle_receiver_messages():\n  " << e.what() << "\n";
+        }
+        stopped = true;
     });
     std::thread send_audio_frames_thread([&] {
-        send_audio_frames(session_id, stopped, udp_socket);
+        try {
+            send_audio_frames(session_id, stopped, udp_socket);
+        } catch (UdpSocketRuntimeError e) {
+            std::cout << "UdpSocketRuntimeError from send_audio_frames():\n  " << e.what() << "\n";
+        }
+        stopped = true;
     });
-    send_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state);
+
+    try {
+        send_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state);
+    } catch (UdpSocketRuntimeError e) {
+        std::cout << "UdpSocketRuntimeError from send_video_frames(): \n  " << e.what() << "\n";
+    }
+    stopped = true;
 
     handle_reciever_messages_thread.join();
     send_audio_frames_thread.join();
@@ -371,7 +361,7 @@ void main()
 
     for (;;) {
         std::string line;
-        printf("Enter a port number to start sending frames: ");
+        std::cout << "Enter a port number to start sending frames: ";
         std::getline(std::cin, line);
         // The default port (the port when nothing is entered) is 7777.
         const int port{line.empty() ? 7777 : std::stoi(line)};

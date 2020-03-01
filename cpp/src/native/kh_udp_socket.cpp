@@ -10,21 +10,29 @@ UdpSocket::UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint rem
     socket_.non_blocking(true);
 }
 
-std::optional<std::vector<std::byte>> UdpSocket::receive(std::error_code& error)
+std::optional<std::vector<std::byte>> UdpSocket::receive()
 {
     std::vector<std::byte> packet(KH_PACKET_SIZE);
     asio::ip::udp::endpoint sender_endpoint;
+    std::error_code error;
     const size_t packet_size{socket_.receive_from(asio::buffer(packet), sender_endpoint, 0, error)};
 
-    if (error)
+    if (error == asio::error::would_block)
         return std::nullopt;
+
+    if (error)
+        throw UdpSocketRuntimeError(std::string("Failed to receive bytes: ") + error.message(), error);
 
     packet.resize(packet_size);
     return packet;
 }
 
-void UdpSocket::send(gsl::span<const std::byte> bytes, std::error_code& error)
+void UdpSocket::send(gsl::span<const std::byte> bytes)
 {
+    std::error_code error;
     socket_.send_to(asio::buffer(bytes.data(), bytes.size()), remote_endpoint_, 0, error);
+
+    if(error)
+        throw UdpSocketRuntimeError(std::string("Failed to send bytes: ") + error.message(), error);
 }
 }

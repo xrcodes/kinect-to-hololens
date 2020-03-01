@@ -24,8 +24,7 @@ void receive_sender_packets(int sender_id,
                             moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
 {
     while (!stopped) {
-        std::error_code error;
-        while (auto packet_bytes{udp_socket.receive(error)}) {
+        while (auto packet_bytes{udp_socket.receive()}) {
             const int session_id{get_session_id_from_sender_packet_bytes(*packet_bytes)};
             const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet_bytes)};
 
@@ -40,9 +39,6 @@ void receive_sender_packets(int sender_id,
                 audio_packet_data_queue.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
             }
         }
-
-        if (error != asio::error::would_block)
-            printf("Error from receiving packets: %s\n", error.message().c_str());
     }
 
     stopped = true;
@@ -172,11 +168,7 @@ void reassemble_video_messages(bool& stopped,
                             printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
                         }
                         
-                        std::error_code error;
-                        udp_socket.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices), error);
-
-                        if (error && error != asio::error::would_block)
-                            printf("Error requesting missing packets: %s\n", error.message().c_str());
+                        udp_socket.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices));
                     }
                 }
                 /////////////////////////////////
@@ -266,7 +258,7 @@ void consume_audio_packets(bool& stopped,
 
     std::vector<AudioSenderPacketData> audio_packet_data_set;
     int last_audio_frame_id{-1};
-    for (;;) {
+    while (!stopped) {
         soundio_flush_events(audio.get());
 
         AudioSenderPacketData audio_sender_packet_data;
@@ -317,6 +309,98 @@ void consume_audio_packets(bool& stopped,
     }
 }
 
+void consume_video_message(bool& stopped,
+                           int depth_width,
+                           int depth_height,
+                           UdpSocket& udp_socket,
+                           moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
+                           int& last_video_frame_id)
+{
+    Vp8Decoder color_decoder;
+    TrvlDecoder depth_decoder{depth_width * depth_height};
+
+    std::map<int, VideoSenderMessageData> frame_messages;
+    auto frame_start{TimePoint::now()};
+    while (!stopped) {
+        std::pair<int, VideoSenderMessageData> frame_message;
+        while (video_message_queue.try_dequeue(frame_message)) {
+            frame_messages.insert(std::move(frame_message));
+        }
+
+        if (frame_messages.empty())
+            continue;
+
+        std::optional<int> begin_frame_id;
+        // If there is a key frame, use the most recent one.
+        for (auto& frame_message_pair : frame_messages) {
+            if (frame_message_pair.first <= last_video_frame_id)
+                continue;
+
+            if (frame_message_pair.second.keyframe)
+                begin_frame_id = frame_message_pair.first;
+        }
+
+        // When there is no key frame, go through all the frames to check
+        // if there is the one right after the previously rendered one.
+        if (!begin_frame_id) {
+            // If a frame message with frame_id == (last_frame_id + 1) is found
+            if (frame_messages.find(last_video_frame_id + 1) != frame_messages.end()) {
+                begin_frame_id = last_video_frame_id + 1;
+            } else {
+                // Wait for more frames if there is way to render without glitches.
+                continue;
+            }
+        }
+
+        std::optional<kh::FFmpegFrame> ffmpeg_frame;
+        std::vector<short> depth_image;
+        const auto decoder_start{TimePoint::now()};
+        for (int i = *begin_frame_id; ; ++i) {
+            // break loop is there is no frame with frame_id i.
+            if (frame_messages.find(i) == frame_messages.end())
+                break;
+
+            const auto frame_message_pair_ptr{&frame_messages[i]};
+
+            last_video_frame_id = i;
+
+            // Decoding a Vp8Frame into color pixels.
+            ffmpeg_frame = color_decoder.decode(frame_message_pair_ptr->color_encoder_frame);
+            // Decompressing a RVL frame into depth pixels.
+            depth_image = depth_decoder.decode(frame_message_pair_ptr->depth_encoder_frame, frame_message_pair_ptr->keyframe);
+        }
+        const auto decoder_time{TimePoint::now() - decoder_start};
+        const auto frame_time{TimePoint::now() - frame_start};
+        frame_start = TimePoint::now();
+
+        udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
+                                                            decoder_time.ms(),
+                                                            frame_time.ms()));
+
+        auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
+        auto depth_mat{createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()),
+                                                       depth_width,
+                                                       depth_height)};
+
+        // Rendering the depth pixels.
+        cv::imshow("Color", color_mat);
+        cv::imshow("Depth", depth_mat);
+        if (cv::waitKey(1) >= 0)
+            break;
+
+        // Remove frame messages before the rendered frame.
+        for (auto it = frame_messages.begin(); it != frame_messages.end();) {
+            if (it->first < last_video_frame_id) {
+                it = frame_messages.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    stopped = true;
+}
+
 void receive_frames(std::string ip_address, int port)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 1024 * 1024;
@@ -326,7 +410,6 @@ void receive_frames(std::string ip_address, int port)
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}};
 
-    std::error_code error;
     int sender_session_id;
     int depth_width;
     int depth_height;
@@ -335,13 +418,13 @@ void receive_frames(std::string ip_address, int port)
     int ping_count{0};
     for (;;) {
         bool initialized{false};
-        udp_socket.send(create_ping_receiver_packet_bytes(), error);
+        udp_socket.send(create_ping_receiver_packet_bytes());
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
         Sleep(100);
         
-        while (auto packet = udp_socket.receive(error)) {
+        while (auto packet = udp_socket.receive()) {
             int cursor{0};
             const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
             const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
@@ -387,101 +470,8 @@ void receive_frames(std::string ip_address, int port)
     std::thread consume_audio_packets_thread([&] {
         consume_audio_packets(stopped, audio_packet_data_queue);
     });
+    consume_video_message(stopped, depth_width, depth_height, udp_socket, video_message_queue, last_video_frame_id);
 
-    Vp8Decoder color_decoder;
-    TrvlDecoder depth_decoder{depth_width * depth_height};
-
-    std::map<int, VideoSenderMessageData> frame_messages;
-    auto frame_start{TimePoint::now()};
-    while (!stopped) {
-        std::pair<int, VideoSenderMessageData> frame_message;
-        while (video_message_queue.try_dequeue(frame_message)) {
-            //frame_messages.push_back(frame_message);
-            frame_messages.insert({frame_message.first, frame_message.second});
-        }
-
-        if (frame_messages.empty())
-            continue;
-
-        std::optional<int> begin_frame_id;
-        // If there is a key frame, use the most recent one.
-        for (auto& frame_message_pair : frame_messages) {
-            if (frame_message_pair.first <= last_video_frame_id)
-                continue;
-
-            if (frame_message_pair.second.keyframe)
-                begin_frame_id = frame_message_pair.first;
-        }
-
-        // When there is no key frame, go through all the frames to check
-        // if there is the one right after the previously rendered one.
-        if (!begin_frame_id) {
-            // If a frame message with frame_id == (last_frame_id + 1) is found
-            if(frame_messages.find(last_video_frame_id + 1) != frame_messages.end()){
-                begin_frame_id = last_video_frame_id + 1;
-            } else {
-                // Wait for more frames if there is way to render without glitches.
-                continue;
-            }
-        }
-
-        std::optional<kh::FFmpegFrame> ffmpeg_frame;
-        std::vector<short> depth_image;
-        const auto decoder_start{TimePoint::now()};
-        for (int i = *begin_frame_id; ; ++i) {
-            // break loop is there is no frame with frame_id i.
-            if (frame_messages.find(i) == frame_messages.end())
-                break;
-
-            const auto frame_message_pair_ptr{&frame_messages[i]};
-
-            const bool keyframe{frame_message_pair_ptr->keyframe};
-
-            last_video_frame_id = i;
-
-            const auto color_encoder_frame{frame_message_pair_ptr->color_encoder_frame};
-            const auto depth_encoder_frame{frame_message_pair_ptr->depth_encoder_frame};
-
-            // Decoding a Vp8Frame into color pixels.
-            ffmpeg_frame = color_decoder.decode(color_encoder_frame);
-
-            // Decompressing a RVL frame into depth pixels.
-            depth_image = depth_decoder.decode(depth_encoder_frame, keyframe);
-        }
-        const auto decoder_time{TimePoint::now() - decoder_start};
-        const auto frame_time{TimePoint::now() - frame_start};
-        frame_start = TimePoint::now();
-
-        std::error_code error;
-        udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
-                                                            decoder_time.ms(),
-                                                            frame_time.ms()), error);
-
-        if (error && error != asio::error::would_block)
-            printf("Error sending receiver status: %s\n", error.message().c_str());
-
-        auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
-        auto depth_mat{createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()),
-                                                       depth_width,
-                                                       depth_height)};
-
-        // Rendering the depth pixels.
-        cv::imshow("Color", color_mat);
-        cv::imshow("Depth", depth_mat);
-        if (cv::waitKey(1) >= 0)
-            break;
-
-        // Remove frame messages before the rendered frame.
-        for (auto it = frame_messages.begin(); it != frame_messages.end();) {
-            if (it->first < last_video_frame_id) {
-                it = frame_messages.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-
-    stopped = true;
     receive_sender_packets_thread.join();
     reassemble_video_messages_thread.join();
     consume_audio_packets_thread.join();

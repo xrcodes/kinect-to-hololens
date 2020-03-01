@@ -44,12 +44,7 @@ int main(int port)
 
     std::vector<uint8_t> ping_buffer(1);
     asio::ip::udp::endpoint remote_endpoint;
-    std::error_code asio_error;
-    socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0, asio_error);
-    if (asio_error) {
-        printf("Error receiving ping: %s\n", asio_error.message().c_str());
-        return 1;
-    }
+    socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0);
 
     UdpSocket udp_socket{std::move(socket), remote_endpoint};
     // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
@@ -76,9 +71,7 @@ int main(int port)
             int opus_frame_size = audio_encoder.encode(opus_frame.data(), pcm.data(), KH_SAMPLES_PER_FRAME, opus_frame.size());
             opus_frame.resize(opus_frame_size);
 
-            udp_socket.send(create_audio_sender_packet_bytes(0, frame_id++, opus_frame), asio_error);
-            if (asio_error)
-                throw std::runtime_error(std::string("Error sending audio packets: ") + asio_error.message());
+            udp_socket.send(create_audio_sender_packet_bytes(0, frame_id++, opus_frame));
 
             cursor += BYTES_PER_FRAME;
             sent_byte_count += opus_frame.size();

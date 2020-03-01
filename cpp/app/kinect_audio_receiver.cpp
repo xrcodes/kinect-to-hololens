@@ -42,8 +42,7 @@ int main(std::string ip_address, int port)
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
 
     UdpSocket udp_socket(std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)});
-    std::error_code asio_error;
-    udp_socket.send(create_ping_receiver_packet_bytes(), asio_error);
+    udp_socket.send(create_ping_receiver_packet_bytes());
 
     AudioDecoder audio_decoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT};
 
@@ -58,7 +57,7 @@ int main(std::string ip_address, int port)
     for (;;) {
         soundio_flush_events(audio.get());
 
-        while (auto packet = udp_socket.receive(asio_error)) {
+        while (auto packet = udp_socket.receive()) {
             received_byte_count += packet->size();
             
             audio_packet_data_set.push_back(parse_audio_sender_packet_bytes(*packet));
