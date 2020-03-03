@@ -152,7 +152,7 @@ void display_calibration()
     std::cout << "depth intrinsics p1: " << depth_intrinsics.parameters.param.p1 << std::endl;
     std::cout << "depth intrinsics metric_radius: " << depth_intrinsics.parameters.param.metric_radius << std::endl;
 
-    const auto extrinsics{calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR]};
+    const auto extrinsics{calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH]};
     for (gsl::index i = 0; i < 9; ++i)
         std::cout << "extrinsic rotation[" << i << "]: " << extrinsics.rotation[i] << std::endl;
 

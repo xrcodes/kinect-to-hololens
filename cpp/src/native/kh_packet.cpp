@@ -15,17 +15,12 @@ SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::b
 InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration)
 {
     InitSenderPacketData init_sender_packet_data;
-    init_sender_packet_data.color_width = calibration.color_camera_calibration.resolution_width;
-    init_sender_packet_data.color_height = calibration.color_camera_calibration.resolution_height;
-    init_sender_packet_data.depth_width = calibration.depth_camera_calibration.resolution_width;
-    init_sender_packet_data.depth_height = calibration.depth_camera_calibration.resolution_height;
-    init_sender_packet_data.color_intrinsics = calibration.color_camera_calibration.intrinsics.parameters.param;
+    init_sender_packet_data.width = calibration.depth_camera_calibration.resolution_width;
+    init_sender_packet_data.height = calibration.depth_camera_calibration.resolution_height;
     // color_camera_calibration.intrinsics.parameters.param includes metric radius, but actually it is zero.
     // The real metric_radius value for calibration is at color_camera_calibration.metric_radius.
-    init_sender_packet_data.color_metric_radius = calibration.color_camera_calibration.metric_radius;
-    init_sender_packet_data.depth_intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
-    init_sender_packet_data.depth_metric_radius = calibration.depth_camera_calibration.metric_radius;
-    init_sender_packet_data.depth_to_color_extrinsics = calibration.extrinsics[K4A_CALIBRATION_TYPE_DEPTH][K4A_CALIBRATION_TYPE_COLOR];
+    init_sender_packet_data.intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
+    init_sender_packet_data.metric_radius = calibration.depth_camera_calibration.metric_radius;
 
     return init_sender_packet_data;
 }
@@ -34,29 +29,19 @@ std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const Ini
 {
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(SenderPacketType) +
-                                                    sizeof(init_sender_packet_data.color_width) +
-                                                    sizeof(init_sender_packet_data.color_height) +
-                                                    sizeof(init_sender_packet_data.depth_width) +
-                                                    sizeof(init_sender_packet_data.depth_height) +
-                                                    sizeof(init_sender_packet_data.color_intrinsics) +
-                                                    sizeof(init_sender_packet_data.color_metric_radius) +
-                                                    sizeof(init_sender_packet_data.depth_intrinsics) +
-                                                    sizeof(init_sender_packet_data.depth_metric_radius) +
-                                                    sizeof(init_sender_packet_data.depth_to_color_extrinsics))};
+                                                    sizeof(init_sender_packet_data.width) +
+                                                    sizeof(init_sender_packet_data.height) +
+                                                    sizeof(init_sender_packet_data.intrinsics) +
+                                                    sizeof(init_sender_packet_data.metric_radius))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
     copy_to_bytes(SenderPacketType::Init, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.color_width, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.color_height, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.depth_width, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.depth_height, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.color_intrinsics, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.color_metric_radius, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.depth_intrinsics, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.depth_metric_radius, packet_bytes, cursor);
-    copy_to_bytes(init_sender_packet_data.depth_to_color_extrinsics, packet_bytes, cursor);
+    copy_to_bytes(init_sender_packet_data.width, packet_bytes, cursor);
+    copy_to_bytes(init_sender_packet_data.height, packet_bytes, cursor);
+    copy_to_bytes(init_sender_packet_data.intrinsics, packet_bytes, cursor);
+    copy_to_bytes(init_sender_packet_data.metric_radius, packet_bytes, cursor);
 
     return packet_bytes;
 }
@@ -65,15 +50,10 @@ InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> p
 {
     InitSenderPacketData init_sender_packet_data;
     PacketCursor cursor{5};
-    copy_from_bytes(init_sender_packet_data.color_width, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.color_height, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.depth_width, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.depth_height, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.color_intrinsics, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.color_metric_radius, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.depth_intrinsics, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.depth_metric_radius, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.depth_to_color_extrinsics, packet_bytes, cursor);
+    copy_from_bytes(init_sender_packet_data.width, packet_bytes, cursor);
+    copy_from_bytes(init_sender_packet_data.height, packet_bytes, cursor);
+    copy_from_bytes(init_sender_packet_data.intrinsics, packet_bytes, cursor);
+    copy_from_bytes(init_sender_packet_data.metric_radius, packet_bytes, cursor);
 
     return init_sender_packet_data;
 }

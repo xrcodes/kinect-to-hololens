@@ -434,8 +434,8 @@ void receive_frames(std::string ip_address, int port)
             sender_session_id = session_id;
 
             const auto init_sender_packet_data{parse_init_sender_packet_bytes(*packet)};
-            depth_width = init_sender_packet_data.depth_width;
-            depth_height = init_sender_packet_data.depth_height;
+            depth_width = init_sender_packet_data.width;
+            depth_height = init_sender_packet_data.height;
 
             initialized = true;
             break;

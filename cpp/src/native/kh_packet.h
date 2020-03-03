@@ -81,15 +81,10 @@ SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::b
 
 struct InitSenderPacketData
 {
-    int color_width;
-    int color_height;
-    int depth_width;
-    int depth_height;
-    k4a_calibration_intrinsic_parameters_t::_param color_intrinsics;
-    float color_metric_radius;
-    k4a_calibration_intrinsic_parameters_t::_param depth_intrinsics;
-    float depth_metric_radius;
-    k4a_calibration_extrinsics_t depth_to_color_extrinsics;
+    int width;
+    int height;
+    k4a_calibration_intrinsic_parameters_t::_param intrinsics;
+    float metric_radius;
 };
 
 InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
