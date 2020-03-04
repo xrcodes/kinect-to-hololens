@@ -211,93 +211,6 @@ struct HandleReceiverMessageTask
     }
 };
 
-//void handle_receiver_messages(const int session_id,
-//                              bool& stopped,
-//                              UdpSocket& sender_socket,
-//                              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-//                              ReceiverState& receiver_state)
-//{
-//
-//    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
-//    std::unordered_map<int, TimePoint> video_frame_send_times;
-//    HandleReceiverMessageSummary summary;
-//    while (!stopped) {
-//        for (;;) {
-//            std::optional<std::vector<std::byte>> received_packet{sender_socket.receive()};
-//            if (!received_packet)
-//                break;
-//
-//            const auto message_type{get_packet_type_from_receiver_packet_bytes(*received_packet)};
-//
-//            if (message_type == ReceiverPacketType::Report) {
-//                const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
-//                receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
-//
-//                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
-//
-//                //std::cout << "Receiver Report - frame id: " << report_receiver_packet_data.frame_id << ", "
-//                //          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
-//                //          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
-//                //          << "round trip: " << round_trip_time.ms() << " ms\n";
-//                
-//                ++summary.received_report_count;
-//            } else if (message_type == ReceiverPacketType::Request) {
-//                const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
-//
-//                for (int packet_index : request_receiver_packet_data.packet_indices) {
-//                    if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
-//                        continue;
-//
-//                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index]);
-//                }
-//            }
-//        }
-//
-//        std::pair<int, std::vector<Bytes>> video_packet_set;
-//        while (video_packet_queue.try_dequeue(video_packet_set)) {
-//            auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
-//
-//            video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
-//            for (auto& packet : video_packet_set.second) {
-//                std::error_code error;
-//                sender_socket.send(packet);
-//            }
-//
-//            for (auto& fec_packet_bytes : fec_packet_bytes_set) {
-//                std::error_code error;
-//                sender_socket.send(fec_packet_bytes);
-//            }
-//            video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
-//        }
-//
-//        // Remove elements of frame_packet_sets reserved for filling up missing packets
-//        // if they are already used from the receiver side.
-//        for (auto it = video_packet_sets.begin(); it != video_packet_sets.end();) {
-//            if (it->first <= receiver_state.video_frame_id) {
-//                it = video_packet_sets.erase(it);
-//            } else {
-//                ++it;
-//            }
-//        }
-//
-//        for (auto it = video_frame_send_times.begin(); it != video_frame_send_times.end();) {
-//            if (it->first <= receiver_state.video_frame_id) {
-//                it = video_frame_send_times.erase(it);
-//            } else {
-//                ++it;
-//            }
-//        }
-//
-//        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
-//        if(summary_duration.sec() > 10.0f) {
-//            std::cout << "Receiver reported "
-//                      << summary.received_report_count / summary_duration.sec()
-//                      << " times per second\n";
-//            summary = HandleReceiverMessageSummary{};
-//        }
-//    }
-//}
-
 struct AudioSenderState
 {
     int frame_id{0};
@@ -362,57 +275,6 @@ struct SendAudioFrameTask
         }
     }
 };
-
-//void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
-//{
-//    Audio audio;
-//    AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
-//
-//    // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
-//    AudioEncoder audio_encoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false};
-//
-//    constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-//    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
-//    if (!soundio_callback::ring_buffer)
-//        throw std::exception("Failed in soundio_ring_buffer_create()...");
-//
-//    kinect_microphone_stream.start();
-//
-//    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
-//    AudioSenderState audio_state;
-//    SendAudioFrameSummary summary;
-//    while (!stopped) {
-//        soundio_flush_events(audio.get());
-//        char* read_ptr = soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer);
-//        int fill_bytes = soundio_ring_buffer_fill_count(soundio_callback::ring_buffer);
-//
-//        constexpr int BYTES_PER_FRAME{sizeof(float) * pcm.size()};
-//        int cursor = 0;
-//        while ((fill_bytes - cursor) > BYTES_PER_FRAME) {
-//            memcpy(pcm.data(), read_ptr + cursor, BYTES_PER_FRAME);
-//
-//            std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
-//            int opus_frame_size = audio_encoder.encode(opus_frame.data(), pcm.data(), KH_SAMPLES_PER_FRAME, opus_frame.size());
-//            opus_frame.resize(opus_frame_size);
-//
-//            std::error_code error;
-//            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame));
-//
-//            cursor += BYTES_PER_FRAME;
-//            summary.sent_byte_count += opus_frame.size();
-//        }
-//
-//        soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer, cursor);
-//
-//        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
-//        if (summary_duration.sec() > 10.0f) {
-//            std::cout << "SendAudioFrameSummary - Bandwidth: "
-//                      << summary.sent_byte_count / (1024.0f * 1024.0f / 8.0f) / summary_duration.sec()
-//                      << " Mbps\n";
-//            summary = SendAudioFrameSummary{};
-//        }
-//    }
-//}
 
 struct VideoSenderState
 {
@@ -587,30 +449,6 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>> video_packet_queue;
     
     ReceiverState receiver_state;
-    
-    //std::thread handle_reciever_messages_thread([&] {
-    //    try {
-    //        HandleReceiverMessageTask handle_receiver_message_task;
-    //        while (!stopped)
-    //            handle_receiver_message_task.run(session_id, udp_socket, video_packet_queue, receiver_state);
-    //        //handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_state);
-    //    } catch (UdpSocketRuntimeError e) {
-    //        std::cout << "UdpSocketRuntimeError from handle_receiver_messages():\n  " << e.what() << "\n";
-    //    }
-    //    stopped = true;
-    //});
-    //std::thread send_audio_frames_thread([&] {
-    //    try {
-    //        SendAudioFrameTask send_audio_frame_task;
-    //        while (!stopped)
-    //            send_audio_frame_task.run(session_id, udp_socket);
-    //        //send_audio_frames(session_id, stopped, udp_socket);
-    //    } catch (UdpSocketRuntimeError e) {
-    //        std::cout << "UdpSocketRuntimeError from send_audio_frames():\n  " << e.what() << "\n";
-    //    }
-    //    stopped = true;
-    //});
-
     std::thread task_thread([&] {
         try {
             HandleReceiverMessageTask handle_receiver_message_task;
@@ -632,8 +470,6 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     }
     stopped = true;
 
-    //handle_reciever_messages_thread.join();
-    //send_audio_frames_thread.join();
     task_thread.join();
 }
 

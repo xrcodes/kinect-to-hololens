@@ -14,7 +14,6 @@ namespace kh
 {
 void display_frames()
 {
-    constexpr int TARGET_BITRATE{2000};
     constexpr short CHANGE_THRESHOLD{10};
     constexpr int INVALID_THRESHOLD{2};
     constexpr auto TIMEOUT{std::chrono::milliseconds{1000}};
@@ -32,8 +31,7 @@ void display_frames()
     const k4a::transformation transformation{calibration};
 
     Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
-                           calibration.depth_camera_calibration.resolution_height,
-                           TARGET_BITRATE};
+                           calibration.depth_camera_calibration.resolution_height};
     Vp8Decoder vp8_decoder;
 
     const int depth_frame_width{calibration.depth_camera_calibration.resolution_width};
