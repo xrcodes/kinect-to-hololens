@@ -64,8 +64,8 @@ public:
             std::vector<float> z_max(width, 3860.0f);
             for (gsl::index i{width}; i >= 0; --i) {
                 // p stands for point.
-                gsl::index p_index{i + j * width};
-                auto p{unit_depth_point_cloud_.points[p_index].xyz};
+                const gsl::index p_index{i + j * width};
+                const int16_t z{depth_pixels[p_index]};
 
                 // Shadow removal has nothing to do with already invalid pixels.
                 if (depth_pixels[p_index] == 0)
@@ -77,15 +77,18 @@ public:
                     continue;
                 }
 
+                //auto p{unit_depth_point_cloud_.points[p_index].xyz};
+                //const float x{p.x};
+                const float x{unit_depth_point_cloud_.points[p_index].xyz.x};
+
                 for (gsl::index ii{i}; ii >= 0; --ii) {
-                    gsl::index pp_index{ii + j * width};
-                    auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
+                    //gsl::index pp_index{ii + j * width};
+                    //auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
 
-
-                    const float x{p.x};
-                    const float xx{pp.x};
-                    const int16_t z{depth_pixels[p_index]};
-                    const float zz{(color_camera_x_) / (xx - x + color_camera_x_ / z)};
+                    //const float xx{pp.x};
+                    //const float xx{unit_depth_point_cloud_.points[pp_index].xyz.x};
+                    const float xx{unit_depth_point_cloud_.points[ii + j * width].xyz.x};
+                    const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
 
                     if (zz >= z_max[ii])
                         break;
@@ -116,18 +119,22 @@ struct HandleReceiverMessageSummary
     int received_report_count{0};
 };
 
-void handle_receiver_messages(const int session_id,
-                              bool& stopped,
-                              UdpSocket& sender_socket,
-                              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-                              ReceiverState& receiver_state)
+struct HandleReceiverMessageTask
 {
-    constexpr int XOR_MAX_GROUP_SIZE = 5;
-
+    constexpr static int XOR_MAX_GROUP_SIZE = 5;
     std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
     std::unordered_map<int, TimePoint> video_frame_send_times;
     HandleReceiverMessageSummary summary;
-    while (!stopped) {
+
+    HandleReceiverMessageTask()
+    {
+    }
+
+    void run(const int session_id,
+             UdpSocket& sender_socket,
+             moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+             ReceiverState& receiver_state)
+    {
         for (;;) {
             std::optional<std::vector<std::byte>> received_packet{sender_socket.receive()};
             if (!received_packet)
@@ -145,7 +152,7 @@ void handle_receiver_messages(const int session_id,
                 //          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
                 //          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
                 //          << "round trip: " << round_trip_time.ms() << " ms\n";
-                
+
                 ++summary.received_report_count;
             } else if (message_type == ReceiverPacketType::Request) {
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
@@ -195,14 +202,101 @@ void handle_receiver_messages(const int session_id,
         }
 
         const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
-        if(summary_duration.sec() > 10.0f) {
+        if (summary_duration.sec() > 10.0f) {
             std::cout << "Receiver reported "
-                      << summary.received_report_count / summary_duration.sec()
-                      << " times per second\n";
+                << summary.received_report_count / summary_duration.sec()
+                << " times per second\n";
             summary = HandleReceiverMessageSummary{};
         }
     }
-}
+};
+
+//void handle_receiver_messages(const int session_id,
+//                              bool& stopped,
+//                              UdpSocket& sender_socket,
+//                              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+//                              ReceiverState& receiver_state)
+//{
+//
+//    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
+//    std::unordered_map<int, TimePoint> video_frame_send_times;
+//    HandleReceiverMessageSummary summary;
+//    while (!stopped) {
+//        for (;;) {
+//            std::optional<std::vector<std::byte>> received_packet{sender_socket.receive()};
+//            if (!received_packet)
+//                break;
+//
+//            const auto message_type{get_packet_type_from_receiver_packet_bytes(*received_packet)};
+//
+//            if (message_type == ReceiverPacketType::Report) {
+//                const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
+//                receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
+//
+//                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
+//
+//                //std::cout << "Receiver Report - frame id: " << report_receiver_packet_data.frame_id << ", "
+//                //          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
+//                //          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
+//                //          << "round trip: " << round_trip_time.ms() << " ms\n";
+//                
+//                ++summary.received_report_count;
+//            } else if (message_type == ReceiverPacketType::Request) {
+//                const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
+//
+//                for (int packet_index : request_receiver_packet_data.packet_indices) {
+//                    if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
+//                        continue;
+//
+//                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index]);
+//                }
+//            }
+//        }
+//
+//        std::pair<int, std::vector<Bytes>> video_packet_set;
+//        while (video_packet_queue.try_dequeue(video_packet_set)) {
+//            auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
+//
+//            video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
+//            for (auto& packet : video_packet_set.second) {
+//                std::error_code error;
+//                sender_socket.send(packet);
+//            }
+//
+//            for (auto& fec_packet_bytes : fec_packet_bytes_set) {
+//                std::error_code error;
+//                sender_socket.send(fec_packet_bytes);
+//            }
+//            video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
+//        }
+//
+//        // Remove elements of frame_packet_sets reserved for filling up missing packets
+//        // if they are already used from the receiver side.
+//        for (auto it = video_packet_sets.begin(); it != video_packet_sets.end();) {
+//            if (it->first <= receiver_state.video_frame_id) {
+//                it = video_packet_sets.erase(it);
+//            } else {
+//                ++it;
+//            }
+//        }
+//
+//        for (auto it = video_frame_send_times.begin(); it != video_frame_send_times.end();) {
+//            if (it->first <= receiver_state.video_frame_id) {
+//                it = video_frame_send_times.erase(it);
+//            } else {
+//                ++it;
+//            }
+//        }
+//
+//        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
+//        if(summary_duration.sec() > 10.0f) {
+//            std::cout << "Receiver reported "
+//                      << summary.received_report_count / summary_duration.sec()
+//                      << " times per second\n";
+//            summary = HandleReceiverMessageSummary{};
+//        }
+//    }
+//}
 
 struct AudioSenderState
 {
@@ -215,30 +309,33 @@ struct SendAudioFrameSummary
     int sent_byte_count{0};
 };
 
-void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
+struct SendAudioFrameTask
 {
     Audio audio;
     AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
-
-    constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
-    if (!soundio_callback::ring_buffer)
-        throw std::exception("Failed in soundio_ring_buffer_create()...");
-
-    // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
     AudioEncoder audio_encoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false};
-
-    kinect_microphone_stream.start();
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
     AudioSenderState audio_state;
     SendAudioFrameSummary summary;
-    while (!stopped) {
+
+    SendAudioFrameTask()
+    {
+        constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
+        soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
+        if (!soundio_callback::ring_buffer)
+            throw std::exception("Failed in soundio_ring_buffer_create()...");
+
+        kinect_microphone_stream.start();
+    }
+
+    void run(int session_id, UdpSocket& udp_socket)
+    {
         soundio_flush_events(audio.get());
         char* read_ptr = soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer);
         int fill_bytes = soundio_ring_buffer_fill_count(soundio_callback::ring_buffer);
 
-        constexpr int BYTES_PER_FRAME{sizeof(float) * pcm.size()};
+        const int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * pcm.size())};
         int cursor = 0;
         while ((fill_bytes - cursor) > BYTES_PER_FRAME) {
             memcpy(pcm.data(), read_ptr + cursor, BYTES_PER_FRAME);
@@ -259,12 +356,63 @@ void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
         const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
         if (summary_duration.sec() > 10.0f) {
             std::cout << "SendAudioFrameSummary - Bandwidth: "
-                      << summary.sent_byte_count / (1024.0f * 1024.0f / 8.0f) / summary_duration.sec()
-                      << " Mbps\n";
+                << summary.sent_byte_count / (1024.0f * 1024.0f / 8.0f) / summary_duration.sec()
+                << " Mbps\n";
             summary = SendAudioFrameSummary{};
         }
     }
-}
+};
+
+//void send_audio_frames(int session_id, bool& stopped, UdpSocket& udp_socket)
+//{
+//    Audio audio;
+//    AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
+//
+//    // Consider using FEC in the future. Currently, Opus is good enough even without FEC.
+//    AudioEncoder audio_encoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false};
+//
+//    constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
+//    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
+//    if (!soundio_callback::ring_buffer)
+//        throw std::exception("Failed in soundio_ring_buffer_create()...");
+//
+//    kinect_microphone_stream.start();
+//
+//    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
+//    AudioSenderState audio_state;
+//    SendAudioFrameSummary summary;
+//    while (!stopped) {
+//        soundio_flush_events(audio.get());
+//        char* read_ptr = soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer);
+//        int fill_bytes = soundio_ring_buffer_fill_count(soundio_callback::ring_buffer);
+//
+//        constexpr int BYTES_PER_FRAME{sizeof(float) * pcm.size()};
+//        int cursor = 0;
+//        while ((fill_bytes - cursor) > BYTES_PER_FRAME) {
+//            memcpy(pcm.data(), read_ptr + cursor, BYTES_PER_FRAME);
+//
+//            std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
+//            int opus_frame_size = audio_encoder.encode(opus_frame.data(), pcm.data(), KH_SAMPLES_PER_FRAME, opus_frame.size());
+//            opus_frame.resize(opus_frame_size);
+//
+//            std::error_code error;
+//            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame));
+//
+//            cursor += BYTES_PER_FRAME;
+//            summary.sent_byte_count += opus_frame.size();
+//        }
+//
+//        soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer, cursor);
+//
+//        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
+//        if (summary_duration.sec() > 10.0f) {
+//            std::cout << "SendAudioFrameSummary - Bandwidth: "
+//                      << summary.sent_byte_count / (1024.0f * 1024.0f / 8.0f) / summary_duration.sec()
+//                      << " Mbps\n";
+//            summary = SendAudioFrameSummary{};
+//        }
+//    }
+//}
 
 struct VideoSenderState
 {
@@ -274,6 +422,11 @@ struct VideoSenderState
 struct SendVideoFrameSummary
 {
     TimePoint start_time{TimePoint::now()};
+    float shadow_removal_ms_sum{0.0f};
+    float transformation_ms_sum{0.0f};
+    float yuv_conversion_ms_sum{0.0f};
+    float color_encoder_ms_sum{0.0f};
+    float depth_encoder_ms_sum{0.0f};
     int frame_count{0};
     int byte_count{0};
     int keyframe_count{0};
@@ -286,7 +439,6 @@ void send_video_frames(const int session_id,
                        moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
                        ReceiverState& receiver_state)
 {
-    constexpr int TARGET_BITRATE = 2000;
     constexpr short CHANGE_THRESHOLD = 10;
     constexpr int INVALID_THRESHOLD = 2;
 
@@ -297,13 +449,8 @@ void send_video_frames(const int session_id,
     const int height{calibration.depth_camera_calibration.resolution_height};
 
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    Vp8Encoder color_encoder{width, height, TARGET_BITRATE};
+    Vp8Encoder color_encoder{width, height};
     TrvlEncoder depth_encoder{width * height, CHANGE_THRESHOLD, INVALID_THRESHOLD};
-
-    //auto unit_depth_point_cloud{PointCloud::createUnitDepthPointCloud(calibration)};
-    //std::cout << "x1: " << unit_depth_point_cloud.points[0].xyz.x << std::endl;
-    //std::cout << "x2: " << unit_depth_point_cloud.points[width / 2].xyz.x << std::endl;
-    //std::cout << "x3: " << unit_depth_point_cloud.points[0 + width].xyz.x << std::endl;
 
     const float color_camera_x{calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].translation[0]};
     std::cout << "color_camera_x: " << color_camera_x << std::endl;
@@ -356,23 +503,34 @@ void send_video_frames(const int session_id,
 
         const bool keyframe{frame_id_diff > 5};
 
+        auto shadow_removal_start{TimePoint::now()};
         shadow_remover.remove({reinterpret_cast<int16_t*>(depth_image.get_buffer()),
                                gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())});
+        summary.shadow_removal_ms_sum += shadow_removal_start.elapsed_time().ms();
 
+        auto transformation_start{TimePoint::now()};
         const auto transformed_color_image{transformation.color_image_to_depth_camera(depth_image, color_image)};
-
+        summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
+        
+        auto yuv_conversion_start{TimePoint::now()};
         // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
         const auto yuv_image{createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
                                                                      transformed_color_image.get_width_pixels(),
                                                                      transformed_color_image.get_height_pixels(),
                                                                      transformed_color_image.get_stride_bytes())};
-        const auto vp8_frame{color_encoder.encode(yuv_image, keyframe)};
+        summary.yuv_conversion_ms_sum += yuv_conversion_start.elapsed_time().ms();
 
+        auto color_encoder_start{TimePoint::now()};
+        const auto vp8_frame{color_encoder.encode(yuv_image, keyframe)};
+        summary.color_encoder_ms_sum += color_encoder_start.elapsed_time().ms();
+
+        auto depth_encoder_start{TimePoint::now()};
         // Compress the depth pixels.
         //const auto depth_encoder_frame{depth_encoder.encode(reinterpret_cast<const int16_t*>(depth_image.get_buffer()), keyframe)};
         const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const int16_t*>(depth_image.get_buffer()),
                                                              gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())},
                                                             keyframe)};
+        summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
         const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
         const auto message_bytes{create_video_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
@@ -391,7 +549,12 @@ void send_video_frames(const int session_id,
                       << "id: " << video_state.frame_id << ", "
                       << "FPS: " << summary.frame_count / summary_duration.sec() << ", "
                       << "Bandwidth: " << summary.byte_count / summary_duration.sec() << ", "
-                      << "Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << "\n";
+                      << "Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << ", "
+                      << "Shadow Removal: " << summary.shadow_removal_ms_sum / summary.frame_count << ", "
+                      << "Transformation: " << summary.transformation_ms_sum / summary.frame_count << ", "
+                      << "Yuv Conversion: " << summary.yuv_conversion_ms_sum / summary.frame_count << ", "
+                      << "Color Encoder: " << summary.color_encoder_ms_sum / summary.frame_count << ", "
+                      << "Depth Encoder " << summary.depth_encoder_ms_sum / summary.frame_count << "\n";
             summary = SendVideoFrameSummary{};
         }
         ++video_state.frame_id;
@@ -425,19 +588,39 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     
     ReceiverState receiver_state;
     
-    std::thread handle_reciever_messages_thread([&] {
+    //std::thread handle_reciever_messages_thread([&] {
+    //    try {
+    //        HandleReceiverMessageTask handle_receiver_message_task;
+    //        while (!stopped)
+    //            handle_receiver_message_task.run(session_id, udp_socket, video_packet_queue, receiver_state);
+    //        //handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_state);
+    //    } catch (UdpSocketRuntimeError e) {
+    //        std::cout << "UdpSocketRuntimeError from handle_receiver_messages():\n  " << e.what() << "\n";
+    //    }
+    //    stopped = true;
+    //});
+    //std::thread send_audio_frames_thread([&] {
+    //    try {
+    //        SendAudioFrameTask send_audio_frame_task;
+    //        while (!stopped)
+    //            send_audio_frame_task.run(session_id, udp_socket);
+    //        //send_audio_frames(session_id, stopped, udp_socket);
+    //    } catch (UdpSocketRuntimeError e) {
+    //        std::cout << "UdpSocketRuntimeError from send_audio_frames():\n  " << e.what() << "\n";
+    //    }
+    //    stopped = true;
+    //});
+
+    std::thread task_thread([&] {
         try {
-            handle_receiver_messages(session_id, stopped, udp_socket, video_packet_queue, receiver_state);
+            HandleReceiverMessageTask handle_receiver_message_task;
+            SendAudioFrameTask send_audio_frame_task;
+            while (!stopped) {
+                handle_receiver_message_task.run(session_id, udp_socket, video_packet_queue, receiver_state);
+                send_audio_frame_task.run(session_id, udp_socket);
+            }
         } catch (UdpSocketRuntimeError e) {
-            std::cout << "UdpSocketRuntimeError from handle_receiver_messages():\n  " << e.what() << "\n";
-        }
-        stopped = true;
-    });
-    std::thread send_audio_frames_thread([&] {
-        try {
-            send_audio_frames(session_id, stopped, udp_socket);
-        } catch (UdpSocketRuntimeError e) {
-            std::cout << "UdpSocketRuntimeError from send_audio_frames():\n  " << e.what() << "\n";
+            std::cout << "UdpSocketRuntimeError from task_thread:\n  " << e.what() << "\n";
         }
         stopped = true;
     });
@@ -449,8 +632,9 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     }
     stopped = true;
 
-    handle_reciever_messages_thread.join();
-    send_audio_frames_thread.join();
+    //handle_reciever_messages_thread.join();
+    //send_audio_frames_thread.join();
+    task_thread.join();
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.

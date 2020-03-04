@@ -16,7 +16,7 @@ namespace kh
 class Vp8Encoder
 {
 public:
-    Vp8Encoder(int width, int height, int target_bitrate);
+    Vp8Encoder(int width, int height);
     ~Vp8Encoder();
     std::vector<std::byte> encode(const YuvImage& yuv_image, bool keyframe);
 

@@ -4,8 +4,7 @@
 
 namespace kh
 {
-// The keyframe_interval_ was chosen arbitrarily.
-Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
+Vp8Encoder::Vp8Encoder(int width, int height)
     : codec_context_{}, image_{}, frame_index_{0}
 {
     vpx_codec_iface_t* (*const codec_interface)() = &vpx_codec_vp8_cx;
@@ -19,16 +18,15 @@ Vp8Encoder::Vp8Encoder(int width, int height, int target_bitrate)
     // See also https://www.webmproject.org/docs/encoder-parameters/
     configuration.g_w = width;
     configuration.g_h = height;
-    configuration.rc_target_bitrate = target_bitrate;
+    configuration.rc_target_bitrate = 2000;
 
-    //configuration.g_threads = 8;
     configuration.g_threads = 4;
     configuration.g_lag_in_frames = 0;
     configuration.rc_min_quantizer = 4;
-    configuration.rc_max_quantizer = 48;
-    configuration.g_error_resilient = 1;
+    //configuration.rc_max_quantizer = 48;
+    configuration.rc_max_quantizer = 56;
 
-    //configuration.rc_end_usage = VPX_CBR;
+    configuration.rc_end_usage = VPX_CBR;
 
     res = vpx_codec_enc_init(&codec_context_, codec_interface(), &configuration, 0);
     if (res != VPX_CODEC_OK)

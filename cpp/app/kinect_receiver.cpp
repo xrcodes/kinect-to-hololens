@@ -251,9 +251,7 @@ void consume_audio_packets(bool& stopped,
         throw std::exception("Failed in soundio_ring_buffer_create()...");
 
     AudioDecoder audio_decoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT};
-
     default_speaker_stream.start();
-
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
 
     int last_audio_frame_id{-1};

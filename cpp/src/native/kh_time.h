@@ -49,6 +49,11 @@ public:
         return TimePoint(std::chrono::steady_clock::now());
     }
 
+    TimeDuration elapsed_time()
+    {
+        return TimeDuration{TimePoint::now() - time_point_};
+    }
+
     TimeDuration operator-(const TimePoint& other)
     {
         return TimeDuration{time_point_ - other.time_point_};
