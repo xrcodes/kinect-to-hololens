@@ -16,6 +16,93 @@ namespace kh
 {
 using Bytes = std::vector<std::byte>;
 
+struct PointCloud
+{
+public:
+    static PointCloud createUnitDepthPointCloud(const k4a::calibration& calibration)
+    {
+        PointCloud point_cloud;
+        point_cloud.width = calibration.depth_camera_calibration.resolution_width;
+        point_cloud.height = calibration.depth_camera_calibration.resolution_height;
+
+        point_cloud.points.resize(point_cloud.width * point_cloud.height);
+        
+        for (gsl::index j{0}; j < point_cloud.height; ++j) {
+            for (gsl::index i{0}; i < point_cloud.width; ++i) {
+                if (!calibration.convert_2d_to_3d(k4a_float2_t{gsl::narrow_cast<float>(i), gsl::narrow_cast<float>(j)},
+                                                  1.0f,
+                                                  K4A_CALIBRATION_TYPE_DEPTH,
+                                                  K4A_CALIBRATION_TYPE_DEPTH,
+                                                  &point_cloud.points[i + j * point_cloud.width])) {
+                    throw std::runtime_error("Failed in PointCloud::createUnitDepthPointCloud");
+                 }
+            }
+        }
+        return point_cloud;
+    }
+
+    int width;
+    int height;
+    std::vector<k4a_float3_t> points;
+};
+
+class ShadowRemover
+{
+public:
+    ShadowRemover(PointCloud&& unit_depth_point_cloud, float color_camera_x)
+        : unit_depth_point_cloud_{unit_depth_point_cloud}, color_camera_x_{color_camera_x}
+    {
+    }
+
+    void remove(gsl::span<int16_t> depth_pixels)
+    {
+        const int width{unit_depth_point_cloud_.width};
+        const int height{unit_depth_point_cloud_.height};
+        for (gsl::index j{0}; j < height; ++j) {
+
+            // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
+            std::vector<float> z_max(width, 3860.0f);
+            for (gsl::index i{width}; i >= 0; --i) {
+                // p stands for point.
+                gsl::index p_index{i + j * width};
+                auto p{unit_depth_point_cloud_.points[p_index].xyz};
+
+                // Shadow removal has nothing to do with already invalid pixels.
+                if (depth_pixels[p_index] == 0)
+                    continue;
+
+                // Zero and skip the pixel if it is covered by another pixel.
+                if (depth_pixels[p_index] > z_max[i]) {
+                    depth_pixels[p_index] = 0;
+                    continue;
+                }
+
+                for (gsl::index ii{i}; ii >= 0; --ii) {
+                    gsl::index pp_index{ii + j * width};
+                    auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
+
+
+                    const float x{p.x};
+                    const float xx{pp.x};
+                    const int16_t z{depth_pixels[p_index]};
+                    const float zz{(color_camera_x_) / (xx - x + color_camera_x_ / z)};
+
+                    if (zz >= z_max[ii])
+                        break;
+
+                    // If zz covers new area, update z_max that indicates the area covered
+                    // and continue to the next pixels more on the right side.
+                    z_max[ii] = zz;
+                }
+            }
+        }
+    }
+
+private:
+    PointCloud unit_depth_point_cloud_;
+    float color_camera_x_;
+};
+
 struct ReceiverState
 {
     // The video frame ID before any report from the receiver.
@@ -54,10 +141,10 @@ void handle_receiver_messages(const int session_id,
 
                 const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
 
-                std::cout << "Receiver Report - frame id: " << report_receiver_packet_data.frame_id << ", "
-                          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
-                          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
-                          << "round trip: " << round_trip_time.ms() << " ms\n";
+                //std::cout << "Receiver Report - frame id: " << report_receiver_packet_data.frame_id << ", "
+                //          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
+                //          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
+                //          << "round trip: " << round_trip_time.ms() << " ms\n";
                 
                 ++summary.received_report_count;
             } else if (message_type == ReceiverPacketType::Request) {
@@ -193,11 +280,11 @@ struct SendVideoFrameSummary
 };
 
 void send_video_frames(const int session_id,
-                        bool& stopped,
-                        UdpSocket& udp_socket,
-                        KinectDevice& kinect_device,
-                        moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-                        ReceiverState& receiver_state)
+                       bool& stopped,
+                       UdpSocket& udp_socket,
+                       KinectDevice& kinect_device,
+                       moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+                       ReceiverState& receiver_state)
 {
     constexpr int TARGET_BITRATE = 2000;
     constexpr short CHANGE_THRESHOLD = 10;
@@ -206,12 +293,22 @@ void send_video_frames(const int session_id,
     const auto calibration{kinect_device.getCalibration()};
     k4a::transformation transformation{calibration};
 
-    const int depth_width{calibration.depth_camera_calibration.resolution_width};
-    const int depth_height{calibration.depth_camera_calibration.resolution_height};
+    const int width{calibration.depth_camera_calibration.resolution_width};
+    const int height{calibration.depth_camera_calibration.resolution_height};
 
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    Vp8Encoder color_encoder{depth_width, depth_height, TARGET_BITRATE};
-    TrvlEncoder depth_encoder{depth_width * depth_height, CHANGE_THRESHOLD, INVALID_THRESHOLD};
+    Vp8Encoder color_encoder{width, height, TARGET_BITRATE};
+    TrvlEncoder depth_encoder{width * height, CHANGE_THRESHOLD, INVALID_THRESHOLD};
+
+    //auto unit_depth_point_cloud{PointCloud::createUnitDepthPointCloud(calibration)};
+    //std::cout << "x1: " << unit_depth_point_cloud.points[0].xyz.x << std::endl;
+    //std::cout << "x2: " << unit_depth_point_cloud.points[width / 2].xyz.x << std::endl;
+    //std::cout << "x3: " << unit_depth_point_cloud.points[0 + width].xyz.x << std::endl;
+
+    const float color_camera_x{calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].translation[0]};
+    std::cout << "color_camera_x: " << color_camera_x << std::endl;
+
+    auto shadow_remover{ShadowRemover{PointCloud::createUnitDepthPointCloud(calibration), color_camera_x}};
 
     // frame_id is the ID of the frame the sender sends.
     VideoSenderState video_state;
@@ -241,7 +338,7 @@ void send_video_frames(const int session_id,
             continue;
         }
 
-        const auto depth_image{capture->get_depth_image()};
+        auto depth_image{capture->get_depth_image()};
         if (!depth_image) {
             std::cout << "get_depth_image() failed...\n";
             continue;
@@ -258,6 +355,9 @@ void send_video_frames(const int session_id,
         last_device_time_stamp = device_time_stamp;
 
         const bool keyframe{frame_id_diff > 5};
+
+        shadow_remover.remove({reinterpret_cast<int16_t*>(depth_image.get_buffer()),
+                               gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())});
 
         const auto transformed_color_image{transformation.color_image_to_depth_camera(depth_image, color_image)};
 
@@ -384,7 +484,7 @@ void main()
 
 int main()
 {
-    std::ios_base::sync_with_stdio(false);
+    //std::ios_base::sync_with_stdio(false);
     kh::main();
     return 0;
 }

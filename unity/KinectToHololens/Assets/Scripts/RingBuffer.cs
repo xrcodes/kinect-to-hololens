@@ -50,7 +50,7 @@ public class RingBuffer
 
         if (samples.Length > FillSamples)
         {
-            Debug.Log("Ringbuffer underflow...");
+            //Debug.Log("Ringbuffer underflow...");
             return;
         }
 

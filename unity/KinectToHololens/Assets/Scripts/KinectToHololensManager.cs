@@ -115,7 +115,6 @@ public class KinectToHololensManager : MonoBehaviour
 
     void OnAudioFilterRead(float[] data, int channels)
     {
-        print($"FillSamples: {kinectReceiver.RingBuffer.FillSamples}, FreeSamples: {kinectReceiver.RingBuffer.FreeSamples}");
         kinectReceiver.RingBuffer.Read(data);
 
         float sum = 0.0f;
@@ -123,9 +122,6 @@ public class KinectToHololensManager : MonoBehaviour
         {
             sum += d;
         }
-
-        print($"data.Length: {data.Length}, channels: {channels}");
-        print($"average: {sum / data.Length}");
     }
 
     private void OnTapped(TappedEventArgs args)
