@@ -62,7 +62,7 @@ public:
 
             // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
             std::vector<float> z_max(width, 3860.0f);
-            for (gsl::index i{width}; i >= 0; --i) {
+            for (gsl::index i{width - 1}; i >= 0; --i) {
                 // p stands for point.
                 const gsl::index p_index{i + j * width};
                 const int16_t z{depth_pixels[p_index]};
@@ -364,6 +364,9 @@ void send_video_frames(const int session_id,
         last_device_time_stamp = device_time_stamp;
 
         const bool keyframe{frame_id_diff > 5};
+        
+        std::cout << "depth_image width: " << depth_image.get_width_pixels() << std::endl;
+        std::cout << "depth_image stride: " << depth_image.get_stride_bytes() << std::endl;
 
         auto shadow_removal_start{TimePoint::now()};
         shadow_remover.remove({reinterpret_cast<int16_t*>(depth_image.get_buffer()),

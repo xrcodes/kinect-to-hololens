@@ -2,6 +2,15 @@ cmake_minimum_required(VERSION 3.13)
 project(KinectToHololens)
 
 set(AZURE_KINECT_DIR $ENV{PROGRAMFILES}/Azure\ Kinect\ SDK\ v1.3.0)
+if(CMAKE_SIZEOF_VOID_P GREATER 4)
+	set(AZURE_KINECT_BIN ${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin)
+	set(AZURE_KINECT_LIB ${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib)
+else()
+	set(AZURE_KINECT_BIN ${AZURE_KINECT_DIR}/sdk/windows-desktop/x86/release/bin)
+	set(AZURE_KINECT_LIB ${AZURE_KINECT_DIR}/sdk/windows-desktop/x86/release/lib)
+endif()
+
+message(STATUS ${AZURE_KINECT_BIN})
 
 # To keep asio quite from leaving a lot of warnings.
 # reference: https://github.com/chriskohlhoff/asio/issues/290

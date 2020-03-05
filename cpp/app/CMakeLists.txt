@@ -7,7 +7,7 @@ target_include_directories(KinectReader PRIVATE
 )
 target_link_libraries(KinectReader
   ${OpenCV_LIBS}
-  "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
+  "${AZURE_KINECT_LIB}/k4a.lib"
   KinectToHololensNative
   ${Libvpx_LIB}
 )
@@ -15,11 +15,11 @@ set_target_properties(KinectReader PROPERTIES
   CXX_STANDARD 17
 )
 add_custom_command(TARGET KinectReader POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/depthengine_2_0.dll"
   $<TARGET_FILE_DIR:KinectReader>
 )
 add_custom_command(TARGET KinectReader POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4a.dll"
   $<TARGET_FILE_DIR:KinectReader>
 )
 
@@ -32,7 +32,7 @@ target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectSender
-  "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/lib/k4a.lib"
+  "${AZURE_KINECT_LIB}/k4a.lib"
   KinectToHololensNative
   ${Libvpx_LIB}
 )
@@ -40,11 +40,11 @@ set_target_properties(KinectSender PROPERTIES
   CXX_STANDARD 17
 )
 add_custom_command(TARGET KinectSender POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/depthengine_2_0.dll"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/depthengine_2_0.dll"
   $<TARGET_FILE_DIR:KinectSender>
 )
 add_custom_command(TARGET KinectSender POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin/k4a.dll"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4a.dll"
   $<TARGET_FILE_DIR:KinectSender>
 )
 
