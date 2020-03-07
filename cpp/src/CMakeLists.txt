@@ -16,10 +16,11 @@ add_library(KinectToHololens
  )
 target_include_directories(KinectToHololens PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectToHololens
   ${FFMPEG_LIBRARIES}
-  Opus::opus
+  debug ${OPUS_BUILD_DIR}/debug/opus.lib optimized ${OPUS_BUILD_DIR}/relwithdebinfo/opus.lib
 )
 set_target_properties(KinectToHololens PROPERTIES
   CXX_STANDARD 17

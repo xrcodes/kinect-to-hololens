@@ -1,5 +1,6 @@
 #include "kh_opus.h"
 
+
 namespace kh
 {
 AudioEncoder::AudioEncoder(int sample_rate, int channel_count, bool fec)
@@ -39,7 +40,7 @@ int AudioEncoder::encode(std::byte* opus_frame_data, const float* pcm, int frame
 AudioDecoder::AudioDecoder(int sample_rate, int channel_count)
     : opus_decoder_{nullptr}
 {
-    int error;
+    int error{0};
     opus_decoder_ = opus_decoder_create(sample_rate, channel_count, &error);
     if (error < 0)
         throw std::runtime_error(std::string("Failed to create AudioDecoder: ") + opus_strerror(error));

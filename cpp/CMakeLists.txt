@@ -38,7 +38,16 @@ endforeach()
 find_package(OpenCV REQUIRED)
 
 find_package(libsoundio CONFIG REQUIRED)
-find_package(Opus CONFIG REQUIRED)
+
+# Opus from vcpkg produced some illegal instruction errors, so replacing it by source built opus.
+set(OPUS_DIR ${PROJECT_SOURCE_DIR}/opus-1.3.1-no-avx)
+if(CMAKE_SIZEOF_VOID_P GREATER 4)
+	set(OPUS_BUILD_DIR ${OPUS_DIR}/x64)
+else()
+	set(OPUS_BUILD_DIR ${OPUS_DIR}/x86)
+endif()
+
+message(${OPUS_BUILD_DIR})
 
 # The directory for general source files.
 add_subdirectory(src)

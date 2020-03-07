@@ -315,7 +315,6 @@ void send_video_frames(const int session_id,
     TrvlEncoder depth_encoder{width * height, CHANGE_THRESHOLD, INVALID_THRESHOLD};
 
     const float color_camera_x{calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].translation[0]};
-    std::cout << "color_camera_x: " << color_camera_x << std::endl;
 
     auto shadow_remover{ShadowRemover{PointCloud::createUnitDepthPointCloud(calibration), color_camera_x}};
 
@@ -365,9 +364,6 @@ void send_video_frames(const int session_id,
 
         const bool keyframe{frame_id_diff > 5};
         
-        std::cout << "depth_image width: " << depth_image.get_width_pixels() << std::endl;
-        std::cout << "depth_image stride: " << depth_image.get_stride_bytes() << std::endl;
-
         auto shadow_removal_start{TimePoint::now()};
         shadow_remover.remove({reinterpret_cast<int16_t*>(depth_image.get_buffer()),
                                gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())});

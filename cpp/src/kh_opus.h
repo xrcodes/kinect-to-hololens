@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include <gsl/gsl>
-#include <opus/opus.h>
+#include <opus.h>
 
 namespace kh
 {

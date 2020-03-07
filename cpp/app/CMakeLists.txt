@@ -4,6 +4,7 @@ add_executable(KinectReader
 )
 target_include_directories(KinectReader PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectReader
   ${OpenCV_LIBS}
@@ -30,6 +31,7 @@ add_executable(KinectSender
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectSender
   "${AZURE_KINECT_LIB}/k4a.lib"
@@ -55,6 +57,7 @@ add_executable(KinectReceiver
 )
 target_include_directories(KinectReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectReceiver
   ${OpenCV_LIBS}
@@ -70,6 +73,7 @@ add_executable(KinectListener
 )
 target_include_directories(KinectListener PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectListener
   KinectToHololensNative
@@ -84,6 +88,7 @@ add_executable(KinectAudioSender
 )
 target_include_directories(KinectAudioSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectAudioSender
   KinectToHololensNative
@@ -98,6 +103,7 @@ add_executable(KinectAudioReceiver
 )
 target_include_directories(KinectAudioReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
+  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectAudioReceiver
   KinectToHololensNative

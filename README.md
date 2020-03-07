@@ -13,15 +13,22 @@ For installing the HoloLens application, see https://docs.microsoft.com/en-us/ho
 
 # Build Instructions
 1. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens
-3. Using vcpkg, install these libraries: asio, ffmpeg, libvpx, ms-gsl, opencv, readerwriterqueue, and opus.
+2. Using vcpkg, install these libraries: asio, ffmpeg, libvpx, ms-gsl, opencv, readerwriterqueue, and opus.
 ```powershell
 .\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows libvpx:x86-windows libvpx:x64-windows ms-gsl:x86-windows ms-gsl:x64-windows opencv:x86-windows opencv:x64-windows readerwriterqueue:x86-windows readerwriterqueue:x64-windows opus:x86-windows opus:x64-windows
 ```
-4. Install Kinect for Azure Kinect Sensor SDK 1.3.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download).
+3. Install Kinect for Azure Kinect Sensor SDK 1.3.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download).
 - Not through vcpkg since, currently, vcpkg does not support azure-kinect-sensor-sdk as a static library (i.e. x64-windows-static).
-5. Run run-cmake.ps1 in /cpp to build Visual Studio solutions.
-6. Run build-plugin.ps1 to build a Unity3D plugin and copy it into the Unity3D project in /unity/KinectToHoloLens.
-7. Build executable files with the Visual Studio solution in /cpp/build/x64 and the Unity3D project.
+4. Run run-cmake.ps1 in /cpp to build Visual Studio solutions.
+5. Run build-plugin.ps1 to build a Unity3D plugin and copy it into the Unity3D project in /unity/KinectToHoloLens.
+6. Build executable files with the Visual Studio solution in /cpp/build/x64 and the Unity3D project.
+
+## Special Instructions for Opus
+Since Opus decides whether to have avx instructions in the library based on the computer that builds the library, with most modern PCs, there will be avx instructions inside opus.
+However, HoloLens does not have avx instructions and this leads the Unity app to crash in HoloLens leaving an "illegal instruction" error.
+To fix this, Opus should be built from its source code.
+Since automation would become very hectic, currently, while I use CMake to build Opus, I just switch the /arch flag from /arch:AVX to /arch:SSE2 (HoloLens has SSE2) before building the solution.
+While this may cause some performance loss, since Opus does not require that much computation for a PC, I will just use the SSE2 version also for both x64, which is for PCs, and x86, which is for HoloLens.
 
 # Examples
 ## KinectReader.exe

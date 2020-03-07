@@ -243,7 +243,8 @@ public class KinectReceiver
             // The operations for XOR FEC packets should happen before the frame packets
             // so that frame packet can be created with XOR FEC packets when a missing
             // frame packet is detected.
-            while (fecPacketDataQueue.TryDequeue(out FecSenderPacketData fecSenderPacketData))
+            FecSenderPacketData fecSenderPacketData;
+            while (fecPacketDataQueue.TryDequeue(out fecSenderPacketData))
             {
                 if (fecSenderPacketData.frameId <= kinectReceiver.lastVideoFrameId)
                     continue;
@@ -256,7 +257,8 @@ public class KinectReceiver
                 fecPacketCollections[fecSenderPacketData.frameId][fecSenderPacketData.packetIndex] = fecSenderPacketData;
             }
 
-            while (videoPacketDataQueue.TryDequeue(out VideoSenderPacketData videoSenderPacketData))
+            VideoSenderPacketData videoSenderPacketData;
+            while (videoPacketDataQueue.TryDequeue(out videoSenderPacketData))
             {
                 if (videoSenderPacketData.frameId <= kinectReceiver.lastVideoFrameId)
                     continue;
@@ -432,9 +434,12 @@ public class KinectReceiver
                         ConcurrentQueue<AudioSenderPacketData> audioPacketDataQueue)
         {
             var audioPacketDataSet = new List<AudioSenderPacketData>();
-            while (audioPacketDataQueue.TryDequeue(out AudioSenderPacketData audioPacketData))
             {
-                audioPacketDataSet.Add(audioPacketData);
+                AudioSenderPacketData audioPacketData;
+                while (audioPacketDataQueue.TryDequeue(out audioPacketData))
+                {
+                    audioPacketDataSet.Add(audioPacketData);
+                }
             }
 
             audioPacketDataSet.Sort((x, y) => x.frameId.CompareTo(y.frameId));
@@ -459,14 +464,17 @@ public class KinectReceiver
 
     private void UpdateTextureGroup()
     {
-        while (videoMessageQueue.TryDequeue(out Tuple<int, VideoSenderMessageData> frameMessagePair))
         {
-            // C# Dictionary throws an error when you add an element with
-            // a key that is already taken.
-            if (videoMessages.ContainsKey(frameMessagePair.Item1))
-                continue;
+            Tuple<int, VideoSenderMessageData> frameMessagePair;
+            while (videoMessageQueue.TryDequeue(out frameMessagePair))
+            {
+                // C# Dictionary throws an error when you add an element with
+                // a key that is already taken.
+                if (videoMessages.ContainsKey(frameMessagePair.Item1))
+                    continue;
 
-            videoMessages.Add(frameMessagePair.Item1, frameMessagePair.Item2);
+                videoMessages.Add(frameMessagePair.Item1, frameMessagePair.Item2);
+            }
         }
 
         if (videoMessages.Count == 0)

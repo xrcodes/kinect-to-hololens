@@ -17,9 +17,11 @@ set(SOURCE_FILES
 add_library(KinectToHololensUnity SHARED
   ${SOURCE_FILES}
 )
+target_include_directories(KinectToHololensUnity PRIVATE
+  "${OPUS_DIR}/include"
+)
 target_link_libraries(KinectToHololensUnity
   KinectToHololens
-  Opus::opus
 )
 set_target_properties(KinectToHololensUnity PROPERTIES
   CXX_STANDARD 17
