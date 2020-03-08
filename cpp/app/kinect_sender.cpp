@@ -56,12 +56,13 @@ public:
 
     void remove(gsl::span<int16_t> depth_pixels)
     {
+        constexpr float AZURE_KINECT_MAX_DISTANCE{3860.0f};
         const int width{unit_depth_point_cloud_.width};
         const int height{unit_depth_point_cloud_.height};
         for (gsl::index j{0}; j < height; ++j) {
 
             // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
-            std::vector<float> z_max(width, 3860.0f);
+            std::vector<float> z_max(width, AZURE_KINECT_MAX_DISTANCE);
             for (gsl::index i{width - 1}; i >= 0; --i) {
                 // p stands for point.
                 const gsl::index p_index{i + j * width};
@@ -84,7 +85,6 @@ public:
                 for (gsl::index ii{i}; ii >= 0; --ii) {
                     //gsl::index pp_index{ii + j * width};
                     //auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
-
                     //const float xx{pp.x};
                     //const float xx{unit_depth_point_cloud_.points[pp_index].xyz.x};
                     const float xx{unit_depth_point_cloud_.points[ii + j * width].xyz.x};
@@ -116,6 +116,9 @@ struct ReceiverState
 struct HandleReceiverMessageSummary
 {
     TimePoint start_time{TimePoint::now()};
+    float decoder_time_ms_sum{0.0f};
+    float frame_interval_ms_sum{0.0f};
+    float round_trip_ms_sum{0.0f};
     int received_report_count{0};
 };
 
@@ -147,12 +150,9 @@ struct HandleReceiverMessageTask
                 receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
 
                 const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
-
-                //std::cout << "Receiver Report - frame id: " << report_receiver_packet_data.frame_id << ", "
-                //          << "decoding: " << report_receiver_packet_data.decoder_time_ms << " ms, "
-                //          << "between-frame: " << report_receiver_packet_data.frame_time_ms << " ms, "
-                //          << "round trip: " << round_trip_time.ms() << " ms\n";
-
+                summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
+                summary.frame_interval_ms_sum += report_receiver_packet_data.frame_time_ms;
+                summary.round_trip_ms_sum += round_trip_time.ms();
                 ++summary.received_report_count;
             } else if (message_type == ReceiverPacketType::Request) {
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
@@ -203,9 +203,10 @@ struct HandleReceiverMessageTask
 
         const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
         if (summary_duration.sec() > 10.0f) {
-            std::cout << "Receiver reported "
-                << summary.received_report_count / summary_duration.sec()
-                << " times per second\n";
+            std::cout << "Receiver Reported in "<< summary.received_report_count / summary_duration.sec() << " Hz\n"
+                      << "  Decoder Time Average: " << summary.decoder_time_ms_sum / summary.received_report_count << " ms\n"
+                      << "  Frame Interval Time Average: " << summary.frame_interval_ms_sum / summary.received_report_count << " ms\n"
+                      << "  Round Trip Time Average: " << summary.round_trip_ms_sum / summary.received_report_count << " ms\n";
             summary = HandleReceiverMessageSummary{};
         }
     }
@@ -216,21 +217,14 @@ struct AudioSenderState
     int frame_id{0};
 };
 
-struct SendAudioFrameSummary
-{
-    TimePoint start_time{TimePoint::now()};
-    int sent_byte_count{0};
-};
-
 struct SendAudioFrameTask
 {
     Audio audio;
     AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
     AudioEncoder audio_encoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false};
 
-    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
+    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm{};
     AudioSenderState audio_state;
-    SendAudioFrameSummary summary;
 
     SendAudioFrameTask()
     {
@@ -245,8 +239,8 @@ struct SendAudioFrameTask
     void run(int session_id, UdpSocket& udp_socket)
     {
         soundio_flush_events(audio.get());
-        char* read_ptr = soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer);
-        int fill_bytes = soundio_ring_buffer_fill_count(soundio_callback::ring_buffer);
+        char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
+        int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer)};
 
         const int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * pcm.size())};
         int cursor = 0;
@@ -261,18 +255,9 @@ struct SendAudioFrameTask
             udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame));
 
             cursor += BYTES_PER_FRAME;
-            summary.sent_byte_count += opus_frame.size();
         }
 
         soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer, cursor);
-
-        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
-        if (summary_duration.sec() > 10.0f) {
-            std::cout << "SendAudioFrameSummary - Bandwidth: "
-                << summary.sent_byte_count / (1024.0f * 1024.0f / 8.0f) / summary_duration.sec()
-                << " Mbps\n";
-            summary = SendAudioFrameSummary{};
-        }
     }
 };
 
@@ -301,8 +286,8 @@ void send_video_frames(const int session_id,
                        moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
                        ReceiverState& receiver_state)
 {
-    constexpr short CHANGE_THRESHOLD = 10;
-    constexpr int INVALID_THRESHOLD = 2;
+    constexpr short CHANGE_THRESHOLD{10};
+    constexpr int INVALID_THRESHOLD{2};
 
     const auto calibration{kinect_device.getCalibration()};
     k4a::transformation transformation{calibration};
@@ -406,16 +391,16 @@ void send_video_frames(const int session_id,
 
         const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
         if (summary_duration.sec() > 10.0f) {
-            std::cout << "Video Frame Summary - "
-                      << "id: " << video_state.frame_id << ", "
-                      << "FPS: " << summary.frame_count / summary_duration.sec() << ", "
-                      << "Bandwidth: " << summary.byte_count / summary_duration.sec() << ", "
-                      << "Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << ", "
-                      << "Shadow Removal: " << summary.shadow_removal_ms_sum / summary.frame_count << ", "
-                      << "Transformation: " << summary.transformation_ms_sum / summary.frame_count << ", "
-                      << "Yuv Conversion: " << summary.yuv_conversion_ms_sum / summary.frame_count << ", "
-                      << "Color Encoder: " << summary.color_encoder_ms_sum / summary.frame_count << ", "
-                      << "Depth Encoder " << summary.depth_encoder_ms_sum / summary.frame_count << "\n";
+            std::cout << "Video Frame Summary:\n"
+                      << "  Frame ID: " << video_state.frame_id << "\n"
+                      << "  FPS: " << summary.frame_count / summary_duration.sec() << "\n"
+                      << "  Bandwidth: " << summary.byte_count / summary_duration.sec() / (1024.0f * 1024.0f / 8.0f) << " Mbps\n"
+                      << "  Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << " ms\n"
+                      << "  Shadow Removal Time Average: " << summary.shadow_removal_ms_sum / summary.frame_count << " ms\n"
+                      << "  Transformation Time Average: " << summary.transformation_ms_sum / summary.frame_count << " ms\n"
+                      << "  Yuv Conversion Time Average: " << summary.yuv_conversion_ms_sum / summary.frame_count << " ms\n"
+                      << "  Color Encoder Time Average: " << summary.color_encoder_ms_sum / summary.frame_count << " ms\n"
+                      << "  Depth Encoder Time Average: " << summary.depth_encoder_ms_sum / summary.frame_count << " ms\n";
             summary = SendVideoFrameSummary{};
         }
         ++video_state.frame_id;

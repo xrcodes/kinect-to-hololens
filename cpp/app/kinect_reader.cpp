@@ -82,7 +82,7 @@ void display_frames()
                                                              gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())},
                                                             false)};
         auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
-        auto depth_mat{createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_pixels.data()), 
+        auto depth_mat{createCvMatFromKinectDepthImage(depth_pixels.data(), 
                                                        depth_image.get_width_pixels(),
                                                        depth_image.get_height_pixels())};
 

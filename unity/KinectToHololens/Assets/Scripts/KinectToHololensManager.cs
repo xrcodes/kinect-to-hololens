@@ -115,13 +115,11 @@ public class KinectToHololensManager : MonoBehaviour
 
     void OnAudioFilterRead(float[] data, int channels)
     {
-        kinectReceiver.RingBuffer.Read(data);
+        const float AMPLIFIER = 8;
 
-        float sum = 0.0f;
-        foreach (var d in data)
-        {
-            sum += d;
-        }
+        kinectReceiver.RingBuffer.Read(data);
+        for (int i = 0; i < data.Length; ++i)
+            data[i] = data[i] * AMPLIFIER;
     }
 
     private void OnTapped(TappedEventArgs args)

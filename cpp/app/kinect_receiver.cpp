@@ -229,7 +229,7 @@ struct ConsumeAudioPacketTask
     AudioOutStream default_speaker_stream{default_speaker};
 
     AudioDecoder audio_decoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT};
-    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm;
+    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm{};
 
     int last_audio_frame_id{-1};
 
@@ -368,18 +368,14 @@ void consume_video_message(bool& stopped,
             // Decompressing a RVL frame into depth pixels.
             depth_image = depth_decoder.decode(frame_message_pair_ptr->depth_encoder_frame, frame_message_pair_ptr->keyframe);
         }
-        const auto decoder_time{TimePoint::now() - decoder_start};
-        const auto frame_time{TimePoint::now() - frame_start};
-        frame_start = TimePoint::now();
 
         udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
-                                                            decoder_time.ms(),
-                                                            frame_time.ms()));
+                                                            decoder_start.elapsed_time().ms(),
+                                                            frame_start.elapsed_time().ms()));
+        frame_start = TimePoint::now();
 
         auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
-        auto depth_mat{createCvMatFromKinectDepthImage(reinterpret_cast<uint16_t*>(depth_image.data()),
-                                                       depth_width,
-                                                       depth_height)};
+        auto depth_mat{createCvMatFromKinectDepthImage(depth_image.data(), depth_width, depth_height)};
 
         // Rendering the depth pixels.
         cv::imshow("Color", color_mat);
@@ -455,19 +451,6 @@ void receive_frames(std::string ip_address, int port)
     moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue;
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
     int last_video_frame_id{-1};
-
-    //std::thread receive_sender_packets_thread([&] {
-    //    receive_sender_packets(sender_session_id, stopped, udp_socket,
-    //                               video_packet_data_queue, fec_packet_data_queue,
-    //                               audio_packet_data_queue);
-    //});
-    //std::thread reassemble_video_messages_thread([&] {
-    //    reassemble_video_messages(stopped, udp_socket, video_packet_data_queue,
-    //                              fec_packet_data_queue, video_message_queue, last_video_frame_id);
-    //});
-    //std::thread consume_audio_packets_thread([&] {
-    //    consume_audio_packets(stopped, audio_packet_data_queue);
-    //});
 
     std::thread task_thread([&] {
         ReceiveSenderPacketTask receive_sender_packet_task;

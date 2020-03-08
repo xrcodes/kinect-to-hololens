@@ -38,7 +38,7 @@ void UdpSocket::send(gsl::span<const std::byte> bytes)
     std::error_code error;
     socket_.send_to(asio::buffer(bytes.data(), bytes.size()), remote_endpoint_, 0, error);
 
-    if(error)
+    if(error && error != asio::error::would_block)
         throw UdpSocketRuntimeError(std::string("Failed to send bytes: ") + error.message(), error);
 }
 }

@@ -68,6 +68,10 @@ public class AudioReceiverManager : MonoBehaviour
 
     void OnAudioFilterRead(float[] data, int channels)
     {
+        const float AMPLIFIER = 4;
+
         ringBuffer.Read(data);
+        for (int i = 0; i < data.Length; ++i)
+            data[i] = data[i] * AMPLIFIER;
     }
 }
