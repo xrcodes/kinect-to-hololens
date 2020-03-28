@@ -55,6 +55,7 @@ add_executable(KinectReceiver
   kinect_receiver.cpp
   helper/opencv_helper.h
   helper/soundio_helper.h
+  receiver_modules.h
 )
 target_include_directories(KinectReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
