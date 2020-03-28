@@ -5,55 +5,71 @@
 #include <thread>
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
-#include "helper/opencv_helper.h"
-#include "kh_vp8.h"
+#include "kh_opus.h"
 #include "kh_trvl.h"
-#include "native/kh_udp_socket.h"
+#include "kh_vp8.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
+#include "native/kh_udp_socket.h"
+#include "helper/opencv_helper.h"
 #include "helper/soundio_helper.h"
-#include "kh_opus.h"
 
 namespace kh
 {
-struct ReceiveSenderPacketTask
+class SenderPacketReceiver
 {
-    void run(int sender_id,
-             UdpSocket& udp_socket,
-             moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
-             moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-             moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
+public:
+    SenderPacketReceiver()
+        : video_packet_data_queue_{}, fec_packet_data_queue_{}, audio_packet_data_queue_{}
+    {
+    }
+
+    void receive(int sender_id, UdpSocket& udp_socket)
     {
         while (auto packet_bytes{udp_socket.receive()}) {
             const int session_id{get_session_id_from_sender_packet_bytes(*packet_bytes)};
-            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet_bytes)};
 
             if (session_id != sender_id)
                 continue;
 
-            if (packet_type == SenderPacketType::Video) {
-                video_packet_data_queue.enqueue(parse_video_sender_packet_bytes(*packet_bytes));
-            } else if (packet_type == SenderPacketType::Fec) {
-                fec_packet_data_queue.enqueue(parse_fec_sender_packet_bytes(*packet_bytes));
-            } else if (packet_type == SenderPacketType::Audio) {
-                audio_packet_data_queue.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
+            switch (get_packet_type_from_sender_packet_bytes(*packet_bytes))
+            {
+            case SenderPacketType::Video:
+                video_packet_data_queue_.enqueue(parse_video_sender_packet_bytes(*packet_bytes));
+                break;
+            case SenderPacketType::Fec:
+                fec_packet_data_queue_.enqueue(parse_fec_sender_packet_bytes(*packet_bytes));
+                break;
+            case SenderPacketType::Audio:
+                audio_packet_data_queue_.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
+                break;
             }
         }
     }
+
+    moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue() { return video_packet_data_queue_; }
+    moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue() { return fec_packet_data_queue_; }
+    moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue() { return audio_packet_data_queue_; }
+
+private:
+    moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue_;
+    moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue_;
+    moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue_;
 };
 
-struct ReassembleVideoMessageTask
+class VideoMessageReassembler
 {
-    static constexpr int FEC_MAX_GROUP_SIZE{5};
+public:
+    static constexpr int FEC_GROUP_SIZE{5};
 
     std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections;
     std::unordered_map<int, std::vector<std::optional<FecSenderPacketData>>> fec_packet_collections;
+    moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
 
-    void run(UdpSocket& udp_socket,
-             moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
-             moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-             moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue,
-             int& last_video_frame_id)
+    void reassemble(UdpSocket& udp_socket,
+                    moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
+                    moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
+                    int& last_video_frame_id)
     {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
@@ -109,7 +125,7 @@ struct ReassembleVideoMessageTask
                                 if (i == j)
                                     continue;
 
-                                if ((i / FEC_MAX_GROUP_SIZE) == (j / FEC_MAX_GROUP_SIZE)) {
+                                if ((i / FEC_GROUP_SIZE) == (j / FEC_GROUP_SIZE)) {
                                     found = true;
                                     break;
                                 }
@@ -123,7 +139,7 @@ struct ReassembleVideoMessageTask
 
                         for (int fec_packet_index : fec_packet_indices) {
                             // Try getting the XOR FEC packet for correction.
-                            const int xor_packet_index{fec_packet_index / FEC_MAX_GROUP_SIZE};
+                            const int xor_packet_index{fec_packet_index / FEC_GROUP_SIZE};
 
                             if (fec_packet_collections.find(missing_frame_id) == fec_packet_collections.end()) {
                                 fec_failed_packet_indices.push_back(fec_packet_index);
@@ -145,8 +161,8 @@ struct ReassembleVideoMessageTask
                             fec_video_packet_data.packet_count = video_sender_packet_data.packet_count;
                             fec_video_packet_data.message_data = fec_packet_data->bytes;
 
-                            const int begin_frame_packet_index{xor_packet_index * FEC_MAX_GROUP_SIZE};
-                            const int end_frame_packet_index{std::min<int>(begin_frame_packet_index + FEC_MAX_GROUP_SIZE,
+                            const int begin_frame_packet_index{xor_packet_index * FEC_GROUP_SIZE};
+                            const int end_frame_packet_index{std::min<int>(begin_frame_packet_index + FEC_GROUP_SIZE,
                                                                            collection_pair.second.size())};
                             // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
                             for (gsl::index i = begin_frame_packet_index; i < end_frame_packet_index; ++i) {
@@ -259,6 +275,8 @@ struct ConsumeAudioPacketTask
 
     void run(moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
     {
+        constexpr float AMPLIFIER{8.0f};
+        
         soundio_flush_events(audio.get());
 
         std::vector<AudioSenderPacketData> audio_packet_data_set;
@@ -296,6 +314,9 @@ struct ConsumeAudioPacketTask
             if (frame_size < 0) {
                 throw std::runtime_error(std::string("Failed to decode audio: ") + opus_strerror(frame_size));
             }
+
+            for (gsl::index i{0}; i < pcm.size(); ++i)
+                pcm[i] *= AMPLIFIER;
 
             memcpy(write_ptr + write_cursor, pcm.data(), FRAME_BYTE_SIZE);
 
@@ -446,28 +467,23 @@ void receive_frames(std::string ip_address, int port)
     }
 
     bool stopped{false};
-    moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue;
-    moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue;
-    moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue;
-    moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
     int last_video_frame_id{-1};
 
+    SenderPacketReceiver sender_packet_receiver;
+    VideoMessageReassembler video_message_reassembler;
+    ConsumeAudioPacketTask consume_audio_packet_task;
+
     std::thread task_thread([&] {
-        ReceiveSenderPacketTask receive_sender_packet_task;
-        ReassembleVideoMessageTask reassemble_video_message_task;
-        ConsumeAudioPacketTask consume_audio_packet_task;
         while (!stopped) {
-            receive_sender_packet_task.run(sender_session_id, udp_socket,
-                                           video_packet_data_queue, fec_packet_data_queue,
-                                           audio_packet_data_queue);
-            reassemble_video_message_task.run(udp_socket, video_packet_data_queue,
-                                              fec_packet_data_queue, video_message_queue,
-                                              last_video_frame_id);
-            consume_audio_packet_task.run(audio_packet_data_queue);
+            sender_packet_receiver.receive(sender_session_id, udp_socket);
+            video_message_reassembler.reassemble(udp_socket, sender_packet_receiver.video_packet_data_queue(),
+                                                 sender_packet_receiver.fec_packet_data_queue(),
+                                                 last_video_frame_id);
+            consume_audio_packet_task.run(sender_packet_receiver.audio_packet_data_queue());
         }
     });
 
-    consume_video_message(stopped, depth_width, depth_height, udp_socket, video_message_queue, last_video_frame_id);
+    consume_video_message(stopped, depth_width, depth_height, udp_socket, video_message_reassembler.video_message_queue, last_video_frame_id);
     stopped = true;
 
     task_thread.join();

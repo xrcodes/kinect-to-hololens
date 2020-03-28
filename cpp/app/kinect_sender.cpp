@@ -3,108 +3,19 @@
 #include <random>
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
-#include "helper/kinect_helper.h"
-#include "native/kh_udp_socket.h"
 #include "kh_trvl.h"
 #include "kh_vp8.h"
+#include "kh_opus.h"
+#include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
+#include "helper/kinect_helper.h"
 #include "helper/soundio_helper.h"
-#include "kh_opus.h"
+#include "helper/shadow_remover.h"
 
 namespace kh
 {
 using Bytes = std::vector<std::byte>;
-
-struct PointCloud
-{
-public:
-    static PointCloud createUnitDepthPointCloud(const k4a::calibration& calibration)
-    {
-        PointCloud point_cloud;
-        point_cloud.width = calibration.depth_camera_calibration.resolution_width;
-        point_cloud.height = calibration.depth_camera_calibration.resolution_height;
-
-        point_cloud.points.resize(point_cloud.width * point_cloud.height);
-        
-        for (gsl::index j{0}; j < point_cloud.height; ++j) {
-            for (gsl::index i{0}; i < point_cloud.width; ++i) {
-                if (!calibration.convert_2d_to_3d(k4a_float2_t{gsl::narrow_cast<float>(i), gsl::narrow_cast<float>(j)},
-                                                  1.0f,
-                                                  K4A_CALIBRATION_TYPE_DEPTH,
-                                                  K4A_CALIBRATION_TYPE_DEPTH,
-                                                  &point_cloud.points[i + j * point_cloud.width])) {
-                    throw std::runtime_error("Failed in PointCloud::createUnitDepthPointCloud");
-                 }
-            }
-        }
-        return point_cloud;
-    }
-
-    int width;
-    int height;
-    std::vector<k4a_float3_t> points;
-};
-
-class ShadowRemover
-{
-public:
-    ShadowRemover(PointCloud&& unit_depth_point_cloud, float color_camera_x)
-        : unit_depth_point_cloud_{unit_depth_point_cloud}, color_camera_x_{color_camera_x}
-    {
-    }
-
-    void remove(gsl::span<int16_t> depth_pixels)
-    {
-        constexpr float AZURE_KINECT_MAX_DISTANCE{3860.0f};
-        const int width{unit_depth_point_cloud_.width};
-        const int height{unit_depth_point_cloud_.height};
-        for (gsl::index j{0}; j < height; ++j) {
-
-            // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
-            std::vector<float> z_max(width, AZURE_KINECT_MAX_DISTANCE);
-            for (gsl::index i{width - 1}; i >= 0; --i) {
-                // p stands for point.
-                const gsl::index p_index{i + j * width};
-                const int16_t z{depth_pixels[p_index]};
-
-                // Shadow removal has nothing to do with already invalid pixels.
-                if (depth_pixels[p_index] == 0)
-                    continue;
-
-                // Zero and skip the pixel if it is covered by another pixel.
-                if (depth_pixels[p_index] > z_max[i]) {
-                    depth_pixels[p_index] = 0;
-                    continue;
-                }
-
-                //auto p{unit_depth_point_cloud_.points[p_index].xyz};
-                //const float x{p.x};
-                const float x{unit_depth_point_cloud_.points[p_index].xyz.x};
-
-                for (gsl::index ii{i}; ii >= 0; --ii) {
-                    //gsl::index pp_index{ii + j * width};
-                    //auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
-                    //const float xx{pp.x};
-                    //const float xx{unit_depth_point_cloud_.points[pp_index].xyz.x};
-                    const float xx{unit_depth_point_cloud_.points[ii + j * width].xyz.x};
-                    const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
-
-                    if (zz >= z_max[ii])
-                        break;
-
-                    // If zz covers new area, update z_max that indicates the area covered
-                    // and continue to the next pixels more on the right side.
-                    z_max[ii] = zz;
-                }
-            }
-        }
-    }
-
-private:
-    PointCloud unit_depth_point_cloud_;
-    float color_camera_x_;
-};
 
 struct ReceiverState
 {
@@ -129,40 +40,35 @@ struct HandleReceiverMessageTask
     std::unordered_map<int, TimePoint> video_frame_send_times;
     HandleReceiverMessageSummary summary;
 
-    HandleReceiverMessageTask()
-    {
-    }
-
     void run(const int session_id,
-             UdpSocket& sender_socket,
+             UdpSocket& udp_socket,
              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
              ReceiverState& receiver_state)
     {
-        for (;;) {
-            std::optional<std::vector<std::byte>> received_packet{sender_socket.receive()};
-            if (!received_packet)
-                break;
+        while (auto received_packet{udp_socket.receive()}) {
+            switch (get_packet_type_from_receiver_packet_bytes(*received_packet)) {
+            case ReceiverPacketType::Report: {
+                    const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
+                    receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
 
-            const auto message_type{get_packet_type_from_receiver_packet_bytes(*received_packet)};
-
-            if (message_type == ReceiverPacketType::Report) {
-                const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
-                receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
-
-                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
-                summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
-                summary.frame_interval_ms_sum += report_receiver_packet_data.frame_time_ms;
-                summary.round_trip_ms_sum += round_trip_time.ms();
-                ++summary.received_report_count;
-            } else if (message_type == ReceiverPacketType::Request) {
-                const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
-
-                for (int packet_index : request_receiver_packet_data.packet_indices) {
-                    if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
-                        continue;
-
-                    sender_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index]);
+                    const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
+                    summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
+                    summary.frame_interval_ms_sum += report_receiver_packet_data.frame_time_ms;
+                    summary.round_trip_ms_sum += round_trip_time.ms();
+                    ++summary.received_report_count;
                 }
+                break;
+            case ReceiverPacketType::Request: {
+                    const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
+
+                    for (int packet_index : request_receiver_packet_data.packet_indices) {
+                        if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
+                            continue;
+
+                        udp_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index]);
+                    }
+                }
+                break;
             }
         }
 
@@ -173,12 +79,12 @@ struct HandleReceiverMessageTask
             video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
             for (auto& packet : video_packet_set.second) {
                 std::error_code error;
-                sender_socket.send(packet);
+                udp_socket.send(packet);
             }
 
             for (auto& fec_packet_bytes : fec_packet_bytes_set) {
                 std::error_code error;
-                sender_socket.send(fec_packet_bytes);
+                udp_socket.send(fec_packet_bytes);
             }
             video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
         }
@@ -264,6 +170,7 @@ struct SendAudioFrameTask
 struct VideoSenderState
 {
     int frame_id{0};
+    TimePoint last_frame_time_point{TimePoint::now()};
 };
 
 struct SendVideoFrameSummary
@@ -284,7 +191,8 @@ void send_video_frames(const int session_id,
                        UdpSocket& udp_socket,
                        KinectDevice& kinect_device,
                        moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-                       ReceiverState& receiver_state)
+                       ReceiverState& receiver_state,
+                       TimePoint sender_start_time)
 {
     constexpr short CHANGE_THRESHOLD{10};
     constexpr int INVALID_THRESHOLD{2};
@@ -307,7 +215,7 @@ void send_video_frames(const int session_id,
     VideoSenderState video_state;
 
     // Variables for profiling the sender.
-    auto last_device_time_stamp{std::chrono::microseconds::zero()};
+    //auto last_device_time_stamp{std::chrono::microseconds::zero()};
 
     SendVideoFrameSummary summary;
     while (!stopped) {
@@ -337,15 +245,15 @@ void send_video_frames(const int session_id,
             continue;
         }
 
-        const auto device_time_stamp{color_image.get_device_timestamp()};
-        const auto device_time_diff{device_time_stamp - last_device_time_stamp};
-        const int device_frame_diff{gsl::narrow_cast<int>(device_time_diff.count() / 33000.0f + 0.5f)};
+        constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
+        const auto frame_time_point{TimePoint::now()};
+        const auto frame_time_diff{frame_time_point - video_state.last_frame_time_point};
         const int frame_id_diff{video_state.frame_id - receiver_state.video_frame_id};
-
-        if (device_frame_diff < static_cast<int>(std::pow(2, frame_id_diff - 3)))
+        
+        if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
             continue;
 
-        last_device_time_stamp = device_time_stamp;
+        video_state.last_frame_time_point = frame_time_point;
 
         const bool keyframe{frame_id_diff > 5};
         
@@ -378,7 +286,7 @@ void send_video_frames(const int session_id,
                                                             keyframe)};
         summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
-        const float frame_time_stamp{device_time_stamp.count() / 1000.0f};
+        const float frame_time_stamp{(frame_time_point - sender_start_time).ms()};
         const auto message_bytes{create_video_sender_message_bytes(frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
         auto packet_bytes_set{split_video_sender_message_bytes(session_id, video_state.frame_id, message_bytes)};
         video_packet_queue.enqueue({video_state.frame_id, std::move(packet_bytes_set)});
@@ -431,8 +339,8 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
 
     bool stopped{false};
     moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>> video_packet_queue;
-    
     ReceiverState receiver_state;
+    TimePoint sender_start_time{TimePoint::now()};
     std::thread task_thread([&] {
         try {
             HandleReceiverMessageTask handle_receiver_message_task;
@@ -448,7 +356,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     });
 
     try {
-        send_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state);
+        send_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state, sender_start_time);
     } catch (UdpSocketRuntimeError e) {
         std::cout << "UdpSocketRuntimeError from send_video_frames(): \n  " << e.what() << "\n";
     }
@@ -488,7 +396,7 @@ void main()
 
 int main()
 {
-    //std::ios_base::sync_with_stdio(false);
+    std::ios_base::sync_with_stdio(false);
     kh::main();
     return 0;
 }

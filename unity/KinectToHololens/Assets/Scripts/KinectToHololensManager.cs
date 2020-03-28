@@ -115,7 +115,7 @@ public class KinectToHololensManager : MonoBehaviour
 
     void OnAudioFilterRead(float[] data, int channels)
     {
-        const float AMPLIFIER = 8;
+        const float AMPLIFIER = 8.0f;
 
         kinectReceiver.RingBuffer.Read(data);
         for (int i = 0; i < data.Length; ++i)

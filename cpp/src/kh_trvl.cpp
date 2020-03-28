@@ -50,7 +50,7 @@ std::vector<std::byte> TrvlEncoder::encode(gsl::span<const int16_t> depth_buffer
 {
     const int frame_size{gsl::narrow_cast<int>(pixels_.size())};
     if (keyframe) {
-        for (gsl::index i = 0; i < frame_size; ++i) {
+        for (gsl::index i{0}; i < frame_size; ++i) {
             pixels_[i].value = depth_buffer[i];
             // equivalent to depth_buffer[i] == 0 ? 1: 0
             pixels_[i].invalid_count = static_cast<int>(depth_buffer[i] == 0);
@@ -60,7 +60,7 @@ std::vector<std::byte> TrvlEncoder::encode(gsl::span<const int16_t> depth_buffer
     }
 
     std::vector<short> pixel_diffs(frame_size);
-    for (gsl::index i = 0; i < frame_size; ++i) {
+    for (gsl::index i{0}; i < frame_size; ++i) {
         pixel_diffs[i] = pixels_[i].value;
         update_pixel(pixels_[i], depth_buffer[i], change_threshold_, invalid_threshold_);
         pixel_diffs[i] = pixels_[i].value - pixel_diffs[i];
@@ -83,7 +83,7 @@ std::vector<int16_t> TrvlDecoder::decode(gsl::span<const std::byte> trvl_frame, 
     }
 
     const auto pixel_diffs{rvl::decompress(trvl_frame, pixel_count)};
-    for (gsl::index i = 0; i < pixel_count; ++i)
+    for (gsl::index i{0}; i < pixel_count; ++i)
         prev_pixel_values_[i] += pixel_diffs[i];
 
     return prev_pixel_values_;

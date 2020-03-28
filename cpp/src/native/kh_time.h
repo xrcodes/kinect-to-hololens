@@ -54,7 +54,7 @@ public:
         return TimeDuration{TimePoint::now() - time_point_};
     }
 
-    TimeDuration operator-(const TimePoint& other)
+    TimeDuration operator-(const TimePoint& other) const
     {
         return TimeDuration{time_point_ - other.time_point_};
     }

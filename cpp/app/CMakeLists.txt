@@ -28,6 +28,7 @@ add_executable(KinectSender
   kinect_sender.cpp
   helper/kinect_helper.h
   helper/soundio_helper.h
+  helper/shadow_remover.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
