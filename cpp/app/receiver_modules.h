@@ -58,7 +58,7 @@ public:
     void reassemble(UdpSocket& udp_socket,
                     moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
                     moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-                    int& last_video_frame_id)
+                    int last_video_frame_id)
     {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
