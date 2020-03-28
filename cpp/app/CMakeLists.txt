@@ -83,33 +83,3 @@ target_link_libraries(KinectListener
 set_target_properties(KinectListener PROPERTIES
   CXX_STANDARD 17
 )
-
-add_executable(KinectAudioSender
-  kinect_audio_sender.cpp
-  helper/soundio_helper.h
-)
-target_include_directories(KinectAudioSender PRIVATE
-  "${AZURE_KINECT_DIR}/sdk/include"
-  "${OPUS_DIR}/include"
-)
-target_link_libraries(KinectAudioSender
-  KinectToHololensNative
-)
-set_target_properties(KinectAudioSender PROPERTIES
-  CXX_STANDARD 17
-)
-
-add_executable(KinectAudioReceiver
-  kinect_audio_receiver.cpp
-  helper/soundio_helper.h
-)
-target_include_directories(KinectAudioReceiver PRIVATE
-  "${AZURE_KINECT_DIR}/sdk/include"
-  "${OPUS_DIR}/include"
-)
-target_link_libraries(KinectAudioReceiver
-  KinectToHololensNative
-)
-set_target_properties(KinectAudioReceiver PROPERTIES
-  CXX_STANDARD 17
-)
