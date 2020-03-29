@@ -13,6 +13,7 @@
 #include "sender/video_packet_sender.h"
 #include "sender/audio_packet_sender.h"
 #include "sender/kinect_device_manager.h"
+#include "sender/receiver_packet_receiver.h"
 
 namespace kh
 {
@@ -70,12 +71,16 @@ void start_session(const int port, const int session_id)
     ReceiverState receiver_state;
     std::thread task_thread([&] {
         try {
+            ReceiverPacketReceiver receiver_packet_receiver;
+
             VideoPacketSender video_packet_sender{session_id};
             VideoPacketSenderSummary video_packet_sender_summary;
 
             AudioPacketSender audio_packet_sender{session_id};
             while (!stopped) {
-                video_packet_sender.send(udp_socket, video_packet_queue, receiver_state, video_packet_sender_summary);
+                receiver_packet_receiver.receive(udp_socket);
+                video_packet_sender.send(udp_socket, receiver_packet_receiver.report_packet_data_queue(),
+                                         receiver_packet_receiver.request_packet_data_queue(), video_packet_queue, receiver_state, video_packet_sender_summary);
                 audio_packet_sender.send(udp_socket);
 
                 const TimeDuration summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
