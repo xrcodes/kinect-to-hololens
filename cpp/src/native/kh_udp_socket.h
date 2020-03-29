@@ -9,6 +9,12 @@
 
 namespace kh
 {
+struct UdpSocketPacket
+{
+    std::vector<std::byte> bytes;
+    asio::ip::udp::endpoint endpoint;
+};
+
 class UdpSocketRuntimeError : public std::runtime_error
 {
 public:
@@ -27,7 +33,7 @@ class UdpSocket
 public:
     UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint);
     ~UdpSocket();
-    std::optional<std::vector<std::byte>> receive();
+    std::optional<UdpSocketPacket> receive();
     void send(gsl::span<const std::byte> bytes);
 
 private:

@@ -126,8 +126,8 @@ void receive_frames(std::string ip_address, int port)
         
         while (auto packet = udp_socket.receive()) {
             int cursor{0};
-            const int session_id{get_session_id_from_sender_packet_bytes(*packet)};
-            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(*packet)};
+            const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
+            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(packet->bytes)};
             if (packet_type != SenderPacketType::Init) {
                 std::cout << "A different kind of a packet was received before an init packet: " << static_cast<int>(packet_type) << "\n";
                 continue;
@@ -135,7 +135,7 @@ void receive_frames(std::string ip_address, int port)
 
             sender_session_id = session_id;
 
-            const auto init_sender_packet_data{parse_init_sender_packet_bytes(*packet)};
+            const auto init_sender_packet_data{parse_init_sender_packet_bytes(packet->bytes)};
             depth_width = init_sender_packet_data.width;
             depth_height = init_sender_packet_data.height;
 

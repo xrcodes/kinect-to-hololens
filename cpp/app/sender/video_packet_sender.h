@@ -34,9 +34,9 @@ public:
               VideoPacketSenderSummary& summary)
     {
         while (auto received_packet{udp_socket.receive()}) {
-            switch (get_packet_type_from_receiver_packet_bytes(*received_packet)) {
+            switch (get_packet_type_from_receiver_packet_bytes(received_packet->bytes)) {
             case ReceiverPacketType::Report: {
-                const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
+                const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(received_packet->bytes)};
                 receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
 
                 const auto round_trip_time{TimePoint::now() - video_frame_send_times_[receiver_state.video_frame_id]};
@@ -47,7 +47,7 @@ public:
             }
             break;
             case ReceiverPacketType::Request: {
-                const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
+                const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(received_packet->bytes)};
 
                 for (int packet_index : request_receiver_packet_data.packet_indices) {
                     if (video_packet_sets_.find(request_receiver_packet_data.frame_id) == video_packet_sets_.end())

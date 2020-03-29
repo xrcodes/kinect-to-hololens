@@ -16,22 +16,22 @@ public:
 
     void receive(int sender_id, UdpSocket& udp_socket)
     {
-        while (auto packet_bytes{udp_socket.receive()}) {
-            const int session_id{get_session_id_from_sender_packet_bytes(*packet_bytes)};
+        while (auto packet{udp_socket.receive()}) {
+            const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
 
             if (session_id != sender_id)
                 continue;
 
-            switch (get_packet_type_from_sender_packet_bytes(*packet_bytes))
+            switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {
             case SenderPacketType::Video:
-                video_packet_data_queue_.enqueue(parse_video_sender_packet_bytes(*packet_bytes));
+                video_packet_data_queue_.enqueue(parse_video_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Fec:
-                fec_packet_data_queue_.enqueue(parse_fec_sender_packet_bytes(*packet_bytes));
+                fec_packet_data_queue_.enqueue(parse_fec_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Audio:
-                audio_packet_data_queue_.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
+                audio_packet_data_queue_.enqueue(parse_audio_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Floor:
                 // Ignore
