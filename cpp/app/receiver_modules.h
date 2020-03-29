@@ -53,8 +53,8 @@ private:
 class VideoMessageReassembler
 {
 public:
-    VideoMessageReassembler()
-        : video_packet_collections_{}, fec_packet_collections_{}, video_message_queue_{}
+    VideoMessageReassembler(const asio::ip::udp::endpoint remote_endpoint)
+        : remote_endpoint_{remote_endpoint}, video_packet_collections_ {}, fec_packet_collections_{}, video_message_queue_{}
     {
     }
 
@@ -175,7 +175,7 @@ public:
                         //    printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
                         //}
 
-                        udp_socket.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices));
+                        udp_socket.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices), remote_endpoint_);
                     }
                 }
                 /////////////////////////////////
@@ -233,6 +233,7 @@ public:
 
 private:
     static constexpr int FEC_GROUP_SIZE{5};
+    const asio::ip::udp::endpoint remote_endpoint_;
     std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections_;
     std::unordered_map<int, std::vector<std::optional<FecSenderPacketData>>> fec_packet_collections_;
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue_;

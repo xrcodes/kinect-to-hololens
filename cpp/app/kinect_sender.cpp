@@ -53,16 +53,16 @@ void start_session(const int port, const int session_id)
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
 
     std::vector<std::byte> ping_buffer(1);
-    asio::ip::udp::endpoint remote_endpoint;
+    asio::ip::udp::endpoint receiver_endpoint;
     std::error_code error;
-    socket.receive_from(asio::buffer(ping_buffer), remote_endpoint, 0, error);
+    socket.receive_from(asio::buffer(ping_buffer), receiver_endpoint, 0, error);
     if (error)
         throw std::runtime_error(std::string("Error receiving ping: ") + error.message());
 
-    std::cout << "Found a Receiver at " << remote_endpoint << "\n";
+    std::cout << "Found a Receiver at " << receiver_endpoint << "\n";
 
     // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    UdpSocket udp_socket{std::move(socket), remote_endpoint};
+    UdpSocket udp_socket{std::move(socket)};
 
     const TimePoint session_start_time{TimePoint::now()};
 
@@ -73,10 +73,10 @@ void start_session(const int port, const int session_id)
         try {
             ReceiverPacketReceiver receiver_packet_receiver;
 
-            VideoPacketSender video_packet_sender{session_id};
+            VideoPacketSender video_packet_sender{session_id, receiver_endpoint};
             VideoPacketSenderSummary video_packet_sender_summary;
 
-            AudioPacketSender audio_packet_sender{session_id};
+            AudioPacketSender audio_packet_sender{session_id, receiver_endpoint};
             while (!stopped) {
                 receiver_packet_receiver.receive(udp_socket);
                 video_packet_sender.send(udp_socket, receiver_packet_receiver.report_packet_data_queue(),
@@ -95,7 +95,7 @@ void start_session(const int port, const int session_id)
         stopped = true;
     });
 
-    KinectDeviceManager kinect_device_manager{session_id, std::move(kinect_device)};
+    KinectDeviceManager kinect_device_manager{session_id, receiver_endpoint, std::move(kinect_device)};
     KinectDeviceManagerSummary kinect_device_manager_summary;
     try {
         while (!stopped) {

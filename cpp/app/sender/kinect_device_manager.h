@@ -33,8 +33,8 @@ class KinectDeviceManager
 {
 public:
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    KinectDeviceManager(const int session_id, KinectDevice&& kinect_device)
-        : session_id_{session_id}, kinect_device_{std::move(kinect_device)}, calibration_{kinect_device_.getCalibration()}, transformation_{calibration_},
+    KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device)
+        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, kinect_device_{std::move(kinect_device)}, calibration_{kinect_device_.getCalibration()}, transformation_{calibration_},
         color_encoder_{calibration_.depth_camera_calibration.resolution_width,
                       calibration_.depth_camera_calibration.resolution_height},
         depth_encoder_{calibration_.depth_camera_calibration.resolution_width *
@@ -54,7 +54,7 @@ public:
     {
         if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
             const auto init_packet_bytes{create_init_sender_packet_bytes(session_id_, create_init_sender_packet_data(calibration_))};
-            udp_socket.send(init_packet_bytes);
+            udp_socket.send(init_packet_bytes, remote_endpoint_);
 
             Sleep(100);
         }
@@ -78,7 +78,7 @@ public:
         const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id_, floor_plane->Normal.X,
                                                                        floor_plane->Normal.Y, floor_plane->Normal.Z,
                                                                        floor_plane->C)};
-        udp_socket.send(floor_packet_bytes);
+        udp_socket.send(floor_packet_bytes, remote_endpoint_);
 
         constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
         const auto frame_time_point{TimePoint::now()};
@@ -138,6 +138,7 @@ private:
     static constexpr short CHANGE_THRESHOLD{10};
     static constexpr int INVALID_THRESHOLD{2};
     const int session_id_;
+    const asio::ip::udp::endpoint remote_endpoint_;
     KinectDevice kinect_device_;
     k4a::calibration calibration_;
     k4a::transformation transformation_;

@@ -15,6 +15,7 @@
 namespace kh
 {
 void consume_video_message(bool& stopped,
+                           const asio::ip::udp::endpoint remote_endpoint,
                            int depth_width,
                            int depth_height,
                            UdpSocket& udp_socket,
@@ -77,7 +78,7 @@ void consume_video_message(bool& stopped,
 
         udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
                                                             decoder_start.elapsed_time().ms(),
-                                                            frame_start.elapsed_time().ms()));
+                                                            frame_start.elapsed_time().ms()), remote_endpoint);
         frame_start = TimePoint::now();
 
         auto color_mat{create_cv_mat_from_yuv_image(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
@@ -107,7 +108,8 @@ void receive_frames(std::string ip_address, int port)
     asio::ip::udp::socket socket(io_context);
     socket.open(asio::ip::udp::v4());
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
-    UdpSocket udp_socket{std::move(socket), asio::ip::udp::endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)}};
+    asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)};
+    UdpSocket udp_socket{std::move(socket)};
 
     int sender_session_id;
     int depth_width;
@@ -117,7 +119,7 @@ void receive_frames(std::string ip_address, int port)
     int ping_count{0};
     for (;;) {
         bool initialized{false};
-        udp_socket.send(create_ping_receiver_packet_bytes());
+        udp_socket.send(create_ping_receiver_packet_bytes(), remote_endpoint);
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
@@ -154,7 +156,7 @@ void receive_frames(std::string ip_address, int port)
     bool stopped{false};
     int last_video_frame_id{-1};
 
-    VideoMessageReassembler video_message_reassembler;
+    VideoMessageReassembler video_message_reassembler{remote_endpoint};
 
     std::thread task_thread([&] {
         SenderPacketReceiver sender_packet_receiver;
@@ -169,7 +171,7 @@ void receive_frames(std::string ip_address, int port)
         }
     });
 
-    consume_video_message(stopped, depth_width, depth_height, udp_socket, video_message_reassembler.video_message_queue(), last_video_frame_id);
+    consume_video_message(stopped, remote_endpoint, depth_width, depth_height, udp_socket, video_message_reassembler.video_message_queue(), last_video_frame_id);
     stopped = true;
 
     task_thread.join();

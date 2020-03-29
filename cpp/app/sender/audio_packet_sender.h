@@ -7,8 +7,8 @@ namespace kh
 class AudioPacketSender
 {
 public:
-    AudioPacketSender(const int session_id)
-        : session_id_{session_id}, audio_ {}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
+    AudioPacketSender(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
+        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, audio_{}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
         audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false}, pcm_{}, audio_frame_id_{0}
     {
         constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
@@ -34,7 +34,7 @@ public:
             int opus_frame_size = audio_encoder_.encode(opus_frame.data(), pcm_.data(), KH_SAMPLES_PER_FRAME, gsl::narrow_cast<opus_int32>(opus_frame.size()));
             opus_frame.resize(opus_frame_size);
 
-            udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame));
+            udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame), remote_endpoint_);
 
             cursor += BYTES_PER_FRAME;
         }
@@ -44,6 +44,7 @@ public:
 
 private:
     const int session_id_;
+    const asio::ip::udp::endpoint remote_endpoint_;
 
     Audio audio_;
     AudioInStream kinect_microphone_stream_;

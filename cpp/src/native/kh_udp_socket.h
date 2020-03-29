@@ -31,13 +31,12 @@ private:
 class UdpSocket
 {
 public:
-    UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint);
+    UdpSocket(asio::ip::udp::socket&& socket);
     ~UdpSocket();
     std::optional<UdpSocketPacket> receive();
-    void send(gsl::span<const std::byte> bytes);
+    void send(gsl::span<const std::byte> bytes, asio::ip::udp::endpoint endpoint);
 
 private:
     asio::ip::udp::socket socket_;
-    asio::ip::udp::endpoint remote_endpoint_;
 };
 }

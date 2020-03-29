@@ -4,8 +4,8 @@
 
 namespace kh
 {
-UdpSocket::UdpSocket(asio::ip::udp::socket&& socket, asio::ip::udp::endpoint remote_endpoint)
-    : socket_{std::move(socket)}, remote_endpoint_{remote_endpoint}
+UdpSocket::UdpSocket(asio::ip::udp::socket&& socket)
+    : socket_{std::move(socket)}
 {
     socket_.non_blocking(true);
 }
@@ -33,10 +33,10 @@ std::optional<UdpSocketPacket> UdpSocket::receive()
     return UdpSocketPacket{bytes, endpoint};
 }
 
-void UdpSocket::send(gsl::span<const std::byte> bytes)
+void UdpSocket::send(gsl::span<const std::byte> bytes, asio::ip::udp::endpoint endpoint)
 {
     std::error_code error;
-    socket_.send_to(asio::buffer(bytes.data(), bytes.size()), remote_endpoint_, 0, error);
+    socket_.send_to(asio::buffer(bytes.data(), bytes.size()), endpoint, 0, error);
 
     if(error && error != asio::error::would_block)
         throw UdpSocketRuntimeError(std::string("Failed to send bytes: ") + error.message(), error);
