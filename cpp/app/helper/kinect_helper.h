@@ -1,15 +1,47 @@
 #include <optional>
 #include <k4a/k4a.hpp>
 
+namespace
+{
+k4a_device_configuration_t getDefaultKinectConfiguration()
+{
+    k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+    return configuration;
+}
+}
+
 namespace kh
 {
+class KinectFrame
+{
+public:
+    KinectFrame(k4a::image&& color_image, k4a::image&& depth_image)
+        : color_image_{color_image}, depth_image_{depth_image}
+    {
+    }
+
+    k4a::image& color_image() { return color_image_; }
+    k4a::image& depth_image() { return depth_image_; }
+
+private:
+    k4a::image color_image_;
+    k4a::image depth_image_;
+};
+
 // For having an interface combining devices and playbacks one day in the future...
 class KinectDevice
 {
 public:
-    KinectDevice(k4a_device_configuration_t configuration,
-                 std::chrono::milliseconds timeout)
+
+    KinectDevice(k4a_device_configuration_t configuration, std::chrono::milliseconds timeout)
         : device_{k4a::device::open(K4A_DEVICE_DEFAULT)}, configuration_{configuration}, timeout_{timeout}
+    {
+    }
+
+    KinectDevice() : KinectDevice(getDefaultKinectConfiguration(), std::chrono::milliseconds(1000))
     {
     }
 
@@ -24,13 +56,21 @@ public:
                                        configuration_.color_resolution);
     }
 
-    std::optional<k4a::capture> getCapture()
+    std::optional<KinectFrame> getFrame()
     {
         k4a::capture capture;
         if (!device_.get_capture(&capture, timeout_))
             return std::nullopt;
 
-        return capture;
+        auto color_image{capture.get_color_image()};
+        if (!color_image)
+            return std::nullopt;
+
+        auto depth_image{capture.get_depth_image()};
+        if (!depth_image)
+            return std::nullopt;
+
+        return KinectFrame{std::move(color_image), std::move(depth_image)};
     }
 
 private:

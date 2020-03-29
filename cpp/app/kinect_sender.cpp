@@ -16,7 +16,6 @@
 
 namespace kh
 {
-
 struct VideoReaderState
 {
     int frame_id{0};
@@ -78,21 +77,9 @@ void read_video_frames(const int session_id,
             Sleep(100);
         }
 
-        const auto capture{kinect_device.getCapture()};
-        if (!capture) {
-            std::cout << "no capture...\n";
-            continue;
-        }
-
-        const auto color_image{capture->get_color_image()};
-        if (!color_image) {
-            std::cout << "get_color_image() failed...\n";
-            continue;
-        }
-
-        auto depth_image{capture->get_depth_image()};
-        if (!depth_image) {
-            std::cout << "get_depth_image() failed...\n";
+        auto kinect_frame{kinect_device.getFrame()};
+        if (!kinect_frame) {
+            std::cout << "no kinect frame...\n";
             continue;
         }
 
@@ -109,12 +96,12 @@ void read_video_frames(const int session_id,
         const bool keyframe{frame_id_diff > 5};
         
         auto shadow_removal_start{TimePoint::now()};
-        shadow_remover.remove({reinterpret_cast<int16_t*>(depth_image.get_buffer()),
-                               gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())});
+        shadow_remover.remove({reinterpret_cast<int16_t*>(kinect_frame->depth_image().get_buffer()),
+                               gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image().get_size())});
         summary.shadow_removal_ms_sum += shadow_removal_start.elapsed_time().ms();
 
         auto transformation_start{TimePoint::now()};
-        const auto transformed_color_image{transformation.color_image_to_depth_camera(depth_image, color_image)};
+        const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image(), kinect_frame->color_image())};
         summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
         
         auto yuv_conversion_start{TimePoint::now()};
@@ -131,9 +118,8 @@ void read_video_frames(const int session_id,
 
         auto depth_encoder_start{TimePoint::now()};
         // Compress the depth pixels.
-        //const auto depth_encoder_frame{depth_encoder.encode(reinterpret_cast<const int16_t*>(depth_image.get_buffer()), keyframe)};
-        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const int16_t*>(depth_image.get_buffer()),
-                                                             gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())},
+        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const int16_t*>(kinect_frame->depth_image().get_buffer()),
+                                                             gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image().get_size())},
                                                             keyframe)};
         summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
@@ -195,9 +181,20 @@ void start(int port, int session_id, KinectDevice& kinect_device)
         try {
             VideoPacketSender video_packet_sender;
             AudioPacketSender audio_packet_sender;
+            
+            VideoPacketSenderSummary video_packet_sender_summary;
             while (!stopped) {
-                video_packet_sender.send(session_id, udp_socket, video_packet_queue, receiver_state);
+                video_packet_sender.send(session_id, udp_socket, video_packet_queue, receiver_state, video_packet_sender_summary);
                 audio_packet_sender.send(session_id, udp_socket);
+
+                const TimeDuration summary_duration{TimePoint::now() - video_packet_sender_summary.start_time};
+                if (summary_duration.sec() > 10.0f) {
+                    std::cout << "Receiver Reported in " << video_packet_sender_summary.received_report_count / summary_duration.sec() << " Hz\n"
+                        << "  Decoder Time Average: " << video_packet_sender_summary.decoder_time_ms_sum / video_packet_sender_summary.received_report_count << " ms\n"
+                        << "  Frame Interval Time Average: " << video_packet_sender_summary.frame_interval_ms_sum / video_packet_sender_summary.received_report_count << " ms\n"
+                        << "  Round Trip Time Average: " << video_packet_sender_summary.round_trip_ms_sum / video_packet_sender_summary.received_report_count << " ms\n";
+                    video_packet_sender_summary = VideoPacketSenderSummary{};
+                }
             }
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError from task_thread:\n  " << e.what() << "\n";
@@ -228,15 +225,9 @@ void main()
         // The default port (the port when nothing is entered) is 7777.
         const int port{line.empty() ? 7777 : std::stoi(line)};
         
-        k4a_device_configuration_t configuration = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-        configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-        configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
-        configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-        constexpr auto timeout = std::chrono::milliseconds(1000);
-
         const int session_id{gsl::narrow_cast<const int>(rng() % (static_cast<unsigned int>(INT_MAX) + 1))};
         
-        KinectDevice kinect_device{configuration, timeout};
+        KinectDevice kinect_device;
         kinect_device.start();
 
         start(port, session_id, kinect_device);

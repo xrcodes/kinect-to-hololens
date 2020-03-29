@@ -13,7 +13,7 @@ struct ReceiverState
     int video_frame_id{INITIAL_VIDEO_FRAME_ID};
 };
 
-struct HandleReceiverMessageSummary
+struct VideoPacketSenderSummary
 {
     TimePoint start_time{TimePoint::now()};
     float decoder_time_ms_sum{0.0f};
@@ -25,10 +25,17 @@ struct HandleReceiverMessageSummary
 class VideoPacketSender
 {
 public:
+    VideoPacketSender()
+        : video_packet_sets_{}, video_frame_send_times_{}
+    {
+
+    }
+
     void send(const int session_id,
               UdpSocket& udp_socket,
               moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-              ReceiverState& receiver_state)
+              ReceiverState& receiver_state,
+              VideoPacketSenderSummary& summary)
     {
         while (auto received_packet{udp_socket.receive()}) {
             switch (get_packet_type_from_receiver_packet_bytes(*received_packet)) {
@@ -36,7 +43,7 @@ public:
                 const auto report_receiver_packet_data{parse_report_receiver_packet_bytes(*received_packet)};
                 receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
 
-                const auto round_trip_time{TimePoint::now() - video_frame_send_times[receiver_state.video_frame_id]};
+                const auto round_trip_time{TimePoint::now() - video_frame_send_times_[receiver_state.video_frame_id]};
                 summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
                 summary.frame_interval_ms_sum += report_receiver_packet_data.frame_time_ms;
                 summary.round_trip_ms_sum += round_trip_time.ms();
@@ -47,10 +54,10 @@ public:
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
 
                 for (int packet_index : request_receiver_packet_data.packet_indices) {
-                    if (video_packet_sets.find(request_receiver_packet_data.frame_id) == video_packet_sets.end())
+                    if (video_packet_sets_.find(request_receiver_packet_data.frame_id) == video_packet_sets_.end())
                         continue;
 
-                    udp_socket.send(video_packet_sets[request_receiver_packet_data.frame_id].second[packet_index]);
+                    udp_socket.send(video_packet_sets_[request_receiver_packet_data.frame_id].second[packet_index]);
                 }
             }
             break;
@@ -61,7 +68,7 @@ public:
         while (video_packet_queue.try_dequeue(video_packet_set)) {
             auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
 
-            video_frame_send_times.insert({video_packet_set.first, TimePoint::now()});
+            video_frame_send_times_.insert({video_packet_set.first, TimePoint::now()});
             for (auto& packet : video_packet_set.second) {
                 std::error_code error;
                 udp_socket.send(packet);
@@ -71,42 +78,33 @@ public:
                 std::error_code error;
                 udp_socket.send(fec_packet_bytes);
             }
-            video_packet_sets.insert({video_packet_set.first, std::move(video_packet_set)});
+            video_packet_sets_.insert({video_packet_set.first, std::move(video_packet_set)});
         }
 
         // Remove elements of frame_packet_sets reserved for filling up missing packets
         // if they are already used from the receiver side.
-        for (auto it = video_packet_sets.begin(); it != video_packet_sets.end();) {
+        for (auto it = video_packet_sets_.begin(); it != video_packet_sets_.end();) {
             if (it->first <= receiver_state.video_frame_id) {
-                it = video_packet_sets.erase(it);
+                it = video_packet_sets_.erase(it);
             } else {
                 ++it;
             }
         }
 
-        for (auto it = video_frame_send_times.begin(); it != video_frame_send_times.end();) {
+        for (auto it = video_frame_send_times_.begin(); it != video_frame_send_times_.end();) {
             if (it->first <= receiver_state.video_frame_id) {
-                it = video_frame_send_times.erase(it);
+                it = video_frame_send_times_.erase(it);
             } else {
                 ++it;
             }
-        }
-
-        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
-        if (summary_duration.sec() > 10.0f) {
-            std::cout << "Receiver Reported in " << summary.received_report_count / summary_duration.sec() << " Hz\n"
-                << "  Decoder Time Average: " << summary.decoder_time_ms_sum / summary.received_report_count << " ms\n"
-                << "  Frame Interval Time Average: " << summary.frame_interval_ms_sum / summary.received_report_count << " ms\n"
-                << "  Round Trip Time Average: " << summary.round_trip_ms_sum / summary.received_report_count << " ms\n";
-            summary = HandleReceiverMessageSummary{};
         }
     }
 
 private:
     constexpr static int XOR_MAX_GROUP_SIZE{5};
-    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
-    std::unordered_map<int, TimePoint> video_frame_send_times;
-    HandleReceiverMessageSummary summary;
+    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets_;
+    std::unordered_map<int, TimePoint> video_frame_send_times_;
+    VideoPacketSenderSummary summary;
 };
 
 class AudioPacketSender
@@ -119,7 +117,7 @@ public:
         constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
         soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
         if (!soundio_callback::ring_buffer)
-            throw std::exception("Failed in soundio_ring_buffer_create()...");
+            throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
 
         kinect_microphone_stream_.start();
     }
@@ -153,7 +151,7 @@ private:
     AudioInStream kinect_microphone_stream_;
     AudioEncoder audio_encoder_;
 
-    std::array<float, KH_SAMPLES_PER_FRAME* KH_CHANNEL_COUNT> pcm_;
+    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm_;
     int audio_frame_id_;
 };
 }

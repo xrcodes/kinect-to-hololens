@@ -1,14 +1,10 @@
 #include <iostream>
 #include <gsl/gsl>
-#include "helper/opencv_helper.h"
 #include "k4a/k4a.hpp"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-}
+#include "helper/kinect_helper.h"
+#include "helper/opencv_helper.h"
 
 namespace kh
 {
@@ -16,18 +12,10 @@ void display_frames()
 {
     constexpr short CHANGE_THRESHOLD{10};
     constexpr int INVALID_THRESHOLD{2};
-    constexpr auto TIMEOUT{std::chrono::milliseconds{1000}};
 
-    // Obtain device to access Kinect frames.
-    auto device{k4a::device::open(K4A_DEVICE_DEFAULT)};
-
-    auto configuration{K4A_DEVICE_CONFIG_INIT_DISABLE_ALL};
-    configuration.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-    configuration.color_resolution = K4A_COLOR_RESOLUTION_720P;
-    configuration.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-    configuration.camera_fps = K4A_FRAMES_PER_SECOND_30;
+    KinectDevice kinect_device;
     
-    const auto calibration{device.get_calibration(configuration.depth_mode, configuration.color_resolution)};
+    const auto calibration{kinect_device.getCalibration()};
     const k4a::transformation transformation{calibration};
 
     Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
@@ -40,29 +28,16 @@ void display_frames()
 
     TrvlEncoder depth_encoder{depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD};
     TrvlDecoder depth_decoder{depth_frame_size};
-
-    device.start_cameras(&configuration);
+    kinect_device.start();
 
     for (;;) {
-        k4a::capture capture;
-        if (!device.get_capture(&capture, TIMEOUT)) {
-            printf("get_capture() timed out...\n");
+        auto kinect_frame{kinect_device.getFrame()};
+        if (!kinect_frame) {
+            std::cout << "no kinect frame...\n";
             continue;
         }
 
-        const auto color_image{capture.get_color_image()};
-        if (!color_image) {
-            printf("get_color_image() failed...\n");
-            continue;
-        }
-
-        const auto depth_image{capture.get_depth_image()};
-        if (!depth_image) {
-            printf("get_depth_image() failed...\n");
-            continue;
-        }
-
-        const auto transformed_color_image{transformation.color_image_to_depth_camera(depth_image, color_image)};
+        const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image(), kinect_frame->color_image())};
 
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
@@ -73,18 +48,18 @@ void display_frames()
 
         const auto vp8_frame{vp8_encoder.encode(yuv_image, false)};
         const auto ffmpeg_frame{vp8_decoder.decode(vp8_frame)};
-        const auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame.av_frame()))};
+        const auto color_mat{create_cv_mat_from_yuv_image(createYuvImageFromAvFrame(*ffmpeg_frame.av_frame()))};
 
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const short*>(depth_image.get_buffer()),
-                                                             gsl::narrow_cast<ptrdiff_t>(depth_image.get_size())},
+        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const short*>(kinect_frame->depth_image().get_buffer()),
+                                                             gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image().get_size())},
                                                             false)};
         auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
-        auto depth_mat{createCvMatFromKinectDepthImage(depth_pixels.data(), 
-                                                       depth_image.get_width_pixels(),
-                                                       depth_image.get_height_pixels())};
+        auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_pixels.data(), 
+                                                       kinect_frame->depth_image().get_width_pixels(),
+                                                       kinect_frame->depth_image().get_height_pixels())};
 
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);

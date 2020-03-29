@@ -5,11 +5,11 @@
 
 namespace kh
 {
-cv::Mat createCvMatFromYuvImage(const YuvImage& yuv_frame)
+cv::Mat create_cv_mat_from_yuv_image(const YuvImage& yuv_image)
 {
-    cv::Mat y_channel(yuv_frame.height(), yuv_frame.width(), CV_8UC1, const_cast<std::uint8_t*>(yuv_frame.y_channel().data()));
-    cv::Mat u_channel(yuv_frame.height() / 2, yuv_frame.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_frame.u_channel().data()));
-    cv::Mat v_channel(yuv_frame.height() / 2, yuv_frame.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_frame.v_channel().data()));
+    cv::Mat y_channel(yuv_image.height(), yuv_image.width(), CV_8UC1, const_cast<std::uint8_t*>(yuv_image.y_channel().data()));
+    cv::Mat u_channel(yuv_image.height() / 2, yuv_image.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_image.u_channel().data()));
+    cv::Mat v_channel(yuv_image.height() / 2, yuv_image.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_image.v_channel().data()));
     cv::Mat cr_channel;
     cv::Mat cb_channel;
     // u and v corresponds to Cb and Cr
@@ -29,7 +29,7 @@ cv::Mat createCvMatFromYuvImage(const YuvImage& yuv_frame)
     return bgr_frame;
 }
 
-cv::Mat createCvMatFromKinectDepthImage(const int16_t* depth_buffer, int width, int height)
+cv::Mat create_cv_mat_from_kinect_depth_image(const int16_t* depth_buffer, int width, int height)
 {
     std::vector<uint8_t> reduced_depth_frame(width * height);
     std::vector<uint8_t> half(width * height);

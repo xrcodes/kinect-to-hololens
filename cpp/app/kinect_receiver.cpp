@@ -80,8 +80,8 @@ void consume_video_message(bool& stopped,
                                                             frame_start.elapsed_time().ms()));
         frame_start = TimePoint::now();
 
-        auto color_mat{createCvMatFromYuvImage(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
-        auto depth_mat{createCvMatFromKinectDepthImage(depth_image.data(), depth_width, depth_height)};
+        auto color_mat{create_cv_mat_from_yuv_image(createYuvImageFromAvFrame(*ffmpeg_frame->av_frame()))};
+        auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_image.data(), depth_width, depth_height)};
 
         // Rendering the depth pixels.
         cv::imshow("Color", color_mat);
