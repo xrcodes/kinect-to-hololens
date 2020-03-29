@@ -14,6 +14,8 @@ public class KinectReceiver
     public const int KH_SAMPLES_PER_FRAME = 960;
     public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
 
+    private int sessionId;
+
     private Material azureKinectScreenMaterial;
     private AzureKinectScreen azureKinectScreen;
     private Transform floorPlaneTransform;
@@ -46,6 +48,9 @@ public class KinectReceiver
 
     public KinectReceiver(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen, Transform floorPlaneTransform)
     {
+        var random = new System.Random();
+        sessionId = random.Next();
+
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         this.azureKinectScreen = azureKinectScreen;
         this.floorPlaneTransform = floorPlaneTransform;
@@ -108,7 +113,7 @@ public class KinectReceiver
         while (true)
         {
             bool initialized = false;
-            udpSocket.Send(PacketHelper.createPingReceiverPacketBytes());
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId));
             ++pingCount;
             UnityEngine.Debug.Log("Sent ping");
 
@@ -165,7 +170,7 @@ public class KinectReceiver
         var taskThread = new Thread(() =>
         {
             var senderPacketReceiver = new SenderPacketReceiver();
-            var videoMessageReassembler = new VideoMessageReassembler();
+            var videoMessageReassembler = new VideoMessageReassembler(sessionId);
             var audioPacketCollector = new AudioPacketCollector();
 
             while(!receiverStopped)
@@ -261,7 +266,8 @@ public class KinectReceiver
         //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
         //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
 
-        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(lastVideoFrameId,
+        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId,
+                                                                    lastVideoFrameId,
                                                                     (float)decoderTime.TotalMilliseconds,
                                                                     (float)frameTime.TotalMilliseconds));
 
@@ -292,7 +298,6 @@ public class KinectReceiver
         FloorSenderPacketData floorSenderPacketData;
         while(floorPacketDataQueue.TryDequeue(out floorSenderPacketData))
         {
-            UnityEngine.Debug.Log($"floorSenderPacketData: {floorSenderPacketData.a}, {floorSenderPacketData.b}, {floorSenderPacketData.c}, {floorSenderPacketData.d}");
             //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
             // y component is fliped since the coordinate system of unity and azure kinect is different.
             Vector3 upVector = new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c);

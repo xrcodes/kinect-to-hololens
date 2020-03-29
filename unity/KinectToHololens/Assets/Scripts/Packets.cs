@@ -13,7 +13,7 @@ public enum SenderPacketType : byte
 
 public enum ReceiverPacketType : byte
 {
-    Ping = 0,
+    Connect = 0,
     Report = 1,
     Request = 2,
 }
@@ -34,16 +34,18 @@ public static class PacketHelper
         return (SenderPacketType)packetBytes[4];
     }
 
-    public static byte[] createPingReceiverPacketBytes()
-    {
-        var bytes = new byte[1];
-        bytes[0] = (byte)ReceiverPacketType.Ping;
-        return bytes;
-    }
-
-    public static byte[] createReportReceiverPacketBytes(int frameId, float decoderMs, float frameMs)
+    public static byte[] createConnectReceiverPacketBytes(int sessionId)
     {
         var ms = new MemoryStream();
+        ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
+        ms.WriteByte((byte)ReceiverPacketType.Connect);
+        return ms.ToArray();
+    }
+
+    public static byte[] createReportReceiverPacketBytes(int sessionId, int frameId, float decoderMs, float frameMs)
+    {
+        var ms = new MemoryStream();
+        ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
         ms.WriteByte((byte)ReceiverPacketType.Report);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
@@ -51,9 +53,10 @@ public static class PacketHelper
         return ms.ToArray();
     }
 
-    public static byte[] createRequestReceiverPacketBytes(int frameId, List<int> missingPacketIds)
+    public static byte[] createRequestReceiverPacketBytes(int sessionId, int frameId, List<int> missingPacketIds)
     {
         var ms = new MemoryStream();
+        ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
         ms.WriteByte((byte)ReceiverPacketType.Request);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         foreach (int missingPacketId in missingPacketIds)

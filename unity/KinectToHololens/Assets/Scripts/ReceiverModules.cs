@@ -59,11 +59,13 @@ class SenderPacketReceiver
 class VideoMessageReassembler
 {
     private const int XOR_MAX_GROUP_SIZE = 5;
+    private int sessionId;
     private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
     private Dictionary<int, FecSenderPacketData[]> fecPacketCollections;
 
-    public VideoMessageReassembler()
+    public VideoMessageReassembler(int sessionId)
     {
+        this.sessionId = sessionId;
         videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
         fecPacketCollections = new Dictionary<int, FecSenderPacketData[]>();
     }
@@ -197,7 +199,7 @@ class VideoMessageReassembler
                             videoPacketCollections[missingFrameId][fecPacketIndex] = fecVideoPacketData;
                         } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
-                        udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(collectionPair.Key, fecFailedPacketIndices));
+                        udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, collectionPair.Key, fecFailedPacketIndices));
                     }
                 }
                 /////////////////////////////////
