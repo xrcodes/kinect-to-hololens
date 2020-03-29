@@ -26,11 +26,11 @@ add_custom_command(TARGET KinectReader POST_BUILD
 
 add_executable(KinectSender
   kinect_sender.cpp
-  helper/kinect_helper.h
   helper/soundio_helper.h
   helper/shadow_remover.h
   sender/video_packet_sender.h
   sender/audio_packet_sender.h
+  sender/kinect_device_manager.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

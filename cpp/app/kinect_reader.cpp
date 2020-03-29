@@ -3,7 +3,7 @@
 #include "k4a/k4a.hpp"
 #include "kh_vp8.h"
 #include "kh_trvl.h"
-#include "helper/kinect_helper.h"
+#include "native/kh_kinect_device.h"
 #include "helper/opencv_helper.h"
 
 namespace kh

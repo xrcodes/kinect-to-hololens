@@ -9,7 +9,7 @@
 #include "native/kh_udp_socket.h"
 #include "native/kh_packet.h"
 #include "native/kh_time.h"
-#include "helper/kinect_helper.h"
+#include "native/kh_kinect_device.h"
 #include "helper/soundio_helper.h"
 #include "helper/shadow_remover.h"
 #include <vector>
@@ -17,161 +17,11 @@
 #include "sender/audio_packet_sender.h"
 #include "PointCloudGenerator.h"
 #include "FloorDetector.h"
+#include "sender/kinect_device_manager.h"
 
 namespace kh
 {
-struct VideoReaderState
-{
-    int frame_id{0};
-    TimePoint last_frame_time_point{TimePoint::now()};
-};
-
-struct ReadVideoFrameSummary
-{
-    TimePoint start_time{TimePoint::now()};
-    float shadow_removal_ms_sum{0.0f};
-    float transformation_ms_sum{0.0f};
-    float yuv_conversion_ms_sum{0.0f};
-    float color_encoder_ms_sum{0.0f};
-    float depth_encoder_ms_sum{0.0f};
-    int frame_count{0};
-    int byte_count{0};
-    int keyframe_count{0};
-};
-
-class MainKinectSender
-{
-public:
-    static constexpr short CHANGE_THRESHOLD{10};
-    static constexpr int INVALID_THRESHOLD{2};
-    TimePoint session_start_time;
-    k4a::calibration calibration;
-    k4a::transformation transformation;
-    Vp8Encoder color_encoder;
-    TrvlEncoder depth_encoder;
-    ShadowRemover shadow_remover;
-    Samples::PointCloudGenerator point_cloud_generator;
-    VideoReaderState video_state;
-    ReadVideoFrameSummary summary;
-
-    // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    MainKinectSender(KinectDevice& kinect_device)
-        : session_start_time{TimePoint::now()}, calibration{kinect_device.getCalibration()}, transformation{calibration},
-        color_encoder{calibration.depth_camera_calibration.resolution_width,
-                      calibration.depth_camera_calibration.resolution_height},
-        depth_encoder{calibration.depth_camera_calibration.resolution_width *
-                      calibration.depth_camera_calibration.resolution_height,
-                      CHANGE_THRESHOLD, INVALID_THRESHOLD},
-        shadow_remover{PointCloud::createUnitDepthPointCloud(calibration), calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].translation[0]},
-        point_cloud_generator{calibration}, video_state{}, summary{}
-    {
-    }
-
-    void read(const int session_id,
-              bool& stopped,
-              UdpSocket& udp_socket,
-              KinectDevice& kinect_device,
-              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-              ReceiverState& receiver_state)
-    {
-        if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
-            const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
-            udp_socket.send(init_packet_bytes);
-
-            Sleep(100);
-        }
-
-        auto kinect_frame{kinect_device.getFrame()};
-        if (!kinect_frame) {
-            std::cout << "no kinect frame...\n";
-            //continue;
-            return;
-        }
-
-        point_cloud_generator.Update(kinect_frame->depth_image().handle());
-        constexpr int downsampleStep{2};
-        auto cloud_points{point_cloud_generator.GetCloudPoints(downsampleStep)};
-        constexpr size_t minimumFloorPointCount{1024 / (downsampleStep * downsampleStep)};
-        auto floor_plane{Samples::FloorDetector::TryDetectFloorPlane(cloud_points, kinect_frame->imu_sample(), calibration, minimumFloorPointCount)};
-
-        if (!floor_plane)
-            return;
-
-        const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id, floor_plane->Normal.X, 
-                                                                        floor_plane->Normal.Y, floor_plane->Normal.Z,
-                                                                        floor_plane->C)};
-        udp_socket.send(floor_packet_bytes);
-
-        constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
-        const auto frame_time_point{TimePoint::now()};
-        const auto frame_time_diff{frame_time_point - video_state.last_frame_time_point};
-        const int frame_id_diff{video_state.frame_id - receiver_state.video_frame_id};
-        
-        if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
-            return;
-
-        video_state.last_frame_time_point = frame_time_point;
-
-        const bool keyframe{frame_id_diff > 5};
-        
-        auto shadow_removal_start{TimePoint::now()};
-        shadow_remover.remove({reinterpret_cast<int16_t*>(kinect_frame->depth_image().get_buffer()),
-                                gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image().get_size())});
-        summary.shadow_removal_ms_sum += shadow_removal_start.elapsed_time().ms();
-
-        auto transformation_start{TimePoint::now()};
-        const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image(), kinect_frame->color_image())};
-        summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
-        
-        auto yuv_conversion_start{TimePoint::now()};
-        // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-        const auto yuv_image{createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
-                                                                        transformed_color_image.get_width_pixels(),
-                                                                        transformed_color_image.get_height_pixels(),
-                                                                        transformed_color_image.get_stride_bytes())};
-        summary.yuv_conversion_ms_sum += yuv_conversion_start.elapsed_time().ms();
-
-        auto color_encoder_start{TimePoint::now()};
-        const auto vp8_frame{color_encoder.encode(yuv_image, keyframe)};
-        summary.color_encoder_ms_sum += color_encoder_start.elapsed_time().ms();
-
-        auto depth_encoder_start{TimePoint::now()};
-        // Compress the depth pixels.
-        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const int16_t*>(kinect_frame->depth_image().get_buffer()),
-                                                                gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image().get_size())},
-                                                            keyframe)};
-        summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
-
-        const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
-        const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
-        auto packet_bytes_set{split_video_sender_message_bytes(session_id, video_state.frame_id, message_bytes)};
-        video_packet_queue.enqueue({video_state.frame_id, std::move(packet_bytes_set)});
-
-        // Updating variables for profiling.
-        if (keyframe)
-            ++summary.keyframe_count;
-        ++summary.frame_count;
-        summary.byte_count += (vp8_frame.size() + depth_encoder_frame.size());
-
-        const TimeDuration summary_duration{TimePoint::now() - summary.start_time};
-        if (summary_duration.sec() > 10.0f) {
-            std::cout << "Video Frame Summary:\n"
-                        << "  Frame ID: " << video_state.frame_id << "\n"
-                        << "  FPS: " << summary.frame_count / summary_duration.sec() << "\n"
-                        << "  Bandwidth: " << summary.byte_count / summary_duration.sec() / (1024.0f * 1024.0f / 8.0f) << " Mbps\n"
-                        << "  Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << " ms\n"
-                        << "  Shadow Removal Time Average: " << summary.shadow_removal_ms_sum / summary.frame_count << " ms\n"
-                        << "  Transformation Time Average: " << summary.transformation_ms_sum / summary.frame_count << " ms\n"
-                        << "  Yuv Conversion Time Average: " << summary.yuv_conversion_ms_sum / summary.frame_count << " ms\n"
-                        << "  Color Encoder Time Average: " << summary.color_encoder_ms_sum / summary.frame_count << " ms\n"
-                        << "  Depth Encoder Time Average: " << summary.depth_encoder_ms_sum / summary.frame_count << " ms\n";
-            summary = ReadVideoFrameSummary{};
-        }
-        ++video_state.frame_id;
-    }
-};
-
-void start(int port, int session_id, KinectDevice& kinect_device)
+void start_session(int port, int session_id, KinectDevice& kinect_device)
 {
     constexpr int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
 
@@ -219,10 +69,28 @@ void start(int port, int session_id, KinectDevice& kinect_device)
         stopped = true;
     });
 
-    MainKinectSender main_kinect_sender{kinect_device};
+    TimePoint session_start_time{TimePoint::now()};
+    KinectDeviceManagerSummary kinect_device_manager_summary;
+    KinectDeviceManager kinect_device_manager{std::move(kinect_device)};
     try {
-        while (!stopped)
-            main_kinect_sender.read(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state);
+        while (!stopped) {
+            kinect_device_manager.update(session_id, session_start_time, stopped, udp_socket, video_packet_queue, receiver_state, kinect_device_manager_summary);
+
+            const TimeDuration summary_duration{TimePoint::now() - kinect_device_manager_summary.start_time};
+            if (summary_duration.sec() > 10.0f) {
+                std::cout << "Video Frame Summary:\n"
+                    << "  Frame ID: " << kinect_device_manager_summary.frame_id << "\n"
+                    << "  FPS: " << kinect_device_manager_summary.frame_count / summary_duration.sec() << "\n"
+                    << "  Bandwidth: " << kinect_device_manager_summary.byte_count / summary_duration.sec() / (1024.0f * 1024.0f / 8.0f) << " Mbps\n"
+                    << "  Keyframe Ratio: " << static_cast<float>(kinect_device_manager_summary.keyframe_count) / kinect_device_manager_summary.frame_count << " ms\n"
+                    << "  Shadow Removal Time Average: " << kinect_device_manager_summary.shadow_removal_ms_sum / kinect_device_manager_summary.frame_count << " ms\n"
+                    << "  Transformation Time Average: " << kinect_device_manager_summary.transformation_ms_sum / kinect_device_manager_summary.frame_count << " ms\n"
+                    << "  Yuv Conversion Time Average: " << kinect_device_manager_summary.yuv_conversion_ms_sum / kinect_device_manager_summary.frame_count << " ms\n"
+                    << "  Color Encoder Time Average: " << kinect_device_manager_summary.color_encoder_ms_sum / kinect_device_manager_summary.frame_count << " ms\n"
+                    << "  Depth Encoder Time Average: " << kinect_device_manager_summary.depth_encoder_ms_sum / kinect_device_manager_summary.frame_count << " ms\n";
+                kinect_device_manager_summary = KinectDeviceManagerSummary{};
+            }
+        }
 
     } catch (UdpSocketRuntimeError e) {
         std::cout << "UdpSocketRuntimeError from send_video_frames(): \n  " << e.what() << "\n";
@@ -250,7 +118,7 @@ void main()
         KinectDevice kinect_device;
         kinect_device.start();
 
-        start(port, session_id, kinect_device);
+        start_session(port, session_id, kinect_device);
     }
 }
 }
