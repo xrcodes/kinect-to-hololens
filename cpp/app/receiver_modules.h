@@ -14,12 +14,12 @@ public:
     {
     }
 
-    void receive(int sender_id, UdpSocket& udp_socket)
+    void receive(int sender_session_id, UdpSocket& udp_socket)
     {
         while (auto packet{udp_socket.receive()}) {
             const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
 
-            if (session_id != sender_id)
+            if (session_id != sender_session_id)
                 continue;
 
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
@@ -53,8 +53,8 @@ private:
 class VideoMessageReassembler
 {
 public:
-    VideoMessageReassembler(const asio::ip::udp::endpoint remote_endpoint)
-        : remote_endpoint_{remote_endpoint}, video_packet_collections_ {}, fec_packet_collections_{}, video_message_queue_{}
+    VideoMessageReassembler(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
+        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, video_packet_collections_ {}, fec_packet_collections_{}, video_message_queue_{}
     {
     }
 
@@ -175,7 +175,7 @@ public:
                         //    printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
                         //}
 
-                        udp_socket.send(create_request_receiver_packet_bytes(missing_frame_id, fec_failed_packet_indices), remote_endpoint_);
+                        udp_socket.send(create_request_receiver_packet_bytes(session_id_, missing_frame_id, fec_failed_packet_indices), remote_endpoint_);
                     }
                 }
                 /////////////////////////////////
@@ -233,6 +233,7 @@ public:
 
 private:
     static constexpr int FEC_GROUP_SIZE{5};
+    const int session_id_;
     const asio::ip::udp::endpoint remote_endpoint_;
     std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections_;
     std::unordered_map<int, std::vector<std::optional<FecSenderPacketData>>> fec_packet_collections_;

@@ -51,18 +51,17 @@ void start_session(const int port, const int session_id)
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
+    UdpSocket udp_socket{std::move(socket)};
 
-    std::vector<std::byte> ping_buffer(1);
+    ReceiverPacketReceiver receiver_packet_receiver;
     asio::ip::udp::endpoint receiver_endpoint;
-    std::error_code error;
-    socket.receive_from(asio::buffer(ping_buffer), receiver_endpoint, 0, error);
-    if (error)
-        throw std::runtime_error(std::string("Error receiving ping: ") + error.message());
+    for (;;) {
+        receiver_packet_receiver.receive(udp_socket);
+        if (receiver_packet_receiver.connect_endpoint_queue().try_dequeue(receiver_endpoint))
+            break;
+    }
 
     std::cout << "Found a Receiver at " << receiver_endpoint << "\n";
-
-    // Sender is a class that will use the socket to send frames to the receiver that has the socket connected to this socket.
-    UdpSocket udp_socket{std::move(socket)};
 
     const TimePoint session_start_time{TimePoint::now()};
 
@@ -71,8 +70,6 @@ void start_session(const int port, const int session_id)
     ReceiverState receiver_state;
     std::thread task_thread([&] {
         try {
-            ReceiverPacketReceiver receiver_packet_receiver;
-
             VideoPacketSender video_packet_sender{session_id, receiver_endpoint};
             VideoPacketSenderSummary video_packet_sender_summary;
 
@@ -83,7 +80,7 @@ void start_session(const int port, const int session_id)
                                          receiver_packet_receiver.request_packet_data_queue(), video_packet_queue, receiver_state, video_packet_sender_summary);
                 audio_packet_sender.send(udp_socket);
 
-                const TimeDuration summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
+                const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
                 if (summary_duration.sec() > 10.0f) {
                     print_video_packet_sender_summary(video_packet_sender_summary, summary_duration);
                     video_packet_sender_summary = VideoPacketSenderSummary{};
@@ -101,7 +98,7 @@ void start_session(const int port, const int session_id)
         while (!stopped) {
             kinect_device_manager.update(session_start_time, stopped, udp_socket, video_packet_queue, receiver_state, kinect_device_manager_summary);
 
-            const TimeDuration summary_duration{kinect_device_manager_summary.start_time.elapsed_time()};
+            const auto summary_duration{kinect_device_manager_summary.start_time.elapsed_time()};
             if (summary_duration.sec() > 10.0f) {
                 print_kinect_device_manager_summary(kinect_device_manager_summary, summary_duration);
                 kinect_device_manager_summary = KinectDeviceManagerSummary{};
@@ -120,7 +117,6 @@ void start_session(const int port, const int session_id)
 void main()
 {
     std::mt19937 rng{gsl::narrow_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count())};
-
     for (;;) {
         std::string line;
         std::cout << "Enter a port number to start sending frames: ";

@@ -20,7 +20,7 @@ enum class SenderPacketType : std::uint8_t
 
 enum class ReceiverPacketType : std::uint8_t
 {
-    Ping = 0,
+    Connect = 0,
     Report = 1,
     Request = 2,
 };
@@ -149,9 +149,10 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
 std::vector<std::byte> create_floor_sender_packet_bytes(int session_id, float a, float b, float c, float d);
 
 /**Receiver Packets**/
+int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-std::vector<std::byte> create_ping_receiver_packet_bytes();
+std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id);
 
 struct ReportReceiverPacketData
 {
@@ -160,7 +161,7 @@ struct ReportReceiverPacketData
     float frame_time_ms;
 };
 
-std::vector<std::byte> create_report_receiver_packet_bytes(int frame_id, float decoder_time_ms, float frame_time_ms);
+std::vector<std::byte> create_report_receiver_packet_bytes(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
 ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct RequestReceiverPacketData
@@ -169,6 +170,6 @@ struct RequestReceiverPacketData
     std::vector<int> packet_indices;
 };
 
-std::vector<std::byte> create_request_receiver_packet_bytes(int frame_id, const std::vector<int>& packet_indices);
+std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id, const std::vector<int>& packet_indices);
 RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 }

@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <optional>
+#include <random>
 #include <thread>
 #include <gsl/gsl>
 #include "kh_opus.h"
@@ -15,6 +16,7 @@
 namespace kh
 {
 void consume_video_message(bool& stopped,
+                           const int session_id,
                            const asio::ip::udp::endpoint remote_endpoint,
                            int depth_width,
                            int depth_height,
@@ -76,7 +78,8 @@ void consume_video_message(bool& stopped,
             depth_image = depth_decoder.decode(frame_message_pair_ptr->depth_encoder_frame, frame_message_pair_ptr->keyframe);
         }
 
-        udp_socket.send(create_report_receiver_packet_bytes(last_video_frame_id,
+        udp_socket.send(create_report_receiver_packet_bytes(session_id,
+                                                            last_video_frame_id,
                                                             decoder_start.elapsed_time().ms(),
                                                             frame_start.elapsed_time().ms()), remote_endpoint);
         frame_start = TimePoint::now();
@@ -101,7 +104,7 @@ void consume_video_message(bool& stopped,
     }
 }
 
-void receive_frames(std::string ip_address, int port)
+void start_session(const std::string ip_address, const int port, const int session_id)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 128 * 1024;
     asio::io_context io_context;
@@ -119,7 +122,7 @@ void receive_frames(std::string ip_address, int port)
     int ping_count{0};
     for (;;) {
         bool initialized{false};
-        udp_socket.send(create_ping_receiver_packet_bytes(), remote_endpoint);
+        udp_socket.send(create_connect_receiver_packet_bytes(session_id), remote_endpoint);
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
@@ -156,7 +159,7 @@ void receive_frames(std::string ip_address, int port)
     bool stopped{false};
     int last_video_frame_id{-1};
 
-    VideoMessageReassembler video_message_reassembler{remote_endpoint};
+    VideoMessageReassembler video_message_reassembler{session_id, remote_endpoint};
 
     std::thread task_thread([&] {
         SenderPacketReceiver sender_packet_receiver;
@@ -171,7 +174,7 @@ void receive_frames(std::string ip_address, int port)
         }
     });
 
-    consume_video_message(stopped, remote_endpoint, depth_width, depth_height, udp_socket, video_message_reassembler.video_message_queue(), last_video_frame_id);
+    consume_video_message(stopped, session_id, remote_endpoint, depth_width, depth_height, udp_socket, video_message_reassembler.video_message_queue(), last_video_frame_id);
     stopped = true;
 
     task_thread.join();
@@ -179,6 +182,7 @@ void receive_frames(std::string ip_address, int port)
 
 void main()
 {
+    std::mt19937 rng{gsl::narrow_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count())};
     for (;;) {
         // Receive IP address from the user.
         std::cout << "Enter an IP address to start receiving frames: ";
@@ -194,7 +198,9 @@ void main()
         std::getline(std::cin, port_line);
         // The default port is 7777.
         const int port{port_line.empty() ? 7777 : std::stoi(port_line)};
-        receive_frames(ip_address, port);
+        const int session_id{gsl::narrow_cast<const int>(rng() % (static_cast<unsigned int>(INT_MAX) + 1))};
+
+        start_session(ip_address, port, session_id);
     }
 }
 }
