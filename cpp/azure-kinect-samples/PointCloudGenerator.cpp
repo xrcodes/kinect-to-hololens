@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+// Modified original source to use if and throw std::runtime_error instead of using VERIFY.
 #include "PointCloudGenerator.h"
 //#include "Utilities.h"
-
-// Modified original source to use if and throw std::runtime_error instead of using VERIFY.
 #include <stdexcept>
 #include <k4a/k4a.h>
 

@@ -51,5 +51,7 @@ set(AZURE_KINECT_SAMPLES_DIR ${PROJECT_SOURCE_DIR}/azure-kinect-samples)
 
 # The directory for general source files.
 add_subdirectory(src)
+# The directory for files from Azure Kinect samples (i.e., floor detection).
+add_subdirectory(azure-kinect-samples)
 # The directory for cpp files corresponding to exe files.
 add_subdirectory(app)

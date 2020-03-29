@@ -29,12 +29,8 @@ add_executable(KinectSender
   helper/kinect_helper.h
   helper/soundio_helper.h
   helper/shadow_remover.h
-  sender_modules.h
-  ${AZURE_KINECT_SAMPLES_DIR}/SampleMathTypes.h
-  ${AZURE_KINECT_SAMPLES_DIR}/FloorDetector.h
-  ${AZURE_KINECT_SAMPLES_DIR}/FloorDetector.cpp
-  ${AZURE_KINECT_SAMPLES_DIR}/PointCloudGenerator.h
-  ${AZURE_KINECT_SAMPLES_DIR}/PointCloudGenerator.cpp
+  sender/video_packet_sender.h
+  sender/audio_packet_sender.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -45,6 +41,7 @@ target_link_libraries(KinectSender
   "${AZURE_KINECT_LIB}/k4a.lib"
   KinectToHololensNative
   ${Libvpx_LIB}
+  AzureKinectSamples
 )
 set_target_properties(KinectSender PROPERTIES
   CXX_STANDARD 17
