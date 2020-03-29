@@ -1,12 +1,14 @@
 #pragma once
 
+#include "helper/soundio_helper.h"
+
 namespace kh
 {
 class AudioPacketSender
 {
 public:
-    AudioPacketSender()
-        : audio_{}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
+    AudioPacketSender(const int session_id)
+        : session_id_{session_id}, audio_ {}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
         audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false}, pcm_{}, audio_frame_id_{0}
     {
         constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
@@ -17,7 +19,7 @@ public:
         kinect_microphone_stream_.start();
     }
 
-    void send(int session_id, UdpSocket& udp_socket)
+    void send(UdpSocket& udp_socket)
     {
         soundio_flush_events(audio_.get());
         char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
@@ -29,11 +31,10 @@ public:
             memcpy(pcm_.data(), read_ptr + cursor, BYTES_PER_FRAME);
 
             std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
-            int opus_frame_size = audio_encoder_.encode(opus_frame.data(), pcm_.data(), KH_SAMPLES_PER_FRAME, opus_frame.size());
+            int opus_frame_size = audio_encoder_.encode(opus_frame.data(), pcm_.data(), KH_SAMPLES_PER_FRAME, gsl::narrow_cast<opus_int32>(opus_frame.size()));
             opus_frame.resize(opus_frame_size);
 
-            std::error_code error;
-            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_frame_id_++, opus_frame));
+            udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame));
 
             cursor += BYTES_PER_FRAME;
         }
@@ -42,6 +43,8 @@ public:
     }
 
 private:
+    const int session_id_;
+
     Audio audio_;
     AudioInStream kinect_microphone_stream_;
     AudioEncoder audio_encoder_;

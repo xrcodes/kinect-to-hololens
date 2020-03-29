@@ -23,14 +23,12 @@ struct VideoPacketSenderSummary
 class VideoPacketSender
 {
 public:
-    VideoPacketSender()
-        : video_packet_sets_{}, video_frame_send_times_{}
+    VideoPacketSender(const int session_id)
+        : session_id_{session_id}, video_packet_sets_{}, video_frame_send_times_{}
     {
-
     }
 
-    void send(const int session_id,
-              UdpSocket& udp_socket,
+    void send(UdpSocket& udp_socket,
               moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
               ReceiverState& receiver_state,
               VideoPacketSenderSummary& summary)
@@ -47,7 +45,7 @@ public:
                 summary.round_trip_ms_sum += round_trip_time.ms();
                 ++summary.received_report_count;
             }
-                                           break;
+            break;
             case ReceiverPacketType::Request: {
                 const auto request_receiver_packet_data{parse_request_receiver_packet_bytes(*received_packet)};
 
@@ -58,13 +56,13 @@ public:
                     udp_socket.send(video_packet_sets_[request_receiver_packet_data.frame_id].second[packet_index]);
                 }
             }
-                                            break;
+            break;
             }
         }
 
         std::pair<int, std::vector<Bytes>> video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
-            auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
+            auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id_, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
 
             video_frame_send_times_.insert({video_packet_set.first, TimePoint::now()});
             for (auto& packet : video_packet_set.second) {
@@ -100,8 +98,8 @@ public:
 
 private:
     constexpr static int XOR_MAX_GROUP_SIZE{5};
+    const int session_id_;
     std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets_;
     std::unordered_map<int, TimePoint> video_frame_send_times_;
-    VideoPacketSenderSummary summary;
 };
 }

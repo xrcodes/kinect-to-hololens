@@ -5,18 +5,11 @@
 
 namespace kh
 {
-class KinectFrame
+struct KinectFrame
 {
-public:
-    KinectFrame(k4a::image&& color_image, k4a::image&& depth_image, k4a_imu_sample_t imu_sample);
-    k4a::image& color_image() { return color_image_; }
-    k4a::image& depth_image() { return depth_image_; }
-    k4a_imu_sample_t& imu_sample() { return imu_sample_; }
-
-private:
-    k4a::image color_image_;
-    k4a::image depth_image_;
-    k4a_imu_sample_t imu_sample_;
+    k4a::image color_image;
+    k4a::image depth_image;
+    k4a_imu_sample_t imu_sample;
 };
 
 // For having an interface combining devices and playbacks one day in the future...

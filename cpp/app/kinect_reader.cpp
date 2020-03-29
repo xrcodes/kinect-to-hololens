@@ -37,7 +37,7 @@ void display_frames()
             continue;
         }
 
-        const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image(), kinect_frame->color_image())};
+        const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image, kinect_frame->color_image)};
 
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
@@ -53,13 +53,13 @@ void display_frames()
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const short*>(kinect_frame->depth_image().get_buffer()),
-                                                             gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image().get_size())},
+        const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const short*>(kinect_frame->depth_image.get_buffer()),
+                                                             gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image.get_size())},
                                                             false)};
         auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_pixels.data(), 
-                                                       kinect_frame->depth_image().get_width_pixels(),
-                                                       kinect_frame->depth_image().get_height_pixels())};
+                                                       kinect_frame->depth_image.get_width_pixels(),
+                                                       kinect_frame->depth_image.get_height_pixels())};
 
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);

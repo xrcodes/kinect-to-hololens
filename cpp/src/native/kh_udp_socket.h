@@ -1,5 +1,8 @@
 #pragma once
 
+// This is for asio
+#define _WIN32_WINNT _WIN32_WINNT_WIN10
+
 #include <optional>
 #include <asio.hpp>
 #include <gsl/gsl>
