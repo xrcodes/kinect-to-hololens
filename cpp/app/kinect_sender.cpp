@@ -33,17 +33,13 @@ struct HandleReceiverMessageSummary
     int received_report_count{0};
 };
 
-struct HandleReceiverMessageTask
+class VideoPacketSender
 {
-    constexpr static int XOR_MAX_GROUP_SIZE = 5;
-    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
-    std::unordered_map<int, TimePoint> video_frame_send_times;
-    HandleReceiverMessageSummary summary;
-
-    void run(const int session_id,
-             UdpSocket& udp_socket,
-             moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
-             ReceiverState& receiver_state)
+public:
+    void send(const int session_id,
+              UdpSocket& udp_socket,
+              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+              ReceiverState& receiver_state)
     {
         while (auto received_packet{udp_socket.receive()}) {
             switch (get_packet_type_from_receiver_packet_bytes(*received_packet)) {
@@ -116,64 +112,69 @@ struct HandleReceiverMessageTask
             summary = HandleReceiverMessageSummary{};
         }
     }
+
+private:
+    constexpr static int XOR_MAX_GROUP_SIZE{5};
+    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets;
+    std::unordered_map<int, TimePoint> video_frame_send_times;
+    HandleReceiverMessageSummary summary;
 };
 
-struct AudioSenderState
+class AudioPacketSender
 {
-    int frame_id{0};
-};
-
-struct SendAudioFrameTask
-{
-    Audio audio;
-    AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
-    AudioEncoder audio_encoder{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false};
-
-    std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm{};
-    AudioSenderState audio_state;
-
-    SendAudioFrameTask()
+public:
+    AudioPacketSender()
+        : audio_{}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
+        audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false}, pcm_{}, audio_frame_id_{0}
     {
         constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-        soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
+        soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
         if (!soundio_callback::ring_buffer)
             throw std::exception("Failed in soundio_ring_buffer_create()...");
 
-        kinect_microphone_stream.start();
+        kinect_microphone_stream_.start();
     }
 
-    void run(int session_id, UdpSocket& udp_socket)
+    void send(int session_id, UdpSocket& udp_socket)
     {
-        soundio_flush_events(audio.get());
+        soundio_flush_events(audio_.get());
         char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
         int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer)};
 
-        const int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * pcm.size())};
+        const int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * pcm_.size())};
         int cursor = 0;
         while ((fill_bytes - cursor) > BYTES_PER_FRAME) {
-            memcpy(pcm.data(), read_ptr + cursor, BYTES_PER_FRAME);
+            memcpy(pcm_.data(), read_ptr + cursor, BYTES_PER_FRAME);
 
             std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
-            int opus_frame_size = audio_encoder.encode(opus_frame.data(), pcm.data(), KH_SAMPLES_PER_FRAME, opus_frame.size());
+            int opus_frame_size = audio_encoder_.encode(opus_frame.data(), pcm_.data(), KH_SAMPLES_PER_FRAME, opus_frame.size());
             opus_frame.resize(opus_frame_size);
 
             std::error_code error;
-            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_state.frame_id++, opus_frame));
+            udp_socket.send(create_audio_sender_packet_bytes(session_id, audio_frame_id_++, opus_frame));
 
             cursor += BYTES_PER_FRAME;
         }
 
         soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer, cursor);
     }
+
+private:
+    Audio audio_;
+    AudioInStream kinect_microphone_stream_;
+    AudioEncoder audio_encoder_;
+
+    std::array<float, KH_SAMPLES_PER_FRAME* KH_CHANNEL_COUNT> pcm_;
+    int audio_frame_id_;
 };
 
-struct VideoSenderState
+struct VideoReaderState
 {
     int frame_id{0};
     TimePoint last_frame_time_point{TimePoint::now()};
 };
 
-struct SendVideoFrameSummary
+struct ReadVideoFrameSummary
 {
     TimePoint start_time{TimePoint::now()};
     float shadow_removal_ms_sum{0.0f};
@@ -186,7 +187,7 @@ struct SendVideoFrameSummary
     int keyframe_count{0};
 };
 
-void send_video_frames(const int session_id,
+void read_video_frames(const int session_id,
                        bool& stopped,
                        UdpSocket& udp_socket,
                        KinectDevice& kinect_device,
@@ -212,12 +213,12 @@ void send_video_frames(const int session_id,
     auto shadow_remover{ShadowRemover{PointCloud::createUnitDepthPointCloud(calibration), color_camera_x}};
 
     // frame_id is the ID of the frame the sender sends.
-    VideoSenderState video_state;
+    VideoReaderState video_state;
 
     // Variables for profiling the sender.
     //auto last_device_time_stamp{std::chrono::microseconds::zero()};
 
-    SendVideoFrameSummary summary;
+    ReadVideoFrameSummary summary;
     while (!stopped) {
         if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
             const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
@@ -309,13 +310,13 @@ void send_video_frames(const int session_id,
                       << "  Yuv Conversion Time Average: " << summary.yuv_conversion_ms_sum / summary.frame_count << " ms\n"
                       << "  Color Encoder Time Average: " << summary.color_encoder_ms_sum / summary.frame_count << " ms\n"
                       << "  Depth Encoder Time Average: " << summary.depth_encoder_ms_sum / summary.frame_count << " ms\n";
-            summary = SendVideoFrameSummary{};
+            summary = ReadVideoFrameSummary{};
         }
         ++video_state.frame_id;
     }
 }
 
-void send_frames(int port, int session_id, KinectDevice& kinect_device)
+void start(int port, int session_id, KinectDevice& kinect_device)
 {
     constexpr int SENDER_SEND_BUFFER_SIZE = 128 * 1024;
 
@@ -343,11 +344,11 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     TimePoint sender_start_time{TimePoint::now()};
     std::thread task_thread([&] {
         try {
-            HandleReceiverMessageTask handle_receiver_message_task;
-            SendAudioFrameTask send_audio_frame_task;
+            VideoPacketSender video_packet_sender;
+            AudioPacketSender audio_packet_sender;
             while (!stopped) {
-                handle_receiver_message_task.run(session_id, udp_socket, video_packet_queue, receiver_state);
-                send_audio_frame_task.run(session_id, udp_socket);
+                video_packet_sender.send(session_id, udp_socket, video_packet_queue, receiver_state);
+                audio_packet_sender.send(session_id, udp_socket);
             }
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError from task_thread:\n  " << e.what() << "\n";
@@ -356,7 +357,7 @@ void send_frames(int port, int session_id, KinectDevice& kinect_device)
     });
 
     try {
-        send_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state, sender_start_time);
+        read_video_frames(session_id, stopped, udp_socket, kinect_device, video_packet_queue, receiver_state, sender_start_time);
     } catch (UdpSocketRuntimeError e) {
         std::cout << "UdpSocketRuntimeError from send_video_frames(): \n  " << e.what() << "\n";
     }
@@ -389,7 +390,7 @@ void main()
         KinectDevice kinect_device{configuration, timeout};
         kinect_device.start();
 
-        send_frames(port, session_id, kinect_device);
+        start(port, session_id, kinect_device);
     }
 }
 }
