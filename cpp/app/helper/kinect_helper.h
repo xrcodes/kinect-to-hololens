@@ -18,17 +18,19 @@ namespace kh
 class KinectFrame
 {
 public:
-    KinectFrame(k4a::image&& color_image, k4a::image&& depth_image)
-        : color_image_{color_image}, depth_image_{depth_image}
+    KinectFrame(k4a::image&& color_image, k4a::image&& depth_image, k4a_imu_sample_t imu_sample)
+        : color_image_{color_image}, depth_image_{depth_image}, imu_sample_{imu_sample}
     {
     }
 
     k4a::image& color_image() { return color_image_; }
     k4a::image& depth_image() { return depth_image_; }
+    k4a_imu_sample_t& imu_sample() { return imu_sample_; }
 
 private:
     k4a::image color_image_;
     k4a::image depth_image_;
+    k4a_imu_sample_t imu_sample_;
 };
 
 // For having an interface combining devices and playbacks one day in the future...
@@ -48,6 +50,7 @@ public:
     void start()
     {
         device_.start_cameras(&configuration_);
+        device_.start_imu();
     }
 
     k4a::calibration getCalibration()
@@ -70,7 +73,11 @@ public:
         if (!depth_image)
             return std::nullopt;
 
-        return KinectFrame{std::move(color_image), std::move(depth_image)};
+        k4a_imu_sample_t imu_sample;
+        if (!device_.get_imu_sample(&imu_sample, timeout_))
+            return std::nullopt;
+
+        return KinectFrame{std::move(color_image), std::move(depth_image), std::move(imu_sample)};
     }
 
 private:

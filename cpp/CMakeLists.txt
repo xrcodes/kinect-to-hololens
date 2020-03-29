@@ -47,7 +47,7 @@ else()
 	set(OPUS_BUILD_DIR ${OPUS_DIR}/x86)
 endif()
 
-message(${OPUS_BUILD_DIR})
+set(AZURE_KINECT_SAMPLES_DIR ${PROJECT_SOURCE_DIR}/azure-kinect-samples)
 
 # The directory for general source files.
 add_subdirectory(src)

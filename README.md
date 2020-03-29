@@ -30,6 +30,9 @@ To fix this, Opus should be built from its source code.
 Since automation would become very hectic, currently, while I use CMake to build Opus, I just switch the /arch flag from /arch:AVX to /arch:SSE2 (HoloLens has SSE2) before building the solution.
 While this may cause some performance loss, since Opus does not require that much computation for a PC, I will just use the SSE2 version also for both x64, which is for PCs, and x86, which is for HoloLens.
 
+## Floor Detection
+Microsoft provides floor detection code as a sample: https://github.com/microsoft/Azure-Kinect-Samples/tree/master/body-tracking-samples/floor_detector_sample. The files needed to use the functionality are copied inside cpp/azure-kinect-samples.
+
 # Examples
 ## KinectReader.exe
 1. Connect an Azure Kinect to your computer.

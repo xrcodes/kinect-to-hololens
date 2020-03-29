@@ -13,6 +13,7 @@
 #include "helper/soundio_helper.h"
 #include "helper/shadow_remover.h"
 #include "sender_modules.h"
+#include "PointCloudGenerator.h"
 #include "FloorDetector.h"
 
 namespace kh
@@ -69,6 +70,9 @@ void read_video_frames(const int session_id,
     //auto last_device_time_stamp{std::chrono::microseconds::zero()};
 
     ReadVideoFrameSummary summary;
+
+    Samples::PointCloudGenerator point_cloud_generator{calibration};
+
     while (!stopped) {
         if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
             const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
@@ -83,6 +87,26 @@ void read_video_frames(const int session_id,
             std::cout << "no kinect frame...\n";
             continue;
         }
+
+        //auto acc_sample = kinect_frame->imu_sample().acc_sample;
+        //std::cout << "acc: " << acc_sample.xyz.x << ", "
+        //                     << acc_sample.xyz.y << ", "
+        //                     << acc_sample.xyz.z << "\n";
+
+
+        point_cloud_generator.Update(kinect_frame->depth_image().handle());
+        const int downsampleStep = 2;
+        auto cloud_points{point_cloud_generator.GetCloudPoints(downsampleStep)};
+        const size_t minimumFloorPointCount = 1024 / (downsampleStep * downsampleStep);
+        auto floor_plane{Samples::FloorDetector::TryDetectFloorPlane(cloud_points, kinect_frame->imu_sample(), calibration, minimumFloorPointCount)};
+
+        if (floor_plane)
+            continue;
+
+        std::cout << "floor_plane: " << floor_plane->Normal.X << ", "
+                                     << floor_plane->Normal.Y << ", "
+                                     << floor_plane->Normal.Z << ", "
+                                     << floor_plane->C << "\n";
 
         constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
         const auto frame_time_point{TimePoint::now()};
