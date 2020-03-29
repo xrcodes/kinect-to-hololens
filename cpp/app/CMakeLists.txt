@@ -30,6 +30,9 @@ add_executable(KinectSender
   helper/soundio_helper.h
   helper/shadow_remover.h
   sender_modules.h
+  SampleMathTypes.h
+  FloorDetector.h
+  FloorDetector.cpp
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

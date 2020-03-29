@@ -13,6 +13,7 @@
 #include "helper/soundio_helper.h"
 #include "helper/shadow_remover.h"
 #include "sender_modules.h"
+#include "FloorDetector.h"
 
 namespace kh
 {
