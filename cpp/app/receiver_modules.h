@@ -33,6 +33,9 @@ public:
             case SenderPacketType::Audio:
                 audio_packet_data_queue_.enqueue(parse_audio_sender_packet_bytes(*packet_bytes));
                 break;
+            case SenderPacketType::Floor:
+                // Ignore
+                break;
             }
         }
     }

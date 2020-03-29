@@ -267,6 +267,27 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
     return audio_sender_packet_data;
 }
 
+std::vector<std::byte> create_floor_sender_packet_bytes(int session_id, float a, float b, float c, float d)
+{
+    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
+                                                sizeof(SenderPacketType) +
+                                                sizeof(a) +
+                                                sizeof(b) +
+                                                sizeof(c) +
+                                                sizeof(d))};
+
+    std::vector<std::byte> packet_bytes(packet_size);
+    PacketCursor cursor;
+    copy_to_bytes(session_id, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Floor, packet_bytes, cursor);
+    copy_to_bytes(a, packet_bytes, cursor);
+    copy_to_bytes(b, packet_bytes, cursor);
+    copy_to_bytes(c, packet_bytes, cursor);
+    copy_to_bytes(d, packet_bytes, cursor);
+
+    return packet_bytes;
+}
+
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
     PacketCursor cursor;

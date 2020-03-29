@@ -15,6 +15,7 @@ enum class SenderPacketType : std::uint8_t
     Video = 1,
     Fec = 2,
     Audio = 3,
+    Floor = 4,
 };
 
 enum class ReceiverPacketType : std::uint8_t
@@ -144,6 +145,8 @@ struct AudioSenderPacketData
 std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
                                                         gsl::span<const std::byte> opus_frame);
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
+std::vector<std::byte> create_floor_sender_packet_bytes(int session_id, float a, float b, float c, float d);
 
 /**Receiver Packets**/
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);

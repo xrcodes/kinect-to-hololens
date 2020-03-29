@@ -16,6 +16,7 @@ public class KinectReceiver
 
     private Material azureKinectScreenMaterial;
     private AzureKinectScreen azureKinectScreen;
+    private Transform floorPlaneTransform;
 
     private TextureGroup textureGroup;
 
@@ -33,6 +34,8 @@ public class KinectReceiver
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
+    private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
+
     public RingBuffer RingBuffer
     {
         get
@@ -41,10 +44,11 @@ public class KinectReceiver
         }
     }
 
-    public KinectReceiver(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen)
+    public KinectReceiver(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen, Transform floorPlaneTransform)
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         this.azureKinectScreen = azureKinectScreen;
+        this.floorPlaneTransform = floorPlaneTransform;
 
         textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
@@ -61,6 +65,8 @@ public class KinectReceiver
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
+
+        floorPacketDataQueue = new ConcurrentQueue<FloorSenderPacketData>();
     }
 
     public void UpdateFrame()
@@ -164,7 +170,7 @@ public class KinectReceiver
 
             while(!receiverStopped)
             {
-                senderPacketReceiver.Receive(udpSocket, senderSessionId);
+                senderPacketReceiver.Receive(udpSocket, senderSessionId, floorPacketDataQueue);
                 videoMessageReassembler.Reassemble(udpSocket, senderPacketReceiver.VideoPacketDataQueue,
                     senderPacketReceiver.FecPacketDataQueue, lastVideoFrameId, videoMessageQueue);
                 audioPacketCollector.Collect(senderPacketReceiver.AudioPacketDataQueue, ringBuffer);
@@ -281,6 +287,17 @@ public class KinectReceiver
             {
                 videoMessages.Remove(key);
             }
+        }
+
+        FloorSenderPacketData floorSenderPacketData;
+        while(floorPacketDataQueue.TryDequeue(out floorSenderPacketData))
+        {
+            UnityEngine.Debug.Log($"floorSenderPacketData: {floorSenderPacketData.a}, {floorSenderPacketData.b}, {floorSenderPacketData.c}, {floorSenderPacketData.d}");
+            //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
+            // y component is fliped since the coordinate system of unity and azure kinect is different.
+            Vector3 upVector = new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c);
+            floorPlaneTransform.localPosition = upVector * floorSenderPacketData.d;
+            floorPlaneTransform.localRotation = Quaternion.FromToRotation(Vector3.up, upVector);
         }
     }
 }

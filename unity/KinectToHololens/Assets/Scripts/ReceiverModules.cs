@@ -17,7 +17,7 @@ class SenderPacketReceiver
         AudioPacketDataQueue = new ConcurrentQueue<AudioSenderPacketData>();
     }
 
-    public void Receive(UdpSocket udpSocket, int senderSessionId)
+    public void Receive(UdpSocket udpSocket, int senderSessionId, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
     {
         SocketError error = SocketError.WouldBlock;
         while (true)
@@ -32,17 +32,20 @@ class SenderPacketReceiver
             if (sessionId != senderSessionId)
                 continue;
 
-            if (packetType == SenderPacketType.Frame)
+            switch(packetType)
             {
-                VideoPacketDataQueue.Enqueue(VideoSenderPacketData.Parse(packet));
-            }
-            else if (packetType == SenderPacketType.Fec)
-            {
-                FecPacketDataQueue.Enqueue(FecSenderPacketData.Parse(packet));
-            }
-            else if (packetType == SenderPacketType.Audio)
-            {
-                AudioPacketDataQueue.Enqueue(AudioSenderPacketData.Parse(packet));
+                case SenderPacketType.Frame:
+                    VideoPacketDataQueue.Enqueue(VideoSenderPacketData.Parse(packet));
+                    break;
+                case SenderPacketType.Fec:
+                    FecPacketDataQueue.Enqueue(FecSenderPacketData.Parse(packet));
+                    break;
+                case SenderPacketType.Audio:
+                    AudioPacketDataQueue.Enqueue(AudioSenderPacketData.Parse(packet));
+                    break;
+                case SenderPacketType.Floor:
+                    floorPacketDataQueue.Enqueue(FloorSenderPacketData.Parse(packet));
+                    break;
             }
         }
 

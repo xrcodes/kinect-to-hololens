@@ -8,6 +8,7 @@ public enum SenderPacketType : byte
     Frame = 1,
     Fec = 2,
     Audio = 3,
+    Floor = 4,
 }
 
 public enum ReceiverPacketType : byte
@@ -190,5 +191,27 @@ public class AudioSenderPacketData
         audioSenderPacketData.opusFrame = reader.ReadBytes(packetBytes.Length - (int)reader.BaseStream.Position);
 
         return audioSenderPacketData;
+    }
+}
+
+public class FloorSenderPacketData
+{
+    public float a;
+    public float b;
+    public float c;
+    public float d;
+
+    public static FloorSenderPacketData Parse(byte[] packetBytes)
+    {
+        var reader = new BinaryReader(new MemoryStream(packetBytes));
+        reader.BaseStream.Position = 5;
+
+        var floorSenderPacketData = new FloorSenderPacketData();
+        floorSenderPacketData.a = reader.ReadSingle();
+        floorSenderPacketData.b = reader.ReadSingle();
+        floorSenderPacketData.c = reader.ReadSingle();
+        floorSenderPacketData.d = reader.ReadSingle();
+
+        return floorSenderPacketData;
     }
 }

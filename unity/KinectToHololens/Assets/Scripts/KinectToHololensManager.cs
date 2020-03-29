@@ -27,6 +27,7 @@ public class KinectToHololensManager : MonoBehaviour
     // For rendering the Kinect pixels in 3D.
     public Material azureKinectScreenMaterial;
     public AzureKinectScreen azureKinectScreen;
+    public Transform floorPlaneTransform;
 
     // To recognize when the user taps.
     private GestureRecognizer gestureRecognizer;
@@ -34,6 +35,7 @@ public class KinectToHololensManager : MonoBehaviour
     private InputState inputState;
 
     private KinectReceiver kinectReceiver;
+
 
     private InputState InputState
     {
@@ -85,7 +87,7 @@ public class KinectToHololensManager : MonoBehaviour
 
         gestureRecognizer = new GestureRecognizer();
 
-        kinectReceiver = new KinectReceiver(azureKinectScreenMaterial, azureKinectScreen);
+        kinectReceiver = new KinectReceiver(azureKinectScreenMaterial, azureKinectScreen, floorPlaneTransform);
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;

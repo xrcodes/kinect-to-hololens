@@ -76,7 +76,6 @@ void read_video_frames(const int session_id,
     while (!stopped) {
         if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
             const auto init_packet_bytes{create_init_sender_packet_bytes(session_id, create_init_sender_packet_data(calibration))};
-            std::error_code error;
             udp_socket.send(init_packet_bytes);
 
             Sleep(100);
@@ -100,13 +99,13 @@ void read_video_frames(const int session_id,
         const size_t minimumFloorPointCount = 1024 / (downsampleStep * downsampleStep);
         auto floor_plane{Samples::FloorDetector::TryDetectFloorPlane(cloud_points, kinect_frame->imu_sample(), calibration, minimumFloorPointCount)};
 
-        if (floor_plane)
+        if (!floor_plane)
             continue;
 
-        std::cout << "floor_plane: " << floor_plane->Normal.X << ", "
-                                     << floor_plane->Normal.Y << ", "
-                                     << floor_plane->Normal.Z << ", "
-                                     << floor_plane->C << "\n";
+        const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id, floor_plane->Normal.X, 
+                                                                       floor_plane->Normal.Y, floor_plane->Normal.Z,
+                                                                       floor_plane->C)};
+        udp_socket.send(floor_packet_bytes);
 
         constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
         const auto frame_time_point{TimePoint::now()};
