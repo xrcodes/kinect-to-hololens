@@ -35,10 +35,14 @@ public:
               ReceiverState& receiver_state,
               VideoPacketSenderSummary& summary)
     {
+        // Update receiver_state and summary with Report packets.
         ReportReceiverPacketData report_receiver_packet_data;
         while (report_packet_data_queue.try_dequeue(report_receiver_packet_data)) {
-            if(report_receiver_packet_data.frame_id > receiver_state.video_frame_id)
-                receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
+            // Ignore if network is somehow out of order and a report comes in out of order.
+            if (report_receiver_packet_data.frame_id <= receiver_state.video_frame_id)
+                continue;
+            
+            receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
 
             const auto round_trip_time{TimePoint::now() - video_frame_send_times_[receiver_state.video_frame_id]};
             summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
@@ -47,6 +51,7 @@ public:
             ++summary.received_report_count;
         }
 
+        // Resend the requested video packets.
         RequestReceiverPacketData request_receiver_packet_data;
         while (request_packet_data_queue.try_dequeue(request_receiver_packet_data)) {
             for (int packet_index : request_receiver_packet_data.packet_indices) {
@@ -57,6 +62,7 @@ public:
             }
         }
 
+        // With the new video packets from Kinect, make FEC packets for them and send the both types packets.
         std::pair<int, std::vector<Bytes>> video_packet_set;
         while (video_packet_queue.try_dequeue(video_packet_set)) {
             auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id_, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
@@ -71,11 +77,12 @@ public:
                 std::error_code error;
                 udp_socket.send(fec_packet_bytes, remote_endpoint_);
             }
+
+            // Save the video packets to resend them when requested.
             video_packet_sets_.insert({video_packet_set.first, std::move(video_packet_set)});
         }
 
-        // Remove elements of frame_packet_sets reserved for filling up missing packets
-        // if they are already used from the receiver side.
+        // Remove video packets from its container when the receiver already received them.
         for (auto it = video_packet_sets_.begin(); it != video_packet_sets_.end();) {
             if (it->first <= receiver_state.video_frame_id) {
                 it = video_packet_sets_.erase(it);
@@ -84,6 +91,7 @@ public:
             }
         }
 
+        // No need to save its profiling information when the video frame is over.
         for (auto it = video_frame_send_times_.begin(); it != video_frame_send_times_.end();) {
             if (it->first <= receiver_state.video_frame_id) {
                 it = video_frame_send_times_.erase(it);
@@ -97,6 +105,7 @@ private:
     constexpr static int XOR_MAX_GROUP_SIZE{5};
     const int session_id_;
     const asio::ip::udp::endpoint remote_endpoint_;
+
     std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets_;
     std::unordered_map<int, TimePoint> video_frame_send_times_;
 };
