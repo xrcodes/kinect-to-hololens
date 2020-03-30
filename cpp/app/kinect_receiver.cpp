@@ -11,7 +11,12 @@
 #include "native/kh_time.h"
 #include "helper/opencv_helper.h"
 #include "helper/soundio_helper.h"
-#include "receiver_modules.h"
+#include <readerwriterqueue/readerwriterqueue.h>
+#include "native/kh_udp_socket.h"
+#include "native/kh_packet.h"
+#include "receiver/sender_packet_receiver.h"
+#include "receiver/video_message_assembler.h"
+#include "receiver/audio_packet_receiver.h"
 
 namespace kh
 {
@@ -159,11 +164,11 @@ void start_session(const std::string ip_address, const int port, const int sessi
     bool stopped{false};
     int last_video_frame_id{-1};
 
-    VideoMessageReassembler video_message_reassembler{session_id, remote_endpoint};
+    VideoMessageAssembler video_message_reassembler{session_id, remote_endpoint};
 
     std::thread task_thread([&] {
         SenderPacketReceiver sender_packet_receiver;
-        AudioPacketCollector audio_packet_collector;
+        AudioPacketReceiver audio_packet_collector;
 
         while (!stopped) {
             sender_packet_receiver.receive(sender_session_id, udp_socket);

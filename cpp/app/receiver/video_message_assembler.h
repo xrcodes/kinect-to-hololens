@@ -1,60 +1,13 @@
 #pragma once
 
-#include <readerwriterqueue/readerwriterqueue.h>
-#include "native/kh_udp_socket.h"
-#include "native/kh_packet.h"
-
 namespace kh
 {
-class SenderPacketReceiver
+
+class VideoMessageAssembler
 {
 public:
-    SenderPacketReceiver()
-        : video_packet_data_queue_{}, fec_packet_data_queue_{}, audio_packet_data_queue_{}
-    {
-    }
-
-    void receive(int sender_session_id, UdpSocket& udp_socket)
-    {
-        while (auto packet{udp_socket.receive()}) {
-            const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
-
-            if (session_id != sender_session_id)
-                continue;
-
-            switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
-            {
-            case SenderPacketType::Video:
-                video_packet_data_queue_.enqueue(parse_video_sender_packet_bytes(packet->bytes));
-                break;
-            case SenderPacketType::Fec:
-                fec_packet_data_queue_.enqueue(parse_fec_sender_packet_bytes(packet->bytes));
-                break;
-            case SenderPacketType::Audio:
-                audio_packet_data_queue_.enqueue(parse_audio_sender_packet_bytes(packet->bytes));
-                break;
-            case SenderPacketType::Floor:
-                // Ignore
-                break;
-            }
-        }
-    }
-
-    moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue() { return video_packet_data_queue_; }
-    moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue() { return fec_packet_data_queue_; }
-    moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue() { return audio_packet_data_queue_; }
-
-private:
-    moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue_;
-    moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue_;
-    moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue_;
-};
-
-class VideoMessageReassembler
-{
-public:
-    VideoMessageReassembler(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
-        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, video_packet_collections_ {}, fec_packet_collections_{}, video_message_queue_{}
+    VideoMessageAssembler(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
+        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, video_packet_collections_{}, fec_packet_collections_{}, video_message_queue_{}
     {
     }
 
@@ -238,103 +191,5 @@ private:
     std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections_;
     std::unordered_map<int, std::vector<std::optional<FecSenderPacketData>>> fec_packet_collections_;
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue_;
-};
-
-// AudioPacketPlayer better suits what this class does.
-// However, this is name collecter to match the corresponding c# class,
-// which only collects packets and enqueues them to a ring buffer.
-class AudioPacketCollector
-{
-public:
-    AudioPacketCollector()
-        : audio_{}, default_speaker_{audio_.getDefaultOutputDevice()},
-        default_speaker_stream_{default_speaker_}, audio_decoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT},
-        pcm_{}, last_audio_frame_id_{-1}
-    {
-        // These settings are those generic and similar to Azure Kinect's.
-        // It is set to be Stereo, which is the default setting of Unity3D.
-        default_speaker_stream_.get()->format = SoundIoFormatFloat32LE;
-        default_speaker_stream_.get()->sample_rate = KH_SAMPLE_RATE;
-        default_speaker_stream_.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
-        default_speaker_stream_.get()->software_latency = KH_LATENCY_SECONDS;
-        default_speaker_stream_.get()->write_callback = soundio_callback::write_callback;
-        default_speaker_stream_.get()->underflow_callback = soundio_callback::underflow_callback;
-        default_speaker_stream_.open();
-
-        const int default_speaker_bytes_per_second{default_speaker_stream_.get()->sample_rate * default_speaker_stream_.get()->bytes_per_frame};
-        assert(KH_BYTES_PER_SECOND == default_speaker_bytes_per_second);
-
-        constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-
-        soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
-        if (!soundio_callback::ring_buffer)
-            throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
-
-        default_speaker_stream_.start();
-    }
-
-    void collect(moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
-    {
-        constexpr float AMPLIFIER{8.0f};
-
-        soundio_flush_events(audio_.get());
-
-        std::vector<AudioSenderPacketData> audio_packet_data_set;
-        AudioSenderPacketData audio_sender_packet_data;
-        while (audio_packet_data_queue.try_dequeue(audio_sender_packet_data))
-            audio_packet_data_set.push_back(audio_sender_packet_data);
-
-        if (audio_packet_data_set.empty())
-            return;
-
-        std::sort(audio_packet_data_set.begin(),
-                  audio_packet_data_set.end(),
-                  [](AudioSenderPacketData& a, AudioSenderPacketData& b) { return a.frame_id < b.frame_id; });
-
-        char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer)};
-        int free_bytes{soundio_ring_buffer_free_count(soundio_callback::ring_buffer)};
-
-        const int FRAME_BYTE_SIZE{gsl::narrow_cast<int>(sizeof(float) * pcm_.size())};
-
-        int write_cursor{0};
-        auto packet_it = audio_packet_data_set.begin();
-        while ((free_bytes - write_cursor) >= FRAME_BYTE_SIZE) {
-            if (packet_it == audio_packet_data_set.end())
-                break;
-
-            int frame_size;
-            if (packet_it->frame_id <= last_audio_frame_id_) {
-                // If a packet is about the past, throw it away and try again.
-                ++packet_it;
-                continue;
-            }
-
-            frame_size = audio_decoder_.decode(packet_it->opus_frame, pcm_.data(), KH_SAMPLES_PER_FRAME, 0);
-
-            if (frame_size < 0)
-                throw std::runtime_error(std::string("Failed to decode audio: ") + opus_strerror(frame_size));
-
-            for (gsl::index i{0}; i < pcm_.size(); ++i)
-                pcm_[i] *= AMPLIFIER;
-
-            memcpy(write_ptr + write_cursor, pcm_.data(), FRAME_BYTE_SIZE);
-
-            last_audio_frame_id_ = packet_it->frame_id;
-            ++packet_it;
-            write_cursor += FRAME_BYTE_SIZE;
-        }
-
-        soundio_ring_buffer_advance_write_ptr(soundio_callback::ring_buffer, write_cursor);
-    }
-
-private:
-    Audio audio_;
-    AudioDevice default_speaker_;
-    AudioOutStream default_speaker_stream_;
-
-    AudioDecoder audio_decoder_;
-    std::array<float, KH_SAMPLES_PER_FRAME* KH_CHANNEL_COUNT> pcm_;
-
-    int last_audio_frame_id_;
 };
 }
