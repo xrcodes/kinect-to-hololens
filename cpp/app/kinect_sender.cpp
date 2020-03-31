@@ -1,14 +1,8 @@
-#include <chrono>
 #include <iostream>
 #include <random>
-#include <vector>
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
-#include "kh_opus.h"
-#include "native/kh_udp_socket.h"
-#include "native/kh_packet.h"
-#include "native/kh_time.h"
-#include "native/kh_kinect_device.h"
+#include "native/kh_native.h"
 #include "helper/shadow_remover.h"
 #include "sender/video_packet_sender.h"
 #include "sender/audio_packet_sender.h"

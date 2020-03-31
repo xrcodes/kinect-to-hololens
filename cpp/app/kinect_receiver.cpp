@@ -1,19 +1,10 @@
-#include <algorithm>
-#include <chrono>
 #include <iostream>
-#include <optional>
 #include <random>
 #include <thread>
-#include <gsl/gsl>
-#include "kh_opus.h"
-#include "kh_trvl.h"
-#include "kh_vp8.h"
-#include "native/kh_time.h"
+#include <readerwriterqueue/readerwriterqueue.h>
+#include "native/kh_native.h"
 #include "helper/opencv_helper.h"
 #include "helper/soundio_helper.h"
-#include <readerwriterqueue/readerwriterqueue.h>
-#include "native/kh_udp_socket.h"
-#include "native/kh_packet.h"
 #include "receiver/video_renderer.h"
 #include "receiver/sender_packet_receiver.h"
 #include "receiver/video_message_assembler.h"
@@ -31,41 +22,29 @@ void start_session(const std::string ip_address, const int port, const int sessi
     asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)};
     UdpSocket udp_socket{std::move(socket)};
 
-    int sender_session_id;
-    int depth_width;
-    int depth_height;
+    //int sender_session_id;
+    int width;
+    int height;
     // When ping then check if a init packet arrived.
     // Repeat until it happens.
     int ping_count{0};
+
+    SenderPacketReceiver sender_packet_receiver;
     for (;;) {
         bool initialized{false};
         udp_socket.send(create_connect_receiver_packet_bytes(session_id), remote_endpoint);
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
-        //Sleep(100);
         Sleep(300);
         
-        while (auto packet = udp_socket.receive()) {
-            int cursor{0};
-            const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
-            const SenderPacketType packet_type{get_packet_type_from_sender_packet_bytes(packet->bytes)};
-            if (packet_type != SenderPacketType::Init) {
-                std::cout << "A different kind of a packet was received before an init packet: " << static_cast<int>(packet_type) << "\n";
-                continue;
-            }
-
-            sender_session_id = session_id;
-
-            const auto init_sender_packet_data{parse_init_sender_packet_bytes(packet->bytes)};
-            depth_width = init_sender_packet_data.width;
-            depth_height = init_sender_packet_data.height;
-
-            initialized = true;
+        sender_packet_receiver.receive(udp_socket);
+        InitSenderPacketData init_sender_packet_data;
+        if (sender_packet_receiver.init_packet_data_queue().try_dequeue(init_sender_packet_data)) {
+            width = init_sender_packet_data.width;
+            height = init_sender_packet_data.height;
             break;
         }
-        if (initialized)
-            break;
 
         if (ping_count == 10) {
             printf("Tried pinging 10 times and failed to received an init packet...\n");
@@ -78,11 +57,10 @@ void start_session(const std::string ip_address, const int port, const int sessi
     VideoMessageAssembler video_message_reassembler{session_id, remote_endpoint};
 
     std::thread task_thread([&] {
-        SenderPacketReceiver sender_packet_receiver;
         AudioPacketReceiver audio_packet_collector;
 
         while (!stopped) {
-            sender_packet_receiver.receive(sender_session_id, udp_socket);
+            sender_packet_receiver.receive(udp_socket);
             video_message_reassembler.reassemble(udp_socket, sender_packet_receiver.video_packet_data_queue(),
                                                  sender_packet_receiver.fec_packet_data_queue(),
                                                  video_renderer_state);
@@ -90,8 +68,10 @@ void start_session(const std::string ip_address, const int port, const int sessi
         }
     });
 
-    VideoRenderer video_renderer{session_id, remote_endpoint, depth_width, depth_height};
-    video_renderer.render(stopped, udp_socket, video_message_reassembler.video_message_queue(), video_renderer_state);
+    VideoRenderer video_renderer{session_id, remote_endpoint, width, height};
+    while (!stopped) {
+        video_renderer.render(udp_socket, video_message_reassembler.video_message_queue(), video_renderer_state);
+    }
     stopped = true;
 
     task_thread.join();

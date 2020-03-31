@@ -1,9 +1,6 @@
 #include <iostream>
 #include <gsl/gsl>
-#include "k4a/k4a.hpp"
-#include "kh_vp8.h"
-#include "kh_trvl.h"
-#include "native/kh_kinect_device.h"
+#include "native/kh_native.h"
 #include "helper/opencv_helper.h"
 
 namespace kh

@@ -6,20 +6,20 @@ class SenderPacketReceiver
 {
 public:
     SenderPacketReceiver()
-        : video_packet_data_queue_{}, fec_packet_data_queue_{}, audio_packet_data_queue_{}
+        : init_packet_data_queue_{}, video_packet_data_queue_{}, fec_packet_data_queue_{}, audio_packet_data_queue_{}
     {
     }
 
-    void receive(int sender_session_id, UdpSocket& udp_socket)
+    void receive(UdpSocket& udp_socket)
     {
         while (auto packet{udp_socket.receive()}) {
             const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
 
-            if (session_id != sender_session_id)
-                continue;
-
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {
+            case SenderPacketType::Init:
+                init_packet_data_queue_.enqueue(parse_init_sender_packet_bytes(packet->bytes));
+                break;
             case SenderPacketType::Video:
                 video_packet_data_queue_.enqueue(parse_video_sender_packet_bytes(packet->bytes));
                 break;
@@ -36,11 +36,13 @@ public:
         }
     }
 
+    moodycamel::ReaderWriterQueue<InitSenderPacketData>& init_packet_data_queue() { return init_packet_data_queue_; }
     moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue() { return video_packet_data_queue_; }
     moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue() { return fec_packet_data_queue_; }
     moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue() { return audio_packet_data_queue_; }
 
 private:
+    moodycamel::ReaderWriterQueue<InitSenderPacketData> init_packet_data_queue_;
     moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue_;
     moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue_;
     moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue_;
