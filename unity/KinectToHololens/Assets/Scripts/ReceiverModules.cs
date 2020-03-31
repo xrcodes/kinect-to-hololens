@@ -48,11 +48,6 @@ class SenderPacketReceiver
                     break;
             }
         }
-
-        if (error != SocketError.WouldBlock)
-        {
-            UnityEngine.Debug.Log($"Error from receiving packets: {error.ToString()}");
-        }
     }
 }
 

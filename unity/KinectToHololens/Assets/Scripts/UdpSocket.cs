@@ -16,23 +16,28 @@ public class UdpSocket
 
     public byte[] Receive(out SocketError error)
     {
-        var packet = new byte[PacketHelper.PACKET_SIZE];
-        var packetSize = socket.Receive(packet, 0, packet.Length, SocketFlags.None, out error);
+        var bytes = new byte[PacketHelper.PACKET_SIZE];
+        var packetSize = socket.Receive(bytes, 0, bytes.Length, SocketFlags.None, out error);
 
-        if (error != SocketError.Success)
+        if (error == SocketError.WouldBlock)
         {
             return null;
         }
 
-        if (packetSize != packet.Length)
+        if (error != SocketError.WouldBlock)
         {
-            var resizedPacket = new byte[packetSize];
-            Array.Copy(packet, 0, resizedPacket, 0, packetSize);
-            return resizedPacket;
+            UnityEngine.Debug.Log($"Failed to receive bytes: {error}");
+        }
+
+        if (packetSize != bytes.Length)
+        {
+            var resizedBytes = new byte[packetSize];
+            Array.Copy(bytes, 0, resizedBytes, 0, packetSize);
+            return resizedBytes;
         }
         else
         {
-            return packet;
+            return bytes;
         }
     }
 
