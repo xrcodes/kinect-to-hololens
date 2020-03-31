@@ -1,7 +1,15 @@
 #pragma once
 
+#include <iostream>
+#include <readerwriterqueue/readerwriterqueue.h>
 #include "kh_trvl.h"
 #include "kh_vp8.h"
+#include "native/kh_kinect_device.h"
+#include "native/kh_time.h"
+#include "../helper/shadow_remover.h"
+#include "native/kh_packet.h"
+#include "native/kh_udp_socket.h"
+#include "receiver_state.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
 #include "PointCloudGenerator.h"

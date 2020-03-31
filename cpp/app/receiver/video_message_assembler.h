@@ -2,7 +2,6 @@
 
 namespace kh
 {
-
 class VideoMessageAssembler
 {
 public:
@@ -14,7 +13,7 @@ public:
     void reassemble(UdpSocket& udp_socket,
                     moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
                     moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-                    int last_video_frame_id)
+                    VideoRendererState video_renderer_state)
     {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
@@ -22,7 +21,7 @@ public:
         // frame packet is detected.
         FecSenderPacketData fec_sender_packet_data;
         while (fec_packet_data_queue.try_dequeue(fec_sender_packet_data)) {
-            if (fec_sender_packet_data.frame_id <= last_video_frame_id)
+            if (fec_sender_packet_data.frame_id <= video_renderer_state.frame_id)
                 continue;
 
             auto fec_packet_iter = fec_packet_collections_.find(fec_sender_packet_data.frame_id);
@@ -35,7 +34,7 @@ public:
 
         VideoSenderPacketData video_sender_packet_data;
         while (video_packet_data_queue.try_dequeue(video_sender_packet_data)) {
-            if (video_sender_packet_data.frame_id <= last_video_frame_id)
+            if (video_sender_packet_data.frame_id <= video_renderer_state.frame_id)
                 continue;
 
             // If there is a packet for a new frame, check the previous frames, and if
@@ -165,7 +164,7 @@ public:
 
         // Clean up frame_packet_collections.
         for (auto it = video_packet_collections_.begin(); it != video_packet_collections_.end();) {
-            if (it->first <= last_video_frame_id) {
+            if (it->first <= video_renderer_state.frame_id) {
                 it = video_packet_collections_.erase(it);
             } else {
                 ++it;
@@ -174,7 +173,7 @@ public:
 
         // Clean up xor_packet_collections.
         for (auto it = fec_packet_collections_.begin(); it != fec_packet_collections_.end();) {
-            if (it->first <= last_video_frame_id) {
+            if (it->first <= video_renderer_state.frame_id) {
                 it = fec_packet_collections_.erase(it);
             } else {
                 ++it;

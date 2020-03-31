@@ -31,7 +31,9 @@ add_executable(KinectSender
   sender/video_packet_sender.h
   sender/audio_packet_sender.h
   sender/kinect_device_manager.h
+  sender/kinect_device_manager.cpp
   sender/receiver_packet_receiver.h
+  sender/receiver_state.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -63,6 +65,7 @@ add_executable(KinectReceiver
   receiver/audio_packet_receiver.h
   receiver/sender_packet_receiver.h
   receiver/video_message_assembler.h
+  receiver/video_renderer.h
 )
 target_include_directories(KinectReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
