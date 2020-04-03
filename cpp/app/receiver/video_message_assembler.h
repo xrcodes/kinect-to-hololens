@@ -10,7 +10,7 @@ public:
     {
     }
 
-    void reassemble(UdpSocket& udp_socket,
+    void assemble(UdpSocket& udp_socket,
                     moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
                     moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
                     VideoRendererState video_renderer_state)

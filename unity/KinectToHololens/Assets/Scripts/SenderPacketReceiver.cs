@@ -3,18 +3,20 @@ using System.Net.Sockets;
 
 class SenderPacketReceiver
 {
+    public ConcurrentQueue<InitSenderPacketData> InitPacketDataQueue { get; private set; }
     public ConcurrentQueue<VideoSenderPacketData> VideoPacketDataQueue { get; private set; }
     public ConcurrentQueue<FecSenderPacketData> FecPacketDataQueue { get; private set; }
     public ConcurrentQueue<AudioSenderPacketData> AudioPacketDataQueue { get; private set; }
 
     public SenderPacketReceiver()
     {
+        InitPacketDataQueue = new ConcurrentQueue<InitSenderPacketData>();
         VideoPacketDataQueue = new ConcurrentQueue<VideoSenderPacketData>();
         FecPacketDataQueue = new ConcurrentQueue<FecSenderPacketData>();
         AudioPacketDataQueue = new ConcurrentQueue<AudioSenderPacketData>();
     }
 
-    public void Receive(UdpSocket udpSocket, int senderSessionId, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
+    public void Receive(UdpSocket udpSocket, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
     {
         SocketError error = SocketError.WouldBlock;
         while (true)
@@ -23,14 +25,13 @@ class SenderPacketReceiver
             if (packet == null)
                 break;
 
-            int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
-            var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
+            //int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
 
-            if (sessionId != senderSessionId)
-                continue;
-
-            switch (packetType)
+            switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet))
             {
+                case SenderPacketType.Init:
+                    InitPacketDataQueue.Enqueue(InitSenderPacketData.Parse(packet));
+                    break;
                 case SenderPacketType.Frame:
                     VideoPacketDataQueue.Enqueue(VideoSenderPacketData.Parse(packet));
                     break;

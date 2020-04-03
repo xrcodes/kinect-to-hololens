@@ -23,7 +23,7 @@ public:
         default_speaker_stream_.start();
     }
 
-    void collect(moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
+    void receive(moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
     {
         constexpr float AMPLIFIER{8.0f};
 

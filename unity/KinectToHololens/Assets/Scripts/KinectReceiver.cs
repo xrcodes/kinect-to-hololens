@@ -108,11 +108,12 @@ public class KinectReceiver
 
     public void Ping(UdpSocket udpSocket)
     {
-        int senderSessionId = -1;
+        //int senderSessionId = -1;
         int pingCount = 0;
+
+        var senderPacketReceiver = new SenderPacketReceiver();
         while (true)
         {
-            bool initialized = false;
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId));
             ++pingCount;
             UnityEngine.Debug.Log("Sent ping");
@@ -120,29 +121,10 @@ public class KinectReceiver
             //Thread.Sleep(100);
             Thread.Sleep(300);
 
-            SocketError error = SocketError.WouldBlock;
-            while (true)
+            senderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+            InitSenderPacketData initSenderPacketData;
+            if (senderPacketReceiver.InitPacketDataQueue.TryDequeue(out initSenderPacketData))
             {
-                var packet = udpSocket.Receive(out error);
-                if (packet == null)
-                    break;
-
-                int cursor = 0;
-                int sessionId = BitConverter.ToInt32(packet, cursor);
-                cursor += 4;
-
-                var packetType = (SenderPacketType)packet[cursor];
-                cursor += 1;
-                if (packetType != SenderPacketType.Init)
-                {
-                    UnityEngine.Debug.Log($"A different kind of a packet received before an init packet: {packetType}");
-                    continue;
-                }
-
-                senderSessionId = sessionId;
-
-                var initSenderPacketData = InitSenderPacketData.Parse(packet);
-
                 textureGroup.SetWidth(initSenderPacketData.depthWidth);
                 textureGroup.SetHeight(initSenderPacketData.depthHeight);
                 PluginHelper.InitTextureGroup();
@@ -151,12 +133,8 @@ public class KinectReceiver
                 depthDecoder = new TrvlDecoder(initSenderPacketData.depthWidth * initSenderPacketData.depthHeight);
 
                 azureKinectScreen.Setup(initSenderPacketData);
-
-                initialized = true;
                 break;
             }
-            if (initialized)
-                break;
 
             if (pingCount == 10)
             {
@@ -169,16 +147,15 @@ public class KinectReceiver
 
         var taskThread = new Thread(() =>
         {
-            var senderPacketReceiver = new SenderPacketReceiver();
-            var videoMessageReassembler = new VideoMessageAssembler(sessionId);
-            var audioPacketCollector = new AudioPacketReceiver();
+            var videoMessageAssembler = new VideoMessageAssembler(sessionId);
+            var audioPacketReceiver = new AudioPacketReceiver();
 
             while(!receiverStopped)
             {
-                senderPacketReceiver.Receive(udpSocket, senderSessionId, floorPacketDataQueue);
-                videoMessageReassembler.Reassemble(udpSocket, senderPacketReceiver.VideoPacketDataQueue,
+                senderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+                videoMessageAssembler.Assemble(udpSocket, senderPacketReceiver.VideoPacketDataQueue,
                     senderPacketReceiver.FecPacketDataQueue, lastVideoFrameId, videoMessageQueue);
-                audioPacketCollector.Collect(senderPacketReceiver.AudioPacketDataQueue, ringBuffer);
+                audioPacketReceiver.Receive(senderPacketReceiver.AudioPacketDataQueue, ringBuffer);
             }
 
             receiverStopped = true;

@@ -13,7 +13,7 @@ public:
     void receive(UdpSocket& udp_socket)
     {
         while (auto packet{udp_socket.receive()}) {
-            const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
+            //const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
 
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {

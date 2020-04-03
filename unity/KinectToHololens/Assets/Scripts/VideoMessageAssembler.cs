@@ -17,11 +17,11 @@ class VideoMessageAssembler
         fecPacketCollections = new Dictionary<int, FecSenderPacketData[]>();
     }
 
-    public void Reassemble(UdpSocket udpSocket,
-                           ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
-                           ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue,
-                           int lastVideoFrameId,
-                           ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
+    public void Assemble(UdpSocket udpSocket,
+                         ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
+                         ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue,
+                         int lastVideoFrameId,
+                         ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets

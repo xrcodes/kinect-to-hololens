@@ -12,7 +12,7 @@ class AudioPacketReceiver
         lastAudioFrameId = -1;
     }
 
-    public void Collect(ConcurrentQueue<AudioSenderPacketData> audioPacketDataQueue, RingBuffer ringBuffer)
+    public void Receive(ConcurrentQueue<AudioSenderPacketData> audioPacketDataQueue, RingBuffer ringBuffer)
     {
         var audioPacketDataSet = new List<AudioSenderPacketData>();
         {

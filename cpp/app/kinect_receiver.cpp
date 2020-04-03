@@ -31,7 +31,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
     SenderPacketReceiver sender_packet_receiver;
     for (;;) {
-        bool initialized{false};
         udp_socket.send(create_connect_receiver_packet_bytes(session_id), remote_endpoint);
         ++ping_count;
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
@@ -54,23 +53,23 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
     bool stopped{false};
     VideoRendererState video_renderer_state;
-    VideoMessageAssembler video_message_reassembler{session_id, remote_endpoint};
+    VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
 
     std::thread task_thread([&] {
-        AudioPacketReceiver audio_packet_collector;
+        AudioPacketReceiver audio_packet_receiver;
 
         while (!stopped) {
             sender_packet_receiver.receive(udp_socket);
-            video_message_reassembler.reassemble(udp_socket, sender_packet_receiver.video_packet_data_queue(),
+            video_message_assembler.assemble(udp_socket, sender_packet_receiver.video_packet_data_queue(),
                                                  sender_packet_receiver.fec_packet_data_queue(),
                                                  video_renderer_state);
-            audio_packet_collector.collect(sender_packet_receiver.audio_packet_data_queue());
+            audio_packet_receiver.receive(sender_packet_receiver.audio_packet_data_queue());
         }
     });
 
     VideoRenderer video_renderer{session_id, remote_endpoint, width, height};
     while (!stopped) {
-        video_renderer.render(udp_socket, video_message_reassembler.video_message_queue(), video_renderer_state);
+        video_renderer.render(udp_socket, video_message_assembler.video_message_queue(), video_renderer_state);
     }
     stopped = true;
 
