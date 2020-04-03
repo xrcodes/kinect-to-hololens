@@ -170,8 +170,8 @@ public class KinectReceiver
         var taskThread = new Thread(() =>
         {
             var senderPacketReceiver = new SenderPacketReceiver();
-            var videoMessageReassembler = new VideoMessageReassembler(sessionId);
-            var audioPacketCollector = new AudioPacketCollector();
+            var videoMessageReassembler = new VideoMessageAssembler(sessionId);
+            var audioPacketCollector = new AudioPacketReceiver();
 
             while(!receiverStopped)
             {

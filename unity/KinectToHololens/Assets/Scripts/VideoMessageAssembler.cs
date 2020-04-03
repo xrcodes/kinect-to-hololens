@@ -2,63 +2,15 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Sockets;
 
-class SenderPacketReceiver
-{
-    public ConcurrentQueue<VideoSenderPacketData> VideoPacketDataQueue { get; private set; }
-    public ConcurrentQueue<FecSenderPacketData> FecPacketDataQueue { get; private set; }
-    public ConcurrentQueue<AudioSenderPacketData> AudioPacketDataQueue { get; private set; }
-
-    public SenderPacketReceiver()
-    {
-        VideoPacketDataQueue = new ConcurrentQueue<VideoSenderPacketData>();
-        FecPacketDataQueue = new ConcurrentQueue<FecSenderPacketData>();
-        AudioPacketDataQueue = new ConcurrentQueue<AudioSenderPacketData>();
-    }
-
-    public void Receive(UdpSocket udpSocket, int senderSessionId, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
-    {
-        SocketError error = SocketError.WouldBlock;
-        while (true)
-        {
-            var packet = udpSocket.Receive(out error);
-            if (packet == null)
-                break;
-
-            int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
-            var packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet);
-
-            if (sessionId != senderSessionId)
-                continue;
-
-            switch(packetType)
-            {
-                case SenderPacketType.Frame:
-                    VideoPacketDataQueue.Enqueue(VideoSenderPacketData.Parse(packet));
-                    break;
-                case SenderPacketType.Fec:
-                    FecPacketDataQueue.Enqueue(FecSenderPacketData.Parse(packet));
-                    break;
-                case SenderPacketType.Audio:
-                    AudioPacketDataQueue.Enqueue(AudioSenderPacketData.Parse(packet));
-                    break;
-                case SenderPacketType.Floor:
-                    floorPacketDataQueue.Enqueue(FloorSenderPacketData.Parse(packet));
-                    break;
-            }
-        }
-    }
-}
-
-class VideoMessageReassembler
+class VideoMessageAssembler
 {
     private const int XOR_MAX_GROUP_SIZE = 5;
     private int sessionId;
     private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
     private Dictionary<int, FecSenderPacketData[]> fecPacketCollections;
 
-    public VideoMessageReassembler(int sessionId)
+    public VideoMessageAssembler(int sessionId)
     {
         this.sessionId = sessionId;
         videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
@@ -256,48 +208,6 @@ class VideoMessageReassembler
         foreach (int obsoleteFrameId in obsoleteFrameIds)
         {
             videoPacketCollections.Remove(obsoleteFrameId);
-        }
-    }
-}
-
-class AudioPacketCollector
-{
-    private AudioDecoder audioDecoder;
-    private int lastAudioFrameId;
-
-    public AudioPacketCollector()
-    {
-        audioDecoder = new AudioDecoder(KinectReceiver.KH_SAMPLE_RATE, KinectReceiver.KH_CHANNEL_COUNT);
-        lastAudioFrameId = -1;
-    }
-
-    public void Collect(ConcurrentQueue<AudioSenderPacketData> audioPacketDataQueue, RingBuffer ringBuffer)
-    {
-        var audioPacketDataSet = new List<AudioSenderPacketData>();
-        {
-            AudioSenderPacketData audioPacketData;
-            while (audioPacketDataQueue.TryDequeue(out audioPacketData))
-            {
-                audioPacketDataSet.Add(audioPacketData);
-            }
-        }
-
-        audioPacketDataSet.Sort((x, y) => x.frameId.CompareTo(y.frameId));
-
-        float[] pcm = new float[KinectReceiver.KH_SAMPLES_PER_FRAME * KinectReceiver.KH_CHANNEL_COUNT];
-        int index = 0;
-        while (ringBuffer.FreeSamples >= pcm.Length)
-        {
-            if (index >= audioPacketDataSet.Count)
-                break;
-
-            var audioPacketData = audioPacketDataSet[index++];
-            if (audioPacketData.frameId <= lastAudioFrameId)
-                continue;
-
-            audioDecoder.Decode(audioPacketData.opusFrame, pcm, KinectReceiver.KH_SAMPLES_PER_FRAME);
-            ringBuffer.Write(pcm);
-            lastAudioFrameId = audioPacketData.frameId;
         }
     }
 }
