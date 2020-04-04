@@ -18,8 +18,8 @@ class VideoMessageAssembler
     }
 
     public void Assemble(UdpSocket udpSocket,
-                         ConcurrentQueue<VideoSenderPacketData> videoPacketDataQueue,
-                         ConcurrentQueue<FecSenderPacketData> fecPacketDataQueue,
+                         List<VideoSenderPacketData> videoPacketDataList,
+                         List<FecSenderPacketData> fecPacketDataList,
                          int lastVideoFrameId,
                          ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
@@ -27,8 +27,7 @@ class VideoMessageAssembler
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
-        FecSenderPacketData fecSenderPacketData;
-        while (fecPacketDataQueue.TryDequeue(out fecSenderPacketData))
+        foreach (var fecSenderPacketData in fecPacketDataList)
         {
             if (fecSenderPacketData.frameId <= lastVideoFrameId)
                 continue;
@@ -41,8 +40,7 @@ class VideoMessageAssembler
             fecPacketCollections[fecSenderPacketData.frameId][fecSenderPacketData.packetIndex] = fecSenderPacketData;
         }
 
-        VideoSenderPacketData videoSenderPacketData;
-        while (videoPacketDataQueue.TryDequeue(out videoSenderPacketData))
+        foreach (var videoSenderPacketData in videoPacketDataList)
         {
             if (videoSenderPacketData.frameId <= lastVideoFrameId)
                 continue;

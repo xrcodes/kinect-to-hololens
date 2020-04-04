@@ -1,23 +1,28 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net.Sockets;
+
+class SenderPacketSet
+{
+    public List<InitSenderPacketData> InitPacketDataList { get; private set; }
+    public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
+    public List<FecSenderPacketData> FecPacketDataList { get; private set; }
+    public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
+
+    public SenderPacketSet()
+    {
+        InitPacketDataList = new List<InitSenderPacketData>();
+        VideoPacketDataList = new List<VideoSenderPacketData>();
+        FecPacketDataList = new List<FecSenderPacketData>();
+        AudioPacketDataList = new List<AudioSenderPacketData>();
+    }
+}
 
 class SenderPacketReceiver
 {
-    public ConcurrentQueue<InitSenderPacketData> InitPacketDataQueue { get; private set; }
-    public ConcurrentQueue<VideoSenderPacketData> VideoPacketDataQueue { get; private set; }
-    public ConcurrentQueue<FecSenderPacketData> FecPacketDataQueue { get; private set; }
-    public ConcurrentQueue<AudioSenderPacketData> AudioPacketDataQueue { get; private set; }
-
-    public SenderPacketReceiver()
+    public static SenderPacketSet Receive(UdpSocket udpSocket, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
     {
-        InitPacketDataQueue = new ConcurrentQueue<InitSenderPacketData>();
-        VideoPacketDataQueue = new ConcurrentQueue<VideoSenderPacketData>();
-        FecPacketDataQueue = new ConcurrentQueue<FecSenderPacketData>();
-        AudioPacketDataQueue = new ConcurrentQueue<AudioSenderPacketData>();
-    }
-
-    public void Receive(UdpSocket udpSocket, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
-    {
+        var senderPacketSet = new SenderPacketSet();
         SocketError error = SocketError.WouldBlock;
         while (true)
         {
@@ -30,21 +35,23 @@ class SenderPacketReceiver
             switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet))
             {
                 case SenderPacketType.Init:
-                    InitPacketDataQueue.Enqueue(InitSenderPacketData.Parse(packet));
+                    senderPacketSet.InitPacketDataList.Add(InitSenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Frame:
-                    VideoPacketDataQueue.Enqueue(VideoSenderPacketData.Parse(packet));
+                    senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Fec:
-                    FecPacketDataQueue.Enqueue(FecSenderPacketData.Parse(packet));
+                    senderPacketSet.FecPacketDataList.Add(FecSenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Audio:
-                    AudioPacketDataQueue.Enqueue(AudioSenderPacketData.Parse(packet));
+                    senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Floor:
                     floorPacketDataQueue.Enqueue(FloorSenderPacketData.Parse(packet));
                     break;
             }
         }
+
+        return senderPacketSet;
     }
 }

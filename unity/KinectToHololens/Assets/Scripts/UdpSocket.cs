@@ -24,7 +24,7 @@ public class UdpSocket
             return null;
         }
 
-        if (error != SocketError.WouldBlock)
+        if (error != SocketError.Success)
         {
             UnityEngine.Debug.Log($"Failed to receive bytes: {error}");
         }

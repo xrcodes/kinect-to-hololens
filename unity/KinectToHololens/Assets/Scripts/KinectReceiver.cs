@@ -23,7 +23,7 @@ public class KinectReceiver
     private TextureGroup textureGroup;
 
     private UdpSocket udpSocket;
-    private bool receiverStopped;
+    private bool stopped;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private int lastVideoFrameId;
 
@@ -58,7 +58,7 @@ public class KinectReceiver
         textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
         udpSocket = null;
-        receiverStopped = false;
+        stopped = false;
         videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         lastVideoFrameId = -1;
 
@@ -103,7 +103,7 @@ public class KinectReceiver
 
     public void Stop()
     {
-        receiverStopped = true;
+        stopped = true;
     }
 
     public void Ping(UdpSocket udpSocket)
@@ -111,7 +111,6 @@ public class KinectReceiver
         //int senderSessionId = -1;
         int pingCount = 0;
 
-        var senderPacketReceiver = new SenderPacketReceiver();
         while (true)
         {
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId));
@@ -121,18 +120,17 @@ public class KinectReceiver
             //Thread.Sleep(100);
             Thread.Sleep(300);
 
-            senderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
-            InitSenderPacketData initSenderPacketData;
-            if (senderPacketReceiver.InitPacketDataQueue.TryDequeue(out initSenderPacketData))
+            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+            if (senderPacketSet.InitPacketDataList.Count > 0)
             {
-                textureGroup.SetWidth(initSenderPacketData.depthWidth);
-                textureGroup.SetHeight(initSenderPacketData.depthHeight);
+                textureGroup.SetWidth(senderPacketSet.InitPacketDataList[0].depthWidth);
+                textureGroup.SetHeight(senderPacketSet.InitPacketDataList[0].depthHeight);
                 PluginHelper.InitTextureGroup();
 
                 colorDecoder = new Vp8Decoder();
-                depthDecoder = new TrvlDecoder(initSenderPacketData.depthWidth * initSenderPacketData.depthHeight);
+                depthDecoder = new TrvlDecoder(senderPacketSet.InitPacketDataList[0].depthWidth * senderPacketSet.InitPacketDataList[0].depthHeight);
 
-                azureKinectScreen.Setup(initSenderPacketData);
+                azureKinectScreen.Setup(senderPacketSet.InitPacketDataList[0]);
                 break;
             }
 
@@ -150,15 +148,15 @@ public class KinectReceiver
             var videoMessageAssembler = new VideoMessageAssembler(sessionId);
             var audioPacketReceiver = new AudioPacketReceiver();
 
-            while(!receiverStopped)
+            while(!stopped)
             {
-                senderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
-                videoMessageAssembler.Assemble(udpSocket, senderPacketReceiver.VideoPacketDataQueue,
-                    senderPacketReceiver.FecPacketDataQueue, lastVideoFrameId, videoMessageQueue);
-                audioPacketReceiver.Receive(senderPacketReceiver.AudioPacketDataQueue, ringBuffer);
+                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+                videoMessageAssembler.Assemble(udpSocket, senderPacketSet.VideoPacketDataList,
+                    senderPacketSet.FecPacketDataList, lastVideoFrameId, videoMessageQueue);
+                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, ringBuffer);
             }
 
-            receiverStopped = true;
+            stopped = true;
         });
 
         taskThread.Start();

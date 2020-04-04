@@ -99,7 +99,6 @@ void start_session(const int port, const int session_id)
                 kinect_device_manager_summary = KinectDeviceManagerSummary{};
             }
         }
-
     } catch (UdpSocketRuntimeError e) {
         std::cout << "UdpSocketRuntimeError from send_video_frames(): \n  " << e.what() << "\n";
     }
