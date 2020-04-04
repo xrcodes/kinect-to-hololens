@@ -1,6 +1,6 @@
 #pragma once
 
-#include "receiver_state.h"
+#include "video_sender_utils.h"
 
 namespace kh
 {
@@ -17,14 +17,14 @@ class VideoPacketSender
 {
 public:
     VideoPacketSender(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
-        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, video_packet_sets_{}, video_frame_send_times_{}
+        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, video_fec_packet_byte_sets_{}, video_frame_send_times_{}
     {
     }
 
     void send(UdpSocket& udp_socket,
               moodycamel::ReaderWriterQueue<ReportReceiverPacketData>& report_packet_data_queue,
               moodycamel::ReaderWriterQueue<RequestReceiverPacketData>& request_packet_data_queue,
-              moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+              moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
               ReceiverState& receiver_state,
               VideoPacketSenderSummary& summary)
     {
@@ -48,37 +48,35 @@ public:
         RequestReceiverPacketData request_receiver_packet_data;
         while (request_packet_data_queue.try_dequeue(request_receiver_packet_data)) {
             for (int packet_index : request_receiver_packet_data.packet_indices) {
-                if (video_packet_sets_.find(request_receiver_packet_data.frame_id) == video_packet_sets_.end())
+                if (video_fec_packet_byte_sets_.find(request_receiver_packet_data.frame_id) == video_fec_packet_byte_sets_.end())
                     continue;
 
-                udp_socket.send(video_packet_sets_[request_receiver_packet_data.frame_id].second[packet_index], remote_endpoint_);
+                udp_socket.send(video_fec_packet_byte_sets_[request_receiver_packet_data.frame_id].video_packet_byte_set[packet_index], remote_endpoint_);
             }
         }
 
         // With the new video packets from Kinect, make FEC packets for them and send the both types packets.
-        std::pair<int, std::vector<Bytes>> video_packet_set;
-        while (video_packet_queue.try_dequeue(video_packet_set)) {
-            auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id_, video_packet_set.first, XOR_MAX_GROUP_SIZE, video_packet_set.second)};
-
-            video_frame_send_times_.insert({video_packet_set.first, TimePoint::now()});
-            for (auto& packet : video_packet_set.second) {
+        VideoFecPacketByteSet video_fec_packet_byte_set;
+        while (video_fec_packet_byte_set_queue.try_dequeue(video_fec_packet_byte_set)) {
+            video_frame_send_times_.insert({video_fec_packet_byte_set.frame_id, TimePoint::now()});
+            for (auto& packet : video_fec_packet_byte_set.video_packet_byte_set) {
                 std::error_code error;
                 udp_socket.send(packet, remote_endpoint_);
             }
 
-            for (auto& fec_packet_bytes : fec_packet_bytes_set) {
+            for (auto& fec_packet_bytes : video_fec_packet_byte_set.fec_packet_byte_set) {
                 std::error_code error;
                 udp_socket.send(fec_packet_bytes, remote_endpoint_);
             }
 
             // Save the video packets to resend them when requested.
-            video_packet_sets_.insert({video_packet_set.first, std::move(video_packet_set)});
+            video_fec_packet_byte_sets_.insert({video_fec_packet_byte_set.frame_id, std::move(video_fec_packet_byte_set)});
         }
 
         // Remove video packets from its container when the receiver already received them.
-        for (auto it = video_packet_sets_.begin(); it != video_packet_sets_.end();) {
+        for (auto it = video_fec_packet_byte_sets_.begin(); it != video_fec_packet_byte_sets_.end();) {
             if (it->first <= receiver_state.video_frame_id) {
-                it = video_packet_sets_.erase(it);
+                it = video_fec_packet_byte_sets_.erase(it);
             } else {
                 ++it;
             }
@@ -94,12 +92,12 @@ public:
         }
     }
 
+public:
 private:
-    constexpr static int XOR_MAX_GROUP_SIZE{5};
     const int session_id_;
     const asio::ip::udp::endpoint remote_endpoint_;
 
-    std::unordered_map<int, std::pair<int, std::vector<Bytes>>> video_packet_sets_;
+    std::unordered_map<int, VideoFecPacketByteSet> video_fec_packet_byte_sets_;
     std::unordered_map<int, TimePoint> video_frame_send_times_;
 };
 }

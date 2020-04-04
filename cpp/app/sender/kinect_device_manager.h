@@ -4,7 +4,7 @@
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "native/kh_native.h"
 #include "../helper/shadow_remover.h"
-#include "receiver_state.h"
+#include "video_sender_utils.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
 #include "PointCloudGenerator.h"
@@ -41,7 +41,7 @@ public:
     void update(const TimePoint& session_start_time,
                 bool& stopped,
                 UdpSocket& udp_socket,
-                moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+                moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
                 ReceiverState& receiver_state,
                 KinectDeviceManagerSummary& summary);
 private:

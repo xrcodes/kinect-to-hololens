@@ -60,7 +60,7 @@ void start_session(const int port, const int session_id)
     const TimePoint session_start_time{TimePoint::now()};
 
     bool stopped{false};
-    moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>> video_packet_queue;
+    moodycamel::ReaderWriterQueue<VideoFecPacketByteSet> video_fec_packet_byte_set_queue;
     ReceiverState receiver_state;
     std::thread task_thread([&] {
         try {
@@ -71,7 +71,7 @@ void start_session(const int port, const int session_id)
             while (!stopped) {
                 receiver_packet_receiver.receive(udp_socket);
                 video_packet_sender.send(udp_socket, receiver_packet_receiver.report_packet_data_queue(),
-                                         receiver_packet_receiver.request_packet_data_queue(), video_packet_queue, receiver_state, video_packet_sender_summary);
+                                         receiver_packet_receiver.request_packet_data_queue(), video_fec_packet_byte_set_queue, receiver_state, video_packet_sender_summary);
                 audio_packet_sender.send(udp_socket);
 
                 const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
@@ -90,7 +90,7 @@ void start_session(const int port, const int session_id)
     KinectDeviceManagerSummary kinect_device_manager_summary;
     try {
         while (!stopped) {
-            kinect_device_manager.update(session_start_time, stopped, udp_socket, video_packet_queue, receiver_state, kinect_device_manager_summary);
+            kinect_device_manager.update(session_start_time, stopped, udp_socket, video_fec_packet_byte_set_queue, receiver_state, kinect_device_manager_summary);
 
             const auto summary_duration{kinect_device_manager_summary.start_time.elapsed_time()};
             if (summary_duration.sec() > 10.0f) {

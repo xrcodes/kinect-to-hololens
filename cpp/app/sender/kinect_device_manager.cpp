@@ -1,5 +1,7 @@
 #include "kinect_device_manager.h"
 
+#include "video_sender_utils.h"
+
 namespace kh
 {
 namespace
@@ -51,7 +53,7 @@ KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::u
 void KinectDeviceManager::update(const TimePoint& session_start_time,
                                  bool& stopped,
                                  UdpSocket& udp_socket,
-                                 moodycamel::ReaderWriterQueue<std::pair<int, std::vector<Bytes>>>& video_packet_queue,
+                                 moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
                                  ReceiverState& receiver_state,
                                  KinectDeviceManagerSummary& summary)
 {
@@ -125,8 +127,10 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
 
     const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
-    auto packet_bytes_set{split_video_sender_message_bytes(session_id_, state_.frame_id, message_bytes)};
-    video_packet_queue.enqueue({state_.frame_id, std::move(packet_bytes_set)});
+    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, state_.frame_id, message_bytes)};
+    //video_packet_queue.enqueue({state_.frame_id, std::move(packet_bytes_set)});
+    auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
+    video_fec_packet_byte_set_queue.enqueue({state_.frame_id, std::move(video_packet_bytes_set), std::move(fec_packet_bytes_set)});
 
     // Updating variables for profiling.
     if (keyframe)

@@ -36,8 +36,12 @@ void start_session(const std::string ip_address, const int port, const int sessi
         printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
 
         Sleep(300);
-        
-        sender_packet_receiver.receive(udp_socket);
+
+        try {
+            sender_packet_receiver.receive(udp_socket);
+        } catch (UdpSocketRuntimeError e) {
+            std::cout << "UdpSocketRuntimeError while trying to receive InitSenderPacketData:\n  " << e.what() << "\n";
+        }
         InitSenderPacketData init_sender_packet_data;
         if (sender_packet_receiver.init_packet_data_queue().try_dequeue(init_sender_packet_data)) {
             width = init_sender_packet_data.width;
