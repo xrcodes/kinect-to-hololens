@@ -36,7 +36,6 @@ public class KinectToHololensManager : MonoBehaviour
 
     private KinectReceiver kinectReceiver;
 
-
     private InputState InputState
     {
         set

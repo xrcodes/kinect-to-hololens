@@ -23,22 +23,17 @@ public:
         default_speaker_stream_.start();
     }
 
-    void receive(moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue)
+    void receive(std::vector<AudioSenderPacketData>& audio_packet_data_vector)
     {
         constexpr float AMPLIFIER{8.0f};
 
         soundio_flush_events(audio_.get());
 
-        std::vector<AudioSenderPacketData> audio_packet_data_set;
-        AudioSenderPacketData audio_sender_packet_data;
-        while (audio_packet_data_queue.try_dequeue(audio_sender_packet_data))
-            audio_packet_data_set.push_back(audio_sender_packet_data);
-
-        if (audio_packet_data_set.empty())
+        if (audio_packet_data_vector.empty())
             return;
 
-        std::sort(audio_packet_data_set.begin(),
-                  audio_packet_data_set.end(),
+        std::sort(audio_packet_data_vector.begin(),
+                  audio_packet_data_vector.end(),
                   [](AudioSenderPacketData& a, AudioSenderPacketData& b) { return a.frame_id < b.frame_id; });
 
         char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer)};
@@ -47,9 +42,9 @@ public:
         const int FRAME_BYTE_SIZE{gsl::narrow_cast<int>(sizeof(float) * pcm_.size())};
 
         int write_cursor{0};
-        auto packet_it = audio_packet_data_set.begin();
+        auto packet_it = audio_packet_data_vector.begin();
         while ((free_bytes - write_cursor) >= FRAME_BYTE_SIZE) {
-            if (packet_it == audio_packet_data_set.end())
+            if (packet_it == audio_packet_data_vector.end())
                 break;
 
             int frame_size;

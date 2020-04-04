@@ -46,12 +46,14 @@ void start_session(const int port, const int session_id)
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket)};
 
-    ReceiverPacketReceiver receiver_packet_receiver;
     asio::ip::udp::endpoint receiver_endpoint;
     for (;;) {
-        receiver_packet_receiver.receive(udp_socket);
-        if (receiver_packet_receiver.connect_endpoint_queue().try_dequeue(receiver_endpoint))
+        auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
+
+        if (!receiver_packet_set.connect_endpoint_vector.empty()) {
+            receiver_endpoint = receiver_packet_set.connect_endpoint_vector[0];
             break;
+        }
     }
 
     std::cout << "Found a Receiver at " << receiver_endpoint << "\n";
@@ -68,9 +70,9 @@ void start_session(const int port, const int session_id)
 
             AudioPacketSender audio_packet_sender{session_id, receiver_endpoint};
             while (!stopped) {
-                receiver_packet_receiver.receive(udp_socket);
-                video_packet_sender.send(udp_socket, receiver_packet_receiver.report_packet_data_queue(),
-                                         receiver_packet_receiver.request_packet_data_queue(), video_fec_packet_byte_set_queue, receiver_state, video_packet_sender_summary);
+                auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
+                video_packet_sender.send(udp_socket, receiver_packet_set.report_packet_data_vector,
+                                         receiver_packet_set.request_packet_data_vector, video_fec_packet_byte_set_queue, receiver_state, video_packet_sender_summary);
                 audio_packet_sender.send(udp_socket);
 
                 const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};

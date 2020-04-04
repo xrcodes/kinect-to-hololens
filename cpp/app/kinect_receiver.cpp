@@ -29,7 +29,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
     // Repeat until it happens.
     int ping_count{0};
 
-    SenderPacketReceiver sender_packet_receiver;
     for (;;) {
         udp_socket.send(create_connect_receiver_packet_bytes(session_id), remote_endpoint);
         ++ping_count;
@@ -38,15 +37,15 @@ void start_session(const std::string ip_address, const int port, const int sessi
         Sleep(300);
 
         try {
-            sender_packet_receiver.receive(udp_socket);
+            auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
+
+            if (!sender_packet_set.init_packet_data_vector.empty()) {
+                width = sender_packet_set.init_packet_data_vector[0].width;
+                height = sender_packet_set.init_packet_data_vector[0].height;
+                break;
+            }
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError while trying to receive InitSenderPacketData:\n  " << e.what() << "\n";
-        }
-        InitSenderPacketData init_sender_packet_data;
-        if (sender_packet_receiver.init_packet_data_queue().try_dequeue(init_sender_packet_data)) {
-            width = init_sender_packet_data.width;
-            height = init_sender_packet_data.height;
-            break;
         }
 
         if (ping_count == 10) {
@@ -63,11 +62,11 @@ void start_session(const std::string ip_address, const int port, const int sessi
         AudioPacketReceiver audio_packet_receiver;
 
         while (!stopped) {
-            sender_packet_receiver.receive(udp_socket);
-            video_message_assembler.assemble(udp_socket, sender_packet_receiver.video_packet_data_queue(),
-                                             sender_packet_receiver.fec_packet_data_queue(),
+            auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
+            video_message_assembler.assemble(udp_socket, sender_packet_set.video_packet_data_vector,
+                                             sender_packet_set.fec_packet_data_vector,
                                              video_renderer_state);
-            audio_packet_receiver.receive(sender_packet_receiver.audio_packet_data_queue());
+            audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
         }
     });
 

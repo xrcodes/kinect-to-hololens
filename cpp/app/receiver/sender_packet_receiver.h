@@ -2,49 +2,44 @@
 
 namespace kh
 {
+struct SenderPacketSet
+{
+    std::vector<InitSenderPacketData> init_packet_data_vector;
+    std::vector<VideoSenderPacketData> video_packet_data_vector;
+    std::vector<FecSenderPacketData> fec_packet_data_vector;
+    std::vector<AudioSenderPacketData> audio_packet_data_vector;
+};
+
 class SenderPacketReceiver
 {
 public:
-    SenderPacketReceiver()
-        : init_packet_data_queue_{}, video_packet_data_queue_{}, fec_packet_data_queue_{}, audio_packet_data_queue_{}
+    static SenderPacketSet receive(UdpSocket& udp_socket)
     {
-    }
-
-    void receive(UdpSocket& udp_socket)
-    {
+        SenderPacketSet sender_packet_set;
         while (auto packet{udp_socket.receive()}) {
             //const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
 
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {
             case SenderPacketType::Init:
-                init_packet_data_queue_.enqueue(parse_init_sender_packet_bytes(packet->bytes));
+                sender_packet_set.init_packet_data_vector.push_back(parse_init_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Video:
-                video_packet_data_queue_.enqueue(parse_video_sender_packet_bytes(packet->bytes));
+                sender_packet_set.video_packet_data_vector.push_back(parse_video_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Fec:
-                fec_packet_data_queue_.enqueue(parse_fec_sender_packet_bytes(packet->bytes));
+                sender_packet_set.fec_packet_data_vector.push_back(parse_fec_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Audio:
-                audio_packet_data_queue_.enqueue(parse_audio_sender_packet_bytes(packet->bytes));
+                sender_packet_set.audio_packet_data_vector.push_back(parse_audio_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Floor:
                 // Ignore
                 break;
             }
         }
+
+        return sender_packet_set;
     }
-
-    moodycamel::ReaderWriterQueue<InitSenderPacketData>& init_packet_data_queue() { return init_packet_data_queue_; }
-    moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue() { return video_packet_data_queue_; }
-    moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue() { return fec_packet_data_queue_; }
-    moodycamel::ReaderWriterQueue<AudioSenderPacketData>& audio_packet_data_queue() { return audio_packet_data_queue_; }
-
-private:
-    moodycamel::ReaderWriterQueue<InitSenderPacketData> init_packet_data_queue_;
-    moodycamel::ReaderWriterQueue<VideoSenderPacketData> video_packet_data_queue_;
-    moodycamel::ReaderWriterQueue<FecSenderPacketData> fec_packet_data_queue_;
-    moodycamel::ReaderWriterQueue<AudioSenderPacketData> audio_packet_data_queue_;
 };
 }

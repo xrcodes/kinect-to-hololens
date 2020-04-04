@@ -21,8 +21,8 @@ public:
     }
 
     void send(UdpSocket& udp_socket,
-              moodycamel::ReaderWriterQueue<ReportReceiverPacketData>& report_packet_data_queue,
-              moodycamel::ReaderWriterQueue<RequestReceiverPacketData>& request_packet_data_queue,
+              std::vector<ReportReceiverPacketData>& report_packet_data_vector,
+              std::vector<RequestReceiverPacketData>& request_packet_data_vector,
               moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
               ReceiverState& receiver_state,
               VideoPacketSenderSummary& summary)
@@ -35,8 +35,7 @@ public:
         }
 
         // Update receiver_state and summary with Report packets.
-        ReportReceiverPacketData report_receiver_packet_data;
-        while (report_packet_data_queue.try_dequeue(report_receiver_packet_data)) {
+        for (auto& report_receiver_packet_data : report_packet_data_vector) {
             // Ignore if network is somehow out of order and a report comes in out of order.
             if (report_receiver_packet_data.frame_id <= receiver_state.video_frame_id)
                 continue;
@@ -49,8 +48,7 @@ public:
         }
 
         // Resend the requested video packets.
-        RequestReceiverPacketData request_receiver_packet_data;
-        while (request_packet_data_queue.try_dequeue(request_receiver_packet_data)) {
+        for (auto& request_receiver_packet_data : request_packet_data_vector) {
             for (int packet_index : request_receiver_packet_data.packet_indices) {
                 if (video_fec_packet_byte_sets_.find(request_receiver_packet_data.frame_id) == video_fec_packet_byte_sets_.end())
                     continue;

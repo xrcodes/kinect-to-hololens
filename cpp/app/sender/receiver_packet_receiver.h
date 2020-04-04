@@ -6,39 +6,36 @@
 
 namespace kh
 {
+struct ReceiverPacketSet
+{
+    std::vector<asio::ip::udp::endpoint> connect_endpoint_vector;
+    std::vector<ReportReceiverPacketData> report_packet_data_vector;
+    std::vector<RequestReceiverPacketData> request_packet_data_vector;
+};
+
+// This class should stay as a class since it will have additional functionality in the future.
 class ReceiverPacketReceiver
 {
 public:
-    ReceiverPacketReceiver()
-        : connect_endpoint_queue_{}, report_packet_data_queue_ {}, request_packet_data_queue_{}
+    static ReceiverPacketSet receive(UdpSocket& udp_socket)
     {
-    }
-
-    void receive(UdpSocket& udp_socket)
-    {
+        ReceiverPacketSet receiver_packet_set;
         while (auto packet{udp_socket.receive()}) {
             switch (get_packet_type_from_receiver_packet_bytes(packet->bytes))
             {
             case ReceiverPacketType::Connect:
-                connect_endpoint_queue_.enqueue(packet->endpoint);
+                receiver_packet_set.connect_endpoint_vector.push_back(packet->endpoint);
                 break;
             case ReceiverPacketType::Report:
-                report_packet_data_queue_.enqueue(parse_report_receiver_packet_bytes(packet->bytes));
+                receiver_packet_set.report_packet_data_vector.push_back(parse_report_receiver_packet_bytes(packet->bytes));
                 break;
             case ReceiverPacketType::Request:
-                request_packet_data_queue_.enqueue(parse_request_receiver_packet_bytes(packet->bytes));
+                receiver_packet_set.request_packet_data_vector.push_back(parse_request_receiver_packet_bytes(packet->bytes));
                 break;
             }
         }
+
+        return receiver_packet_set;
     }
-
-    moodycamel::ReaderWriterQueue<asio::ip::udp::endpoint>& connect_endpoint_queue() { return connect_endpoint_queue_; }
-    moodycamel::ReaderWriterQueue<ReportReceiverPacketData>& report_packet_data_queue() { return report_packet_data_queue_; }
-    moodycamel::ReaderWriterQueue<RequestReceiverPacketData>& request_packet_data_queue() { return request_packet_data_queue_; }
-
-private:
-    moodycamel::ReaderWriterQueue<asio::ip::udp::endpoint> connect_endpoint_queue_;
-    moodycamel::ReaderWriterQueue<ReportReceiverPacketData> report_packet_data_queue_;
-    moodycamel::ReaderWriterQueue<RequestReceiverPacketData> request_packet_data_queue_;
 };
 }

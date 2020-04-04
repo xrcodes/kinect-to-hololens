@@ -11,16 +11,15 @@ public:
     }
 
     void assemble(UdpSocket& udp_socket,
-                    moodycamel::ReaderWriterQueue<VideoSenderPacketData>& video_packet_data_queue,
-                    moodycamel::ReaderWriterQueue<FecSenderPacketData>& fec_packet_data_queue,
-                    VideoRendererState video_renderer_state)
+                  std::vector<VideoSenderPacketData>& video_packet_data_vector,
+                  std::vector<FecSenderPacketData>& fec_packet_data_vector,
+                  VideoRendererState video_renderer_state)
     {
         // The logic for XOR FEC packets are almost the same to frame packets.
         // The operations for XOR FEC packets should happen before the frame packets
         // so that frame packet can be created with XOR FEC packets when a missing
         // frame packet is detected.
-        FecSenderPacketData fec_sender_packet_data;
-        while (fec_packet_data_queue.try_dequeue(fec_sender_packet_data)) {
+        for (auto& fec_sender_packet_data : fec_packet_data_vector) {
             if (fec_sender_packet_data.frame_id <= video_renderer_state.frame_id)
                 continue;
 
@@ -32,8 +31,7 @@ public:
             fec_packet_iter->second[fec_sender_packet_data.packet_index] = std::move(fec_sender_packet_data);
         }
 
-        VideoSenderPacketData video_sender_packet_data;
-        while (video_packet_data_queue.try_dequeue(video_sender_packet_data)) {
+        for (auto& video_sender_packet_data : video_packet_data_vector) {
             if (video_sender_packet_data.frame_id <= video_renderer_state.frame_id)
                 continue;
 
