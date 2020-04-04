@@ -19,4 +19,16 @@ struct VideoFecPacketByteSet
     int frame_id;
     std::vector<std::vector<std::byte>> video_packet_byte_set;
     std::vector<std::vector<std::byte>> fec_packet_byte_set;
+
+    VideoFecPacketByteSet(int frame_id,
+                          std::vector<std::vector<std::byte>> video_packet_byte_set,
+                          std::vector<std::vector<std::byte>> fec_packet_byte_set)
+        : frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, fec_packet_byte_set{fec_packet_byte_set}
+    {
+    }
+
+    VideoFecPacketByteSet()
+        : frame_id{0}, video_packet_byte_set{}, fec_packet_byte_set{}
+    {
+    }
 };

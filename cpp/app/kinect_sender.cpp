@@ -15,8 +15,7 @@ void print_video_packet_sender_summary(VideoPacketSenderSummary summary, TimeDur
 {
     std::cout << "Receiver Reported in " << summary.received_report_count / duration.sec() << " Hz\n"
               << "  Decoder Time Average: " << summary.decoder_time_ms_sum / summary.received_report_count << " ms\n"
-              << "  Frame Interval Time Average: " << summary.frame_interval_ms_sum / summary.received_report_count << " ms\n"
-              << "  Round Trip Time Average: " << summary.round_trip_ms_sum / summary.received_report_count << " ms\n";
+              << "  Frame Interval Time Average: " << summary.frame_interval_ms_sum / summary.received_report_count << " ms\n";
 }
 
 void print_kinect_device_manager_summary(KinectDeviceManagerSummary summary, TimeDuration duration)

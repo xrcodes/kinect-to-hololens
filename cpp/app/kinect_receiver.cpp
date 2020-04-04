@@ -65,8 +65,8 @@ void start_session(const std::string ip_address, const int port, const int sessi
         while (!stopped) {
             sender_packet_receiver.receive(udp_socket);
             video_message_assembler.assemble(udp_socket, sender_packet_receiver.video_packet_data_queue(),
-                                                 sender_packet_receiver.fec_packet_data_queue(),
-                                                 video_renderer_state);
+                                             sender_packet_receiver.fec_packet_data_queue(),
+                                             video_renderer_state);
             audio_packet_receiver.receive(sender_packet_receiver.audio_packet_data_queue());
         }
     });

@@ -125,11 +125,22 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     const auto depth_encoder_frame{depth_encoder_.encode(depth_image_span, keyframe)};
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
+    // Create video/fec packet bytes.
     const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, state_.frame_id, message_bytes)};
-    //video_packet_queue.enqueue({state_.frame_id, std::move(packet_bytes_set)});
     auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
+    
+    // Send video/fec packets.
+    for (auto& packet : video_packet_bytes_set) {
+        udp_socket.send(packet, remote_endpoint_);
+    }
+
+    for (auto& fec_packet_bytes : fec_packet_bytes_set) {
+        udp_socket.send(fec_packet_bytes, remote_endpoint_);
+    }
+
+    // Enqueue video/fec packet bytes to video_fec_packet_byte_set_queue. 
     video_fec_packet_byte_set_queue.enqueue({state_.frame_id, std::move(video_packet_bytes_set), std::move(fec_packet_bytes_set)});
 
     // Updating variables for profiling.
