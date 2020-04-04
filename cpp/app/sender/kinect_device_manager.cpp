@@ -51,7 +51,6 @@ KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::u
 }
 
 void KinectDeviceManager::update(const TimePoint& session_start_time,
-                                 bool& stopped,
                                  UdpSocket& udp_socket,
                                  moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
                                  ReceiverState& receiver_state,

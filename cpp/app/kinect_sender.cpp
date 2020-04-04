@@ -60,51 +60,36 @@ void start_session(const int port, const int session_id)
 
     const TimePoint session_start_time{TimePoint::now()};
 
-    bool stopped{false};
     moodycamel::ReaderWriterQueue<VideoFecPacketByteSet> video_fec_packet_byte_set_queue;
     ReceiverState receiver_state;
-    std::thread task_thread([&] {
-        try {
-            VideoPacketSender video_packet_sender{session_id, receiver_endpoint};
-            VideoPacketSenderSummary video_packet_sender_summary;
-
-            AudioPacketSender audio_packet_sender{session_id, receiver_endpoint};
-            while (!stopped) {
-                auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
-                video_packet_sender.send(udp_socket, receiver_packet_set.report_packet_data_vector,
-                                         receiver_packet_set.request_packet_data_vector, video_fec_packet_byte_set_queue, receiver_state, video_packet_sender_summary);
-                audio_packet_sender.send(udp_socket);
-
-                const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
-                if (summary_duration.sec() > 10.0f) {
-                    print_video_packet_sender_summary(video_packet_sender_summary, summary_duration);
-                    video_packet_sender_summary = VideoPacketSenderSummary{};
-                }
-            }
-        } catch (UdpSocketRuntimeError e) {
-            std::cout << "UdpSocketRuntimeError from task_thread:\n  " << e.what() << "\n";
-        }
-        stopped = true;
-    });
-
-    KinectDeviceManager kinect_device_manager{session_id, receiver_endpoint, std::move(kinect_device)};
-    KinectDeviceManagerSummary kinect_device_manager_summary;
     try {
-        while (!stopped) {
-            kinect_device_manager.update(session_start_time, stopped, udp_socket, video_fec_packet_byte_set_queue, receiver_state, kinect_device_manager_summary);
+        VideoPacketSender video_packet_sender{session_id, receiver_endpoint};
+        VideoPacketSenderSummary video_packet_sender_summary;
 
-            const auto summary_duration{kinect_device_manager_summary.start_time.elapsed_time()};
+        KinectDeviceManager kinect_device_manager{session_id, receiver_endpoint, std::move(kinect_device)};
+        KinectDeviceManagerSummary kinect_device_manager_summary;
+
+        AudioPacketSender audio_packet_sender{session_id, receiver_endpoint};
+        for (;;) {
+            auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
+            video_packet_sender.send(udp_socket, receiver_packet_set.report_packet_data_vector,
+                                        receiver_packet_set.request_packet_data_vector, video_fec_packet_byte_set_queue, receiver_state, video_packet_sender_summary);
+            audio_packet_sender.send(udp_socket);
+
+            kinect_device_manager.update(session_start_time, udp_socket, video_fec_packet_byte_set_queue, receiver_state, kinect_device_manager_summary);
+
+            const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
             if (summary_duration.sec() > 10.0f) {
+                print_video_packet_sender_summary(video_packet_sender_summary, summary_duration);
+                video_packet_sender_summary = VideoPacketSenderSummary{};
+
                 print_kinect_device_manager_summary(kinect_device_manager_summary, summary_duration);
                 kinect_device_manager_summary = KinectDeviceManagerSummary{};
             }
         }
     } catch (UdpSocketRuntimeError e) {
-        std::cout << "UdpSocketRuntimeError from send_video_frames(): \n  " << e.what() << "\n";
+        std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
     }
-    stopped = true;
-
-    task_thread.join();
 }
 
 // Repeats collecting the port number from the user and calling _send_frames() with it.

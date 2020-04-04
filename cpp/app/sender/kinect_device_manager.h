@@ -39,7 +39,6 @@ public:
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
     KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device);
     void update(const TimePoint& session_start_time,
-                bool& stopped,
                 UdpSocket& udp_socket,
                 moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
                 ReceiverState& receiver_state,
