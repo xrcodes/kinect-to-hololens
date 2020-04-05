@@ -22,11 +22,6 @@ TrvlEncoder create_depth_encoder(k4a::calibration calibration)
                        CHANGE_THRESHOLD, INVALID_THRESHOLD};
 }
 
-float get_color_camera_x_from_calibration(k4a::calibration calibration)
-{
-    return calibration.extrinsics[K4A_CALIBRATION_TYPE_COLOR][K4A_CALIBRATION_TYPE_DEPTH].translation[0];
-}
-
 std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
                                                                    KinectFrame kinect_frame,
                                                                    k4a::calibration calibration)

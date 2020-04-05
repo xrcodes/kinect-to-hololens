@@ -6,7 +6,7 @@
 namespace kh
 {
 using Bytes = std::vector<std::byte>;
-constexpr static int XOR_MAX_GROUP_SIZE{5};
+constexpr static int XOR_MAX_GROUP_SIZE{2};
 
 struct ReceiverState
 {

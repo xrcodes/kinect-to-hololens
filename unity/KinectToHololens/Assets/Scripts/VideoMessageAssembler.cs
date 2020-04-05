@@ -5,7 +5,7 @@ using System.IO;
 
 class VideoMessageAssembler
 {
-    private const int XOR_MAX_GROUP_SIZE = 5;
+    private const int XOR_MAX_GROUP_SIZE = 2;
     private int sessionId;
     private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
     private Dictionary<int, FecSenderPacketData[]> fecPacketCollections;

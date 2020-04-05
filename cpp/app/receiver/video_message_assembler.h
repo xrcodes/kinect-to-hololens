@@ -182,7 +182,7 @@ public:
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue() { return video_message_queue_; }
 
 private:
-    static constexpr int FEC_GROUP_SIZE{5};
+    static constexpr int FEC_GROUP_SIZE{2};
     const int session_id_;
     const asio::ip::udp::endpoint remote_endpoint_;
     std::unordered_map<int, std::vector<std::optional<VideoSenderPacketData>>> video_packet_collections_;
