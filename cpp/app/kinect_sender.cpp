@@ -90,18 +90,18 @@ void start_session(const int port, const int session_id)
     VideoPacketRetransmitter video_packet_retransmitter{session_id, receiver_state.endpoint};
     ReceiverReportSummary receiver_report_summary;
 
-    VideoFecPacketStorage video_fec_packet_storage;
+    VideoParityPacketStorage video_parity_packet_storage;
 
     // Run the loop.
     for (;;) {
         try {
-            kinect_device_manager.update(session_start_time, udp_socket, video_fec_packet_storage, receiver_state, kinect_device_manager_summary);
+            kinect_device_manager.update(session_start_time, udp_socket, video_parity_packet_storage, receiver_state, kinect_device_manager_summary);
             kinect_audio_sender.send(udp_socket);
 
             auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
             apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, receiver_report_summary);
-            video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_fec_packet_storage);
-            video_fec_packet_storage.cleanup(receiver_state.video_frame_id);
+            video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_parity_packet_storage);
+            video_parity_packet_storage.cleanup(receiver_state.video_frame_id);
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;

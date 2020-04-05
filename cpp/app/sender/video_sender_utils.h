@@ -30,56 +30,55 @@ struct ReceiverReportSummary
     int received_report_count{0};
 };
 
-// This class includes both video packet bytes and fec packet bytes
+// This class includes both video packet bytes and parity packet bytes
 // for a video frame.
-struct VideoFecPacketByteSet
+struct VideoParityPacketByteSet
 {
     int frame_id;
     std::vector<std::vector<std::byte>> video_packet_byte_set;
-    std::vector<std::vector<std::byte>> fec_packet_byte_set;
+    std::vector<std::vector<std::byte>> parity_packet_byte_set;
 
-    VideoFecPacketByteSet(int frame_id,
-                          std::vector<std::vector<std::byte>>&& video_packet_byte_set,
-                          std::vector<std::vector<std::byte>>&& fec_packet_byte_set)
-        : frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, fec_packet_byte_set{fec_packet_byte_set}
+    VideoParityPacketByteSet(int frame_id,
+                             std::vector<std::vector<std::byte>>&& video_packet_byte_set,
+                             std::vector<std::vector<std::byte>>&& parity_packet_byte_set)
+        : frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, parity_packet_byte_set{parity_packet_byte_set}
     {
     }
 };
 
-class VideoFecPacketStorage
+class VideoParityPacketStorage
 {
 public:
-    VideoFecPacketStorage()
-        : video_fec_packet_byte_sets_{}
+    VideoParityPacketStorage()
+        : video_parity_packet_byte_sets_{}
     {
     }
 
     void add(int frame_id,
              std::vector<std::vector<std::byte>>&& video_packet_byte_set,
-             std::vector<std::vector<std::byte>>&& fec_packet_byte_set)
+             std::vector<std::vector<std::byte>>&& parity_packet_byte_set)
     {
-        video_fec_packet_byte_sets_.insert({frame_id,
-                                            VideoFecPacketByteSet(frame_id,
-                                                                  std::move(video_packet_byte_set),
-                                                                  std::move(fec_packet_byte_set))});
+        video_parity_packet_byte_sets_.insert({frame_id, VideoParityPacketByteSet(frame_id,
+                                                                               std::move(video_packet_byte_set),
+                                                                               std::move(parity_packet_byte_set))});
     }
 
     bool has(int frame_id)
     {
-        return video_fec_packet_byte_sets_.find(frame_id) != video_fec_packet_byte_sets_.end();
+        return video_parity_packet_byte_sets_.find(frame_id) != video_parity_packet_byte_sets_.end();
     }
 
-    VideoFecPacketByteSet& get(int frame_id)
+    VideoParityPacketByteSet& get(int frame_id)
     {
-        return video_fec_packet_byte_sets_.at(frame_id);
+        return video_parity_packet_byte_sets_.at(frame_id);
     }
 
     void cleanup(int receiver_frame_id)
     {
         // Remove video packets from its container when the receiver already received them.
-        for (auto it = video_fec_packet_byte_sets_.begin(); it != video_fec_packet_byte_sets_.end();) {
+        for (auto it = video_parity_packet_byte_sets_.begin(); it != video_parity_packet_byte_sets_.end();) {
             if (it->first <= receiver_frame_id) {
-                it = video_fec_packet_byte_sets_.erase(it);
+                it = video_parity_packet_byte_sets_.erase(it);
             } else {
                 ++it;
             }
@@ -87,7 +86,7 @@ public:
     }
 
 private:
-    std::unordered_map<int, VideoFecPacketByteSet> video_fec_packet_byte_sets_;
+    std::unordered_map<int, VideoParityPacketByteSet> video_parity_packet_byte_sets_;
 };
 
 class VideoPacketRetransmitter
@@ -100,15 +99,15 @@ public:
 
     void retransmit(UdpSocket& udp_socket,
                     std::vector<RequestReceiverPacketData>& request_packet_data_vector,
-                    VideoFecPacketStorage& video_fec_packet_storage)
+                    VideoParityPacketStorage& video_parity_packet_storage)
     {
         // Resend the requested video packets.
         for (auto& request_receiver_packet_data : request_packet_data_vector) {
             for (int packet_index : request_receiver_packet_data.packet_indices) {
-                if (!video_fec_packet_storage.has(request_receiver_packet_data.frame_id))
+                if (!video_parity_packet_storage.has(request_receiver_packet_data.frame_id))
                     continue;
 
-                udp_socket.send(video_fec_packet_storage.get(request_receiver_packet_data.frame_id).video_packet_byte_set[packet_index], remote_endpoint_);
+                udp_socket.send(video_parity_packet_storage.get(request_receiver_packet_data.frame_id).video_packet_byte_set[packet_index], remote_endpoint_);
             }
         }
     }

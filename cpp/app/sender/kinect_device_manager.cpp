@@ -52,7 +52,7 @@ KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::u
 
 void KinectDeviceManager::update(const TimePoint& session_start_time,
                                  UdpSocket& udp_socket,
-                                 VideoFecPacketStorage& video_fec_packet_storage,
+                                 VideoParityPacketStorage& video_parity_packet_storage,
                                  ReceiverState& receiver_state,
                                  KinectDeviceManagerSummary& summary)
 {
@@ -124,23 +124,23 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     const auto depth_encoder_frame{depth_encoder_.encode(depth_image_span, keyframe)};
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
-    // Create video/fec packet bytes.
+    // Create video/parity packet bytes.
     const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, state_.frame_id, message_bytes)};
-    auto fec_packet_bytes_set{create_fec_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
+    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
     
-    // Send video/fec packets.
+    // Send video/parity packets.
     for (auto& packet : video_packet_bytes_set) {
         udp_socket.send(packet, remote_endpoint_);
     }
 
-    for (auto& fec_packet_bytes : fec_packet_bytes_set) {
-        udp_socket.send(fec_packet_bytes, remote_endpoint_);
+    for (auto& parity_packet_bytes : parity_packet_bytes_set) {
+        udp_socket.send(parity_packet_bytes, remote_endpoint_);
     }
 
-    // Save video/fec packet bytes for retransmission. 
-    video_fec_packet_storage.add(state_.frame_id, std::move(video_packet_bytes_set), std::move(fec_packet_bytes_set));
+    // Save video/parity packet bytes for retransmission. 
+    video_parity_packet_storage.add(state_.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
 
     // Updating variables for profiling.
     if (keyframe)

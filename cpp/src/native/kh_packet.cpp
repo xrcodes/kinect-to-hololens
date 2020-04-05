@@ -179,24 +179,24 @@ VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byt
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<std::vector<std::byte>> create_fec_sender_packet_bytes_set(int session_id, int frame_id, int max_group_size,
+std::vector<std::vector<std::byte>> create_parity_sender_packet_bytes_set(int session_id, int frame_id, int parity_group_size,
                                                                        gsl::span<const std::vector<std::byte>> video_packet_bytes_span)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
-    const int fec_packet_count{gsl::narrow_cast<int>(video_packet_bytes_span.size() - 1) / max_group_size + 1};
+    const int parity_packet_count{gsl::narrow_cast<int>(video_packet_bytes_span.size() - 1) / parity_group_size + 1};
 
     std::vector<std::vector<std::byte>> frame_packet_bytes_set;
-    for (gsl::index fec_packet_index{0}; fec_packet_index < fec_packet_count; ++fec_packet_index) {
-        const int frame_packet_bytes_cursor{gsl::narrow<int>(fec_packet_index * max_group_size)};
-        const int fec_frame_packet_count{std::min<int>(max_group_size, video_packet_bytes_span.size() - frame_packet_bytes_cursor)};
-        frame_packet_bytes_set.push_back(create_fec_sender_packet_bytes(session_id, frame_id, fec_packet_index, fec_packet_count,
-                                                                        gsl::span<const std::vector<std::byte>>(&video_packet_bytes_span[frame_packet_bytes_cursor],
-                                                                                                                fec_frame_packet_count)));
+    for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
+        const int frame_packet_bytes_cursor{gsl::narrow<int>(parity_packet_index * parity_group_size)};
+        const int parity_frame_packet_count{std::min<int>(parity_group_size, video_packet_bytes_span.size() - frame_packet_bytes_cursor)};
+        frame_packet_bytes_set.push_back(create_parity_sender_packet_bytes(session_id, frame_id, parity_packet_index, parity_packet_count,
+                                                                           gsl::span<const std::vector<std::byte>>(&video_packet_bytes_span[frame_packet_bytes_cursor],
+                                                                                                                   parity_frame_packet_count)));
     }
     return frame_packet_bytes_set;
 }
 
-std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
+std::vector<std::byte> create_parity_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
                                                       gsl::span<const std::vector<std::byte>> frame_packet_bytes_set)
 {
     // Copy packets[begin_index] instead of filling in everything zero
@@ -204,7 +204,7 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
     std::vector<std::byte> packet_bytes{frame_packet_bytes_set[0]};
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(SenderPacketType::Fec, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Parity, packet_bytes, cursor);
     copy_to_bytes(frame_id, packet_bytes, cursor);
     copy_to_bytes(packet_index, packet_bytes, cursor);
     copy_to_bytes(packet_count, packet_bytes, cursor);
@@ -218,20 +218,20 @@ std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_
     return packet_bytes;
 }
 
-FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
+ParitySenderPacketData parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
     PacketCursor cursor{5};
-    FecSenderPacketData fec_sender_packet_data;
-    copy_from_bytes(fec_sender_packet_data.frame_id, packet_bytes, cursor);
-    copy_from_bytes(fec_sender_packet_data.packet_index, packet_bytes, cursor);
-    copy_from_bytes(fec_sender_packet_data.packet_count, packet_bytes, cursor);
+    ParitySenderPacketData parity_sender_packet_data;
+    copy_from_bytes(parity_sender_packet_data.frame_id, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet_data.packet_index, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet_data.packet_count, packet_bytes, cursor);
 
-    fec_sender_packet_data.bytes.resize(packet_bytes.size() - cursor.position);
-    memcpy(fec_sender_packet_data.bytes.data(),
+    parity_sender_packet_data.bytes.resize(packet_bytes.size() - cursor.position);
+    memcpy(parity_sender_packet_data.bytes.data(),
            &packet_bytes[cursor.position],
-           fec_sender_packet_data.bytes.size());
+           parity_sender_packet_data.bytes.size());
 
-    return fec_sender_packet_data;
+    return parity_sender_packet_data;
 }
 
 std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,

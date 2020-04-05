@@ -13,7 +13,7 @@ enum class SenderPacketType : std::uint8_t
 {
     Init = 0,
     Video = 1,
-    Fec = 2,
+    Parity = 2,
     Audio = 3,
     Floor = 4,
 };
@@ -119,7 +119,7 @@ VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte>
 std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set);
 VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byte> message_bytes);
 
-struct FecSenderPacketData
+struct ParitySenderPacketData
 {
     int frame_id;
     int packet_index;
@@ -130,11 +130,11 @@ struct FecSenderPacketData
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<std::vector<std::byte>> create_fec_sender_packet_bytes_set(int session_id, int frame_id, int max_group_size,
+std::vector<std::vector<std::byte>> create_parity_sender_packet_bytes_set(int session_id, int frame_id, int parity_group_size,
                                                                           gsl::span<const std::vector<std::byte>> frame_packet_bytes_span);
-std::vector<std::byte> create_fec_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
-                                                      gsl::span<const std::vector<std::byte>> frame_packet_bytes_set);
-FecSenderPacketData parse_fec_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+std::vector<std::byte> create_parity_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
+                                                         gsl::span<const std::vector<std::byte>> frame_packet_bytes_set);
+ParitySenderPacketData parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct AudioSenderPacketData
 {
