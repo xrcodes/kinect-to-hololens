@@ -3,7 +3,6 @@
 #include <iostream>
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "native/kh_native.h"
-#include "../helper/shadow_remover.h"
 #include "video_sender_utils.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.

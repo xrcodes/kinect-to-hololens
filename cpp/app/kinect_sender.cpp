@@ -3,8 +3,6 @@
 #include <gsl/gsl>
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "native/kh_native.h"
-#include "helper/shadow_remover.h"
-#include "sender/video_packet_retransmitter.h"
 #include "sender/audio_packet_sender.h"
 #include "sender/kinect_device_manager.h"
 #include "sender/receiver_packet_receiver.h"

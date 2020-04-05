@@ -1,14 +1,16 @@
 add_library(KinectToHololensNative
-  kh_udp_socket.h
-  kh_udp_socket.cpp
-  kh_packet.h
-  kh_packet.cpp
-  kh_time.h
-  kh_soundio.h
-  kh_soundio.cpp
   kh_kinect_device.h
   kh_kinect_device.cpp
   kh_native.h
+  kh_packet.h
+  kh_packet.cpp
+  kh_shadow_remover.h
+  kh_shadow_remover.cpp
+  kh_soundio.h
+  kh_soundio.cpp
+  kh_time.h
+  kh_udp_socket.h
+  kh_udp_socket.cpp
 )
 target_include_directories(KinectToHololensNative PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

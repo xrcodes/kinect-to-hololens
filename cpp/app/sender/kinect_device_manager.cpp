@@ -42,11 +42,16 @@ std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::Poin
 
 // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
 KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device)
-    : session_id_{session_id}, remote_endpoint_{remote_endpoint}, kinect_device_{std::move(kinect_device)},
-    calibration_{kinect_device_.getCalibration()}, transformation_{calibration_},
-    color_encoder_{create_color_encoder(calibration_)}, depth_encoder_{create_depth_encoder(calibration_)},
-    shadow_remover_{PointCloud::createUnitDepthPointCloud(calibration_), get_color_camera_x_from_calibration(calibration_)},
-    point_cloud_generator_{calibration_}, state_{}
+    : session_id_{session_id}
+    , remote_endpoint_{remote_endpoint}
+    , kinect_device_{std::move(kinect_device)}
+    , calibration_{kinect_device_.getCalibration()}
+    , transformation_{calibration_}
+    , color_encoder_{create_color_encoder(calibration_)}
+    , depth_encoder_{create_depth_encoder(calibration_)}
+    , shadow_remover_{calibration_}
+    , point_cloud_generator_{calibration_}
+    , state_{}
 {
 }
 

@@ -1,18 +1,15 @@
-# The 32-bit version of this project is only for the Unity plugin,
-# which does not directly relate to Kinects.
-# Also, azure_kinect currently imports a 64-bit .lib file.
 add_library(KinectToHololens
-  kh_yuv.h
-  kh_yuv.cpp
-  kh_vp8.h
-  kh_vp8_encoder.cpp
-  kh_vp8_decoder.cpp
+  kh_opus.h
+  kh_opus.cpp
   kh_rvl.h
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_opus.h
-  kh_opus.cpp
+  kh_vp8.h
+  kh_vp8_decoder.cpp
+  kh_vp8_encoder.cpp
+  kh_yuv.h
+  kh_yuv.cpp
  )
 target_include_directories(KinectToHololens PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
