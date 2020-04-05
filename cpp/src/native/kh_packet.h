@@ -167,9 +167,12 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
 struct RequestReceiverPacketData
 {
     int frame_id;
-    std::vector<int> packet_indices;
+    std::vector<int> video_packet_indices;
+    std::vector<int> parity_packet_indices;
 };
 
-std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id, const std::vector<int>& packet_indices);
+std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id,
+                                                            const std::vector<int>& video_packet_indices,
+                                                            const std::vector<int>& parity_packet_indices);
 RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 }

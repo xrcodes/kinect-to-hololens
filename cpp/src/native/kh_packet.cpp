@@ -65,8 +65,8 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
     const int message_size{gsl::narrow_cast<int>(sizeof(frame_time_stamp) +
                                                  sizeof(keyframe) +
                                                  sizeof(int) +
-                                                 color_encoder_frame.size() +
                                                  sizeof(int) +
+                                                 color_encoder_frame.size() +
                                                  depth_encoder_frame.size())};
 
     std::vector<std::byte> message_bytes(message_size);
@@ -341,20 +341,30 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
     return report_receiver_packet_data;
 }
 
-std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id, const std::vector<int>& packet_indices)
+std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id,
+                                                            const std::vector<int>& video_packet_indices,
+                                                            const std::vector<int>& parity_packet_indices)
 {
     const int packet_size(sizeof(session_id) +
                           sizeof(ReceiverPacketType) +
                           sizeof(frame_id) +
-                          sizeof(int) * packet_indices.size());
+                          sizeof(int) +
+                          sizeof(int) +
+                          sizeof(int) * video_packet_indices.size() +
+                          sizeof(int) * parity_packet_indices.size());
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
     copy_to_bytes(ReceiverPacketType::Request, packet_bytes, cursor);
     copy_to_bytes(frame_id, packet_bytes, cursor);
+    copy_to_bytes(gsl::narrow_cast<int>(video_packet_indices.size()), packet_bytes, cursor);
+    copy_to_bytes(gsl::narrow_cast<int>(parity_packet_indices.size()), packet_bytes, cursor);
 
-    for (int index : packet_indices)
+    for (int index : video_packet_indices)
+        copy_to_bytes(index, packet_bytes, cursor);
+
+    for (int index : parity_packet_indices)
         copy_to_bytes(index, packet_bytes, cursor);
 
     return packet_bytes;
@@ -366,12 +376,21 @@ RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const st
     PacketCursor cursor{5};
     copy_from_bytes(request_receiver_packet_data.frame_id, packet_bytes, cursor);
     
-    int packet_indices_size{gsl::narrow_cast<int>((packet_bytes.size() - cursor.position) / sizeof(int))};
-    std::vector<int> packet_indices(packet_indices_size);
-    for (int i = 0; i < packet_indices_size; ++i)
-        copy_from_bytes(packet_indices[i], packet_bytes, cursor);
+    int video_packet_indices_size;
+    int parity_packet_indices_size;
+    copy_from_bytes(video_packet_indices_size, packet_bytes, cursor);
+    copy_from_bytes(parity_packet_indices_size, packet_bytes, cursor);
 
-    request_receiver_packet_data.packet_indices = packet_indices;
+    std::vector<int> video_packet_indices(video_packet_indices_size);
+    for (int i = 0; i < video_packet_indices_size; ++i)
+        copy_from_bytes(video_packet_indices[i], packet_bytes, cursor);
+
+    std::vector<int> parity_packet_indices(parity_packet_indices_size);
+    for (int i = 0; i < parity_packet_indices_size; ++i)
+        copy_from_bytes(parity_packet_indices[i], packet_bytes, cursor);
+
+    request_receiver_packet_data.video_packet_indices = video_packet_indices;
+    request_receiver_packet_data.parity_packet_indices = parity_packet_indices;
 
     return request_receiver_packet_data;
 }

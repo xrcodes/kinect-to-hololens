@@ -6,14 +6,14 @@ class SenderPacketSet
 {
     public List<InitSenderPacketData> InitPacketDataList { get; private set; }
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
-    public List<FecSenderPacketData> FecPacketDataList { get; private set; }
+    public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
     public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
 
     public SenderPacketSet()
     {
         InitPacketDataList = new List<InitSenderPacketData>();
         VideoPacketDataList = new List<VideoSenderPacketData>();
-        FecPacketDataList = new List<FecSenderPacketData>();
+        FecPacketDataList = new List<ParitySenderPacketData>();
         AudioPacketDataList = new List<AudioSenderPacketData>();
     }
 }
@@ -40,8 +40,8 @@ class SenderPacketReceiver
                 case SenderPacketType.Frame:
                     senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet));
                     break;
-                case SenderPacketType.Fec:
-                    senderPacketSet.FecPacketDataList.Add(FecSenderPacketData.Parse(packet));
+                case SenderPacketType.Parity:
+                    senderPacketSet.FecPacketDataList.Add(ParitySenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Audio:
                     senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet));

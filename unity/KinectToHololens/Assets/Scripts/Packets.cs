@@ -6,7 +6,7 @@ public enum SenderPacketType : byte
 {
     Init = 0,
     Frame = 1,
-    Fec = 2,
+    Parity = 2,
     Audio = 3,
     Floor = 4,
 }
@@ -53,15 +53,21 @@ public static class PacketHelper
         return ms.ToArray();
     }
 
-    public static byte[] createRequestReceiverPacketBytes(int sessionId, int frameId, List<int> missingPacketIds)
+    public static byte[] createRequestReceiverPacketBytes(int sessionId, int frameId, List<int> videoPacketIndices, List<int> parityPacketIndices)
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
         ms.WriteByte((byte)ReceiverPacketType.Request);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        foreach (int missingPacketId in missingPacketIds)
+        ms.Write(BitConverter.GetBytes(videoPacketIndices.Count), 0, 4);
+        ms.Write(BitConverter.GetBytes(parityPacketIndices.Count), 0, 4);
+        foreach (int index in videoPacketIndices)
         {
-            ms.Write(BitConverter.GetBytes(missingPacketId), 0, 4);
+            ms.Write(BitConverter.GetBytes(index), 0, 4);
+        }
+        foreach (int index in parityPacketIndices)
+        {
+            ms.Write(BitConverter.GetBytes(index), 0, 4);
         }
         return ms.ToArray();
     }
@@ -155,19 +161,19 @@ public class VideoSenderPacketData
     }
 }
 
-public class FecSenderPacketData
+public class ParitySenderPacketData
 {
     public int frameId;
     public int packetIndex;
     public int packetCount;
     public byte[] bytes;
 
-    public static FecSenderPacketData Parse(byte[] packetBytes)
+    public static ParitySenderPacketData Parse(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
         reader.BaseStream.Position = 5;
 
-        var fecSenderPacketData = new FecSenderPacketData();
+        var fecSenderPacketData = new ParitySenderPacketData();
         fecSenderPacketData.frameId = reader.ReadInt32();
         fecSenderPacketData.packetIndex = reader.ReadInt32();
         fecSenderPacketData.packetCount = reader.ReadInt32();

@@ -65,6 +65,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             // Loop per each parity packet.
             // Collect video packet indices to request.
             std::vector<int> video_packet_indiecs_to_request;
+            std::vector<int> parity_packet_indiecs_to_request;
             int fec_count{0};
             //for (auto& parity_packet : parity_packet_collections_ref->second) {
             for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packet_collections_ref->second.size(); ++parity_packet_index) {
@@ -77,6 +78,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                 // If the parity packet is missing, request all missing video packets and skip the FEC process.
                 if (!parity_packet_collections_ref->second[parity_packet_index]) {
                     std::cout << "  parity_packet " << parity_packet_index << " is empty\n";
+                    parity_packet_indiecs_to_request.push_back(parity_packet_index);
                     for (gsl::index video_packet_index{video_packet_start_index}; video_packet_index < video_packet_end_index; ++video_packet_index) {
                         if (!video_packet_collection.second[video_packet_index]) {
                             std::cout << "  directly request " << video_packet_index << "\n";
@@ -132,7 +134,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                 video_packet_collections_.at(frame_id)[missing_video_packet_index] = std::move(fec_video_packet_data);
             }
             // Request the video packets that FEC was not enough to fix.
-            udp_socket.send(create_request_receiver_packet_bytes(session_id_, frame_id, video_packet_indiecs_to_request), remote_endpoint_);
+            udp_socket.send(create_request_receiver_packet_bytes(session_id_, frame_id, video_packet_indiecs_to_request, parity_packet_indiecs_to_request), remote_endpoint_);
             std::cout << "  video_packet_indiecs_to_request.size(): " << video_packet_indiecs_to_request.size() << "\n"
                       << "  fec_count: " << fec_count << "\n";
 

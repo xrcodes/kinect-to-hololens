@@ -103,12 +103,15 @@ public:
     {
         // Resend the requested video packets.
         for (auto& request_receiver_packet_data : request_packet_data_vector) {
-            for (int packet_index : request_receiver_packet_data.packet_indices) {
-                if (!video_parity_packet_storage.has(request_receiver_packet_data.frame_id))
-                    continue;
+            const int frame_id{request_receiver_packet_data.frame_id};
+            if (!video_parity_packet_storage.has(frame_id))
+                continue;
 
-                udp_socket.send(video_parity_packet_storage.get(request_receiver_packet_data.frame_id).video_packet_byte_set[packet_index], remote_endpoint_);
-            }
+            for (int packet_index : request_receiver_packet_data.video_packet_indices)
+                udp_socket.send(video_parity_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint_);
+
+            for (int packet_index : request_receiver_packet_data.parity_packet_indices)
+                udp_socket.send(video_parity_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint_);
         }
     }
 

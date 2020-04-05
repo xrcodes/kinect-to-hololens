@@ -8,18 +8,18 @@ class VideoMessageAssembler
     private const int XOR_MAX_GROUP_SIZE = 2;
     private int sessionId;
     private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
-    private Dictionary<int, FecSenderPacketData[]> fecPacketCollections;
+    private Dictionary<int, ParitySenderPacketData[]> fecPacketCollections;
 
     public VideoMessageAssembler(int sessionId)
     {
         this.sessionId = sessionId;
         videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
-        fecPacketCollections = new Dictionary<int, FecSenderPacketData[]>();
+        fecPacketCollections = new Dictionary<int, ParitySenderPacketData[]>();
     }
 
     public void Assemble(UdpSocket udpSocket,
                          List<VideoSenderPacketData> videoPacketDataList,
-                         List<FecSenderPacketData> fecPacketDataList,
+                         List<ParitySenderPacketData> fecPacketDataList,
                          int lastVideoFrameId,
                          ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
@@ -34,7 +34,7 @@ class VideoMessageAssembler
 
             if (!fecPacketCollections.ContainsKey(fecSenderPacketData.frameId))
             {
-                fecPacketCollections[fecSenderPacketData.frameId] = new FecSenderPacketData[fecSenderPacketData.packetCount];
+                fecPacketCollections[fecSenderPacketData.frameId] = new ParitySenderPacketData[fecSenderPacketData.packetCount];
             }
 
             fecPacketCollections[fecSenderPacketData.frameId][fecSenderPacketData.packetIndex] = fecSenderPacketData;
@@ -144,7 +144,8 @@ class VideoMessageAssembler
                             videoPacketCollections[missingFrameId][fecPacketIndex] = fecVideoPacketData;
                         } // end of foreach (int missingPacketIndex in missingPacketIndices)
 
-                        udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, collectionPair.Key, fecFailedPacketIndices));
+                        var empty = new List<int>();
+                        udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, collectionPair.Key, fecFailedPacketIndices, empty));
                     }
                 }
                 /////////////////////////////////
