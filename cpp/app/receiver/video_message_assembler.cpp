@@ -29,7 +29,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
         }
 
         video_packet_iter->second[video_sender_packet_data.packet_index] = std::move(video_sender_packet_data);
-        std::cout << "video packet " << video_sender_packet_data.frame_id << ":" << video_sender_packet_data.packet_index << "\n";
+        //std::cout << "video packet " << video_sender_packet_data.frame_id << ":" << video_sender_packet_data.packet_index << "\n";
     }
 
     // Collect the received parity packets.
@@ -43,7 +43,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                                                                                             std::vector<std::optional<ParitySenderPacketData>>(parity_sender_packet_data.packet_count)});
 
         parity_packet_iter->second[parity_sender_packet_data.packet_index] = std::move(parity_sender_packet_data);
-        std::cout << "parity packet " << parity_sender_packet_data.frame_id << ":" << parity_sender_packet_data.packet_index << "\n";
+        //std::cout << "parity packet " << parity_sender_packet_data.frame_id << ":" << parity_sender_packet_data.packet_index << "\n";
     }
 
     // Try FEC if a new frame was received.
@@ -59,8 +59,10 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             // Find the parity packet collection corresponding to the video packet collection.
             auto parity_packet_collections_ref{parity_packet_collections_.find(frame_id)};
             // Skip if there is no parity packet collection for the video frame.
-            if (parity_packet_collections_ref == parity_packet_collections_.end())
+            if (parity_packet_collections_ref == parity_packet_collections_.end()) {
+                std::cout << "  no parity packet collection\n";
                 continue;
+            }
 
             // Loop per each parity packet.
             // Collect video packet indices to request.
@@ -76,15 +78,17 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                                                                 video_packet_collection.second.size())};
 
                 // If the parity packet is missing, request all missing video packets and skip the FEC process.
+                // Also request the parity packet if there is a relevant missing video packet.
                 if (!parity_packet_collections_ref->second[parity_packet_index]) {
-                    std::cout << "  parity_packet " << parity_packet_index << " is empty\n";
-                    parity_packet_indiecs_to_request.push_back(parity_packet_index);
+                    bool parity_packet_needed{false};
                     for (gsl::index video_packet_index{video_packet_start_index}; video_packet_index < video_packet_end_index; ++video_packet_index) {
                         if (!video_packet_collection.second[video_packet_index]) {
-                            std::cout << "  directly request " << video_packet_index << "\n";
                             video_packet_indiecs_to_request.push_back(video_packet_index);
+                            parity_packet_needed = true;
                         }
                     }
+                    if (parity_packet_needed)
+                        parity_packet_indiecs_to_request.push_back(parity_packet_index);
                     continue;
                 }
 
@@ -136,19 +140,20 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             // Request the video packets that FEC was not enough to fix.
             udp_socket.send(create_request_receiver_packet_bytes(session_id_, frame_id, video_packet_indiecs_to_request, parity_packet_indiecs_to_request), remote_endpoint_);
             std::cout << "  video_packet_indiecs_to_request.size(): " << video_packet_indiecs_to_request.size() << "\n"
+                      << "  parity_packet_indiecs_to_request.size(): " << parity_packet_indiecs_to_request.size() << "\n"
                       << "  fec_count: " << fec_count << "\n";
 
-            //for (int i = 0; i < video_packet_collection.second.size(); ++i) {
-            //    if (!video_packet_collection.second[i]) {
-            //        std::cout << "  video packet index " << i << " is still missing\n";
-            //    }
-            //}
+            for (int i = 0; i < video_packet_collection.second.size(); ++i) {
+                if (!video_packet_collection.second[i]) {
+                    std::cout << "  video packet index " << i << " is still missing\n";
+                }
+            }
 
-            //for (int i = 0; i < parity_packet_collections_ref->second.size(); ++i) {
-            //    if (!parity_packet_collections_ref->second[i]) {
-            //        std::cout << "  parity packet index " << i << " is missing\n";
-            //    }
-            //}
+            for (int i = 0; i < parity_packet_collections_ref->second.size(); ++i) {
+                if (!parity_packet_collections_ref->second[i]) {
+                    std::cout << "  parity packet index " << i << " is missing\n";
+                }
+            }
         }
     }
 
@@ -250,7 +255,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
     //                //    printf("request %d %d\n", missing_frame_id, fec_failed_packet_index);
     //                //}
 
-    //                udp_socket.send(create_request_receiver_packet_bytes(session_id_, missing_frame_id, fec_failed_packet_indices), remote_endpoint_);
+    //                udp_socket.send(create_request_receiver_packet_bytes(session_id_, missing_frame_id, fec_failed_packet_indices, std::vector<int>()), remote_endpoint_);
     //            }
     //        }
     //        /////////////////////////////////

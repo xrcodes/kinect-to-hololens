@@ -1,5 +1,7 @@
 #include "kinect_device_manager.h"
 
+#include <algorithm>
+#include <random>
 #include "video_sender_utils.h"
 
 namespace kh
@@ -131,12 +133,19 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
     
     // Send video/parity packets.
-    for (auto& video_packet_bytes : video_packet_bytes_set) {
-        udp_socket.send(video_packet_bytes, remote_endpoint_);
-    }
+    // Sending them in a random order makes the packets more robust to packet loss.
+    std::vector<std::vector<std::byte>*> packet_bytes_ptrs;
+    for (auto& video_packet_bytes : video_packet_bytes_set)
+        packet_bytes_ptrs.push_back(&video_packet_bytes);
+    
+    for (auto& parity_packet_bytes : parity_packet_bytes_set)
+        packet_bytes_ptrs.push_back(&parity_packet_bytes);
 
-    for (auto& parity_packet_bytes : parity_packet_bytes_set) {
-        udp_socket.send(parity_packet_bytes, remote_endpoint_);
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), g);
+    for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
+        udp_socket.send(*packet_bytes_ptr, remote_endpoint_);
     }
 
     // Save video/parity packet bytes for retransmission. 
