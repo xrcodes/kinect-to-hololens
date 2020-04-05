@@ -192,7 +192,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
         }
     }
 
-    // Clean up xor_packet_collections.
+    // Clean up parity_packet_collections.
     for (auto it = parity_packet_collections_.begin(); it != parity_packet_collections_.end();) {
         if (it->first <= video_renderer_state.frame_id) {
             it = parity_packet_collections_.erase(it);

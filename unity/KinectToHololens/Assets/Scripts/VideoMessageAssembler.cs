@@ -5,157 +5,158 @@ using System.IO;
 
 class VideoMessageAssembler
 {
-    private const int XOR_MAX_GROUP_SIZE = 2;
+    private const int FEC_GROUP_SIZE = 2;
     private int sessionId;
     private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
-    private Dictionary<int, ParitySenderPacketData[]> fecPacketCollections;
+    private Dictionary<int, ParitySenderPacketData[]> parityPacketCollections;
 
     public VideoMessageAssembler(int sessionId)
     {
         this.sessionId = sessionId;
         videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
-        fecPacketCollections = new Dictionary<int, ParitySenderPacketData[]>();
+        parityPacketCollections = new Dictionary<int, ParitySenderPacketData[]>();
     }
 
     public void Assemble(UdpSocket udpSocket,
                          List<VideoSenderPacketData> videoPacketDataList,
-                         List<ParitySenderPacketData> fecPacketDataList,
+                         List<ParitySenderPacketData> parityPacketDataList,
                          int lastVideoFrameId,
                          ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
-        // The logic for XOR FEC packets are almost the same to frame packets.
-        // The operations for XOR FEC packets should happen before the frame packets
-        // so that frame packet can be created with XOR FEC packets when a missing
-        // frame packet is detected.
-        foreach (var fecSenderPacketData in fecPacketDataList)
-        {
-            if (fecSenderPacketData.frameId <= lastVideoFrameId)
-                continue;
-
-            if (!fecPacketCollections.ContainsKey(fecSenderPacketData.frameId))
-            {
-                fecPacketCollections[fecSenderPacketData.frameId] = new ParitySenderPacketData[fecSenderPacketData.packetCount];
-            }
-
-            fecPacketCollections[fecSenderPacketData.frameId][fecSenderPacketData.packetIndex] = fecSenderPacketData;
-        }
-
+        int? addedFrameId = null;
+        // Collect the received video packets.
         foreach (var videoSenderPacketData in videoPacketDataList)
         {
             if (videoSenderPacketData.frameId <= lastVideoFrameId)
                 continue;
 
-            // If there is a packet for a new frame, check the previous frames, and if
-            // there is a frame with missing packets, try to create them using xor packets.
-            // If using the xor packets fails, request the sender to retransmit the packets.
-            if (!videoPacketCollections.ContainsKey(videoSenderPacketData.frameId))
+            if(!videoPacketCollections.ContainsKey(videoSenderPacketData.frameId))
             {
                 videoPacketCollections[videoSenderPacketData.frameId] = new VideoSenderPacketData[videoSenderPacketData.packetCount];
-
-                ///////////////////////////////////
-                // Forward Error Correction Start//
-                ///////////////////////////////////
-                // Request missing packets of the previous frames.
-                foreach (var collectionPair in videoPacketCollections)
-                {
-                    if (collectionPair.Key < videoSenderPacketData.frameId)
-                    {
-                        int missingFrameId = collectionPair.Key;
-                        //var missingPacketIndices = collectionPair.Value.GetMissingPacketIds();
-
-                        var missingPacketIndices = new List<int>();
-                        for (int i = 0; i < collectionPair.Value.Length; ++i)
-                        {
-                            if (collectionPair.Value[i] == null)
-                            {
-                                missingPacketIndices.Add(i);
-                            }
-                        }
-
-                        // Try correction using XOR FEC packets.
-                        var fecFailedPacketIndices = new List<int>();
-                        var fecPacketIndices = new List<int>();
-
-                        // missing_packet_index cannot get error corrected if there is another missing_packet_index
-                        // that belongs to the same XOR FEC packet...
-                        foreach (int i in missingPacketIndices)
-                        {
-                            bool found = false;
-                            foreach (int j in missingPacketIndices)
-                            {
-                                if (i == j)
-                                    continue;
-
-                                if ((i / XOR_MAX_GROUP_SIZE) == (j / XOR_MAX_GROUP_SIZE))
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (found)
-                            {
-                                fecFailedPacketIndices.Add(i);
-                            }
-                            else
-                            {
-                                fecPacketIndices.Add(i);
-                            }
-                        }
-
-                        foreach (int fecPacketIndex in fecPacketIndices)
-                        {
-                            // Try getting the XOR FEC packet for correction.
-                            int xorPacketIndex = fecPacketIndex / XOR_MAX_GROUP_SIZE;
-
-                            if (!fecPacketCollections.ContainsKey(missingFrameId))
-                            {
-                                fecFailedPacketIndices.Add(fecPacketIndex);
-                                continue;
-                            }
-
-                            var fecPacketData = fecPacketCollections[missingFrameId][xorPacketIndex];
-                            // Give up if there is no xor packet yet.
-                            if (fecPacketData == null)
-                            {
-                                fecFailedPacketIndices.Add(fecPacketIndex);
-                                continue;
-                            }
-
-                            var fecVideoPacketData = new VideoSenderPacketData();
-
-                            fecVideoPacketData.frameId = missingFrameId;
-                            fecVideoPacketData.packetIndex = videoSenderPacketData.packetIndex;
-                            fecVideoPacketData.packetCount = videoSenderPacketData.packetCount;
-                            fecVideoPacketData.messageData = fecPacketData.bytes;
-
-                            int beginFramePacketIndex = xorPacketIndex * XOR_MAX_GROUP_SIZE;
-                            int endFramePacketIndex = Math.Min(beginFramePacketIndex + XOR_MAX_GROUP_SIZE, collectionPair.Value.Length);
-
-                            // Run bitwise XOR with all other packets belonging to the same XOR FEC packet.
-                            for (int i = beginFramePacketIndex; i < endFramePacketIndex; ++i)
-                            {
-                                if (i == fecPacketIndex)
-                                    continue;
-
-                                for (int j = 0; j < fecVideoPacketData.messageData.Length; ++j)
-                                    fecVideoPacketData.messageData[j] ^= collectionPair.Value[i].messageData[j];
-                            }
-
-                            videoPacketCollections[missingFrameId][fecPacketIndex] = fecVideoPacketData;
-                        } // end of foreach (int missingPacketIndex in missingPacketIndices)
-
-                        var empty = new List<int>();
-                        udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, collectionPair.Key, fecFailedPacketIndices, empty));
-                    }
-                }
-                /////////////////////////////////
-                // Forward Error Correction End//
-                /////////////////////////////////
+                // Assign the largest new frame_id.
+                if (!addedFrameId.HasValue || addedFrameId < videoSenderPacketData.frameId)
+                    addedFrameId = videoSenderPacketData.frameId;
             }
-            // End of if (frame_packet_collections.find(frame_id) == frame_packet_collections.end())
-            // which was for reacting to a packet for a new frame.
 
             videoPacketCollections[videoSenderPacketData.frameId][videoSenderPacketData.packetIndex] = videoSenderPacketData;
+        }
+
+        // Collect the received parity packets.
+        foreach (var paritySenderPacketData in parityPacketDataList)
+        {
+            if (paritySenderPacketData.frameId <= lastVideoFrameId)
+                continue;
+
+            if (!parityPacketCollections.ContainsKey(paritySenderPacketData.frameId))
+            {
+                parityPacketCollections[paritySenderPacketData.frameId] = new ParitySenderPacketData[paritySenderPacketData.packetCount];
+            }
+
+            parityPacketCollections[paritySenderPacketData.frameId][paritySenderPacketData.packetIndex] = paritySenderPacketData;
+        }
+
+        if (addedFrameId.HasValue)
+        {
+            foreach (var videoPacketCollection in videoPacketCollections)
+            {
+                int frameId = videoPacketCollection.Key;
+                VideoSenderPacketData[] videoPackets = videoPacketCollection.Value;
+
+                // Skip the frame that just got added or even newer.
+                if (frameId >= addedFrameId)
+                    continue;
+
+                // Find the parity packet collection corresponding to the video packet collection.
+                // Skip if there is no parity packet collection for the video frame.
+                if (!parityPacketCollections.ContainsKey(frameId))
+                    continue;
+
+                ParitySenderPacketData[] parityPackets = parityPacketCollections[frameId];
+
+                // Loop per each parity packet.
+                // Collect video packet indices to request.
+                List<int> videoPacketIndiecsToRequest = new List<int>();
+                List<int> parityPacketIndiecsToRequest = new List<int>();
+
+                for (int parityPacketIndex = 0; parityPacketIndex < parityPackets.Length; ++parityPacketIndex)
+                {
+                    // Range of the video packets that correspond to the parity packet.
+                    int videoPacketStartIndex = parityPacketIndex * FEC_GROUP_SIZE;
+                    // Pick the end index with the end of video packet indices in mind (i.e., prevent overflow).
+                    int videoPacketEndIndex = Math.Min(videoPacketStartIndex + FEC_GROUP_SIZE, videoPackets.Length);
+
+                    // If the parity packet is missing, request all missing video packets and skip the FEC process.
+                    // Also request the parity packet if there is a relevant missing video packet.
+                    if (parityPackets[parityPacketIndex] == null)
+                    {
+                        bool parityPacketNeeded = false;
+                        for (int videoPacketIndex = videoPacketStartIndex; videoPacketIndex < videoPacketEndIndex; ++videoPacketIndex)
+                        {
+                            if (videoPackets[videoPacketIndex] == null)
+                            {
+                                videoPacketIndiecsToRequest.Add(videoPacketIndex);
+                                parityPacketNeeded = true;
+                            }
+                        }
+                        if (parityPacketNeeded)
+                            parityPacketIndiecsToRequest.Add(parityPacketIndex);
+                        continue;
+                    }
+
+                    // Find if there is existing video packets and missing video packet indices.
+                    // Check all video packets that relates to this parity packet.
+                    var existingVideoPackets = new List<VideoSenderPacketData>();
+                    var missingVideoPacketIndices = new List<int>();
+                    for (int videoPacketIndex = videoPacketStartIndex; videoPacketIndex < videoPacketEndIndex; ++videoPacketIndex)
+                    {
+                        if (videoPackets[videoPacketIndex] != null)
+                        {
+                            existingVideoPackets.Add(videoPackets[videoPacketIndex]);
+                        }
+                        else
+                        {
+                            missingVideoPacketIndices.Add(videoPacketIndex);
+                        }
+                    }
+
+                    // Skip if there all video packets already exist.
+                    if (missingVideoPacketIndices.Count == 0)
+                        continue;
+
+                    // XOR based FEC only works for a single missing packet.
+                    if (missingVideoPacketIndices.Count > 1)
+                    {
+                        foreach (int missingIndex in missingVideoPacketIndices)
+                        {
+                            // Add the missing video packet indices for the vector to request them.
+                            videoPacketIndiecsToRequest.Add(missingIndex);
+                        }
+                        continue;
+                    }
+
+                    // The missing video packet index.
+                    int missingVideoPacketIndex = missingVideoPacketIndices[0];
+
+                    // Reconstruct the missing video packet.
+                    VideoSenderPacketData fecVideoPacketData = new VideoSenderPacketData();
+                    fecVideoPacketData.frameId = frameId;
+                    fecVideoPacketData.packetIndex = missingVideoPacketIndex;
+                    fecVideoPacketData.packetCount = videoPackets.Length;
+                    // Assign from the parity packet here since other video packets will be XOR'ed in the below loop.
+                    fecVideoPacketData.messageData = parityPackets[parityPacketIndex].bytes;
+
+                    foreach (var existingVideoPacket in existingVideoPackets)
+                    {
+                        for (int i = 0; i < fecVideoPacketData.messageData.Length; ++i)
+                            fecVideoPacketData.messageData[i] ^= existingVideoPacket.messageData[i];
+                    }
+
+                    // Insert the reconstructed packet.
+                    videoPacketCollections[frameId][missingVideoPacketIndex] = fecVideoPacketData;
+                }
+                // Request the video packets that FEC was not enough to fix.
+                udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, frameId, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest));
+            }
         }
 
         // Find all full collections and their frame_ids.
