@@ -23,10 +23,9 @@ class SenderPacketReceiver
     public static SenderPacketSet Receive(UdpSocket udpSocket, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
     {
         var senderPacketSet = new SenderPacketSet();
-        SocketError error = SocketError.WouldBlock;
         while (true)
         {
-            var packet = udpSocket.Receive(out error);
+            var packet = udpSocket.Receive();
             if (packet == null)
                 break;
 

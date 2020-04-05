@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 using System.Threading;
 using UnityEngine;
 
@@ -22,6 +23,7 @@ public class KinectReceiver
     private TextureGroup textureGroup;
 
     private UdpSocket udpSocket;
+    private IPEndPoint endPoint;
     private bool stopped;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private int lastVideoFrameId;
@@ -57,6 +59,7 @@ public class KinectReceiver
         textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
         udpSocket = null;
+        endPoint = null;
         stopped = false;
         videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         lastVideoFrameId = -1;
@@ -105,14 +108,14 @@ public class KinectReceiver
         stopped = true;
     }
 
-    public void Ping(UdpSocket udpSocket)
+    public void Ping(UdpSocket udpSocket, IPEndPoint endPoint)
     {
         //int senderSessionId = -1;
         int pingCount = 0;
 
         while (true)
         {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId));
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId), endPoint);
             ++pingCount;
             UnityEngine.Debug.Log("Sent ping");
 
@@ -141,10 +144,11 @@ public class KinectReceiver
         }
 
         this.udpSocket = udpSocket;
+        this.endPoint = endPoint;
 
         var taskThread = new Thread(() =>
         {
-            var videoMessageAssembler = new VideoMessageAssembler(sessionId);
+            var videoMessageAssembler = new VideoMessageAssembler(sessionId, endPoint);
             var audioPacketReceiver = new AudioPacketReceiver();
 
             while(!stopped)
@@ -243,7 +247,8 @@ public class KinectReceiver
         udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId,
                                                                     lastVideoFrameId,
                                                                     (float)decoderTime.TotalMilliseconds,
-                                                                    (float)frameTime.TotalMilliseconds));
+                                                                    (float)frameTime.TotalMilliseconds),
+                       endPoint);
 
         // Invokes a function to be called in a render thread.
         if (preapared)

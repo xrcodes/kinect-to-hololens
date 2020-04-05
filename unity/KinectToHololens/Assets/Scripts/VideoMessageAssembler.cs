@@ -2,17 +2,20 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 
 class VideoMessageAssembler
 {
     private const int FEC_GROUP_SIZE = 2;
     private int sessionId;
+    private IPEndPoint remoteEndPoint;
     private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
     private Dictionary<int, ParitySenderPacketData[]> parityPacketCollections;
 
-    public VideoMessageAssembler(int sessionId)
+    public VideoMessageAssembler(int sessionId, IPEndPoint remoteEndPoint)
     {
         this.sessionId = sessionId;
+        this.remoteEndPoint = remoteEndPoint;
         videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
         parityPacketCollections = new Dictionary<int, ParitySenderPacketData[]>();
     }
@@ -155,7 +158,7 @@ class VideoMessageAssembler
                     videoPacketCollections[frameId][missingVideoPacketIndex] = fecVideoPacketData;
                 }
                 // Request the video packets that FEC was not enough to fix.
-                udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, frameId, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest));
+                udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, frameId, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest), remoteEndPoint);
             }
         }
 

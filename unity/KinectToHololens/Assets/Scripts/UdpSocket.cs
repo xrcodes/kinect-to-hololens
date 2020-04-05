@@ -2,21 +2,27 @@
 using System.Net;
 using System.Net.Sockets;
 
+public class UdpSocketException : Exception
+{
+    public UdpSocketException(string message) : base(message)
+    {
+    }
+}
+
 public class UdpSocket
 {
     private Socket socket;
-    private IPEndPoint remoteEndPoint;
 
-    public UdpSocket(Socket socket, IPEndPoint remoteEndPoint)
+    public UdpSocket(Socket socket)
     {
         this.socket = socket;
-        this.remoteEndPoint = remoteEndPoint;
         socket.Blocking = false;
     }
 
-    public byte[] Receive(out SocketError error)
+    public byte[] Receive()
     {
         var bytes = new byte[PacketHelper.PACKET_SIZE];
+        SocketError error;
         var packetSize = socket.Receive(bytes, 0, bytes.Length, SocketFlags.None, out error);
 
         if (error == SocketError.WouldBlock)
@@ -26,7 +32,7 @@ public class UdpSocket
 
         if (error != SocketError.Success)
         {
-            UnityEngine.Debug.Log($"Failed to receive bytes: {error}");
+            throw new UdpSocketException($"Failed to receive bytes: { error }");
         }
 
         if (packetSize != bytes.Length)
@@ -41,8 +47,8 @@ public class UdpSocket
         }
     }
 
-    public int Send(byte[] buffer)
+    public int Send(byte[] buffer, IPEndPoint endPoint)
     {
-        return socket.SendTo(buffer, 0, buffer.Length, SocketFlags.None, remoteEndPoint);
+        return socket.SendTo(buffer, 0, buffer.Length, SocketFlags.None, endPoint);
     }
 }

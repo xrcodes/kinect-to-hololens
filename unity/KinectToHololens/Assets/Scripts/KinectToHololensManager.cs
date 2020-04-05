@@ -219,9 +219,9 @@ public class KinectToHololensManager : MonoBehaviour
         statusText.text = logString;
 
         var ipAddress = IPAddress.Parse(ipAddressText);
-        var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 },
-                                      new IPEndPoint(ipAddress, port));
+        var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
+        var endPoint = new IPEndPoint(ipAddress, port);
 
-        kinectReceiver.Ping(udpSocket);
+        kinectReceiver.Ping(udpSocket, endPoint);
     }
 }
