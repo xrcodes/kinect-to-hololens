@@ -103,6 +103,7 @@ void start_session(const int port, const int session_id)
             video_fec_packet_storage.cleanup(receiver_state.video_frame_id);
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
+            break;
         }
 
         const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
