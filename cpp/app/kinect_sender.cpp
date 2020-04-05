@@ -62,7 +62,7 @@ void start_session(const int port, const int session_id)
 
     // Create UdpSocket.
     asio::io_context io_context;
-    asio::ip::udp::socket socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
+    asio::ip::udp::socket socket{io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port)};
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket)};
 
@@ -81,24 +81,27 @@ void start_session(const int port, const int session_id)
 
     std::cout << "Found a Receiver at " << receiver_state.endpoint << ".\n";
 
+    // Initialize instances for loop below.
     const TimePoint session_start_time{TimePoint::now()};
 
     KinectDeviceManager kinect_device_manager{session_id, receiver_state.endpoint, std::move(kinect_device)};
     KinectDeviceManagerSummary kinect_device_manager_summary;
 
-    VideoPacketRetransmitter video_packet_retransmitter{session_id, receiver_state.endpoint};
-    ReceiverReportSummary video_packet_sender_summary;
-
     KinectAudioSender kinect_audio_sender{session_id, receiver_state.endpoint};
 
+    VideoPacketRetransmitter video_packet_retransmitter{session_id, receiver_state.endpoint};
+    ReceiverReportSummary receiver_report_summary;
+
     VideoFecPacketStorage video_fec_packet_storage;
+
+    // Run the loop.
     for (;;) {
         try {
             kinect_device_manager.update(session_start_time, udp_socket, video_fec_packet_storage, receiver_state, kinect_device_manager_summary);
             kinect_audio_sender.send(udp_socket);
 
             auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
-            apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, video_packet_sender_summary);
+            apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, receiver_report_summary);
             video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_fec_packet_storage);
             video_fec_packet_storage.cleanup(receiver_state.video_frame_id);
         } catch (UdpSocketRuntimeError e) {
@@ -106,10 +109,10 @@ void start_session(const int port, const int session_id)
             break;
         }
 
-        const auto summary_duration{video_packet_sender_summary.start_time.elapsed_time()};
+        const auto summary_duration{receiver_report_summary.start_time.elapsed_time()};
         if (summary_duration.sec() > 10.0f) {
-            print_receiver_report_summary(video_packet_sender_summary, summary_duration);
-            video_packet_sender_summary = ReceiverReportSummary{};
+            print_receiver_report_summary(receiver_report_summary, summary_duration);
+            receiver_report_summary = ReceiverReportSummary{};
 
             print_kinect_device_manager_summary(kinect_device_manager_summary, summary_duration);
             kinect_device_manager_summary = KinectDeviceManagerSummary{};

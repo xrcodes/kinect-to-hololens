@@ -38,33 +38,46 @@ public:
     {
     }
 
+    // All the inverses are to remove divisions from the calculation of zz.
+    // Note that float divisions takes way longer than other operations.
+    // The inner loop with ii in average had about 20 times of repetition per pixel in average
+    // from a scientific experiment from my dorm room.
+    // This modification reduced 25% of the computation time.
     void remove(gsl::span<int16_t> depth_pixels)
     {
+        // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
         constexpr float AZURE_KINECT_MAX_DISTANCE{3860.0f};
         const int width{unit_depth_point_cloud_.width};
         const int height{unit_depth_point_cloud_.height};
-        for (gsl::index j{0}; j < height; ++j) {
+        const float c_inv{1.0f / color_camera_x_};
 
-            // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
-            std::vector<float> z_max(width, AZURE_KINECT_MAX_DISTANCE);
+        int invalidation_count = 0;
+        int z_max_update_count = 0;
+        for (gsl::index j{0}; j < height; ++j) {
+            // z_max contains the cutoffs for the j-th row.
+            //std::vector<float> z_max(width, AZURE_KINECT_MAX_DISTANCE);
+            std::vector<float> z_max_inv(width, 1.0 / AZURE_KINECT_MAX_DISTANCE);
             for (gsl::index i{width - 1}; i >= 0; --i) {
                 // p stands for point.
                 const gsl::index p_index{i + j * width};
                 const int16_t z{depth_pixels[p_index]};
 
-                // Shadow removal has nothing to do with already invalid pixels.
-                if (depth_pixels[p_index] == 0)
+                // Skip invalid pixels.
+                if (z == 0)
                     continue;
 
-                // Zero and skip the pixel if it is covered by another pixel.
-                if (depth_pixels[p_index] > z_max[i]) {
+                // Invalidate the pixel if it is covered by another pixel.
+                //if (z > z_max[i]) {
+                if (z > (1.0f / z_max_inv[i])) {
                     depth_pixels[p_index] = 0;
+                    ++invalidation_count;
                     continue;
                 }
 
                 //auto p{unit_depth_point_cloud_.points[p_index].xyz};
                 //const float x{p.x};
                 const float x{unit_depth_point_cloud_.points[p_index].xyz.x};
+                const float z_inv{1.0f / z};
 
                 for (gsl::index ii{i}; ii >= 0; --ii) {
                     //gsl::index pp_index{ii + j * width};
@@ -72,17 +85,23 @@ public:
                     //const float xx{pp.x};
                     //const float xx{unit_depth_point_cloud_.points[pp_index].xyz.x};
                     const float xx{unit_depth_point_cloud_.points[ii + j * width].xyz.x};
-                    const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
+                    //const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
+                    //const float zz{1.0f / ((xx - x) * c_inv + z_inv)};
+                    const float zz_inv{(xx - x) * c_inv + z_inv};
 
-                    if (zz >= z_max[ii])
+                    //if (zz >= z_max[ii])
+                    if (zz_inv <= z_max_inv[ii])
                         break;
 
                     // If zz covers new area, update z_max that indicates the area covered
                     // and continue to the next pixels more on the right side.
-                    z_max[ii] = zz;
+                    z_max_inv[ii] = zz_inv;
+                    ++z_max_update_count;
                 }
             }
         }
+        //std::cout << "invalidation_count: " << invalidation_count << ","
+        //          << "z_max_update_count: " << z_max_update_count << "\n";
     }
 
 private:

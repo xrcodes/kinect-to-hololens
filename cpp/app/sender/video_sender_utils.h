@@ -75,5 +75,6 @@ public:
         }
     }
 
+private:
     std::unordered_map<int, VideoFecPacketByteSet> video_fec_packet_byte_sets_;
 };
