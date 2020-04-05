@@ -131,8 +131,8 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
     
     // Send video/parity packets.
-    for (auto& packet : video_packet_bytes_set) {
-        udp_socket.send(packet, remote_endpoint_);
+    for (auto& video_packet_bytes : video_packet_bytes_set) {
+        udp_socket.send(video_packet_bytes, remote_endpoint_);
     }
 
     for (auto& parity_packet_bytes : parity_packet_bytes_set) {

@@ -180,7 +180,7 @@ VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byt
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
 std::vector<std::vector<std::byte>> create_parity_sender_packet_bytes_set(int session_id, int frame_id, int parity_group_size,
-                                                                       gsl::span<const std::vector<std::byte>> video_packet_bytes_span)
+                                                                          gsl::span<const std::vector<std::byte>> video_packet_bytes_span)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
     const int parity_packet_count{gsl::narrow_cast<int>(video_packet_bytes_span.size() - 1) / parity_group_size + 1};
