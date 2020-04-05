@@ -8,10 +8,10 @@ namespace kh
 // Code below looks ugly because soundio requires its callback functions to be
 // c-style functions, not a member function, and this class is trying to
 // cover the discrepancy inside here.
-class AudioPacketSender
+class KinectAudioSender
 {
 public:
-    AudioPacketSender(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
+    KinectAudioSender(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
         : session_id_{session_id}, remote_endpoint_{remote_endpoint},
         audio_{}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
         audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false},

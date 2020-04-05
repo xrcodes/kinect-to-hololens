@@ -28,7 +28,7 @@ add_executable(KinectSender
   kinect_sender.cpp
   helper/soundio_helper.h
   helper/shadow_remover.h
-  sender/video_packet_sender.h
+  sender/video_packet_retransmitter.h
   sender/audio_packet_sender.h
   sender/kinect_device_manager.h
   sender/kinect_device_manager.cpp

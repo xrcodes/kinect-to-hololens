@@ -40,7 +40,7 @@ public:
     KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device);
     void update(const TimePoint& session_start_time,
                 UdpSocket& udp_socket,
-                moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
+                VideoFecPacketStorage& video_fec_packet_storage,
                 ReceiverState& receiver_state,
                 KinectDeviceManagerSummary& summary);
 private:

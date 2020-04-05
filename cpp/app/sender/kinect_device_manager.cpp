@@ -52,7 +52,7 @@ KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::u
 
 void KinectDeviceManager::update(const TimePoint& session_start_time,
                                  UdpSocket& udp_socket,
-                                 moodycamel::ReaderWriterQueue<VideoFecPacketByteSet>& video_fec_packet_byte_set_queue,
+                                 VideoFecPacketStorage& video_fec_packet_storage,
                                  ReceiverState& receiver_state,
                                  KinectDeviceManagerSummary& summary)
 {
@@ -139,8 +139,8 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
         udp_socket.send(fec_packet_bytes, remote_endpoint_);
     }
 
-    // Enqueue video/fec packet bytes to video_fec_packet_byte_set_queue. 
-    video_fec_packet_byte_set_queue.enqueue({state_.frame_id, std::move(video_packet_bytes_set), std::move(fec_packet_bytes_set)});
+    // Save video/fec packet bytes for retransmission. 
+    video_fec_packet_storage.add(state_.frame_id, std::move(video_packet_bytes_set), std::move(fec_packet_bytes_set));
 
     // Updating variables for profiling.
     if (keyframe)

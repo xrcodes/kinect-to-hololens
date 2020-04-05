@@ -13,7 +13,6 @@ public:
         audio_decoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT},
         pcm_{}, last_audio_frame_id_{-1}
     {
-
         constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 
         soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
