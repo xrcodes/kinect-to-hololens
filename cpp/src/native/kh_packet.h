@@ -12,17 +12,19 @@ namespace kh
 enum class SenderPacketType : std::uint8_t
 {
     Init = 0,
-    Video = 1,
-    Parity = 2,
-    Audio = 3,
-    Floor = 4,
+    Heartbeat = 1,
+    Video = 2,
+    Parity = 3,
+    Audio = 4,
+    Floor = 5,
 };
 
 enum class ReceiverPacketType : std::uint8_t
 {
     Connect = 0,
-    Report = 1,
-    Request = 2,
+    Heartbeat = 1,
+    Report = 2,
+    Request = 3,
 };
 
 constexpr int KH_PACKET_SIZE = 1472;
@@ -92,6 +94,8 @@ InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibratio
 std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
 InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
+std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
+
 struct VideoSenderMessageData
 {
     float frame_time_stamp;
@@ -153,6 +157,8 @@ int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id);
+
+std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id);
 
 struct ReportReceiverPacketData
 {

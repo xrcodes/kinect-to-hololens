@@ -14,7 +14,10 @@ namespace kh
 {
 void start_session(const std::string ip_address, const int port, const int session_id)
 {
-    constexpr int RECEIVER_RECEIVE_BUFFER_SIZE = 128 * 1024;
+    constexpr int RECEIVER_RECEIVE_BUFFER_SIZE{128 * 1024};
+    constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
+    constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
+
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context);
     socket.open(asio::ip::udp::v4());
@@ -55,6 +58,9 @@ void start_session(const std::string ip_address, const int port, const int sessi
     }
 
     bool stopped{false};
+    TimePoint heartbeat_time{TimePoint::now()};
+    TimePoint received_any_time{TimePoint::now()};
+
     VideoRendererState video_renderer_state;
     VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
@@ -63,13 +69,32 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
     std::thread task_thread([&] {
         while (!stopped) {
-            auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
-            video_message_assembler.assemble(udp_socket, sender_packet_set.video_packet_data_vector,
-                                             sender_packet_set.fec_packet_data_vector,
-                                             video_renderer_state,
-                                             video_message_queue);
-            audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
+            try {
+                if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
+                    udp_socket.send(create_heartbeat_receiver_packet_bytes(session_id), remote_endpoint);
+                    heartbeat_time = TimePoint::now();
+                }
+
+                auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
+                if (sender_packet_set.received_any) {
+                    video_message_assembler.assemble(udp_socket, sender_packet_set.video_packet_data_vector,
+                                                     sender_packet_set.fec_packet_data_vector,
+                                                     video_renderer_state,
+                                                     video_message_queue);
+                    audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
+                    received_any_time = TimePoint::now();
+                } else {
+                    if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
+                        std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
+                        break;
+                    }
+                }
+            } catch (UdpSocketRuntimeError e) {
+                std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
+                break;
+            }
         }
+        stopped = true;
     });
 
     while (!stopped) {

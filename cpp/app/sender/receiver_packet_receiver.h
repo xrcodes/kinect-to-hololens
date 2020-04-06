@@ -6,6 +6,7 @@ namespace kh
 {
 struct ReceiverPacketSet
 {
+    bool received_any;
     std::vector<asio::ip::udp::endpoint> connect_endpoint_vector;
     std::vector<ReportReceiverPacketData> report_packet_data_vector;
     std::vector<RequestReceiverPacketData> request_packet_data_vector;
@@ -18,7 +19,9 @@ public:
     static ReceiverPacketSet receive(UdpSocket& udp_socket)
     {
         ReceiverPacketSet receiver_packet_set;
+        receiver_packet_set.received_any = false;
         while (auto packet{udp_socket.receive()}) {
+            receiver_packet_set.received_any = true;
             switch (get_packet_type_from_receiver_packet_bytes(packet->bytes))
             {
             case ReceiverPacketType::Connect:

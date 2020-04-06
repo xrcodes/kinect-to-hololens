@@ -50,7 +50,9 @@ void print_kinect_device_manager_summary(KinectDeviceManagerSummary summary, Tim
 void start_session(const int port, const int session_id)
 {
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
+    constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
+    constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
 
     std::cout << "Start a kinect_sender session (id: " << session_id << ")\n";
 
@@ -80,6 +82,8 @@ void start_session(const int port, const int session_id)
 
     // Initialize instances for loop below.
     const TimePoint session_start_time{TimePoint::now()};
+    TimePoint heartbeat_time{TimePoint::now()};
+    TimePoint received_any_time{TimePoint::now()};
 
     KinectDeviceManager kinect_device_manager{session_id, receiver_state.endpoint, std::move(kinect_device)};
     KinectDeviceManagerSummary kinect_device_manager_summary;
@@ -97,9 +101,23 @@ void start_session(const int port, const int session_id)
             kinect_device_manager.update(session_start_time, udp_socket, video_parity_packet_storage, receiver_state, kinect_device_manager_summary);
             kinect_audio_sender.send(udp_socket);
 
+            if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
+                udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), receiver_state.endpoint);
+                heartbeat_time = TimePoint::now();
+            }
+
             auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
-            apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, receiver_report_summary);
-            video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_parity_packet_storage);
+            if (receiver_packet_set.received_any) {
+                apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, receiver_report_summary);
+                video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_parity_packet_storage);
+                received_any_time = TimePoint::now();
+            } else {
+                if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
+                    std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
+                    break;
+                }
+            }
+
             video_parity_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";

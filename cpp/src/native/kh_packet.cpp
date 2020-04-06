@@ -58,6 +58,19 @@ InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> p
     return init_sender_packet_data;
 }
 
+std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id)
+{
+    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
+                                                    sizeof(SenderPacketType))};
+
+    std::vector<std::byte> packet_bytes(packet_size);
+    PacketCursor cursor;
+    copy_to_bytes(session_id, packet_bytes, cursor);
+    copy_to_bytes(SenderPacketType::Heartbeat, packet_bytes, cursor);
+
+    return packet_bytes;
+}
+
 std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
                                                          gsl::span<const std::byte> color_encoder_frame,
                                                          gsl::span<const std::byte> depth_encoder_frame)
@@ -307,6 +320,19 @@ std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id)
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
     copy_to_bytes(ReceiverPacketType::Connect, packet_bytes, cursor);
+
+    return packet_bytes;
+}
+
+std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id)
+{
+    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
+                                                    sizeof(ReceiverPacketType))};
+
+    std::vector<std::byte> packet_bytes(packet_size);
+    PacketCursor cursor;
+    copy_to_bytes(session_id, packet_bytes, cursor);
+    copy_to_bytes(ReceiverPacketType::Heartbeat, packet_bytes, cursor);
 
     return packet_bytes;
 }

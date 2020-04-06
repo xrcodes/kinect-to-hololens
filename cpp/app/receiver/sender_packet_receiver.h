@@ -4,6 +4,7 @@ namespace kh
 {
 struct SenderPacketSet
 {
+    bool received_any;
     std::vector<InitSenderPacketData> init_packet_data_vector;
     std::vector<VideoSenderPacketData> video_packet_data_vector;
     std::vector<ParitySenderPacketData> fec_packet_data_vector;
@@ -16,9 +17,10 @@ public:
     static SenderPacketSet receive(UdpSocket& udp_socket)
     {
         SenderPacketSet sender_packet_set;
+        sender_packet_set.received_any = false;
         while (auto packet{udp_socket.receive()}) {
             //const int session_id{get_session_id_from_sender_packet_bytes(packet->bytes)};
-
+            sender_packet_set.received_any = true;
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {
             case SenderPacketType::Init:

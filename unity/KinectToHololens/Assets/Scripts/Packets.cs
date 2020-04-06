@@ -5,17 +5,19 @@ using System.IO;
 public enum SenderPacketType : byte
 {
     Init = 0,
-    Frame = 1,
-    Parity = 2,
-    Audio = 3,
-    Floor = 4,
+    Heartbeat = 1,
+    Frame = 2,
+    Parity = 3,
+    Audio = 4,
+    Floor = 5,
 }
 
 public enum ReceiverPacketType : byte
 {
     Connect = 0,
-    Report = 1,
-    Request = 2,
+    Heartbeat = 1,
+    Report = 2,
+    Request = 3,
 }
 
 public static class PacketHelper
