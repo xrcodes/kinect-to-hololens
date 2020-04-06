@@ -23,8 +23,9 @@ void start_session(const std::string ip_address, const int port, const int sessi
     UdpSocket udp_socket{std::move(socket)};
 
     //int sender_session_id;
-    int width;
-    int height;
+    //int width;
+    //int height;
+    InitSenderPacketData init_sender_packet_data;
     // When ping then check if a init packet arrived.
     // Repeat until it happens.
     int ping_count{0};
@@ -40,8 +41,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
 
             if (!sender_packet_set.init_packet_data_vector.empty()) {
-                width = sender_packet_set.init_packet_data_vector[0].width;
-                height = sender_packet_set.init_packet_data_vector[0].height;
+                init_sender_packet_data = sender_packet_set.init_packet_data_vector[0];
                 break;
             }
         } catch (UdpSocketRuntimeError e) {
@@ -57,10 +57,11 @@ void start_session(const std::string ip_address, const int port, const int sessi
     bool stopped{false};
     VideoRendererState video_renderer_state;
     VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
+    AudioPacketReceiver audio_packet_receiver;
+    VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
 
     std::thread task_thread([&] {
-        AudioPacketReceiver audio_packet_receiver;
 
         while (!stopped) {
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
@@ -72,7 +73,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
         }
     });
 
-    VideoRenderer video_renderer{session_id, remote_endpoint, width, height};
     while (!stopped) {
         video_renderer.render(udp_socket, video_message_queue, video_renderer_state);
     }

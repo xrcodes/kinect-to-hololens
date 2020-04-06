@@ -1,8 +1,6 @@
 #pragma once
 
-#include <readerwriterqueue/readerwriterqueue.h>
-#include "native/kh_udp_socket.h"
-#include "native/kh_packet.h"
+#include "native/kh_native.h"
 
 namespace kh
 {

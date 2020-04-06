@@ -3,80 +3,60 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
-using System.Threading;
 using UnityEngine;
 
-public class KinectReceiver
+public class KinectRenderer
 {
-    public const int KH_SAMPLE_RATE = 48000;
-    public const int KH_CHANNEL_COUNT = 2;
-    public const double KH_LATENCY_SECONDS = 0.2;
-    public const int KH_SAMPLES_PER_FRAME = 960;
-    public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
-
     private int sessionId;
 
     private Material azureKinectScreenMaterial;
-    private AzureKinectScreen azureKinectScreen;
     private Transform floorPlaneTransform;
 
     private TextureGroup textureGroup;
 
     private UdpSocket udpSocket;
     private IPEndPoint endPoint;
-    private bool stopped;
-    private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
-    private int lastVideoFrameId;
+    public int lastVideoFrameId;
 
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
     private bool preapared;
 
-    private RingBuffer ringBuffer;
 
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
-
-    public RingBuffer RingBuffer
+    public KinectRenderer(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen, Transform floorPlaneTransform,
+        InitSenderPacketData initPacketData, UdpSocket udpSocket, IPEndPoint endPoint, int sessionId)
     {
-        get
-        {
-            return ringBuffer;
-        }
-    }
-
-    public KinectReceiver(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen, Transform floorPlaneTransform)
-    {
-        var random = new System.Random();
-        sessionId = random.Next();
-
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
-        this.azureKinectScreen = azureKinectScreen;
         this.floorPlaneTransform = floorPlaneTransform;
 
         textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
-        udpSocket = null;
-        endPoint = null;
-        stopped = false;
-        videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         lastVideoFrameId = -1;
 
-        colorDecoder = null;
-        depthDecoder = null;
         preapared = false;
-
-        ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
 
-        floorPacketDataQueue = new ConcurrentQueue<FloorSenderPacketData>();
+        textureGroup.SetWidth(initPacketData.depthWidth);
+        textureGroup.SetHeight(initPacketData.depthHeight);
+        PluginHelper.InitTextureGroup();
+
+        colorDecoder = new Vp8Decoder();
+        depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
+
+        azureKinectScreen.Setup(initPacketData);
+
+        this.udpSocket = udpSocket;
+        this.endPoint = endPoint;
+        this.sessionId = sessionId;
     }
 
-    public void UpdateFrame()
+    public void UpdateFrame(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue,
+                            ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
     {
         // If texture is not created, create and assign them to quads.
         if (!preapared)
@@ -100,72 +80,11 @@ public class KinectReceiver
         if (udpSocket == null)
             return;
 
-        UpdateTextureGroup();
+        UpdateTextureGroup(videoMessageQueue, floorPacketDataQueue);
     }
 
-    public void Stop()
-    {
-        stopped = true;
-    }
-
-    public void Ping(UdpSocket udpSocket, IPEndPoint endPoint)
-    {
-        //int senderSessionId = -1;
-        int pingCount = 0;
-
-        while (true)
-        {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId), endPoint);
-            ++pingCount;
-            UnityEngine.Debug.Log("Sent ping");
-
-            //Thread.Sleep(100);
-            Thread.Sleep(300);
-
-            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
-            if (senderPacketSet.InitPacketDataList.Count > 0)
-            {
-                textureGroup.SetWidth(senderPacketSet.InitPacketDataList[0].depthWidth);
-                textureGroup.SetHeight(senderPacketSet.InitPacketDataList[0].depthHeight);
-                PluginHelper.InitTextureGroup();
-
-                colorDecoder = new Vp8Decoder();
-                depthDecoder = new TrvlDecoder(senderPacketSet.InitPacketDataList[0].depthWidth * senderPacketSet.InitPacketDataList[0].depthHeight);
-
-                azureKinectScreen.Setup(senderPacketSet.InitPacketDataList[0]);
-                break;
-            }
-
-            if (pingCount == 10)
-            {
-                UnityEngine.Debug.Log("Tried pinging 10 times and failed to received an init packet...\n");
-                return;
-            }
-        }
-
-        this.udpSocket = udpSocket;
-        this.endPoint = endPoint;
-
-        var taskThread = new Thread(() =>
-        {
-            var videoMessageAssembler = new VideoMessageAssembler(sessionId, endPoint);
-            var audioPacketReceiver = new AudioPacketReceiver();
-
-            while(!stopped)
-            {
-                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
-                videoMessageAssembler.Assemble(udpSocket, senderPacketSet.VideoPacketDataList,
-                    senderPacketSet.FecPacketDataList, lastVideoFrameId, videoMessageQueue);
-                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, ringBuffer);
-            }
-
-            stopped = true;
-        });
-
-        taskThread.Start();
-    }
-
-    private void UpdateTextureGroup()
+    private void UpdateTextureGroup(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue,
+                                    ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
     {
         {
             Tuple<int, VideoSenderMessageData> frameMessagePair;

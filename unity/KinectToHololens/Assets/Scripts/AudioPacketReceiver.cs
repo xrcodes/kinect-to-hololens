@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 class AudioPacketReceiver
 {
@@ -8,7 +7,7 @@ class AudioPacketReceiver
 
     public AudioPacketReceiver()
     {
-        audioDecoder = new AudioDecoder(KinectReceiver.KH_SAMPLE_RATE, KinectReceiver.KH_CHANNEL_COUNT);
+        audioDecoder = new AudioDecoder(KinectToHololensManager.KH_SAMPLE_RATE, KinectToHololensManager.KH_CHANNEL_COUNT);
         lastAudioFrameId = -1;
     }
 
@@ -16,7 +15,7 @@ class AudioPacketReceiver
     {
         audioPacketDataList.Sort((x, y) => x.frameId.CompareTo(y.frameId));
 
-        float[] pcm = new float[KinectReceiver.KH_SAMPLES_PER_FRAME * KinectReceiver.KH_CHANNEL_COUNT];
+        float[] pcm = new float[KinectToHololensManager.KH_SAMPLES_PER_FRAME * KinectToHololensManager.KH_CHANNEL_COUNT];
         int index = 0;
         while (ringBuffer.FreeSamples >= pcm.Length)
         {
@@ -27,7 +26,7 @@ class AudioPacketReceiver
             if (audioPacketData.frameId <= lastAudioFrameId)
                 continue;
 
-            audioDecoder.Decode(audioPacketData.opusFrame, pcm, KinectReceiver.KH_SAMPLES_PER_FRAME);
+            audioDecoder.Decode(audioPacketData.opusFrame, pcm, KinectToHololensManager.KH_SAMPLES_PER_FRAME);
             ringBuffer.Write(pcm);
             lastAudioFrameId = audioPacketData.frameId;
         }

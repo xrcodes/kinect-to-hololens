@@ -1,7 +1,5 @@
 #include <iostream>
 #include <random>
-#include <gsl/gsl>
-#include <readerwriterqueue/readerwriterqueue.h>
 #include "native/kh_native.h"
 #include "sender/audio_packet_sender.h"
 #include "sender/kinect_device_manager.h"

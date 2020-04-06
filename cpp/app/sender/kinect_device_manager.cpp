@@ -1,7 +1,7 @@
 #include "kinect_device_manager.h"
 
 #include <algorithm>
-#include "video_sender_utils.h"
+#include <iostream>
 
 namespace kh
 {

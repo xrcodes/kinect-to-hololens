@@ -1,6 +1,9 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.XR.WSA.Input;
 
@@ -11,6 +14,12 @@ public enum InputState
 
 public class KinectToHololensManager : MonoBehaviour
 {
+    public const int KH_SAMPLE_RATE = 48000;
+    public const int KH_CHANNEL_COUNT = 2;
+    public const double KH_LATENCY_SECONDS = 0.2;
+    public const int KH_SAMPLES_PER_FRAME = 960;
+    public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
+
     // The main camera's Transform.
     public Transform cameraTransform;
     // The TextMesh placed above user's head.
@@ -34,7 +43,13 @@ public class KinectToHololensManager : MonoBehaviour
     // Varaibles that represent states of the scene.
     private InputState inputState;
 
-    private KinectReceiver kinectReceiver;
+    private int sessionId;
+    private bool stopped;
+    private RingBuffer ringBuffer;
+    private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
+    private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
+
+    private KinectRenderer kinectRenderer;
 
     private InputState InputState
     {
@@ -86,7 +101,13 @@ public class KinectToHololensManager : MonoBehaviour
 
         gestureRecognizer = new GestureRecognizer();
 
-        kinectReceiver = new KinectReceiver(azureKinectScreenMaterial, azureKinectScreen, floorPlaneTransform);
+        var random = new System.Random();
+        sessionId = random.Next();
+        stopped = false;
+        ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
+        videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
+        floorPacketDataQueue = new ConcurrentQueue<FloorSenderPacketData>();
+
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -106,19 +127,20 @@ public class KinectToHololensManager : MonoBehaviour
         // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
         AbsorbInput();
 
-        kinectReceiver.UpdateFrame();
+        if(kinectRenderer != null)
+            kinectRenderer.UpdateFrame(videoMessageQueue, floorPacketDataQueue);
     }
 
     void OnDestroy()
     {
-        kinectReceiver.Stop();
+        stopped = true;
     }
 
     void OnAudioFilterRead(float[] data, int channels)
     {
         const float AMPLIFIER = 8.0f;
 
-        kinectReceiver.RingBuffer.Read(data);
+        ringBuffer.Read(data);
         for (int i = 0; i < data.Length; ++i)
             data[i] = data[i] * AMPLIFIER;
     }
@@ -222,6 +244,51 @@ public class KinectToHololensManager : MonoBehaviour
         var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
         var endPoint = new IPEndPoint(ipAddress, port);
 
-        kinectReceiver.Ping(udpSocket, endPoint);
+        InitSenderPacketData initPacketData;
+        int pingCount = 0;
+        while (true)
+        {
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId), endPoint);
+            ++pingCount;
+            UnityEngine.Debug.Log("Sent ping");
+
+            //Thread.Sleep(100);
+            Thread.Sleep(300);
+
+            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+            if (senderPacketSet.InitPacketDataList.Count > 0)
+            {
+                initPacketData = senderPacketSet.InitPacketDataList[0];
+                break;
+            }
+
+            if (pingCount == 10)
+            {
+                UnityEngine.Debug.Log("Tried pinging 10 times and failed to received an init packet...\n");
+                UiVisibility = true;
+                yield break;
+            }
+        }
+
+        kinectRenderer = new KinectRenderer(azureKinectScreenMaterial, azureKinectScreen, floorPlaneTransform,
+            initPacketData, udpSocket, endPoint, sessionId);
+
+        var taskThread = new Thread(() =>
+        {
+            var videoMessageAssembler = new VideoMessageAssembler(sessionId, endPoint);
+            var audioPacketReceiver = new AudioPacketReceiver();
+
+            while (!stopped)
+            {
+                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+                videoMessageAssembler.Assemble(udpSocket, senderPacketSet.VideoPacketDataList,
+                    senderPacketSet.FecPacketDataList, kinectRenderer.lastVideoFrameId, videoMessageQueue);
+                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, ringBuffer);
+            }
+
+            stopped = true;
+        });
+
+        taskThread.Start();
     }
 }
