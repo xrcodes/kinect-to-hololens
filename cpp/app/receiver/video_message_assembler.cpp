@@ -50,11 +50,11 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
 
     // Try FEC if a new frame was received.
     if (added_frame_id) {
-        std::cout << "ADDED FRAME ID: " << *added_frame_id << " (renderer frame_id: " << video_renderer_state.frame_id << ")\n";
+        //std::cout << "ADDED FRAME ID: " << *added_frame_id << " (renderer frame_id: " << video_renderer_state.frame_id << ")\n";
         for (auto& video_packet_collection : video_packet_collections_) {
             const int frame_id{video_packet_collection.first};
             std::vector<std::optional<VideoSenderPacketData>>* video_packets_ptr{&video_packet_collection.second};
-            std::cout << "  fec frame_id: " << frame_id << "\n";
+            //std::cout << "  fec frame_id: " << frame_id << "\n";
             // Skip the frame that just got added or even newer.
             if (frame_id >= added_frame_id)
                 continue;
@@ -63,7 +63,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             auto parity_packet_collections_ref{parity_packet_collections_.find(frame_id)};
             // Skip if there is no parity packet collection for the video frame.
             if (parity_packet_collections_ref == parity_packet_collections_.end()) {
-                std::cout << "  no parity packet collection\n";
+                //std::cout << "  no parity packet collection\n";
                 continue;
             }
             std::vector<std::optional<ParitySenderPacketData>>* parity_packets_ptr{&parity_packet_collections_ref->second};

@@ -136,9 +136,6 @@ public class KinectRenderer
         TrvlFrame trvlFrame = null;
 
         var decoderStopWatch = Stopwatch.StartNew();
-        //for (int i = beginIndex.Value; i < frameMessages.Count; ++i)
-        //{
-        //    var frameMessage = frameMessages[i];
         for (int i = beginFrameId.Value; ; ++i)
         {
             if (!videoMessages.ContainsKey(i))
@@ -160,14 +157,10 @@ public class KinectRenderer
         var frameTime = frameStopWatch.Elapsed;
         frameStopWatch = Stopwatch.StartNew();
 
-        //print($"id: {lastFrameId}, packet collection time: {packetCollectionTime.TotalMilliseconds}, " +
-        //      $"decoder time: {decoderTime.TotalMilliseconds}, frame time: {frameTime.TotalMilliseconds}");
-
         udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId,
                                                                     lastVideoFrameId,
                                                                     (float)decoderTime.TotalMilliseconds,
-                                                                    (float)frameTime.TotalMilliseconds),
-                       endPoint);
+                                                                    (float)frameTime.TotalMilliseconds), endPoint);
 
         // Invokes a function to be called in a render thread.
         if (preapared)

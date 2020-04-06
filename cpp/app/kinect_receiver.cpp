@@ -62,7 +62,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
 
     std::thread task_thread([&] {
-
         while (!stopped) {
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
             video_message_assembler.assemble(udp_socket, sender_packet_set.video_packet_data_vector,
@@ -108,6 +107,7 @@ void main()
 
 int main()
 {
+    std::ios_base::sync_with_stdio(false);
     kh::main();
     return 0;
 }

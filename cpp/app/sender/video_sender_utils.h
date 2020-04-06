@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <vector>
 #include "native/kh_native.h"
 
@@ -34,14 +35,15 @@ struct ReceiverReportSummary
 // for a video frame.
 struct VideoParityPacketByteSet
 {
-    int frame_id;
+    const TimePoint time_point;
+    const int frame_id;
     std::vector<std::vector<std::byte>> video_packet_byte_set;
     std::vector<std::vector<std::byte>> parity_packet_byte_set;
 
     VideoParityPacketByteSet(int frame_id,
                              std::vector<std::vector<std::byte>>&& video_packet_byte_set,
                              std::vector<std::vector<std::byte>>&& parity_packet_byte_set)
-        : frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, parity_packet_byte_set{parity_packet_byte_set}
+        : time_point{TimePoint::now()}, frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, parity_packet_byte_set{parity_packet_byte_set}
     {
     }
 };
@@ -73,11 +75,11 @@ public:
         return video_parity_packet_byte_sets_.at(frame_id);
     }
 
-    void cleanup(int receiver_frame_id)
+    void cleanup(float timeout_sec)
     {
         // Remove video packets from its container when the receiver already received them.
         for (auto it = video_parity_packet_byte_sets_.begin(); it != video_parity_packet_byte_sets_.end();) {
-            if (it->first <= receiver_frame_id) {
+            if (it->second.time_point.elapsed_time().sec() > timeout_sec) {
                 it = video_parity_packet_byte_sets_.erase(it);
             } else {
                 ++it;

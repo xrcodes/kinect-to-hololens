@@ -50,6 +50,7 @@ void print_kinect_device_manager_summary(KinectDeviceManagerSummary summary, Tim
 void start_session(const int port, const int session_id)
 {
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
+    constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
 
     std::cout << "Start a kinect_sender session (id: " << session_id << ")\n";
 
@@ -99,7 +100,7 @@ void start_session(const int port, const int session_id)
             auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
             apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, receiver_report_summary);
             video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_parity_packet_storage);
-            video_parity_packet_storage.cleanup(receiver_state.video_frame_id);
+            video_parity_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;
