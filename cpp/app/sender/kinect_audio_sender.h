@@ -11,11 +11,13 @@ namespace kh
 class KinectAudioSender
 {
 public:
-    KinectAudioSender(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
-        : session_id_{session_id}, remote_endpoint_{remote_endpoint},
-        audio_{}, kinect_microphone_stream_{create_kinect_microphone_stream(audio_)},
-        audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false},
-        pcm_{}, audio_frame_id_{0}
+    KinectAudioSender(const int session_id)
+        : session_id_{session_id}
+        , audio_{}
+        , kinect_microphone_stream_{create_kinect_microphone_stream(audio_)}
+        , audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false}
+        , pcm_{}
+        , audio_frame_id_{0}
     {
         constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
         soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
@@ -25,7 +27,7 @@ public:
         kinect_microphone_stream_.start();
     }
 
-    void send(UdpSocket& udp_socket)
+    void send(UdpSocket& udp_socket, asio::ip::udp::endpoint remote_endpoint)
     {
         soundio_flush_events(audio_.get());
         const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
@@ -43,7 +45,7 @@ public:
                                                             KH_SAMPLES_PER_FRAME,
                                                             gsl::narrow_cast<opus_int32>(opus_frame.size()))};
             opus_frame.resize(opus_frame_size);
-            udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame), remote_endpoint_);
+            udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame), remote_endpoint);
             cursor += BYTES_PER_FRAME;
         }
 
@@ -52,7 +54,6 @@ public:
 
 private:
     const int session_id_;
-    const asio::ip::udp::endpoint remote_endpoint_;
 
     Audio audio_;
     AudioInStream kinect_microphone_stream_;

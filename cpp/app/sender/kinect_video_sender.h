@@ -10,14 +10,13 @@
 
 namespace kh
 {
-
-struct VideoDeviceManagerState
+struct KinectVideoSenderState
 {
     int frame_id{0};
     TimePoint last_frame_time_point{TimePoint::now()};
 };
 
-struct KinectDeviceManagerSummary
+struct KinectVideoSenderSummary
 {
     TimePoint start_time{TimePoint::now()};
     float shadow_removal_ms_sum{0.0f};
@@ -31,19 +30,18 @@ struct KinectDeviceManagerSummary
     int frame_id{0};
 };
 
-class KinectDeviceManager
+class KinectVideoSender
 {
 public:
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device);
+    KinectVideoSender(const int session_id, KinectDevice&& kinect_device);
     void update(const TimePoint& session_start_time,
                 UdpSocket& udp_socket,
                 VideoParityPacketStorage& video_parity_packet_storage,
-                ReceiverState& receiver_state,
-                KinectDeviceManagerSummary& summary);
+                RemoteReceiver& remote_receiver,
+                KinectVideoSenderSummary& summary);
 private:
     const int session_id_;
-    const asio::ip::udp::endpoint remote_endpoint_;
     std::mt19937 random_number_generator_;
     KinectDevice kinect_device_;
     k4a::calibration calibration_;
@@ -52,6 +50,6 @@ private:
     TrvlEncoder depth_encoder_;
     OcclusionRemover occlusion_remover_;
     Samples::PointCloudGenerator point_cloud_generator_;
-    VideoDeviceManagerState state_;
+    KinectVideoSenderState state_;
 };
 }

@@ -1,8 +1,8 @@
 #include <iostream>
 #include <random>
 #include "native/kh_native.h"
-#include "sender/audio_packet_sender.h"
-#include "sender/kinect_device_manager.h"
+#include "sender/kinect_audio_sender.h"
+#include "sender/kinect_video_sender.h"
 #include "sender/receiver_packet_receiver.h"
 
 namespace kh
@@ -20,16 +20,16 @@ std::optional<KinectDevice> create_and_start_kinect_device()
 
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
-                          ReceiverState& receiver_state,
+                          RemoteReceiver& remote_receiver,
                           ReceiverReportSummary& summary)
 {
     // Update receiver_state and summary with Report packets.
     for (auto& report_receiver_packet_data : report_packet_data_vector) {
         // Ignore if network is somehow out of order and a report comes in out of order.
-        if (report_receiver_packet_data.frame_id <= receiver_state.video_frame_id)
+        if (report_receiver_packet_data.frame_id <= remote_receiver.video_frame_id)
             continue;
 
-        receiver_state.video_frame_id = report_receiver_packet_data.frame_id;
+        remote_receiver.video_frame_id = report_receiver_packet_data.frame_id;
 
         summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
         summary.frame_interval_ms_sum += report_receiver_packet_data.frame_time_ms;
@@ -44,7 +44,7 @@ void print_receiver_report_summary(ReceiverReportSummary summary, TimeDuration d
               << "  Frame Interval Time Average: " << summary.frame_interval_ms_sum / summary.received_report_count << " ms\n";
 }
 
-void print_kinect_device_manager_summary(KinectDeviceManagerSummary summary, TimeDuration duration)
+void print_kinect_device_manager_summary(KinectVideoSenderSummary summary, TimeDuration duration)
 {
     std::cout << "KinectDeviceManager Summary:\n"
               << "  Frame ID: " << summary.frame_id << "\n"
@@ -64,6 +64,7 @@ void start_session(const int port, const int session_id)
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
     constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
+    constexpr float SUMMARY_INTERVAL_SEC{10.0f};
 
     std::cout << "Start a kinect_sender session (id: " << session_id << ")\n";
 
@@ -79,56 +80,55 @@ void start_session(const int port, const int session_id)
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket)};
 
-    // Receive a connect packet from a receiver and capture the receiver's endpoint.
-    // Then, create ReceiverState with it.
-    asio::ip::udp::endpoint receiver_endpoint;
-    for (;;) {
-        auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
-
-        if (!receiver_packet_set.connect_endpoint_vector.empty()) {
-            receiver_endpoint = receiver_packet_set.connect_endpoint_vector[0];
-            break;
-        }
-    }
-    ReceiverState receiver_state{receiver_endpoint};
-
-    std::cout << "Found a Receiver at " << receiver_state.endpoint << ".\n";
 
     // Initialize instances for loop below.
     const TimePoint session_start_time{TimePoint::now()};
     TimePoint heartbeat_time{TimePoint::now()};
     TimePoint received_any_time{TimePoint::now()};
 
-    KinectDeviceManager kinect_device_manager{session_id, receiver_state.endpoint, std::move(*kinect_device)};
-    KinectDeviceManagerSummary kinect_device_manager_summary;
+    KinectVideoSender kinect_device_manager{session_id, std::move(*kinect_device)};
+    KinectVideoSenderSummary kinect_device_manager_summary;
 
-    KinectAudioSender kinect_audio_sender{session_id, receiver_state.endpoint};
+    KinectAudioSender kinect_audio_sender{session_id};
 
-    VideoPacketRetransmitter video_packet_retransmitter{session_id, receiver_state.endpoint};
+    VideoPacketRetransmitter video_packet_retransmitter{session_id};
     ReceiverReportSummary receiver_report_summary;
 
     VideoParityPacketStorage video_parity_packet_storage;
 
+    std::optional<RemoteReceiver> remote_receiver{std::nullopt};
+
     // Run the loop.
     for (;;) {
         try {
-            kinect_device_manager.update(session_start_time, udp_socket, video_parity_packet_storage, receiver_state, kinect_device_manager_summary);
-            kinect_audio_sender.send(udp_socket);
+            auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
 
-            if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
-                udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), receiver_state.endpoint);
-                heartbeat_time = TimePoint::now();
+            // Receive a connect packet from a receiver and capture the receiver's endpoint.
+            // Then, create ReceiverState with it.
+            if (!remote_receiver) {
+                if (!receiver_packet_set.connect_endpoint_vector.empty()) {
+                    remote_receiver.emplace(receiver_packet_set.connect_endpoint_vector[0]);
+                }
             }
 
-            auto receiver_packet_set{ReceiverPacketReceiver::receive(udp_socket)};
-            if (receiver_packet_set.received_any) {
-                apply_report_packets(receiver_packet_set.report_packet_data_vector, receiver_state, receiver_report_summary);
-                video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_parity_packet_storage);
-                received_any_time = TimePoint::now();
-            } else {
-                if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
-                    std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
-                    break;
+            if (remote_receiver) {
+                kinect_device_manager.update(session_start_time, udp_socket, video_parity_packet_storage, *remote_receiver, kinect_device_manager_summary);
+                kinect_audio_sender.send(udp_socket, remote_receiver->endpoint);
+
+                if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
+                    udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_receiver->endpoint);
+                    heartbeat_time = TimePoint::now();
+                }
+
+                if (receiver_packet_set.received_any) {
+                    apply_report_packets(receiver_packet_set.report_packet_data_vector, *remote_receiver, receiver_report_summary);
+                    video_packet_retransmitter.retransmit(udp_socket, receiver_packet_set.request_packet_data_vector, video_parity_packet_storage, remote_receiver->endpoint);
+                    received_any_time = TimePoint::now();
+                } else {
+                    if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
+                        std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
+                        break;
+                    }
                 }
             }
 
@@ -139,12 +139,12 @@ void start_session(const int port, const int session_id)
         }
 
         const auto summary_duration{receiver_report_summary.start_time.elapsed_time()};
-        if (summary_duration.sec() > 10.0f) {
+        if (summary_duration.sec() > SUMMARY_INTERVAL_SEC) {
             print_receiver_report_summary(receiver_report_summary, summary_duration);
             receiver_report_summary = ReceiverReportSummary{};
 
             print_kinect_device_manager_summary(kinect_device_manager_summary, summary_duration);
-            kinect_device_manager_summary = KinectDeviceManagerSummary{};
+            kinect_device_manager_summary = KinectVideoSenderSummary{};
         }
     }
 }

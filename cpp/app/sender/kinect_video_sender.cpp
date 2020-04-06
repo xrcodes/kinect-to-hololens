@@ -1,4 +1,4 @@
-#include "kinect_device_manager.h"
+#include "kinect_video_sender.h"
 
 #include <algorithm>
 #include <iostream>
@@ -37,9 +37,8 @@ std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::Poin
 }
 
 // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device)
+KinectVideoSender::KinectVideoSender(const int session_id, KinectDevice&& kinect_device)
     : session_id_{session_id}
-    , remote_endpoint_{remote_endpoint}
     , random_number_generator_{std::random_device{}()}
     , kinect_device_{std::move(kinect_device)}
     , calibration_{kinect_device_.getCalibration()}
@@ -52,18 +51,19 @@ KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::u
 {
 }
 
-void KinectDeviceManager::update(const TimePoint& session_start_time,
+void KinectVideoSender::update(const TimePoint& session_start_time,
                                  UdpSocket& udp_socket,
                                  VideoParityPacketStorage& video_parity_packet_storage,
-                                 ReceiverState& receiver_state,
-                                 KinectDeviceManagerSummary& summary)
+                                 RemoteReceiver& remote_receiver,
+                                 KinectVideoSenderSummary& summary)
 {
     // Keep send the init packet until receiver reports a received frame.
-    if (receiver_state.video_frame_id == ReceiverState::INITIAL_VIDEO_FRAME_ID) {
+    if (remote_receiver.video_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID) {
         const auto init_packet_bytes{create_init_sender_packet_bytes(session_id_, create_init_sender_packet_data(calibration_))};
-        udp_socket.send(init_packet_bytes, remote_endpoint_);
+        udp_socket.send(init_packet_bytes, remote_receiver.endpoint);
 
-        Sleep(100);
+        // Adding delay to prevent this function from sending too many init packets to a receiver.
+        Sleep(30);
     }
 
     // Try getting a Kinect frame.
@@ -76,7 +76,7 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
     const auto frame_time_point{TimePoint::now()};
     const auto frame_time_diff{frame_time_point - state_.last_frame_time_point};
-    const int frame_id_diff{state_.frame_id - receiver_state.video_frame_id};
+    const int frame_id_diff{state_.frame_id - remote_receiver.video_frame_id};
 
     if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
         return;
@@ -89,7 +89,7 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
                                                                        floor_plane->Normal.Y,
                                                                        floor_plane->Normal.Z,
                                                                        floor_plane->C)};
-        udp_socket.send(floor_packet_bytes, remote_endpoint_);
+        udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
     }
 
     state_.last_frame_time_point = frame_time_point;
@@ -143,7 +143,7 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
 
     std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator_);
     for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
-        udp_socket.send(*packet_bytes_ptr, remote_endpoint_);
+        udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
     }
 
     // Save video/parity packet bytes for retransmission. 

@@ -9,15 +9,16 @@ namespace kh
 using Bytes = std::vector<std::byte>;
 constexpr static int XOR_MAX_GROUP_SIZE{2};
 
-struct ReceiverState
+class RemoteReceiver
 {
+public:
     // The video frame ID before any report from the receiver.
     static constexpr int INITIAL_VIDEO_FRAME_ID{-1};
 
     const asio::ip::udp::endpoint endpoint;
     int video_frame_id;
 
-    ReceiverState(asio::ip::udp::endpoint endpoint)
+    RemoteReceiver(asio::ip::udp::endpoint endpoint)
         : endpoint{endpoint}, video_frame_id{INITIAL_VIDEO_FRAME_ID}
     {
     }
@@ -94,14 +95,15 @@ private:
 class VideoPacketRetransmitter
 {
 public:
-    VideoPacketRetransmitter(const int session_id, const asio::ip::udp::endpoint remote_endpoint)
-        : session_id_{session_id}, remote_endpoint_{remote_endpoint}
+    VideoPacketRetransmitter(const int session_id)
+        : session_id_{session_id}
     {
     }
 
     void retransmit(UdpSocket& udp_socket,
                     std::vector<RequestReceiverPacketData>& request_packet_data_vector,
-                    VideoParityPacketStorage& video_parity_packet_storage)
+                    VideoParityPacketStorage& video_parity_packet_storage,
+                    const asio::ip::udp::endpoint remote_endpoint)
     {
         // Resend the requested video packets.
         for (auto& request_receiver_packet_data : request_packet_data_vector) {
@@ -110,15 +112,14 @@ public:
                 continue;
 
             for (int packet_index : request_receiver_packet_data.video_packet_indices)
-                udp_socket.send(video_parity_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint_);
+                udp_socket.send(video_parity_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint);
 
             for (int packet_index : request_receiver_packet_data.parity_packet_indices)
-                udp_socket.send(video_parity_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint_);
+                udp_socket.send(video_parity_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint);
         }
     }
 
 private:
     const int session_id_;
-    const asio::ip::udp::endpoint remote_endpoint_;
 };
 }

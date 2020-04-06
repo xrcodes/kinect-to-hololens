@@ -27,9 +27,9 @@ add_custom_command(TARGET KinectReader POST_BUILD
 add_executable(KinectSender
   kinect_sender.cpp
   helper/soundio_helper.h
-  sender/audio_packet_sender.h
-  sender/kinect_device_manager.h
-  sender/kinect_device_manager.cpp
+  sender/kinect_audio_sender.h
+  sender/kinect_video_sender.h
+  sender/kinect_video_sender.cpp
   sender/receiver_packet_receiver.h
   sender/video_sender_utils.h
 )
