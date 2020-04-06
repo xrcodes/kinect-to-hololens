@@ -44,6 +44,14 @@ public static class PacketHelper
         return ms.ToArray();
     }
 
+    public static byte[] createHeartbeatReceiverPacketBytes(int sessionId)
+    {
+        var ms = new MemoryStream();
+        ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
+        ms.WriteByte((byte)ReceiverPacketType.Heartbeat);
+        return ms.ToArray();
+    }
+
     public static byte[] createReportReceiverPacketBytes(int sessionId, int frameId, float decoderMs, float frameMs)
     {
         var ms = new MemoryStream();

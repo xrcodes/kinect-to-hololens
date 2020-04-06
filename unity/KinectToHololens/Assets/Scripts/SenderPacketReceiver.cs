@@ -1,9 +1,9 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Net.Sockets;
 
 class SenderPacketSet
 {
+    public bool ReceivedAny { get; set; }
     public List<InitSenderPacketData> InitPacketDataList { get; private set; }
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
     public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
@@ -11,6 +11,7 @@ class SenderPacketSet
 
     public SenderPacketSet()
     {
+        ReceivedAny = false;
         InitPacketDataList = new List<InitSenderPacketData>();
         VideoPacketDataList = new List<VideoSenderPacketData>();
         FecPacketDataList = new List<ParitySenderPacketData>();
@@ -30,7 +31,7 @@ class SenderPacketReceiver
                 break;
 
             //int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
-
+            senderPacketSet.ReceivedAny = true;
             switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet))
             {
                 case SenderPacketType.Init:

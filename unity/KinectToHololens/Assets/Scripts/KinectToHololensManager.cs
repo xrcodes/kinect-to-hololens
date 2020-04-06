@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -19,6 +20,9 @@ public class KinectToHololensManager : MonoBehaviour
     public const double KH_LATENCY_SECONDS = 0.2;
     public const int KH_SAMPLES_PER_FRAME = 960;
     public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
+
+    private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
+    private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
 
     // The main camera's Transform.
     public Transform cameraTransform;
@@ -273,6 +277,9 @@ public class KinectToHololensManager : MonoBehaviour
         kinectRenderer = new KinectRenderer(azureKinectScreenMaterial, azureKinectScreen, floorPlaneTransform,
             initPacketData, udpSocket, endPoint, sessionId);
 
+        var heartbeatStopWatch = Stopwatch.StartNew();
+        var receivedAnyStopWatch = Stopwatch.StartNew();
+
         var taskThread = new Thread(() =>
         {
             var videoMessageAssembler = new VideoMessageAssembler(sessionId, endPoint);
@@ -280,10 +287,39 @@ public class KinectToHololensManager : MonoBehaviour
 
             while (!stopped)
             {
-                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
-                videoMessageAssembler.Assemble(udpSocket, senderPacketSet.VideoPacketDataList,
-                    senderPacketSet.FecPacketDataList, kinectRenderer.lastVideoFrameId, videoMessageQueue);
-                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, ringBuffer);
+                try
+                {
+                    if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
+                    {
+                        udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(sessionId), endPoint);
+                        heartbeatStopWatch = Stopwatch.StartNew();
+                    }
+
+                    var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+                    if (senderPacketSet.ReceivedAny)
+                    {
+                        videoMessageAssembler.Assemble(udpSocket, 
+                                                       senderPacketSet.VideoPacketDataList,
+                                                       senderPacketSet.FecPacketDataList,
+                                                       kinectRenderer.lastVideoFrameId,
+                                                       videoMessageQueue);
+                        audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, ringBuffer);
+                        receivedAnyStopWatch = Stopwatch.StartNew();
+                    }
+                    else
+                    {
+                        if(receivedAnyStopWatch.Elapsed.TotalSeconds > HEARTBEAT_TIME_OUT_SEC)
+                        {
+                            print($"Timed out after waiting for {HEARTBEAT_TIME_OUT_SEC} seconds without a received packet.");
+                            break;
+                        }
+                    }
+                }
+                catch (UdpSocketException e)
+                {
+                    print($"UdpSocketRuntimeError: {e}");
+                    break;
+                }
             }
 
             stopped = true;

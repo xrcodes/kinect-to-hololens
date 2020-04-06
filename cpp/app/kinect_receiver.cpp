@@ -77,7 +77,8 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
                 auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
                 if (sender_packet_set.received_any) {
-                    video_message_assembler.assemble(udp_socket, sender_packet_set.video_packet_data_vector,
+                    video_message_assembler.assemble(udp_socket,
+                                                     sender_packet_set.video_packet_data_vector,
                                                      sender_packet_set.fec_packet_data_vector,
                                                      video_renderer_state,
                                                      video_message_queue);
