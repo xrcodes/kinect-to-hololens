@@ -121,14 +121,14 @@ void start_session(const int port, const int session_id)
 // Repeats collecting the port number from the user and calling _send_frames() with it.
 void main()
 {
-    std::mt19937 rng{gsl::narrow_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count())};
+    std::random_device rd;
     for (;;) {
         std::string line;
         std::cout << "Enter a port number to start sending frames: ";
         std::getline(std::cin, line);
         // The default port (the port when nothing is entered) is 7777.
         const int port{line.empty() ? 7777 : std::stoi(line)};
-        const int session_id{gsl::narrow_cast<const int>(rng() % (static_cast<unsigned int>(INT_MAX) + 1))};
+        const int session_id{gsl::narrow_cast<const int>(rd() % (static_cast<unsigned int>(INT_MAX) + 1))};
 
         start_session(port, session_id);
     }

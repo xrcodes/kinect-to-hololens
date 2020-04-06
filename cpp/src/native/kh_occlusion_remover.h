@@ -6,10 +6,10 @@
 
 namespace kh
 {
-class ShadowRemover
+class OcclusionRemover
 {
 public:
-    ShadowRemover(const k4a::calibration& calibration);
+    OcclusionRemover(const k4a::calibration& calibration);
     void remove(gsl::span<int16_t> depth_pixels);
 
 private:

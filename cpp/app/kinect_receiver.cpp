@@ -83,7 +83,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
 void main()
 {
-    std::mt19937 rng{gsl::narrow_cast<unsigned int>(std::chrono::steady_clock::now().time_since_epoch().count())};
+    std::random_device rd;
     for (;;) {
         // Receive IP address from the user.
         std::cout << "Enter an IP address to start receiving frames: ";
@@ -99,7 +99,7 @@ void main()
         std::getline(std::cin, port_line);
         // The default port is 7777.
         const int port{port_line.empty() ? 7777 : std::stoi(port_line)};
-        const int session_id{gsl::narrow_cast<const int>(rng() % (static_cast<unsigned int>(INT_MAX) + 1))};
+        const int session_id{gsl::narrow_cast<const int>(rd() % (static_cast<unsigned int>(INT_MAX) + 1))};
 
         start_session(ip_address, port, session_id);
     }

@@ -1,4 +1,4 @@
-#include "kh_shadow_remover.h"
+#include "kh_occlusion_remover.h"
 
 namespace kh
 {
@@ -34,7 +34,7 @@ std::vector<float> create_x_with_unit_depth(const k4a::calibration& calibration)
 }
 }
 
-ShadowRemover::ShadowRemover(const k4a::calibration& calibration)
+OcclusionRemover::OcclusionRemover(const k4a::calibration& calibration)
     : width_{calibration.depth_camera_calibration.resolution_width}
     , height_{calibration.depth_camera_calibration.resolution_height}
     , color_camera_x_{get_color_camera_x_from_calibration(calibration)}
@@ -47,7 +47,7 @@ ShadowRemover::ShadowRemover(const k4a::calibration& calibration)
 // The inner loop with ii in average had about 20 times of repetition per pixel in average
 // from a scientific experiment from my dorm room.
 // This modification reduced 25% of the computation time.
-void ShadowRemover::remove(gsl::span<int16_t> depth_pixels)
+void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
 {
     // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
     constexpr float AZURE_KINECT_MAX_DISTANCE{3860.0f};

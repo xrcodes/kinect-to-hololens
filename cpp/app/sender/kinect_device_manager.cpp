@@ -1,7 +1,6 @@
 #include "kinect_device_manager.h"
 
 #include <algorithm>
-#include <random>
 #include "video_sender_utils.h"
 
 namespace kh
@@ -41,12 +40,13 @@ std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::Poin
 KinectDeviceManager::KinectDeviceManager(const int session_id, const asio::ip::udp::endpoint remote_endpoint, KinectDevice&& kinect_device)
     : session_id_{session_id}
     , remote_endpoint_{remote_endpoint}
+    , random_number_generator_{std::random_device{}()}
     , kinect_device_{std::move(kinect_device)}
     , calibration_{kinect_device_.getCalibration()}
     , transformation_{calibration_}
     , color_encoder_{create_color_encoder(calibration_)}
     , depth_encoder_{create_depth_encoder(calibration_)}
-    , shadow_remover_{calibration_}
+    , occlusion_remover_{calibration_}
     , point_cloud_generator_{calibration_}
     , state_{}
 {
@@ -100,7 +100,7 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     auto shadow_removal_start{TimePoint::now()};
     gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
                                         gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image.get_size())};
-    shadow_remover_.remove(depth_image_span);
+    occlusion_remover_.remove(depth_image_span);
     summary.shadow_removal_ms_sum += shadow_removal_start.elapsed_time().ms();
 
     // Transform the color image to match the depth image in a pixel by pixel manner.
@@ -141,9 +141,7 @@ void KinectDeviceManager::update(const TimePoint& session_start_time,
     for (auto& parity_packet_bytes : parity_packet_bytes_set)
         packet_bytes_ptrs.push_back(&parity_packet_bytes);
 
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), g);
+    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator_);
     for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
         udp_socket.send(*packet_bytes_ptr, remote_endpoint_);
     }

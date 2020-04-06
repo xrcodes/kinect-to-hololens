@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <random>
 #include <readerwriterqueue/readerwriterqueue.h>
 #include "native/kh_native.h"
 #include "video_sender_utils.h"
@@ -45,12 +46,13 @@ public:
 private:
     const int session_id_;
     const asio::ip::udp::endpoint remote_endpoint_;
+    std::mt19937 random_number_generator_;
     KinectDevice kinect_device_;
     k4a::calibration calibration_;
     k4a::transformation transformation_;
     Vp8Encoder color_encoder_;
     TrvlEncoder depth_encoder_;
-    ShadowRemover shadow_remover_;
+    OcclusionRemover occlusion_remover_;
     Samples::PointCloudGenerator point_cloud_generator_;
     VideoDeviceManagerState state_;
 };

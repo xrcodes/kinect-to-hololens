@@ -4,8 +4,8 @@ add_library(KinectToHololensNative
   kh_native.h
   kh_packet.h
   kh_packet.cpp
-  kh_shadow_remover.h
-  kh_shadow_remover.cpp
+  kh_occlusion_remover.h
+  kh_occlusion_remover.cpp
   kh_soundio.h
   kh_soundio.cpp
   kh_time.h
