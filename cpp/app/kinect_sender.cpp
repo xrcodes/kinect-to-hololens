@@ -7,6 +7,17 @@
 
 namespace kh
 {
+std::optional<KinectDevice> create_and_start_kinect_device()
+{
+    try {
+        KinectDevice kinect_device;
+        kinect_device.start();
+        return kinect_device;
+    } catch (k4a::error e) {
+        return std::nullopt;
+    }
+}
+
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
                           ReceiverState& receiver_state,
@@ -56,8 +67,11 @@ void start_session(const int port, const int session_id)
 
     std::cout << "Start a kinect_sender session (id: " << session_id << ")\n";
 
-    KinectDevice kinect_device;
-    kinect_device.start();
+    std::optional<KinectDevice> kinect_device{create_and_start_kinect_device()};
+    if (!kinect_device) {
+        std::cout << "Failed to create and start the Kinect device.\n";
+        return;
+    }
 
     // Create UdpSocket.
     asio::io_context io_context;
@@ -85,7 +99,7 @@ void start_session(const int port, const int session_id)
     TimePoint heartbeat_time{TimePoint::now()};
     TimePoint received_any_time{TimePoint::now()};
 
-    KinectDeviceManager kinect_device_manager{session_id, receiver_state.endpoint, std::move(kinect_device)};
+    KinectDeviceManager kinect_device_manager{session_id, receiver_state.endpoint, std::move(*kinect_device)};
     KinectDeviceManagerSummary kinect_device_manager_summary;
 
     KinectAudioSender kinect_audio_sender{session_id, receiver_state.endpoint};
