@@ -38,6 +38,25 @@ void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_d
     }
 }
 
+void retransmit_requested_packets(UdpSocket& udp_socket,
+                                  std::vector<RequestReceiverPacketData>& request_packet_data_vector,
+                                  VideoParityPacketStorage& video_parity_packet_storage,
+                                  const asio::ip::udp::endpoint remote_endpoint)
+{
+    // Retransmit the requested video packets.
+    for (auto& request_receiver_packet_data : request_packet_data_vector) {
+        const int frame_id{request_receiver_packet_data.frame_id};
+        if (!video_parity_packet_storage.has(frame_id))
+            continue;
+
+        for (int packet_index : request_receiver_packet_data.video_packet_indices)
+            udp_socket.send(video_parity_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint);
+
+        for (int packet_index : request_receiver_packet_data.parity_packet_indices)
+            udp_socket.send(video_parity_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint);
+    }
+}
+
 void print_receiver_report_summary(ReceiverReportSummary summary, TimeDuration duration)
 {
     std::cout << "Receiver Reported in " << summary.received_report_count / duration.sec() << " Hz\n"
@@ -94,8 +113,7 @@ void main()
     KinectVideoSenderSummary kinect_video_sender_summary;
 
     KinectAudioSender kinect_audio_sender{session_id};
-
-    VideoPacketRetransmitter video_packet_retransmitter{session_id};
+    
     ReceiverReportSummary receiver_report_summary;
 
     VideoParityPacketStorage video_parity_packet_storage;
@@ -139,10 +157,10 @@ void main()
                 // receiver_session_ids is different from the keys of remote_receivers
                 // since it does not include the newly added receivers that do not have
                 // corresponding packet sets.
-                for (auto& receiver_session_id : receiver_session_ids) {
-                    if (receiver_packet_collection.receiver_packet_sets.at(receiver_session_id).received_any) {
-                        apply_report_packets(receiver_packet_collection.receiver_packet_sets.at(receiver_session_id).report_packet_data_vector, remote_receivers.at(receiver_session_id), receiver_report_summary);
-                        video_packet_retransmitter.retransmit(udp_socket, receiver_packet_collection.receiver_packet_sets.at(receiver_session_id).request_packet_data_vector, video_parity_packet_storage, remote_receivers.at(receiver_session_id).endpoint);
+                for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_sets) {
+                    if (receiver_packet_set.received_any) {
+                        apply_report_packets(receiver_packet_set.report_packet_data_vector, remote_receivers.at(receiver_session_id), receiver_report_summary);
+                        retransmit_requested_packets(udp_socket, receiver_packet_collection.receiver_packet_sets.at(receiver_session_id).request_packet_data_vector, video_parity_packet_storage, remote_receivers.at(receiver_session_id).endpoint);
                         remote_receivers.at(receiver_session_id).last_packet_time = TimePoint::now();
                     } else {
                         if (remote_receivers.at(receiver_session_id).last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {

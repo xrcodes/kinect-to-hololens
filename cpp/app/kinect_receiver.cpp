@@ -27,9 +27,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
     asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)};
     UdpSocket udp_socket{std::move(socket)};
 
-    //int sender_session_id;
-    //int width;
-    //int height;
     InitSenderPacketData init_sender_packet_data;
     // When ping then check if a init packet arrived.
     // Repeat until it happens.
