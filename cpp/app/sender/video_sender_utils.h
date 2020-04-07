@@ -7,7 +7,6 @@
 namespace kh
 {
 using Bytes = std::vector<std::byte>;
-constexpr static int XOR_MAX_GROUP_SIZE{2};
 
 struct RemoteReceiver
 {
@@ -27,7 +26,7 @@ struct RemoteReceiver
 
 struct ReceiverReportSummary
 {
-    TimePoint start_time{TimePoint::now()};
+    TimePoint time_point{TimePoint::now()};
     float decoder_time_ms_sum{0.0f};
     float frame_interval_ms_sum{0.0f};
     int received_report_count{0};

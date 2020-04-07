@@ -140,31 +140,38 @@ void main()
                 remote_receivers.insert({connect_packet_info.session_id, RemoteReceiver{connect_packet_info.endpoint, connect_packet_info.session_id}});
             }
 
+            // Skip the main part of the loop if there is no receiver connected.
             if (!remote_receivers.empty()) {
                 std::vector<asio::ip::udp::endpoint> remote_endpoints;
                 for (auto& [_, remote_receiver] : remote_receivers)
                     remote_endpoints.push_back(remote_receiver.endpoint);
 
+                // Send video/audio packets to the receivers.
                 kinect_video_sender.send(session_start_time, udp_socket, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
                 kinect_audio_sender.send(udp_socket, remote_endpoints);
 
+                // Send heartbeat packets to receivers.
                 if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& remote_endpoint : remote_endpoints)
                         udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_endpoint);
                     heartbeat_time = TimePoint::now();
                 }
 
-                // receiver_session_ids is different from the keys of remote_receivers
-                // since it does not include the newly added receivers that do not have
-                // corresponding packet sets.
                 for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_sets) {
+                    auto remote_receiver_ptr{&remote_receivers.at(receiver_session_id)};
                     if (receiver_packet_set.received_any) {
-                        apply_report_packets(receiver_packet_set.report_packet_data_vector, remote_receivers.at(receiver_session_id), receiver_report_summary);
-                        retransmit_requested_packets(udp_socket, receiver_packet_collection.receiver_packet_sets.at(receiver_session_id).request_packet_data_vector, video_parity_packet_storage, remote_receivers.at(receiver_session_id).endpoint);
-                        remote_receivers.at(receiver_session_id).last_packet_time = TimePoint::now();
+                        apply_report_packets(receiver_packet_set.report_packet_data_vector,
+                                             *remote_receiver_ptr,
+                                             receiver_report_summary);
+                        retransmit_requested_packets(udp_socket,
+                                                     receiver_packet_set.request_packet_data_vector,
+                                                     video_parity_packet_storage,
+                                                     remote_receiver_ptr->endpoint);
+                        remote_receiver_ptr->last_packet_time = TimePoint::now();
                     } else {
-                        if (remote_receivers.at(receiver_session_id).last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
+                        if (remote_receiver_ptr->last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
                             std::cout << "Timed out receiver " << receiver_session_id << " after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
+                            // TODO: kill only the receiver that timed out.
                             break;
                         }
                     }
@@ -174,10 +181,11 @@ void main()
             video_parity_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
+            // TODO: kill only the receiver that caused the error.
             break;
         }
 
-        const auto summary_duration{receiver_report_summary.start_time.elapsed_time()};
+        const auto summary_duration{receiver_report_summary.time_point.elapsed_time()};
         if (summary_duration.sec() > SUMMARY_INTERVAL_SEC) {
             print_receiver_report_summary(receiver_report_summary, summary_duration);
             receiver_report_summary = ReceiverReportSummary{};

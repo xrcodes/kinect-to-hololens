@@ -58,7 +58,8 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectDevice&& kinect
     , depth_encoder_{create_depth_encoder(calibration_)}
     , occlusion_remover_{calibration_}
     , point_cloud_generator_{calibration_}
-    , state_{}
+    , last_frame_id_{-1}
+    , last_frame_time_{TimePoint::now()}
 {
 }
 
@@ -85,9 +86,9 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
     const auto frame_time_point{TimePoint::now()};
-    const auto frame_time_diff{frame_time_point - state_.last_frame_time_point};
+    const auto frame_time_diff{frame_time_point - last_frame_time_};
     //const int frame_id_diff{state_.frame_id - remote_receiver.video_frame_id};
-    const int frame_id_diff{state_.frame_id - get_minimum_receiver_frame_id(remote_receivers)};
+    const int frame_id_diff{last_frame_id_ - get_minimum_receiver_frame_id(remote_receivers)};
 
     //if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
     //    return;
@@ -104,7 +105,8 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
             udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
     }
 
-    state_.last_frame_time_point = frame_time_point;
+    ++last_frame_id_;
+    last_frame_time_ = frame_time_point;
 
     const bool keyframe{frame_id_diff > 5};
 
@@ -141,8 +143,8 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
-    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, state_.frame_id, message_bytes)};
-    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, state_.frame_id, XOR_MAX_GROUP_SIZE, video_packet_bytes_set)};
+    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
+    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
     
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
@@ -160,15 +162,13 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     }
 
     // Save video/parity packet bytes for retransmission. 
-    video_parity_packet_storage.add(state_.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
+    video_parity_packet_storage.add(last_frame_id_, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
 
     // Updating variables for profiling.
     if (keyframe)
         ++summary.keyframe_count;
     ++summary.frame_count;
     summary.byte_count += gsl::narrow_cast<int>(vp8_frame.size() + depth_encoder_frame.size());
-    summary.frame_id = state_.frame_id;
-
-    ++state_.frame_id;
+    summary.frame_id = last_frame_id_;
 }
 }

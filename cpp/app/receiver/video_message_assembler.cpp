@@ -76,9 +76,9 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             //for (auto& parity_packet : parity_packet_collections_ref->second) {
             for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packets_ptr->size(); ++parity_packet_index) {
                 // Range of the video packets that correspond to the parity packet.
-                gsl::index video_packet_start_index{parity_packet_index * FEC_GROUP_SIZE};
+                gsl::index video_packet_start_index{parity_packet_index * KH_FEC_PARITY_GROUP_SIZE};
                 // Pick the end index with the end of video packet indices in mind (i.e., prevent overflow).
-                gsl::index video_packet_end_index{std::min<int>(video_packet_start_index + FEC_GROUP_SIZE,
+                gsl::index video_packet_end_index{std::min<int>(video_packet_start_index + KH_FEC_PARITY_GROUP_SIZE,
                                                                 video_packets_ptr->size())};
 
                 // If the parity packet is missing, request all missing video packets and skip the FEC process.

@@ -10,12 +10,6 @@
 
 namespace kh
 {
-struct KinectVideoSenderState
-{
-    int frame_id{0};
-    TimePoint last_frame_time_point{TimePoint::now()};
-};
-
 struct KinectVideoSenderSummary
 {
     TimePoint start_time{TimePoint::now()};
@@ -50,6 +44,7 @@ private:
     TrvlEncoder depth_encoder_;
     OcclusionRemover occlusion_remover_;
     Samples::PointCloudGenerator point_cloud_generator_;
-    KinectVideoSenderState state_;
+    int last_frame_id_;
+    TimePoint last_frame_time_;
 };
 }
