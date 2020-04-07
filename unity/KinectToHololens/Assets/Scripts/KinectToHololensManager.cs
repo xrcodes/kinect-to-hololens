@@ -8,13 +8,9 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.XR.WSA.Input;
 
-public enum InputState
-{
-    IpAddress, Port
-}
-
 public class KinectToHololensManager : MonoBehaviour
 {
+    public const int PORT = 47498;
     public const int KH_SAMPLE_RATE = 48000;
     public const int KH_CHANNEL_COUNT = 2;
     public const double KH_LATENCY_SECONDS = 0.2;
@@ -34,8 +30,6 @@ public class KinectToHololensManager : MonoBehaviour
     // TextMeshes for the UI.
     public TextMesh ipAddressText;
     public TextMesh ipAddressInputField;
-    public TextMesh portText;
-    public TextMesh portInputField;
     public TextMesh instructionText;
     // For rendering the Kinect pixels in 3D.
     public Material azureKinectScreenMaterial;
@@ -44,8 +38,6 @@ public class KinectToHololensManager : MonoBehaviour
 
     // To recognize when the user taps.
     private GestureRecognizer gestureRecognizer;
-    // Varaibles that represent states of the scene.
-    private InputState inputState;
 
     private int sessionId;
     private bool stopped;
@@ -55,41 +47,12 @@ public class KinectToHololensManager : MonoBehaviour
 
     private KinectRenderer kinectRenderer;
 
-    private InputState InputState
-    {
-        set
-        {
-            if (value == InputState.IpAddress)
-            {
-                ipAddressText.color = Color.yellow;
-                portText.color = Color.white;
-            }
-            else
-            {
-                ipAddressText.color = Color.white;
-                portText.color = Color.yellow;
-            }
-
-            inputState = value;
-        }
-    }
-
-    private TextMesh ActiveInputField
-    {
-        get
-        {
-            return inputState == InputState.IpAddress ? ipAddressInputField : portInputField;
-        }
-    }
-
     private bool UiVisibility
     {
         set
         {
             ipAddressText.gameObject.SetActive(value);
             ipAddressInputField.gameObject.SetActive(value);
-            portText.gameObject.SetActive(value);
-            portInputField.gameObject.SetActive(value);
             instructionText.gameObject.SetActive(value);
         }
         get
@@ -100,7 +63,6 @@ public class KinectToHololensManager : MonoBehaviour
 
     void Awake()
     {
-        InputState = InputState.IpAddress;
         UiVisibility = true;
 
         gestureRecognizer = new GestureRecognizer();
@@ -167,10 +129,6 @@ public class KinectToHololensManager : MonoBehaviour
     // Try connecting the Receiver to a Sender when the user pressed the enter key.
     private void AbsorbInput()
     {
-        if (Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow) || Input.GetKeyDown(KeyCode.Tab))
-        {
-            InputState = inputState != InputState.IpAddress ? InputState.IpAddress : InputState.Port;
-        }
         AbsorbKeyCode(KeyCode.Alpha0, '0');
         AbsorbKeyCode(KeyCode.Keypad0, '0');
         AbsorbKeyCode(KeyCode.Alpha1, '1');
@@ -191,17 +149,14 @@ public class KinectToHololensManager : MonoBehaviour
         AbsorbKeyCode(KeyCode.Keypad8, '8');
         AbsorbKeyCode(KeyCode.Alpha9, '9');
         AbsorbKeyCode(KeyCode.Keypad9, '9');
-        if (inputState == InputState.IpAddress)
-        {
-            AbsorbKeyCode(KeyCode.Period, '.');
-            AbsorbKeyCode(KeyCode.KeypadPeriod, '.');
-        }
+        AbsorbKeyCode(KeyCode.Period, '.');
+        AbsorbKeyCode(KeyCode.KeypadPeriod, '.');
         if (Input.GetKeyDown(KeyCode.Backspace))
         {
-            var text = ActiveInputField.text;
-            if (text.Length > 0)
+            var text = ipAddressInputField.text;
+            if (ipAddressInputField.text.Length > 0)
             {
-                ActiveInputField.text = text.Substring(0, text.Length - 1);
+                ipAddressInputField.text = text.Substring(0, text.Length - 1);
             }
         }
         if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
@@ -215,7 +170,7 @@ public class KinectToHololensManager : MonoBehaviour
     {
         if (Input.GetKeyDown(keyCode))
         {
-            ActiveInputField.text += c;
+            ipAddressInputField.text += c;
         }
     }
 
@@ -236,17 +191,13 @@ public class KinectToHololensManager : MonoBehaviour
         if (ipAddressText.Length == 0)
             ipAddressText = "127.0.0.1";
 
-        // The default port is 7777.
-        string portString = portInputField.text;
-        int port = portString.Length != 0 ? int.Parse(portString) : 7777;
-
-        string logString = $"Try connecting to {ipAddressText}:{port}...";
+        string logString = $"Try connecting to {ipAddressText}...";
         print(logString);
         statusText.text = logString;
 
         var ipAddress = IPAddress.Parse(ipAddressText);
         var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
-        var endPoint = new IPEndPoint(ipAddress, port);
+        var endPoint = new IPEndPoint(ipAddress, PORT);
 
         InitSenderPacketData initPacketData;
         int pingCount = 0;

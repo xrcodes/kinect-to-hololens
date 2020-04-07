@@ -59,15 +59,19 @@ void print_kinect_video_sender_summary(KinectVideoSenderSummary summary, TimeDur
               << "  Depth Encoder Time Average: " << summary.depth_encoder_ms_sum / summary.frame_count << " ms\n";
 }
 
-void start_session(const int port, const int session_id)
+void main()
 {
+    constexpr int PORT{47498};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
     constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
     constexpr float SUMMARY_INTERVAL_SEC{10.0f};
 
-    std::cout << "Start a kinect_sender session (id: " << session_id << ").\n";
+    // The default port (the port when nothing is entered) is 7777.
+    const int session_id{gsl::narrow_cast<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
+
+    std::cout << "Start kinect_sender (session_id: " << session_id << ").\n";
 
     std::optional<KinectDevice> kinect_device{create_and_start_kinect_device()};
     if (!kinect_device) {
@@ -77,7 +81,7 @@ void start_session(const int port, const int session_id)
 
     // Create UdpSocket.
     asio::io_context io_context;
-    asio::ip::udp::socket socket{io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port)};
+    asio::ip::udp::socket socket{io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), PORT)};
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket)};
 
@@ -163,22 +167,6 @@ void start_session(const int port, const int session_id)
             print_kinect_video_sender_summary(kinect_video_sender_summary, summary_duration);
             kinect_video_sender_summary = KinectVideoSenderSummary{};
         }
-    }
-}
-
-// Repeats collecting the port number from the user and calling _send_frames() with it.
-void main()
-{
-    std::random_device rd;
-    for (;;) {
-        std::string line;
-        std::cout << "Enter a port number to start sending frames: ";
-        std::getline(std::cin, line);
-        // The default port (the port when nothing is entered) is 7777.
-        const int port{line.empty() ? 7777 : std::stoi(line)};
-        const int session_id{gsl::narrow_cast<const int>(rd() % (static_cast<unsigned int>(INT_MAX) + 1))};
-
-        start_session(port, session_id);
     }
 }
 }

@@ -38,7 +38,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     for (;;) {
         udp_socket.send(create_connect_receiver_packet_bytes(session_id), remote_endpoint);
         ++ping_count;
-        printf("Sent ping to %s:%d.\n", ip_address.c_str(), port);
+        std::cout << "Sent connect packet to " << ip_address << ".\n";
 
         Sleep(300);
 
@@ -110,7 +110,8 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
 void main()
 {
-    std::random_device rd;
+    constexpr int PORT{47498};
+
     for (;;) {
         // Receive IP address from the user.
         std::cout << "Enter an IP address to start receiving frames: ";
@@ -120,15 +121,9 @@ void main()
         if (ip_address.empty())
             ip_address = "127.0.0.1";
 
-        // Receive port from the user.
-        std::cout << "Enter a port number to start receiving frames: ";
-        std::string port_line;
-        std::getline(std::cin, port_line);
-        // The default port is 7777.
-        const int port{port_line.empty() ? 7777 : std::stoi(port_line)};
-        const int session_id{gsl::narrow_cast<const int>(rd() % (static_cast<unsigned int>(INT_MAX) + 1))};
+        const int session_id{gsl::narrow_cast<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
 
-        start_session(ip_address, port, session_id);
+        start_session(ip_address, PORT, session_id);
     }
 }
 }
