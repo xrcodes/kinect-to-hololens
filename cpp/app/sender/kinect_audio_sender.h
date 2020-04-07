@@ -27,7 +27,7 @@ public:
         kinect_microphone_stream_.start();
     }
 
-    void send(UdpSocket& udp_socket, asio::ip::udp::endpoint remote_endpoint)
+    void send(UdpSocket& udp_socket, std::vector<asio::ip::udp::endpoint>& remote_endpoints)
     {
         soundio_flush_events(audio_.get());
         const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
@@ -45,7 +45,8 @@ public:
                                                             KH_SAMPLES_PER_FRAME,
                                                             gsl::narrow_cast<opus_int32>(opus_frame.size()))};
             opus_frame.resize(opus_frame_size);
-            udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame), remote_endpoint);
+            for (auto& remote_endpoint : remote_endpoints)
+                udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame), remote_endpoint);
             cursor += BYTES_PER_FRAME;
         }
 

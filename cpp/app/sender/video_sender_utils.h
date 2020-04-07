@@ -9,17 +9,18 @@ namespace kh
 using Bytes = std::vector<std::byte>;
 constexpr static int XOR_MAX_GROUP_SIZE{2};
 
-class RemoteReceiver
+struct RemoteReceiver
 {
-public:
     // The video frame ID before any report from the receiver.
     static constexpr int INITIAL_VIDEO_FRAME_ID{-1};
 
     const asio::ip::udp::endpoint endpoint;
+    const int session_id;
     int video_frame_id;
+    TimePoint last_packet_time;
 
-    RemoteReceiver(asio::ip::udp::endpoint endpoint)
-        : endpoint{endpoint}, video_frame_id{INITIAL_VIDEO_FRAME_ID}
+    RemoteReceiver(asio::ip::udp::endpoint endpoint, int session_id)
+        : endpoint{endpoint}, session_id{session_id}, video_frame_id{INITIAL_VIDEO_FRAME_ID}, last_packet_time{TimePoint::now()}
     {
     }
 };

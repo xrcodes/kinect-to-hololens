@@ -23,6 +23,17 @@ TrvlEncoder create_depth_encoder(k4a::calibration calibration)
                        CHANGE_THRESHOLD, INVALID_THRESHOLD};
 }
 
+int get_minimum_receiver_frame_id(std::unordered_map<int, RemoteReceiver>& remote_receivers)
+{
+    int minimum_frame_id{INT_MAX};
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_frame_id < minimum_frame_id)
+            minimum_frame_id = remote_receiver.video_frame_id;
+    }
+
+    return minimum_frame_id;
+}
+
 std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
                                                                    KinectFrame kinect_frame,
                                                                    k4a::calibration calibration)
@@ -51,19 +62,18 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectDevice&& kinect
 {
 }
 
-void KinectVideoSender::update(const TimePoint& session_start_time,
-                                 UdpSocket& udp_socket,
-                                 VideoParityPacketStorage& video_parity_packet_storage,
-                                 RemoteReceiver& remote_receiver,
-                                 KinectVideoSenderSummary& summary)
+void KinectVideoSender::send(const TimePoint& session_start_time,
+                             UdpSocket& udp_socket,
+                             VideoParityPacketStorage& video_parity_packet_storage,
+                             std::unordered_map<int, RemoteReceiver>& remote_receivers,
+                             KinectVideoSenderSummary& summary)
 {
-    // Keep send the init packet until receiver reports a received frame.
-    if (remote_receiver.video_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID) {
-        const auto init_packet_bytes{create_init_sender_packet_bytes(session_id_, create_init_sender_packet_data(calibration_))};
-        udp_socket.send(init_packet_bytes, remote_receiver.endpoint);
-
-        // Adding delay to prevent this function from sending too many init packets to a receiver.
-        Sleep(30);
+    // Keep send the init packet until the receiver reports a received frame.
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID) {
+            const auto init_packet_bytes{create_init_sender_packet_bytes(session_id_, create_init_sender_packet_data(calibration_))};
+            udp_socket.send(init_packet_bytes, remote_receiver.endpoint);
+        }
     }
 
     // Try getting a Kinect frame.
@@ -76,10 +86,11 @@ void KinectVideoSender::update(const TimePoint& session_start_time,
     constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
     const auto frame_time_point{TimePoint::now()};
     const auto frame_time_diff{frame_time_point - state_.last_frame_time_point};
-    const int frame_id_diff{state_.frame_id - remote_receiver.video_frame_id};
+    //const int frame_id_diff{state_.frame_id - remote_receiver.video_frame_id};
+    const int frame_id_diff{state_.frame_id - get_minimum_receiver_frame_id(remote_receivers)};
 
-    if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
-        return;
+    //if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
+    //    return;
 
     // Try sending the floor plane from the Kinect frame.
     auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
@@ -89,7 +100,8 @@ void KinectVideoSender::update(const TimePoint& session_start_time,
                                                                        floor_plane->Normal.Y,
                                                                        floor_plane->Normal.Z,
                                                                        floor_plane->C)};
-        udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
+        for (auto& [_, remote_receiver] : remote_receivers)
+            udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
     }
 
     state_.last_frame_time_point = frame_time_point;
@@ -143,7 +155,8 @@ void KinectVideoSender::update(const TimePoint& session_start_time,
 
     std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator_);
     for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
-        udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
+        for (auto& [_, remote_receiver] : remote_receivers)
+            udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
     }
 
     // Save video/parity packet bytes for retransmission. 
