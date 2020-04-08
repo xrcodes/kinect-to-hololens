@@ -10,12 +10,7 @@ using UnityEngine.XR.WSA.Input;
 
 public class KinectToHololensManager : MonoBehaviour
 {
-    public const int PORT = 47498;
-    //public const int KH_SAMPLE_RATE = 48000;
-    //public const int KH_CHANNEL_COUNT = 2;
-    //public const double KH_LATENCY_SECONDS = 0.2;
-    //public const int KH_SAMPLES_PER_FRAME = 960;
-    //public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
+    private const int PORT = 47498;
 
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
@@ -24,15 +19,15 @@ public class KinectToHololensManager : MonoBehaviour
     public Transform cameraTransform;
     // The TextMesh placed above user's head.
     public TextMesh statusText;
-    // The root of the scene that includes everything else except the main camera.
-    // This provides a convenient way to place everything in front of the camera.
-    public Transform scenceRootTransform;
     // TextMeshes for the UI.
     public TextMesh ipAddressText;
     public TextMesh ipAddressInputField;
     public TextMesh instructionText;
     // For rendering the Kinect pixels in 3D.
     public Material azureKinectScreenMaterial;
+    // The root of the scene that includes everything else except the main camera.
+    // This provides a convenient way to place everything in front of the camera.
+    public AzureKinectRoot azureKinectRoot;
     public AzureKinectScreen azureKinectScreen;
     public AzureKinectSpeaker azureKinectSpeaker;
     public Transform floorPlaneTransform;
@@ -112,8 +107,8 @@ public class KinectToHololensManager : MonoBehaviour
     // everything else except the camera.
     private void ResetView()
     {
-        scenceRootTransform.localPosition = cameraTransform.localPosition;
-        scenceRootTransform.localRotation = cameraTransform.localRotation;
+        azureKinectRoot.transform.localPosition = cameraTransform.localPosition;
+        azureKinectRoot.transform.localRotation = cameraTransform.localRotation;
     }
 
     // Sends keystrokes of the virtual keyboard to TextMeshes.

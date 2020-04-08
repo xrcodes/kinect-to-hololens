@@ -104,6 +104,15 @@ void main()
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket)};
 
+    asio::ip::udp::resolver resolver(io_context);
+    asio::ip::udp::resolver::query query(asio::ip::host_name(), "");
+    auto resolver_results = resolver.resolve(query);
+    std::cout << "local endpoints:\n";
+    for (auto it = resolver_results.begin(); it != resolver_results.end(); ++it) {
+        if (it->endpoint().protocol() != asio::ip::udp::v4())
+            continue;
+        std::cout << "  - " << it->endpoint().address() << "\n";
+    }
 
     // Initialize instances for loop below.
     const TimePoint session_start_time{TimePoint::now()};
