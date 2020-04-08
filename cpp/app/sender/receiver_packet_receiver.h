@@ -32,6 +32,7 @@ public:
         ReceiverPacketCollection receiver_packet_collection;
         for (int receiver_session_id : receiver_session_ids)
             receiver_packet_collection.receiver_packet_sets.insert({receiver_session_id, ReceiverPacketSet{}});
+
         while (auto packet{udp_socket.receive()}) {
             int receiver_session_id{get_session_id_from_receiver_packet_bytes(packet->bytes)};
             ReceiverPacketType packet_type{get_packet_type_from_receiver_packet_bytes(packet->bytes)};

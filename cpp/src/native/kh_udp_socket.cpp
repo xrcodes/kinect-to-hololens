@@ -27,7 +27,7 @@ std::optional<UdpSocketPacket> UdpSocket::receive()
         return std::nullopt;
 
     if (error)
-        throw UdpSocketRuntimeError(std::string("Failed to receive bytes: ") + error.message(), error);
+        throw UdpSocketRuntimeError(std::string("Failed to receive bytes: ") + error.message(), error, endpoint);
 
     bytes.resize(packet_size);
     return UdpSocketPacket{bytes, endpoint};
@@ -39,6 +39,6 @@ void UdpSocket::send(gsl::span<const std::byte> bytes, asio::ip::udp::endpoint e
     socket_.send_to(asio::buffer(bytes.data(), bytes.size()), endpoint, 0, error);
 
     if(error && error != asio::error::would_block)
-        throw UdpSocketRuntimeError(std::string("Failed to send bytes: ") + error.message(), error);
+        throw UdpSocketRuntimeError(std::string("Failed to send bytes: ") + error.message(), error, endpoint);
 }
 }

@@ -79,7 +79,7 @@ public:
     void cleanup(float timeout_sec)
     {
         // Remove video packets from its container when the receiver already received them.
-        for (auto it = video_parity_packet_byte_sets_.begin(); it != video_parity_packet_byte_sets_.end();) {
+        for (auto it{video_parity_packet_byte_sets_.begin()}; it != video_parity_packet_byte_sets_.end();) {
             if (it->second.time_point.elapsed_time().sec() > timeout_sec) {
                 it = video_parity_packet_byte_sets_.erase(it);
             } else {

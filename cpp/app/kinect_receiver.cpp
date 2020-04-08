@@ -18,12 +18,11 @@ void start_session(const std::string ip_address, const int port, const int sessi
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
 
-    std::cout << "Start a kinect_receiver session (id: " << session_id << ")\n";
-
     asio::io_context io_context;
-    asio::ip::udp::socket socket(io_context);
-    socket.open(asio::ip::udp::v4());
+    asio::ip::udp::socket socket(io_context, asio::ip::udp::v4());
+    std::cout << "Start a kinect_receiver session (id: " << session_id << ", endpoint: " << socket.remote_endpoint().port() << ")\n";
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
+
     asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)};
     UdpSocket udp_socket{std::move(socket)};
 

@@ -11,11 +11,11 @@ using UnityEngine.XR.WSA.Input;
 public class KinectToHololensManager : MonoBehaviour
 {
     public const int PORT = 47498;
-    public const int KH_SAMPLE_RATE = 48000;
-    public const int KH_CHANNEL_COUNT = 2;
-    public const double KH_LATENCY_SECONDS = 0.2;
-    public const int KH_SAMPLES_PER_FRAME = 960;
-    public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
+    //public const int KH_SAMPLE_RATE = 48000;
+    //public const int KH_CHANNEL_COUNT = 2;
+    //public const double KH_LATENCY_SECONDS = 0.2;
+    //public const int KH_SAMPLES_PER_FRAME = 960;
+    //public const int KH_BYTES_PER_SECOND = KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float);
 
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
@@ -34,6 +34,7 @@ public class KinectToHololensManager : MonoBehaviour
     // For rendering the Kinect pixels in 3D.
     public Material azureKinectScreenMaterial;
     public AzureKinectScreen azureKinectScreen;
+    public AzureKinectSpeaker azureKinectSpeaker;
     public Transform floorPlaneTransform;
 
     // To recognize when the user taps.
@@ -41,7 +42,6 @@ public class KinectToHololensManager : MonoBehaviour
 
     private int sessionId;
     private bool stopped;
-    private RingBuffer ringBuffer;
     private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
     private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
 
@@ -70,7 +70,7 @@ public class KinectToHololensManager : MonoBehaviour
         var random = new System.Random();
         sessionId = random.Next();
         stopped = false;
-        ringBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
+        azureKinectSpeaker.Init();
         videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
         floorPacketDataQueue = new ConcurrentQueue<FloorSenderPacketData>();
 
@@ -100,15 +100,6 @@ public class KinectToHololensManager : MonoBehaviour
     void OnDestroy()
     {
         stopped = true;
-    }
-
-    void OnAudioFilterRead(float[] data, int channels)
-    {
-        const float AMPLIFIER = 8.0f;
-
-        ringBuffer.Read(data);
-        for (int i = 0; i < data.Length; ++i)
-            data[i] = data[i] * AMPLIFIER;
     }
 
     private void OnTapped(TappedEventArgs args)
@@ -254,7 +245,7 @@ public class KinectToHololensManager : MonoBehaviour
                                                        senderPacketSet.FecPacketDataList,
                                                        kinectRenderer.lastVideoFrameId,
                                                        videoMessageQueue);
-                        audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, ringBuffer);
+                        audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, azureKinectSpeaker.RingBuffer);
                         receivedAnyStopWatch = Stopwatch.StartNew();
                     }
                     else

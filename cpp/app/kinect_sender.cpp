@@ -126,7 +126,7 @@ void main()
             std::vector<int> receiver_session_ids;
             for (auto& [receiver_session_id, _] : remote_receivers)
                 receiver_session_ids.push_back(receiver_session_id);
-
+            
             auto receiver_packet_collection = ReceiverPacketReceiver::receive(udp_socket, receiver_session_ids);
 
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
@@ -171,8 +171,7 @@ void main()
                     } else {
                         if (remote_receiver_ptr->last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
                             std::cout << "Timed out receiver " << receiver_session_id << " after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
-                            // TODO: kill only the receiver that timed out.
-                            break;
+                            remote_receivers.erase(receiver_session_id);
                         }
                     }
                 }
@@ -180,9 +179,15 @@ void main()
 
             video_parity_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
         } catch (UdpSocketRuntimeError e) {
-            std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
-            // TODO: kill only the receiver that caused the error.
-            break;
+            std::cout << "UdpSocketRuntimeError\n  message: " << e.what() << "\n  endpoint: " << e.endpoint() << "\n";
+            std::cout << "remote_receivers.size(): " << remote_receivers.size() << "\n";
+            for (auto it{remote_receivers.begin()}; it != remote_receivers.end();) {
+                if (it->second.endpoint == e.endpoint()) {
+                    it = remote_receivers.erase(it);
+                } else {
+                    ++it;
+                }
+            }
         }
 
         const auto summary_duration{receiver_report_summary.time_point.elapsed_time()};
