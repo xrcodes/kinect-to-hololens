@@ -32,6 +32,14 @@ std::vector<float> create_x_with_unit_depth(const k4a::calibration& calibration)
 
     return x_with_unit_depth;
 }
+
+std::vector<float> multiply_vector(const std::vector<float>& v, float multiplier)
+{
+    std::vector<float> vv(v.size());
+    for (int i = 0; i < v.size(); ++i)
+        vv[i] = v[i] * multiplier;
+    return vv;
+}
 }
 
 OcclusionRemover::OcclusionRemover(const k4a::calibration& calibration)
@@ -39,6 +47,7 @@ OcclusionRemover::OcclusionRemover(const k4a::calibration& calibration)
     , height_{calibration.depth_camera_calibration.resolution_height}
     , color_camera_x_{get_color_camera_x_from_calibration(calibration)}
     , x_with_unit_depth_{create_x_with_unit_depth(calibration)}
+    , x_with_unit_depth_times_c_inv_{multiply_vector(x_with_unit_depth_, 1.0f / color_camera_x_)}
 {
 }
 
@@ -47,21 +56,24 @@ OcclusionRemover::OcclusionRemover(const k4a::calibration& calibration)
 // The inner loop with ii in average had about 20 times of repetition per pixel in average
 // from a scientific experiment from my dorm room.
 // This modification reduced 25% of the computation time.
+// Using int instead of gsl::index to minimize casting.
 void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
 {
     // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
-    constexpr float AZURE_KINECT_MAX_DISTANCE{3860.0f};
     const float c_inv{1.0f / color_camera_x_};
 
-    int invalidation_count = 0;
-    int z_max_update_count = 0;
-    for (gsl::index j{0}; j < height_; ++j) {
+    //int invalidation_count = 0;
+    //int z_max_update_count = 0;
+    for (int j{0}; j < height_; ++j) {
         // z_max contains the cutoffs for the j-th row.
         //std::vector<float> z_max(width, AZURE_KINECT_MAX_DISTANCE);
-        std::vector<float> z_max_inv(width_, 1.0f / AZURE_KINECT_MAX_DISTANCE);
-        for (gsl::index i{gsl::narrow_cast<int>(width_ - 1)}; i >= 0; --i) {
+        std::vector<float> z_max_inv(width_, AZURE_KINECT_MAX_DISTANCE_INV);
+        const int p_index_offset{j * width_};
+
+        for (int i{width_ - 1}; i >= 0; --i) {
             // p stands for point.
-            const gsl::index p_index{i + j * width_};
+            //const int p_index{i + j * width_};
+            const int p_index{i + p_index_offset};
             const int16_t z{depth_pixels[p_index]};
 
             // Skip invalid pixels.
@@ -70,9 +82,10 @@ void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
 
             // Invalidate the pixel if it is covered by another pixel.
             //if (z > z_max[i]) {
-            if (z > (1.0f / z_max_inv[i])) {
+            //if (z > (1.0f / z_max_inv[i])) {
+            if (z * z_max_inv[i] > 1.0f) {
                 depth_pixels[p_index] = 0;
-                ++invalidation_count;
+                //++invalidation_count;
                 continue;
             }
 
@@ -80,16 +93,21 @@ void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
             //const float x{p.x};
             const float x{x_with_unit_depth_[p_index]};
             const float z_inv{1.0f / z};
+            const float zz_inv_offset{-x * c_inv + z_inv};
+            const int pp_index_offset{j * width_};
 
-            for (gsl::index ii{i}; ii >= 0; --ii) {
+            for (int ii{i - 1}; ii >= 0; --ii) {
                 //gsl::index pp_index{ii + j * width};
                 //auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
                 //const float xx{pp.x};
                 //const float xx{unit_depth_point_cloud_.points[pp_index].xyz.x};
-                const float xx{x_with_unit_depth_[ii + j * width_]};
+                //const float xx{x_with_unit_depth_[ii + j * width_]};
+                //const float xx_times_max_distance_inv_{x_with_unit_depth_times_c_inv_[ii + j * width_]};
+                const float xx_times_max_distance_inv_{x_with_unit_depth_times_c_inv_[ii + pp_index_offset]};
                 //const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
                 //const float zz{1.0f / ((xx - x) * c_inv + z_inv)};
-                const float zz_inv{(xx - x) * c_inv + z_inv};
+                //const float zz_inv{(xx - x) * c_inv + z_inv};
+                const float zz_inv{xx_times_max_distance_inv_ + zz_inv_offset};
 
                 //if (zz >= z_max[ii])
                 if (zz_inv <= z_max_inv[ii])
@@ -98,7 +116,47 @@ void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
                 // If zz covers new area, update z_max that indicates the area covered
                 // and continue to the next pixels more on the right side.
                 z_max_inv[ii] = zz_inv;
-                ++z_max_update_count;
+                //++z_max_update_count;
+            }
+        }
+    }
+    //std::cout << "invalidation_count: " << invalidation_count << ","
+    //          << "z_max_update_count: " << z_max_update_count << "\n";
+}
+
+// The version without optimization.
+void OcclusionRemover::remove_original(gsl::span<int16_t> depth_pixels)
+{
+    for (int j{0}; j < height_; ++j) {
+        // z_max contains the cutoffs for the j-th row.
+        std::vector<float> z_max(width_, AZURE_KINECT_MAX_DISTANCE);
+
+        for (int i{width_ - 1}; i >= 0; --i) {
+            // p stands for point.
+            const int p_index{i + j * width_};
+            const int16_t z{depth_pixels[p_index]};
+
+            // Skip invalid pixels.
+            if (z == 0)
+                continue;
+
+            // Invalidate the pixel if it is covered by another pixel.
+            if (z > z_max[i]) {
+                depth_pixels[p_index] = 0;
+                continue;
+            }
+
+            const float x{x_with_unit_depth_[p_index]};
+            for (int ii{i - 1}; ii >= 0; --ii) {
+                const float xx{x_with_unit_depth_[ii + j * width_]};
+                const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
+
+                if (zz >= z_max[ii])
+                    break;
+
+                // If zz covers new area, update z_max that indicates the area covered
+                // and continue to the next pixels more on the right side.
+                z_max[ii] = zz;
             }
         }
     }
