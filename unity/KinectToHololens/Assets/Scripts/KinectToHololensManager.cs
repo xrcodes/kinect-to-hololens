@@ -23,8 +23,7 @@ public class KinectToHololensManager : MonoBehaviour
     public TextMesh ipAddressText;
     public TextMesh ipAddressInputField;
     public TextMesh instructionText;
-    // For rendering the Kinect pixels in 3D.
-    public Material azureKinectScreenMaterial;
+    public TextMesh localIpAddressListText;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
@@ -49,6 +48,7 @@ public class KinectToHololensManager : MonoBehaviour
             ipAddressText.gameObject.SetActive(value);
             ipAddressInputField.gameObject.SetActive(value);
             instructionText.gameObject.SetActive(value);
+            localIpAddressListText.gameObject.SetActive(value);
         }
         get
         {
@@ -88,8 +88,21 @@ public class KinectToHololensManager : MonoBehaviour
         // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
         AbsorbInput();
 
-        if(kinectRenderer != null)
-            kinectRenderer.UpdateFrame(videoMessageQueue, floorPacketDataQueue);
+        if (kinectRenderer == null)
+            return;
+
+        kinectRenderer.UpdateFrame(videoMessageQueue);
+        azureKinectRoot.UpdateFrame(floorPacketDataQueue);
+
+        //FloorSenderPacketData floorSenderPacketData;
+        //while (floorPacketDataQueue.TryDequeue(out floorSenderPacketData))
+        //{
+        //    //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
+        //    // y component is fliped since the coordinate system of unity and azure kinect is different.
+        //    Vector3 upVector = new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c);
+        //    floorPlaneTransform.localPosition = upVector * floorSenderPacketData.d;
+        //    floorPlaneTransform.localRotation = Quaternion.FromToRotation(Vector3.up, upVector);
+        //}
     }
 
     void OnDestroy()
@@ -107,8 +120,7 @@ public class KinectToHololensManager : MonoBehaviour
     // everything else except the camera.
     private void ResetView()
     {
-        azureKinectRoot.transform.localPosition = cameraTransform.localPosition;
-        azureKinectRoot.transform.localRotation = cameraTransform.localRotation;
+        azureKinectRoot.SetRootTransform(cameraTransform.position, cameraTransform.rotation);
     }
 
     // Sends keystrokes of the virtual keyboard to TextMeshes.
@@ -211,8 +223,8 @@ public class KinectToHololensManager : MonoBehaviour
             }
         }
 
-        kinectRenderer = new KinectRenderer(azureKinectScreenMaterial, azureKinectScreen, floorPlaneTransform,
-            initPacketData, udpSocket, endPoint, sessionId);
+        azureKinectScreen.Setup(initPacketData);
+        kinectRenderer = new KinectRenderer(azureKinectScreen.Material, initPacketData, udpSocket, endPoint, sessionId);
 
         var heartbeatStopWatch = Stopwatch.StartNew();
         var receivedAnyStopWatch = Stopwatch.StartNew();

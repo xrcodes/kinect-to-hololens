@@ -84,7 +84,7 @@ void main()
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
-    constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
+    constexpr float HEARTBEAT_TIME_OUT_SEC{10.0f};
     constexpr float SUMMARY_INTERVAL_SEC{10.0f};
 
     // The default port (the port when nothing is entered) is 7777.

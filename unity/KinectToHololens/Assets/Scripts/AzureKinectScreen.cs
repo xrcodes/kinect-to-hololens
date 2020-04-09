@@ -5,6 +5,15 @@ using UnityEngine.Rendering;
 public class AzureKinectScreen : MonoBehaviour
 {
     public MeshFilter meshFilter;
+    public MeshRenderer meshRenderer;
+
+    public Material Material
+    {
+        get
+        {
+            return meshRenderer.sharedMaterial;
+        }
+    }
 
     public void Setup(InitSenderPacketData initSenderPacketData)
     {

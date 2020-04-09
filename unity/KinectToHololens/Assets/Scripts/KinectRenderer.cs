@@ -10,7 +10,6 @@ public class KinectRenderer
     private int sessionId;
 
     private Material azureKinectScreenMaterial;
-    private Transform floorPlaneTransform;
 
     private TextureGroup textureGroup;
 
@@ -26,11 +25,9 @@ public class KinectRenderer
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    public KinectRenderer(Material azureKinectScreenMaterial, AzureKinectScreen azureKinectScreen, Transform floorPlaneTransform,
-        InitSenderPacketData initPacketData, UdpSocket udpSocket, IPEndPoint endPoint, int sessionId)
+    public KinectRenderer(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, IPEndPoint endPoint, int sessionId)
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
-        this.floorPlaneTransform = floorPlaneTransform;
 
         textureGroup = new TextureGroup(Plugin.texture_group_reset());
 
@@ -48,15 +45,13 @@ public class KinectRenderer
         colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
-        azureKinectScreen.Setup(initPacketData);
 
         this.udpSocket = udpSocket;
         this.endPoint = endPoint;
         this.sessionId = sessionId;
     }
 
-    public void UpdateFrame(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue,
-                            ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
+    public void UpdateFrame(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
         // If texture is not created, create and assign them to quads.
         if (!preapared)
@@ -77,14 +72,10 @@ public class KinectRenderer
             }
         }
 
-        if (udpSocket == null)
-            return;
-
-        UpdateTextureGroup(videoMessageQueue, floorPacketDataQueue);
+        UpdateTextureGroup(videoMessageQueue);
     }
 
-    private void UpdateTextureGroup(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue,
-                                    ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
+    private void UpdateTextureGroup(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
         {
             Tuple<int, VideoSenderMessageData> frameMessagePair;
@@ -184,16 +175,6 @@ public class KinectRenderer
             {
                 videoMessages.Remove(key);
             }
-        }
-
-        FloorSenderPacketData floorSenderPacketData;
-        while(floorPacketDataQueue.TryDequeue(out floorSenderPacketData))
-        {
-            //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
-            // y component is fliped since the coordinate system of unity and azure kinect is different.
-            Vector3 upVector = new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c);
-            floorPlaneTransform.localPosition = upVector * floorSenderPacketData.d;
-            floorPlaneTransform.localRotation = Quaternion.FromToRotation(Vector3.up, upVector);
         }
     }
 }
