@@ -32,15 +32,20 @@ public class AzureKinectRoot : MonoBehaviour
 
         //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
         // y component is fliped since the coordinate system of unity and azure kinect is different.
-        Vector3 upVector = new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c);
-        Vector3 position = upVector * floorSenderPacketData.d;
-        Quaternion rotation = Quaternion.FromToRotation(Vector3.up, upVector);
-        print($"position: {position}");
+        Plane floorPacketPlane = new Plane(new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c), floorSenderPacketData.d);
+        //Vector3 upVector = new Vector3(floorSenderPacketData.a, -floorSenderPacketData.b, floorSenderPacketData.c);
+        Vector3 position = floorPacketPlane.normal * floorPacketPlane.distance;
+        Quaternion rotation = Quaternion.FromToRotation(Vector3.up, floorPacketPlane.normal);
 
         Quaternion inverseRotation = Quaternion.Inverse(rotation);
         Vector3 inversePosition = inverseRotation * (-position);
-        // TODO: Make inversePosition to have zero x and y.
-        floorTransformInverterTransform.localPosition = inversePosition;
+        Vector3 inversePlaneNormal = inverseRotation * Vector3.up;
+        float inversePlaneDistance = Vector3.Dot(inversePosition, inversePlaneNormal);
+        // In ax + by + cz = d, if x = z = 0, y = d/b.
+        Vector3 inversePositionWithOnlyY = new Vector3(0.0f, inversePlaneDistance / inversePlaneNormal.y, 0.0f);
+
+        //floorTransformInverterTransform.localPosition = inversePosition;
+        floorTransformInverterTransform.localPosition = inversePositionWithOnlyY;
         floorTransformInverterTransform.localRotation = inverseRotation;
 
         floorTransform.localPosition = position;
