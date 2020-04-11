@@ -5,14 +5,15 @@ using UnityEngine;
 // A class with helper static methods for methods of Plugin.cs.
 public static class PluginHelper
 {
-    public static void InitTextureGroup()
+    private const int COMMAND_COUNT = 2;
+    public static void InitTextureGroup(int textureGroupId)
     {
-        InvokeRenderEvent(0);
+        InvokeRenderEvent(textureGroupId * COMMAND_COUNT + 0);
     }
 
-    public static void UpdateTextureGroup()
+    public static void UpdateTextureGroup(int textureGroupId)
     {
-        InvokeRenderEvent(1);
+        InvokeRenderEvent(textureGroupId * COMMAND_COUNT + 1);
     }
 
     private static void InvokeRenderEvent(int renderEvent)
@@ -39,7 +40,13 @@ public static class Plugin
     public static extern IntPtr get_render_event_function_pointer();
 
     [DllImport(DllName)]
-    public static extern IntPtr texture_group_reset();
+    public static extern void texture_group_reset();
+
+    [DllImport(DllName)]
+    public static extern IntPtr texture_group_create();
+
+    [DllImport(DllName)]
+    public static extern int texture_group_get_id(IntPtr textureGroup);
 
     [DllImport(DllName)]
     public static extern IntPtr texture_group_get_y_texture_view(IntPtr textureGroup);

@@ -55,6 +55,8 @@ public class KinectToHololensManager : MonoBehaviour
 
     void Awake()
     {
+        Plugin.texture_group_reset();
+
         UiVisibility = true;
 
         gestureRecognizer = new GestureRecognizer();

@@ -9,6 +9,8 @@
 struct TextureGroup
 {
 public:
+    const int id;
+
     // Color and depth texture sizes.
     int width;
     int height;
@@ -29,7 +31,9 @@ public:
     kh::FFmpegFrame ffmpeg_frame{nullptr};
     std::unique_ptr<kh::TrvlDecoder> depth_decoder;
     std::vector<short> depth_pixels;
+
+    TextureGroup(int id) : id{id} {};
 };
 
-void texture_group_init(ID3D11Device* device);
-void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context);
+void texture_group_init(int texture_group_id, ID3D11Device* device);
+void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11DeviceContext* device_context);

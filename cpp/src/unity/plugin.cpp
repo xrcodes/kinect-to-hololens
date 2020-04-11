@@ -36,12 +36,15 @@ static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType ev
 // Gets called during a render thread through GL.IssuePluginEvent() in Unity scripts.
 static void UNITY_INTERFACE_API OnRenderEvent(int eventID)
 {
-	switch (eventID) {
+    constexpr int COMMAND_COUNT{2};
+    const int command_id{eventID % COMMAND_COUNT};
+    const int texture_group_id{eventID / COMMAND_COUNT};
+	switch (command_id) {
 	case 0:
-		texture_group_init(d3d11_device_);
+		texture_group_init(texture_group_id, d3d11_device_);
 		break;
 	case 1:
-		texture_group_update(d3d11_device_, d3d11_device_context_);
+		texture_group_update(texture_group_id, d3d11_device_, d3d11_device_context_);
 		break;
 	}
 }

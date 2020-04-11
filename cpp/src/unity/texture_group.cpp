@@ -2,39 +2,54 @@
 
 #include "interfaces/IUnityInterface.h"
 
-std::unique_ptr<TextureGroup> texture_group_;
+std::unordered_map<int, std::unique_ptr<TextureGroup>> texture_groups_;
+int next_texture_group_id_;
 
 // A function that intializes Direct3D resources. Should be called in a render thread.
-void texture_group_init(ID3D11Device* device)
+void texture_group_init(int texture_group_id, ID3D11Device* device)
 {
-    texture_group_->y_texture = std::make_unique<kh::ChannelTexture>(device, texture_group_->width, texture_group_->height);
-    texture_group_->u_texture = std::make_unique<kh::ChannelTexture>(device, texture_group_->width / 2, texture_group_->height / 2);
-    texture_group_->v_texture = std::make_unique<kh::ChannelTexture>(device, texture_group_->width / 2, texture_group_->height / 2);
-    texture_group_->depth_texture = std::make_unique<kh::DepthTexture>(device, texture_group_->width, texture_group_->height);
+    TextureGroup* texture_group{texture_groups_.at(0).get()};
+    texture_group->y_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width, texture_group->height);
+    texture_group->u_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
+    texture_group->v_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
+    texture_group->depth_texture = std::make_unique<kh::DepthTexture>(device, texture_group->width, texture_group->height);
 
     // Set the texture view variables, so Unity can create Unity textures that are connected to the textures through the texture views.
-    texture_group_->y_texture_view = texture_group_->y_texture->getTextureView(device);
-    texture_group_->u_texture_view = texture_group_->u_texture->getTextureView(device);
-    texture_group_->v_texture_view = texture_group_->v_texture->getTextureView(device);
-    texture_group_->depth_texture_view = texture_group_->depth_texture->getTextureView(device);
+    texture_group->y_texture_view = texture_group->y_texture->getTextureView(device);
+    texture_group->u_texture_view = texture_group->u_texture->getTextureView(device);
+    texture_group->v_texture_view = texture_group->v_texture->getTextureView(device);
+    texture_group->depth_texture_view = texture_group->depth_texture->getTextureView(device);
 }
 
 // Updating pixels of the textures. Should be called in a render thread.
-void texture_group_update(ID3D11Device* device, ID3D11DeviceContext* device_context)
+void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
-    texture_group_->y_texture->updatePixels(device, device_context, texture_group_->width, texture_group_->height, texture_group_->ffmpeg_frame, 0);
-    texture_group_->u_texture->updatePixels(device, device_context, texture_group_->width / 2, texture_group_->height / 2, texture_group_->ffmpeg_frame, 1);
-    texture_group_->v_texture->updatePixels(device, device_context, texture_group_->width / 2, texture_group_->height / 2, texture_group_->ffmpeg_frame, 2);
+    TextureGroup* texture_group{texture_groups_.at(0).get()};
+    texture_group->y_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, texture_group->ffmpeg_frame, 0);
+    texture_group->u_texture->updatePixels(device, device_context, texture_group->width / 2, texture_group->height / 2, texture_group->ffmpeg_frame, 1);
+    texture_group->v_texture->updatePixels(device, device_context, texture_group->width / 2, texture_group->height / 2, texture_group->ffmpeg_frame, 2);
 
-    texture_group_->depth_texture->updatePixels(device, device_context, texture_group_->width, texture_group_->height, reinterpret_cast<uint16_t*>(texture_group_->depth_pixels.data()));
+    texture_group->depth_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, reinterpret_cast<uint16_t*>(texture_group->depth_pixels.data()));
 }
 
 extern "C"
 {
-    UNITY_INTERFACE_EXPORT TextureGroup* UNITY_INTERFACE_API texture_group_reset()
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API texture_group_reset()
     {
-        texture_group_ = std::make_unique<TextureGroup>();
-        return texture_group_.get();
+        texture_groups_ = std::unordered_map<int, std::unique_ptr<TextureGroup>>();
+        next_texture_group_id_ = 0;
+    }
+
+    UNITY_INTERFACE_EXPORT TextureGroup* UNITY_INTERFACE_API texture_group_create()
+    {
+        int texture_group_id{next_texture_group_id_++};
+        texture_groups_.insert({texture_group_id, std::make_unique<TextureGroup>(texture_group_id)});
+        return texture_groups_.at(texture_group_id).get();
+    }
+
+    UNITY_INTERFACE_EXPORT int UNITY_INTERFACE_API texture_group_get_id(TextureGroup* texture_group)
+    {
+        return texture_group->id;
     }
 
     UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API texture_group_get_y_texture_view(TextureGroup* texture_group)

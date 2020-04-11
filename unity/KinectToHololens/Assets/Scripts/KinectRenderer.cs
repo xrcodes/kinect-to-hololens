@@ -27,8 +27,9 @@ public class KinectRenderer
     public KinectRenderer(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, int sessionId, IPEndPoint endPoint)
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
-
-        textureGroup = new TextureGroup(Plugin.texture_group_reset());
+        
+        textureGroup = new TextureGroup(Plugin.texture_group_create());
+        UnityEngine.Debug.Log($"textureGroup id: {textureGroup.GetId()}");
 
         lastVideoFrameId = -1;
 
@@ -39,7 +40,7 @@ public class KinectRenderer
 
         textureGroup.SetWidth(initPacketData.depthWidth);
         textureGroup.SetHeight(initPacketData.depthHeight);
-        PluginHelper.InitTextureGroup();
+        PluginHelper.InitTextureGroup(textureGroup.GetId());
 
         colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
@@ -153,7 +154,7 @@ public class KinectRenderer
             textureGroup.SetFFmpegFrame(ffmpegFrame);
             //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
             textureGroup.SetTrvlFrame(trvlFrame);
-            PluginHelper.UpdateTextureGroup();
+            PluginHelper.UpdateTextureGroup(textureGroup.GetId());
         }
 
         // Remove frame messages before the rendered frame.

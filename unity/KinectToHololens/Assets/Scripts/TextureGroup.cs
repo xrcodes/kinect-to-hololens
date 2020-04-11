@@ -10,6 +10,11 @@ public class TextureGroup
         Ptr = ptr;
     }
 
+    public int GetId()
+    {
+        return Plugin.texture_group_get_id(Ptr);
+    }
+
     public bool IsInitialized()
     {
         return Plugin.texture_group_get_y_texture_view(Ptr).ToInt64() != 0;
