@@ -13,7 +13,8 @@ public class AzureKinectRoot : MonoBehaviour
     {
         transform.localPosition = position;
 
-        Vector3 azureKinectForward = rotation * new Vector3(0.0f, 0.0f, 1.0f);
+        // Using (0,0,-1) instead of (0,0,1) to let the hololens to avoid facing walls.
+        Vector3 azureKinectForward = rotation * new Vector3(0.0f, 0.0f, -1.0f);
         float yaw = Mathf.Atan2(azureKinectForward.x, azureKinectForward.z) * Mathf.Rad2Deg;
         transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
     }

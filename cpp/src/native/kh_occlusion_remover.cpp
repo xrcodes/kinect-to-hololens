@@ -166,6 +166,9 @@ void OcclusionRemover::remove_original(gsl::span<int16_t> depth_pixels)
     //          << "z_max_update_count: " << z_max_update_count << "\n";
 }
 
+// Instead of removing pixels in two steps as remove(),
+// by ignoring the edge cases, remove2() removes occlusions
+// in one step with much less iterations.
 void OcclusionRemover::remove2(gsl::span<int16_t> depth_pixels)
 {
     for (int j{0}; j < height_; ++j) {
@@ -191,12 +194,10 @@ void OcclusionRemover::remove2(gsl::span<int16_t> depth_pixels)
                 const float xx{x_with_unit_depth_[pp_index]};
                 const float line_z{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
 
-                // When (x - xx) * z > color_camera_x_, line_z becomes minus indicating that
-                // physically there can be no occlusions.
-                if (line_z < 0)
-                    break;
-
-                if (zz <= line_z)
+                // When the gap between x and xx becomes too large, (x - xx) * z > color_camera_x_,
+                // line_z becomes negative indicating that physically there can be no occlusions.
+                // And, of course, if a point is not blocked, it should not be invalidated.
+                if (line_z < 0 || (zz < line_z))
                     break;
 
                 // If line_z covers an existing pixel pp, invalidate pp.
