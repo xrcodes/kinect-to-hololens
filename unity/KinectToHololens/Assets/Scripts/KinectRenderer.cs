@@ -13,14 +13,12 @@ public class KinectRenderer
 
     private TextureGroup textureGroup;
 
-    private UdpSocket udpSocket;
     private IPEndPoint endPoint;
     public int lastVideoFrameId;
 
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
-    private bool preapared;
-
+    private bool prepared;
 
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
@@ -33,7 +31,7 @@ public class KinectRenderer
 
         lastVideoFrameId = -1;
 
-        preapared = false;
+        prepared = false;
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
@@ -45,16 +43,14 @@ public class KinectRenderer
         colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
-
-        this.udpSocket = udpSocket;
         this.endPoint = endPoint;
         this.sessionId = sessionId;
     }
 
-    public void UpdateFrame(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
+    public void UpdateFrame(UdpSocket udpSocket, ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
         // If texture is not created, create and assign them to quads.
-        if (!preapared)
+        if (!prepared)
         {
             // Check whether the native plugin has Direct3D textures that
             // can be connected to Unity textures.
@@ -66,17 +62,12 @@ public class KinectRenderer
                 azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.GetVTexture());
                 azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
 
-                preapared = true;
+                prepared = true;
 
                 UnityEngine.Debug.Log("textureGroup intialized");
             }
         }
 
-        UpdateTextureGroup(videoMessageQueue);
-    }
-
-    private void UpdateTextureGroup(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
-    {
         {
             Tuple<int, VideoSenderMessageData> frameMessagePair;
             while (videoMessageQueue.TryDequeue(out frameMessagePair))
@@ -154,7 +145,7 @@ public class KinectRenderer
                                                                     (float)frameTime.TotalMilliseconds), endPoint);
 
         // Invokes a function to be called in a render thread.
-        if (preapared)
+        if (prepared)
         {
             //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
             textureGroup.SetFFmpegFrame(ffmpegFrame);

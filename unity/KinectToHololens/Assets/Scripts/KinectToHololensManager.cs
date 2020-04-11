@@ -40,6 +40,7 @@ public class KinectToHololensManager : MonoBehaviour
     private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
 
     private KinectRenderer kinectRenderer;
+    private UdpSocket udpSocket;
 
     private bool UiVisibility
     {
@@ -91,7 +92,7 @@ public class KinectToHololensManager : MonoBehaviour
         if (kinectRenderer == null)
             return;
 
-        kinectRenderer.UpdateFrame(videoMessageQueue);
+        kinectRenderer.UpdateFrame(udpSocket, videoMessageQueue);
         azureKinectRoot.UpdateFrame(floorPacketDataQueue);
 
         //FloorSenderPacketData floorSenderPacketData;
@@ -225,6 +226,7 @@ public class KinectToHololensManager : MonoBehaviour
 
         azureKinectScreen.Setup(initPacketData);
         kinectRenderer = new KinectRenderer(azureKinectScreen.Material, initPacketData, udpSocket, endPoint, sessionId);
+        this.udpSocket = udpSocket;
 
         var heartbeatStopWatch = Stopwatch.StartNew();
         var receivedAnyStopWatch = Stopwatch.StartNew();

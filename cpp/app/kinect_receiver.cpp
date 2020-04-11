@@ -67,43 +67,34 @@ void start_session(const std::string ip_address, const int port, const int sessi
     VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
 
-    std::thread task_thread([&] {
-        while (!stopped) {
-            try {
-                if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
-                    udp_socket.send(create_heartbeat_receiver_packet_bytes(session_id), remote_endpoint);
-                    heartbeat_time = TimePoint::now();
-                }
-
-                auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
-                if (sender_packet_set.received_any) {
-                    video_message_assembler.assemble(udp_socket,
-                                                     sender_packet_set.video_packet_data_vector,
-                                                     sender_packet_set.fec_packet_data_vector,
-                                                     video_renderer_state,
-                                                     video_message_queue);
-                    audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
-                    received_any_time = TimePoint::now();
-                } else {
-                    if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
-                        std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
-                        break;
-                    }
-                }
-            } catch (UdpSocketRuntimeError e) {
-                std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
-                break;
+    for (;;) {
+        try {
+            if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
+                udp_socket.send(create_heartbeat_receiver_packet_bytes(session_id), remote_endpoint);
+                heartbeat_time = TimePoint::now();
             }
-        }
-        stopped = true;
-    });
 
-    while (!stopped) {
+            auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
+            if (sender_packet_set.received_any) {
+                video_message_assembler.assemble(udp_socket,
+                                                 sender_packet_set.video_packet_data_vector,
+                                                 sender_packet_set.fec_packet_data_vector,
+                                                 video_renderer_state,
+                                                 video_message_queue);
+                audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
+                received_any_time = TimePoint::now();
+            } else {
+                if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
+                    std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
+                    break;
+                }
+            }
+        } catch (UdpSocketRuntimeError e) {
+            std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
+            break;
+        }
         video_renderer.render(udp_socket, video_message_queue, video_renderer_state);
     }
-    stopped = true;
-
-    task_thread.join();
 }
 
 void main()

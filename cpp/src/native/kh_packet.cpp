@@ -91,7 +91,7 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
     copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
 
     memcpy(message_bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
-    cursor.position += color_encoder_frame.size();
+    cursor.position += gsl::narrow_cast<int>(color_encoder_frame.size());
 
     memcpy(message_bytes.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
 
@@ -151,13 +151,13 @@ std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std:
 {
     int message_size{0};
     for (auto& message_data : video_sender_message_data_set)
-        message_size += message_data.size();
+        message_size += gsl::narrow_cast<int>(message_data.size());
 
     std::vector<std::byte> message_bytes(message_size);
     int cursor{0};
     for (auto& message_data : video_sender_message_data_set) {
         memcpy(message_bytes.data() + cursor, message_data.data(), message_data.size());
-        cursor += message_data.size();
+        cursor += gsl::narrow_cast<int>(message_data.size());
     }
 
     return message_bytes;
@@ -201,8 +201,8 @@ std::vector<std::vector<std::byte>> create_parity_sender_packet_bytes_set(int se
     std::vector<std::vector<std::byte>> frame_packet_bytes_set;
     for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
         const int frame_packet_bytes_cursor{gsl::narrow<int>(parity_packet_index * parity_group_size)};
-        const int parity_frame_packet_count{std::min<int>(parity_group_size, video_packet_bytes_span.size() - frame_packet_bytes_cursor)};
-        frame_packet_bytes_set.push_back(create_parity_sender_packet_bytes(session_id, frame_id, parity_packet_index, parity_packet_count,
+        const int parity_frame_packet_count{std::min<int>(parity_group_size, gsl::narrow_cast<int>(video_packet_bytes_span.size()) - frame_packet_bytes_cursor)};
+        frame_packet_bytes_set.push_back(create_parity_sender_packet_bytes(session_id, frame_id, gsl::narrow_cast<int>(parity_packet_index), parity_packet_count,
                                                                            gsl::span<const std::vector<std::byte>>(&video_packet_bytes_span[frame_packet_bytes_cursor],
                                                                                                                    parity_frame_packet_count)));
     }
@@ -376,8 +376,8 @@ std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int 
                           sizeof(frame_id) +
                           sizeof(int) +
                           sizeof(int) +
-                          sizeof(int) * video_packet_indices.size() +
-                          sizeof(int) * parity_packet_indices.size());
+                          sizeof(int) * gsl::narrow_cast<int>(video_packet_indices.size()) +
+                          sizeof(int) * gsl::narrow_cast<int>(parity_packet_indices.size()));
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
