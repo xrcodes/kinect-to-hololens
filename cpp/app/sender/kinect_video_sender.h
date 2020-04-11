@@ -19,7 +19,8 @@ struct KinectVideoSenderSummary
     float color_encoder_ms_sum{0.0f};
     float depth_encoder_ms_sum{0.0f};
     int frame_count{0};
-    int byte_count{0};
+    int color_byte_count{0};
+    int depth_byte_count{0};
     int keyframe_count{0};
     int frame_id{0};
 };

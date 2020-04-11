@@ -87,11 +87,14 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
     const auto frame_time_point{TimePoint::now()};
     const auto frame_time_diff{frame_time_point - last_frame_time_};
-    //const int frame_id_diff{state_.frame_id - remote_receiver.video_frame_id};
+    const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
+    bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
     const int frame_id_diff{last_frame_id_ - get_minimum_receiver_frame_id(remote_receivers)};
 
-    //if ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
-    //    return;
+    // Skip a frame if there is no new receiver that requires a frame to start
+    // and the sender is too much ahead of the receivers.
+    if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
+        return;
 
     // Try sending the floor plane from the Kinect frame.
     auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
@@ -108,7 +111,8 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     ++last_frame_id_;
     last_frame_time_ = frame_time_point;
 
-    const bool keyframe{frame_id_diff > 5};
+    // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
+    const bool keyframe{has_new_receiver || frame_id_diff > 5};
 
     // Remove the depth pixels that may not have corresponding color information available.
     auto shadow_removal_start{TimePoint::now()};
@@ -169,7 +173,8 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     if (keyframe)
         ++summary.keyframe_count;
     ++summary.frame_count;
-    summary.byte_count += gsl::narrow_cast<int>(vp8_frame.size() + depth_encoder_frame.size());
+    summary.color_byte_count += gsl::narrow_cast<int>(vp8_frame.size());
+    summary.depth_byte_count += gsl::narrow_cast<int>(depth_encoder_frame.size());
     summary.frame_id = last_frame_id_;
 }
 }
