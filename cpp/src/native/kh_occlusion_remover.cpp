@@ -1,5 +1,7 @@
 #include "kh_occlusion_remover.h"
 
+#include <iostream>
+
 namespace kh
 {
 namespace
@@ -162,5 +164,45 @@ void OcclusionRemover::remove_original(gsl::span<int16_t> depth_pixels)
     }
     //std::cout << "invalidation_count: " << invalidation_count << ","
     //          << "z_max_update_count: " << z_max_update_count << "\n";
+}
+
+void OcclusionRemover::remove2(gsl::span<int16_t> depth_pixels)
+{
+    for (int j{0}; j < height_; ++j) {
+        // z_max contains the cutoffs for the j-th row.
+        //std::vector<float> z_max(width_, AZURE_KINECT_MAX_DISTANCE);
+
+        for (int i{width_ - 1}; i >= 0; --i) {
+            // p stands for point.
+            const int p_index{i + j * width_};
+            const int16_t z{depth_pixels[p_index]};
+
+            // Skip invalid pixels.
+            if (z == 0)
+                continue;
+
+            const float x{x_with_unit_depth_[p_index]};
+            for (int ii{i - 1}; ii >= 0; --ii) {
+                const int pp_index{ii + j * width_};
+                const int16_t zz{depth_pixels[pp_index]};
+                if (zz == 0)
+                    continue;
+
+                const float xx{x_with_unit_depth_[pp_index]};
+                const float line_z{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
+
+                // When (x - xx) * z > color_camera_x_, line_z becomes minus indicating that
+                // physically there can be no occlusions.
+                if (line_z < 0)
+                    break;
+
+                if (zz <= line_z)
+                    break;
+
+                // If line_z covers an existing pixel pp, invalidate pp.
+                depth_pixels[pp_index] = 0;
+            }
+        }
+    }
 }
 }

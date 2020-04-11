@@ -6,6 +6,8 @@ public class AzureKinectRoot : MonoBehaviour
 {
     public Transform floorTransformInverterTransform;
     public Transform floorTransform;
+    private List<float> inversePositionYList = new List<float>();
+    private List<Vector3> inversePlaneNormalList = new List<Vector3>();
 
     public void SetRootTransform(Vector3 position, Quaternion rotation)
     {
@@ -42,13 +44,34 @@ public class AzureKinectRoot : MonoBehaviour
         Vector3 inversePlaneNormal = inverseRotation * Vector3.up;
         float inversePlaneDistance = Vector3.Dot(inversePosition, inversePlaneNormal);
         // In ax + by + cz = d, if x = z = 0, y = d/b.
-        Vector3 inversePositionWithOnlyY = new Vector3(0.0f, inversePlaneDistance / inversePlaneNormal.y, 0.0f);
-
-        //floorTransformInverterTransform.localPosition = inversePosition;
-        floorTransformInverterTransform.localPosition = inversePositionWithOnlyY;
-        floorTransformInverterTransform.localRotation = inverseRotation;
+        float inversePositionY = inversePlaneDistance / inversePlaneNormal.y;
 
         floorTransform.localPosition = position;
         floorTransform.localRotation = rotation;
+
+        //floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePositionY, 0.0f);
+        //floorTransformInverterTransform.localRotation = inverseRotation;
+
+        inversePositionYList.Add(inversePositionY);
+        inversePlaneNormalList.Add(inversePlaneNormal);
+
+        if (inversePositionYList.Count > 30)
+            inversePositionYList.RemoveAt(0);
+        if (inversePlaneNormalList.Count > 30)
+            inversePlaneNormalList.RemoveAt(0);
+
+        float inversePositionYSum = 0.0f;
+        foreach (var y in inversePositionYList)
+            inversePositionYSum += y;
+        Vector3 inversePlaneNormalSum = Vector3.zero;
+        foreach (var normal in inversePlaneNormalList)
+            inversePlaneNormalSum += normal;
+
+        float inversePositionYAverage = inversePositionYSum / inversePositionYList.Count;
+        Vector3 inversePlaneNormalAverage = inversePlaneNormalSum / inversePositionYList.Count;
+        Quaternion inversePlaneNormalAverageRotation = Quaternion.FromToRotation(Vector3.up, inversePlaneNormalAverage);
+
+        floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePositionYAverage, 0.0f);
+        floorTransformInverterTransform.localRotation = inversePlaneNormalAverageRotation;
     }
 }

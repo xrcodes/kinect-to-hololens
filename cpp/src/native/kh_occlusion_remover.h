@@ -12,10 +12,13 @@ public:
     OcclusionRemover(const k4a::calibration& calibration);
     void remove(gsl::span<int16_t> depth_pixels);
     void remove_original(gsl::span<int16_t> depth_pixels);
+    void remove2(gsl::span<int16_t> depth_pixels);
 
 private:
     // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
-    constexpr static float AZURE_KINECT_MAX_DISTANCE{3860.0f};
+    // But larger values can be detected, so modified it to 10 m...
+    //constexpr static float AZURE_KINECT_MAX_DISTANCE{3860.0f};
+    constexpr static float AZURE_KINECT_MAX_DISTANCE{10000.0f};
     constexpr static float AZURE_KINECT_MAX_DISTANCE_INV{1.0f / AZURE_KINECT_MAX_DISTANCE};
     const int width_;
     const int height_;
