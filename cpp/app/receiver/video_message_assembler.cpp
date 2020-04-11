@@ -13,7 +13,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                                      std::vector<VideoSenderPacketData>& video_packet_data_vector,
                                      std::vector<ParitySenderPacketData>& parity_packet_data_vector,
                                      VideoRendererState video_renderer_state,
-                                     moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue)
+                                     std::map<int, VideoSenderMessageData>& video_frame_messages)
 {
     std::optional<int> added_frame_id{std::nullopt};
     // Collect the received video packets.
@@ -176,7 +176,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             for (gsl::index i{0}; i < video_sender_message_data_set.size(); ++i)
                 video_sender_message_data_set[i] = gsl::span<std::byte>{it->second[i]->message_data};
 
-            video_message_queue.enqueue({it->first, parse_video_sender_message_bytes(merge_video_sender_message_bytes(video_sender_message_data_set))});
+            video_frame_messages.insert({it->first, parse_video_sender_message_bytes(merge_video_sender_message_bytes(video_sender_message_data_set))});
             it = video_packet_collections_.erase(it);
         } else {
             ++it;

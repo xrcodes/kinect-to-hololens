@@ -65,7 +65,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
     VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
-    moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>> video_message_queue;
+    std::map<int, VideoSenderMessageData> video_frame_messages;
 
     for (;;) {
         try {
@@ -80,7 +80,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
                                                  sender_packet_set.video_packet_data_vector,
                                                  sender_packet_set.fec_packet_data_vector,
                                                  video_renderer_state,
-                                                 video_message_queue);
+                                                 video_frame_messages);
                 audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
                 received_any_time = TimePoint::now();
             } else {
@@ -93,7 +93,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;
         }
-        video_renderer.render(udp_socket, video_message_queue, video_renderer_state);
+        video_renderer.render(udp_socket, video_renderer_state, video_frame_messages);
     }
 }
 

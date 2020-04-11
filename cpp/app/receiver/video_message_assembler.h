@@ -1,6 +1,6 @@
 #pragma once
 
-#include <readerwriterqueue/readerwriterqueue.h>
+#include <map>
 #include "video_renderer_state.h"
 
 namespace kh
@@ -13,7 +13,7 @@ public:
                   std::vector<VideoSenderPacketData>& video_packet_data_vector,
                   std::vector<ParitySenderPacketData>& parity_packet_data_vector,
                   VideoRendererState video_renderer_state,
-                  moodycamel::ReaderWriterQueue<std::pair<int, VideoSenderMessageData>>& video_message_queue);
+                  std::map<int, VideoSenderMessageData>& video_frame_messages);
 
 private:
     const int session_id_;
