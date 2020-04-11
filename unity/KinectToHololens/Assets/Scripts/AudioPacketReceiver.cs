@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-class AudioPacketReceiver
+public class AudioPacketReceiver
 {
     private AudioDecoder audioDecoder;
     private int lastAudioFrameId;

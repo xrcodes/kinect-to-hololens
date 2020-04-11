@@ -7,13 +7,14 @@ using UnityEngine;
 
 public class KinectRenderer
 {
+    private UdpSocket udpSocket;
     private int sessionId;
+    private IPEndPoint endPoint;
 
     private Material azureKinectScreenMaterial;
 
     private TextureGroup textureGroup;
 
-    private IPEndPoint endPoint;
     public int lastVideoFrameId;
 
     private Vp8Decoder colorDecoder;
@@ -23,7 +24,7 @@ public class KinectRenderer
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    public KinectRenderer(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, IPEndPoint endPoint, int sessionId)
+    public KinectRenderer(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, int sessionId, IPEndPoint endPoint)
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
 
@@ -43,11 +44,12 @@ public class KinectRenderer
         colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
-        this.endPoint = endPoint;
+        this.udpSocket = udpSocket;
         this.sessionId = sessionId;
+        this.endPoint = endPoint;
     }
 
-    public void UpdateFrame(UdpSocket udpSocket, ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
+    public void UpdateFrame(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
     {
         // If texture is not created, create and assign them to quads.
         if (!prepared)

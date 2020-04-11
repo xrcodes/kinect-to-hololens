@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 
-class VideoMessageAssembler
+public class VideoMessageAssembler
 {
     private const int FEC_GROUP_SIZE = 2;
     private int sessionId;

@@ -12,7 +12,6 @@ public class LocalIpAddressListText : MonoBehaviour
         var host = Dns.GetHostEntry(Dns.GetHostName());
         foreach (var ipAddress in host.AddressList)
         {
-            print($"ipAddress: {ipAddress}");
             if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
             {
                 text += $"  - {ipAddress}\n";
