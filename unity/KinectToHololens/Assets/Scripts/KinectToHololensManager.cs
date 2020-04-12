@@ -25,9 +25,6 @@ public class KinectToHololensManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
 
-    // To recognize when the user taps.
-    private GestureRecognizer gestureRecognizer;
-
     private KinectReceiver kinectReceiver;
 
     private bool ConnectUiVisibility
@@ -51,25 +48,19 @@ public class KinectToHololensManager : MonoBehaviour
 
         ConnectUiVisibility = true;
 
-        gestureRecognizer = new GestureRecognizer();
-
-        // Prepare a GestureRecognizer to recognize taps.
-        gestureRecognizer.Tapped += OnTapped;
-        gestureRecognizer.StartCapturingGestures();
-
         statusText.text = "Waiting for user input.";
     }
 
     void Update()
     {
-        // Space key resets the scene to be placed in front of the camera.
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            ResetView();
-        }
-
         // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
         AbsorbInput();
+
+        // Gives the information of the camera position and floor level.
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            azureKinectRoot.SetRootTransform(cameraTransform.position, cameraTransform.rotation);
+        }
 
         if (Input.GetKeyDown(KeyCode.D))
         {
@@ -100,6 +91,11 @@ public class KinectToHololensManager : MonoBehaviour
             offsetText.text = $"Offset\n  - Distance: {azureKinectRoot.OffsetDistance}\n  - Height: {azureKinectRoot.OffsetHeight}";
         }
 
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
+        {
+            StartCoroutine(Connect());
+        }
+
         if (kinectReceiver == null)
             return;
 
@@ -108,19 +104,6 @@ public class KinectToHololensManager : MonoBehaviour
             kinectReceiver = null;
             ConnectUiVisibility = true;
         }
-    }
-
-    private void OnTapped(TappedEventArgs args)
-    {
-        // Place the scene in front of the camera when the user taps.
-        ResetView();
-    }
-
-    // Places everything in front of the camera by positing and turning a root transform for
-    // everything else except the camera.
-    private void ResetView()
-    {
-        azureKinectRoot.SetRootTransform(cameraTransform.position, cameraTransform.rotation);
     }
 
     // Sends keystrokes of the virtual keyboard to TextMeshes.
@@ -156,10 +139,6 @@ public class KinectToHololensManager : MonoBehaviour
             {
                 ipAddressInputField.text = text.Substring(0, text.Length - 1);
             }
-        }
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
-        {
-            StartCoroutine(Connect());
         }
     }
 
