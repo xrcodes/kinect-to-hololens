@@ -20,10 +20,10 @@ public class KinectToHololensManager : MonoBehaviour
     public TextMesh ipAddressInputField;
     public TextMesh instructionText;
     public TextMesh localIpAddressListText;
+
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
-    public Transform floorPlaneTransform;
 
     // To recognize when the user taps.
     private GestureRecognizer gestureRecognizer;
@@ -70,6 +70,11 @@ public class KinectToHololensManager : MonoBehaviour
 
         // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
         AbsorbInput();
+
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            azureKinectRoot.DebugVisibility = !azureKinectRoot.DebugVisibility;
+        }
 
         if (kinectReceiver == null)
             return;

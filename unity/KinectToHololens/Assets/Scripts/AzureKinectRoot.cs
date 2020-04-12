@@ -8,6 +8,7 @@ public class AzureKinectRoot : MonoBehaviour
     public AzureKinectScreen azureKinectScreen;
     public AzureKinectSpeaker azureKinectSpeaker;
     public Transform floorTransform;
+    public GameObject arrow;
     private List<float> inversePositionYList = new List<float>();
     private List<Vector3> inversePlaneNormalList = new List<Vector3>();
 
@@ -24,6 +25,19 @@ public class AzureKinectRoot : MonoBehaviour
         get
         {
             return azureKinectSpeaker;
+        }
+    }
+
+    public bool DebugVisibility
+    {
+        set
+        {
+            floorTransform.gameObject.SetActive(value);
+            arrow.SetActive(value);
+        }
+        get
+        {
+            return floorTransform.gameObject.activeSelf;
         }
     }
 
