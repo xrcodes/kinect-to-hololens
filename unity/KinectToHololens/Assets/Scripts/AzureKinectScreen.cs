@@ -51,6 +51,8 @@ public class AzureKinectScreen : MonoBehaviour
             }
         }
 
+        const float QUAD_AMPLIFIER = 1.2f;
+        const float TWO_MINUS_QUAD_AMPLIFIER = 2.0f - QUAD_AMPLIFIER;
         int quadWidth = width - 2;
         int quadHeight = height - 2;
         var quadVertices = new Vector3[quadWidth * quadHeight * 4];
@@ -63,10 +65,14 @@ public class AzureKinectScreen : MonoBehaviour
                 int quadIndex = ii + jj * quadWidth;
                 int i = ii + 1;
                 int j = jj + 1;
-                quadVertices[quadIndex * 4 + 0] = (vertices[i + j * width] + vertices[(i - 1) + (j - 1) * width]) * 0.5f;
-                quadVertices[quadIndex * 4 + 1] = (vertices[i + j * width] + vertices[(i + 1) + (j - 1) * width]) * 0.5f;
-                quadVertices[quadIndex * 4 + 2] = (vertices[i + j * width] + vertices[(i - 1) + (j + 1) * width]) * 0.5f;
-                quadVertices[quadIndex * 4 + 3] = (vertices[i + j * width] + vertices[(i + 1) + (j + 1) * width]) * 0.5f;
+                //quadVertices[quadIndex * 4 + 0] = (vertices[i + j * width] + vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+                //quadVertices[quadIndex * 4 + 1] = (vertices[i + j * width] + vertices[(i + 1) + (j - 1) * width]) * 0.5f;
+                //quadVertices[quadIndex * 4 + 2] = (vertices[i + j * width] + vertices[(i - 1) + (j + 1) * width]) * 0.5f;
+                //quadVertices[quadIndex * 4 + 3] = (vertices[i + j * width] + vertices[(i + 1) + (j + 1) * width]) * 0.5f;
+                quadVertices[quadIndex * 4 + 0] = (vertices[i + j * width] * TWO_MINUS_QUAD_AMPLIFIER + vertices[(i - 1) + (j - 1) * width] * QUAD_AMPLIFIER) * 0.5f;
+                quadVertices[quadIndex * 4 + 1] = (vertices[i + j * width] * TWO_MINUS_QUAD_AMPLIFIER + vertices[(i + 1) + (j - 1) * width] * QUAD_AMPLIFIER) * 0.5f;
+                quadVertices[quadIndex * 4 + 2] = (vertices[i + j * width] * TWO_MINUS_QUAD_AMPLIFIER + vertices[(i - 1) + (j + 1) * width] * QUAD_AMPLIFIER) * 0.5f;
+                quadVertices[quadIndex * 4 + 3] = (vertices[i + j * width] * TWO_MINUS_QUAD_AMPLIFIER + vertices[(i + 1) + (j + 1) * width] * QUAD_AMPLIFIER) * 0.5f;
 
                 quadUv[quadIndex * 4 + 0] = uv[i + j * width];
                 quadUv[quadIndex * 4 + 1] = uv[i + j * width];
