@@ -5,9 +5,27 @@ using UnityEngine;
 public class AzureKinectRoot : MonoBehaviour
 {
     public Transform floorTransformInverterTransform;
+    public AzureKinectScreen azureKinectScreen;
+    public AzureKinectSpeaker azureKinectSpeaker;
     public Transform floorTransform;
     private List<float> inversePositionYList = new List<float>();
     private List<Vector3> inversePlaneNormalList = new List<Vector3>();
+
+    public AzureKinectScreen Screen
+    {
+        get
+        {
+            return azureKinectScreen;
+        }
+    }
+
+    public AzureKinectSpeaker Speaker
+    {
+        get
+        {
+            return azureKinectSpeaker;
+        }
+    }
 
     public void SetRootTransform(Vector3 position, Quaternion rotation)
     {

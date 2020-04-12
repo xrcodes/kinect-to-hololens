@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Net;
 using UnityEngine;
 
-public class KinectRenderer
+public class TextureGroupUpdater
 {
     private UdpSocket udpSocket;
     private int sessionId;
@@ -24,7 +24,7 @@ public class KinectRenderer
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    public KinectRenderer(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, int sessionId, IPEndPoint endPoint)
+    public TextureGroupUpdater(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, int sessionId, IPEndPoint endPoint)
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         

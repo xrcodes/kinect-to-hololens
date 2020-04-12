@@ -8,29 +8,34 @@ public class KinectReceiver
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
 
+    private AzureKinectRoot azureKinectRoot;
     private UdpSocket udpSocket;
     private int sessionId;
     private IPEndPoint endPoint;
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;
+    private TextureGroupUpdater textureGroupUpdater;
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
+    private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
+    private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
 
-    public KinectReceiver(UdpSocket udpSocket, int sessionId, IPEndPoint endPoint, VideoMessageAssembler videoMessageAssembler, AudioPacketReceiver audioPacketReceiver)
+    public KinectReceiver(AzureKinectRoot azureKinectRoot, UdpSocket udpSocket, int sessionId, IPEndPoint endPoint, InitSenderPacketData initPacketData)
     {
+        this.azureKinectRoot = azureKinectRoot;
         this.udpSocket = udpSocket;
         this.sessionId = sessionId;
         this.endPoint = endPoint;
-        this.videoMessageAssembler = videoMessageAssembler;
-        this.audioPacketReceiver = audioPacketReceiver;
+        videoMessageAssembler = new VideoMessageAssembler(sessionId, endPoint);
+        audioPacketReceiver = new AudioPacketReceiver();
+        textureGroupUpdater = new TextureGroupUpdater(azureKinectRoot.Screen.Material, initPacketData, udpSocket, sessionId, endPoint);
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
+        videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
+        floorPacketDataQueue = new ConcurrentQueue<FloorSenderPacketData>();
     }
 
-    public bool UpdateFrame(KinectRenderer kinectRenderer,
-                            AzureKinectSpeaker azureKinectSpeaker,
-                            ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue,
-                            ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
+    public bool UpdateFrame()
     {
         try
         {
@@ -46,9 +51,9 @@ public class KinectReceiver
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,
-                                               kinectRenderer.lastVideoFrameId,
+                                               textureGroupUpdater.lastVideoFrameId,
                                                videoMessageQueue);
-                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, azureKinectSpeaker.RingBuffer);
+                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, azureKinectRoot.Speaker.RingBuffer);
                 receivedAnyStopWatch = Stopwatch.StartNew();
             }
             else
@@ -67,6 +72,9 @@ public class KinectReceiver
             //break;
             return false;
         }
+
+        textureGroupUpdater.UpdateFrame(videoMessageQueue);
+        azureKinectRoot.UpdateFrame(floorPacketDataQueue);
 
         return true;
     }

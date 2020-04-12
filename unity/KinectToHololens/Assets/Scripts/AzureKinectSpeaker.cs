@@ -10,13 +10,16 @@ public class AzureKinectSpeaker : MonoBehaviour
 
     public RingBuffer RingBuffer { get; set; }
 
-    public void Init()
+    public void Setup()
     {
         RingBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
     }
 
     void OnAudioFilterRead(float[] data, int channels)
     {
+        if (RingBuffer == null)
+            return;
+
         const float AMPLIFIER = 8.0f;
 
         RingBuffer.Read(data);

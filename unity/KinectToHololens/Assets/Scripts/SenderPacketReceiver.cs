@@ -47,7 +47,9 @@ class SenderPacketReceiver
                     senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Floor:
-                    floorPacketDataQueue.Enqueue(FloorSenderPacketData.Parse(packet));
+                    // TODO: Remove this if statement.
+                    if(floorPacketDataQueue != null)
+                        floorPacketDataQueue.Enqueue(FloorSenderPacketData.Parse(packet));
                     break;
             }
         }

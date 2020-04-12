@@ -8,7 +8,7 @@ int next_texture_group_id_;
 // A function that intializes Direct3D resources. Should be called in a render thread.
 void texture_group_init(int texture_group_id, ID3D11Device* device)
 {
-    TextureGroup* texture_group{texture_groups_.at(0).get()};
+    TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
     texture_group->y_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width, texture_group->height);
     texture_group->u_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
     texture_group->v_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
@@ -24,7 +24,7 @@ void texture_group_init(int texture_group_id, ID3D11Device* device)
 // Updating pixels of the textures. Should be called in a render thread.
 void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
-    TextureGroup* texture_group{texture_groups_.at(0).get()};
+    TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
     texture_group->y_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, texture_group->ffmpeg_frame, 0);
     texture_group->u_texture->updatePixels(device, device_context, texture_group->width / 2, texture_group->height / 2, texture_group->ffmpeg_frame, 1);
     texture_group->v_texture->updatePixels(device, device_context, texture_group->width / 2, texture_group->height / 2, texture_group->ffmpeg_frame, 2);

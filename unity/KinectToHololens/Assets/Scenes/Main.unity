@@ -654,6 +654,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   floorTransformInverterTransform: {fileID: 26390277}
+  azureKinectScreen: {fileID: 1550978225}
+  azureKinectSpeaker: {fileID: 284354988}
   floorTransform: {fileID: 277245210}
 --- !u!1 &1010966847
 GameObject:

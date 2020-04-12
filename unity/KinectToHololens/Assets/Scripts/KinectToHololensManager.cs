@@ -23,22 +23,14 @@ public class KinectToHololensManager : MonoBehaviour
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
-    public AzureKinectScreen azureKinectScreen;
-    public AzureKinectSpeaker azureKinectSpeaker;
     public Transform floorPlaneTransform;
 
     // To recognize when the user taps.
     private GestureRecognizer gestureRecognizer;
 
-    private int sessionId;
-    private bool stopped;
-    private ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue;
-    private ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue;
-
-    private KinectRenderer kinectRenderer;
     private KinectReceiver kinectReceiver;
 
-    private bool UiVisibility
+    private bool ConnectUiVisibility
     {
         set
         {
@@ -57,17 +49,9 @@ public class KinectToHololensManager : MonoBehaviour
     {
         Plugin.texture_group_reset();
 
-        UiVisibility = true;
+        ConnectUiVisibility = true;
 
         gestureRecognizer = new GestureRecognizer();
-
-        var random = new System.Random();
-        sessionId = random.Next();
-        stopped = false;
-        azureKinectSpeaker.Init();
-        videoMessageQueue = new ConcurrentQueue<Tuple<int, VideoSenderMessageData>>();
-        floorPacketDataQueue = new ConcurrentQueue<FloorSenderPacketData>();
-
 
         // Prepare a GestureRecognizer to recognize taps.
         gestureRecognizer.Tapped += OnTapped;
@@ -87,24 +71,14 @@ public class KinectToHololensManager : MonoBehaviour
         // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
         AbsorbInput();
 
-        if (kinectRenderer == null)
+        if (kinectReceiver == null)
             return;
-        
-        kinectRenderer.UpdateFrame(videoMessageQueue);
-        azureKinectRoot.UpdateFrame(floorPacketDataQueue);
 
-        if (!stopped)
+        if (!kinectReceiver.UpdateFrame())
         {
-            if (!kinectReceiver.UpdateFrame(kinectRenderer, azureKinectSpeaker, videoMessageQueue, floorPacketDataQueue))
-            {
-                stopped = true;
-            }
+            kinectReceiver = null;
+            ConnectUiVisibility = true;
         }
-    }
-
-    void OnDestroy()
-    {
-        stopped = true;
     }
 
     private void OnTapped(TappedEventArgs args)
@@ -156,7 +130,7 @@ public class KinectToHololensManager : MonoBehaviour
         }
         if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
         {
-            StartCoroutine(Ping());
+            StartCoroutine(Connect());
         }
     }
 
@@ -171,15 +145,15 @@ public class KinectToHololensManager : MonoBehaviour
 
     // To copy the c++ receiver, for easier development,
     // there should be only one chance to send a ping.
-    private IEnumerator Ping()
+    private IEnumerator Connect()
     {
-        if(!UiVisibility)
+        if(!ConnectUiVisibility)
         {
             print("No more than one ping at a time.");
             yield break;
         }
 
-        UiVisibility = false;
+        ConnectUiVisibility = false;
 
         // The default IP address is 127.0.0.1.
         string ipAddressText = ipAddressInputField.text;
@@ -190,42 +164,41 @@ public class KinectToHololensManager : MonoBehaviour
         print(logString);
         statusText.text = logString;
 
+        var random = new System.Random();
+        int sessionId = random.Next();
+
         var ipAddress = IPAddress.Parse(ipAddressText);
         var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
         var endPoint = new IPEndPoint(ipAddress, PORT);
 
         InitSenderPacketData initPacketData;
-        int pingCount = 0;
+        int connectCount = 0;
         while (true)
         {
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId), endPoint);
-            ++pingCount;
-            UnityEngine.Debug.Log("Sent ping");
+            ++connectCount;
+            UnityEngine.Debug.Log("Sent connect packet");
 
             //Thread.Sleep(100);
             Thread.Sleep(300);
 
-            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, floorPacketDataQueue);
+            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, null);
             if (senderPacketSet.InitPacketDataList.Count > 0)
             {
                 initPacketData = senderPacketSet.InitPacketDataList[0];
                 break;
             }
 
-            if (pingCount == 10)
+            if (connectCount == 10)
             {
                 UnityEngine.Debug.Log("Tried pinging 10 times and failed to received an init packet...\n");
-                UiVisibility = true;
+                ConnectUiVisibility = true;
                 yield break;
             }
         }
 
-        azureKinectScreen.Setup(initPacketData);
-        kinectRenderer = new KinectRenderer(azureKinectScreen.Material, initPacketData, udpSocket, sessionId, endPoint);
-        kinectReceiver = new KinectReceiver(udpSocket,
-                                            sessionId,
-                                            endPoint,
-                                            new VideoMessageAssembler(sessionId, endPoint),
-                                            new AudioPacketReceiver());
+        azureKinectRoot.Screen.Setup(initPacketData);
+        azureKinectRoot.Speaker.Setup();
+        kinectReceiver = new KinectReceiver(azureKinectRoot, udpSocket, sessionId, endPoint, initPacketData);
     }
 }
