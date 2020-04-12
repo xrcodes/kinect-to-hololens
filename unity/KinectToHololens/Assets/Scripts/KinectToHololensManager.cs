@@ -8,6 +8,7 @@ using UnityEngine.XR.WSA.Input;
 public class KinectToHololensManager : MonoBehaviour
 {
     private const int PORT = 47498;
+    private const float OFFSET_OFFSET_UNIT = 0.1f;
 
     // The main camera's Transform.
     public Transform cameraTransform;
@@ -18,6 +19,7 @@ public class KinectToHololensManager : MonoBehaviour
     public TextMesh ipAddressInputField;
     public TextMesh instructionText;
     public TextMesh localIpAddressListText;
+    public TextMesh offsetText;
 
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
@@ -72,6 +74,30 @@ public class KinectToHololensManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.D))
         {
             azureKinectRoot.DebugVisibility = !azureKinectRoot.DebugVisibility;
+        }
+
+        // Based on vim's key mapping.
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            azureKinectRoot.OffsetDistance -= OFFSET_OFFSET_UNIT;
+        }
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            azureKinectRoot.OffsetDistance += OFFSET_OFFSET_UNIT;
+        }
+        if (Input.GetKeyDown(KeyCode.J))
+        {
+            azureKinectRoot.OffsetHeight -= OFFSET_OFFSET_UNIT;
+        }
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            azureKinectRoot.OffsetHeight += OFFSET_OFFSET_UNIT;
+        }
+
+        offsetText.gameObject.SetActive(!ConnectUiVisibility && azureKinectRoot.DebugVisibility);
+        if(offsetText.gameObject.activeSelf)
+        {
+            offsetText.text = $"Offset\n  - Distance: {azureKinectRoot.OffsetDistance}\n  - Height: {azureKinectRoot.OffsetHeight}";
         }
 
         if (kinectReceiver == null)

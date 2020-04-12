@@ -5,10 +5,13 @@ using UnityEngine;
 public class AzureKinectRoot : MonoBehaviour
 {
     public Transform floorTransformInverterTransform;
+    public Transform offsetTransform;
     public AzureKinectScreen azureKinectScreen;
     public AzureKinectSpeaker azureKinectSpeaker;
     public Transform floorTransform;
     public GameObject arrow;
+    private float offsetDistance = 0.0f;
+    private float offsetHeight = 0.0f;
     private List<float> inversePositionYList = new List<float>();
     private List<Vector3> inversePlaneNormalList = new List<Vector3>();
 
@@ -38,6 +41,34 @@ public class AzureKinectRoot : MonoBehaviour
         get
         {
             return floorTransform.gameObject.activeSelf;
+        }
+    }
+
+    public float OffsetDistance
+    {
+        set
+        {
+            var position = offsetTransform.localPosition;
+            offsetTransform.localPosition = new Vector3(0.0f, position.y, value);
+            offsetDistance = value;
+        }
+        get
+        {
+            return offsetDistance;
+        }
+    }
+
+    public float OffsetHeight
+    {
+        set
+        {
+            var position = offsetTransform.localPosition;
+            offsetTransform.localPosition = new Vector3(0.0f, value, position.z);
+            offsetHeight = value;
+        }
+        get
+        {
+            return offsetHeight;
         }
     }
 
