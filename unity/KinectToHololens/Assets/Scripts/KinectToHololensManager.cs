@@ -67,20 +67,19 @@ public class KinectToHololensManager : MonoBehaviour
             azureKinectRoot.DebugVisibility = !azureKinectRoot.DebugVisibility;
         }
 
-        // Based on vim's key mapping.
-        if (Input.GetKeyDown(KeyCode.H))
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             azureKinectRoot.OffsetDistance -= OFFSET_OFFSET_UNIT;
         }
-        if (Input.GetKeyDown(KeyCode.L))
+        if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             azureKinectRoot.OffsetDistance += OFFSET_OFFSET_UNIT;
         }
-        if (Input.GetKeyDown(KeyCode.J))
+        if (Input.GetKeyDown(KeyCode.DownArrow))
         {
             azureKinectRoot.OffsetHeight -= OFFSET_OFFSET_UNIT;
         }
-        if (Input.GetKeyDown(KeyCode.K))
+        if (Input.GetKeyDown(KeyCode.UpArrow))
         {
             azureKinectRoot.OffsetHeight += OFFSET_OFFSET_UNIT;
         }
