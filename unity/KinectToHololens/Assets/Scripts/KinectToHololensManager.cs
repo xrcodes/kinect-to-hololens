@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.XR.WSA.Input;
 
 public class KinectToHololensManager : MonoBehaviour
 {
@@ -186,7 +185,6 @@ public class KinectToHololensManager : MonoBehaviour
             ++connectCount;
             UnityEngine.Debug.Log("Sent connect packet");
 
-            //Thread.Sleep(100);
             Thread.Sleep(300);
 
             var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, null);
