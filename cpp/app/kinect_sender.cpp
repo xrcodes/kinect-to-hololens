@@ -105,6 +105,7 @@ void main()
     socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
     UdpSocket udp_socket{std::move(socket)};
 
+    // Print IP addresses of this machine.
     asio::ip::udp::resolver resolver(io_context);
     asio::ip::udp::resolver::query query(asio::ip::host_name(), "");
     auto resolver_results = resolver.resolve(query);

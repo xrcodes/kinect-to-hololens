@@ -25,9 +25,18 @@ void texture_group_init(int texture_group_id, ID3D11Device* device)
 void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
     TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
-    texture_group->y_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, texture_group->ffmpeg_frame, 0);
-    texture_group->u_texture->updatePixels(device, device_context, texture_group->width / 2, texture_group->height / 2, texture_group->ffmpeg_frame, 1);
-    texture_group->v_texture->updatePixels(device, device_context, texture_group->width / 2, texture_group->height / 2, texture_group->ffmpeg_frame, 2);
+    texture_group->y_texture->updatePixels(device, device_context,
+                                           texture_group->width, texture_group->height,
+                                           texture_group->ffmpeg_frame.av_frame()->data[0],
+                                           texture_group->ffmpeg_frame.av_frame()->linesize[0]);
+    texture_group->u_texture->updatePixels(device, device_context,
+                                           texture_group->width / 2, texture_group->height / 2,
+                                           texture_group->ffmpeg_frame.av_frame()->data[1],
+                                           texture_group->ffmpeg_frame.av_frame()->linesize[1]);
+    texture_group->v_texture->updatePixels(device, device_context,
+                                           texture_group->width / 2, texture_group->height / 2,
+                                           texture_group->ffmpeg_frame.av_frame()->data[2],
+                                           texture_group->ffmpeg_frame.av_frame()->linesize[2]);
 
     texture_group->depth_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, reinterpret_cast<uint16_t*>(texture_group->depth_pixels.data()));
 }

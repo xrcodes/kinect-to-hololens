@@ -20,8 +20,8 @@ public:
 					  ID3D11DeviceContext* device_context,
 					  int width,
 				 	  int height,
-					  kh::FFmpegFrame& frame,
-					  int channel_index);
+					  uint8_t* frame_data,
+					  int frame_linesize);
 
 private:
 	int width_;
