@@ -545,7 +545,9 @@ PlayerSettings:
   webGLCompressionFormat: 1
   webGLLinkerTarget: 1
   webGLThreadsSupport: 0
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    1: 
+    14: 
   platformArchitecture: {}
   scriptingBackend: {}
   il2cppCompilerConfiguration: {}
@@ -557,14 +559,14 @@ PlayerSettings:
   apiCompatibilityLevelPerPlatform: {}
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: KinectToHololens
+  metroPackageName: KinectViewer
   metroPackageVersion: 1.0.0.0
   metroCertificatePath: Assets/WSATestCertificate.pfx
   metroCertificatePassword: 
   metroCertificateSubject: Hanseul Jun
   metroCertificateIssuer: Hanseul Jun
-  metroCertificateNotAfter: 805a8705642fd601
-  metroApplicationDescription: Receiving pixels from a Kinect.
+  metroCertificateNotAfter: 80a2e0fb5932d701
+  metroApplicationDescription: Kinect Viewer
   wsaImages: {}
   metroTileShortName: Kinect Viewer
   metroTileShowName: 0
