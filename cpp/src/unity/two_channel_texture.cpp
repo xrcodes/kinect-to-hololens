@@ -53,17 +53,17 @@ void TwoChannelTexture::updatePixels(ID3D11DeviceContext* device_context,
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
-	int row_pitch = mapped.RowPitch;
-	uint8_t* texture_data = reinterpret_cast<uint8_t*>(mapped.pData);
+	int row_pitch{gsl::narrow_cast<int>(mapped.RowPitch)};
+	uint8_t* texture_data{reinterpret_cast<uint8_t*>(mapped.pData)};
 
 	for (int j = 0; j < height_; ++j) {
-		int texture_offset = j * row_pitch;
-		int frame_offset1 = j * frame_linesize1;
-		int frame_offset2 = j * frame_linesize2;
-		//memcpy(texture_data + texture_offset, frame_data1 + frame_offset1, width_);
+		// Added -1 at the end to use ++x instead of x++ for optimization.
+		int texture_offset{j * row_pitch - 1};
+		int frame_index1{j * frame_linesize1 - 1};
+		int frame_index2{j * frame_linesize2 - 1};
 		for (int i = 0; i < width_; ++i) {
-			texture_data[texture_offset + i * 2] = frame_data1[frame_offset1 + i];
-			texture_data[texture_offset + i * 2 + 1] = frame_data2[frame_offset2 + i];
+			texture_data[++texture_offset] = frame_data1[++frame_index1];
+			texture_data[++texture_offset] = frame_data2[++frame_index2];
 ;		}
 	}
 

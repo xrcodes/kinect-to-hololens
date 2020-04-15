@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <d3d11.h>
+#include "kh_yuv.h"
 #include "kh_trvl.h"
 #include "channel_texture.h"
 #include "two_channel_texture.h"
