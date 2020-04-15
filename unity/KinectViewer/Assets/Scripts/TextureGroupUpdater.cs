@@ -61,8 +61,7 @@ public class TextureGroupUpdater
             {
                 // TextureGroup includes Y, U, V, and a depth texture.
                 azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.GetYTexture());
-                azureKinectScreenMaterial.SetTexture("_UTex", textureGroup.GetUTexture());
-                azureKinectScreenMaterial.SetTexture("_VTex", textureGroup.GetVTexture());
+                azureKinectScreenMaterial.SetTexture("_UvTex", textureGroup.GetUvTexture());
                 azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
 
                 prepared = true;

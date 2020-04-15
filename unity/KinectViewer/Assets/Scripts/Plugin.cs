@@ -52,10 +52,7 @@ public static class Plugin
     public static extern IntPtr texture_group_get_y_texture_view(IntPtr textureGroup);
 
     [DllImport(DllName)]
-    public static extern IntPtr texture_group_get_u_texture_view(IntPtr textureGroup);
-
-    [DllImport(DllName)]
-    public static extern IntPtr texture_group_get_v_texture_view(IntPtr textureGroup);
+    public static extern IntPtr texture_group_get_uv_texture_view(IntPtr textureGroup);
 
     [DllImport(DllName)]
     public static extern IntPtr texture_group_get_depth_texture_view(IntPtr textureGroup);

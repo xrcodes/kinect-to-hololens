@@ -1,10 +1,10 @@
-#include "channel_texture.h"
+#include "two_channel_texture.h"
 
 #include <string>
 
 namespace kh
 {
-ChannelTexture::ChannelTexture(ID3D11Device* device, int width, int height)
+TwoChannelTexture::TwoChannelTexture(ID3D11Device* device, int width, int height)
 	: width_(width), height_(height), texture_(nullptr)
 {
     // D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE are chosen to update pixels in ChannelTexture::updatePixels().
@@ -13,7 +13,7 @@ ChannelTexture::ChannelTexture(ID3D11Device* device, int width, int height)
     desc.Height = height;
     desc.MipLevels = 1;
     desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8_UNORM;
+    desc.Format = DXGI_FORMAT_R8G8_UNORM;
     desc.SampleDesc.Count = 1;
     desc.SampleDesc.Quality = 0;
     desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -29,13 +29,13 @@ ChannelTexture::ChannelTexture(ID3D11Device* device, int width, int height)
     }
 }
 
-ChannelTexture::~ChannelTexture()
+TwoChannelTexture::~TwoChannelTexture()
 {
 	if (texture_)
 		texture_->Release();
 }
 
-ID3D11ShaderResourceView* ChannelTexture::getTextureView(ID3D11Device* device)
+ID3D11ShaderResourceView* TwoChannelTexture::getTextureView(ID3D11Device* device)
 {
 	ID3D11ShaderResourceView* texture_view;
 	device->CreateShaderResourceView(texture_, 0, &texture_view);
@@ -44,9 +44,11 @@ ID3D11ShaderResourceView* ChannelTexture::getTextureView(ID3D11Device* device)
 
 // Update the pixels of the texture with a FFmpegFrame.
 // index is to tell which channel (Y, U, or V) is this texture for.
-void ChannelTexture::updatePixels(ID3D11DeviceContext* device_context,
-								  uint8_t* frame_data,
-								  int frame_linesize)
+void TwoChannelTexture::updatePixels(ID3D11DeviceContext* device_context,
+								     uint8_t* frame_data1,
+								     int frame_linesize1,
+									 uint8_t* frame_data2,
+									 int frame_linesize2)
 {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
@@ -54,8 +56,16 @@ void ChannelTexture::updatePixels(ID3D11DeviceContext* device_context,
 	int row_pitch = mapped.RowPitch;
 	uint8_t* texture_data = reinterpret_cast<uint8_t*>(mapped.pData);
 
-	for (int i = 0; i < height_; ++i)
-		memcpy(texture_data + i * row_pitch, frame_data + i * frame_linesize, width_);
+	for (int j = 0; j < height_; ++j) {
+		int texture_offset = j * row_pitch;
+		int frame_offset1 = j * frame_linesize1;
+		int frame_offset2 = j * frame_linesize2;
+		//memcpy(texture_data + texture_offset, frame_data1 + frame_offset1, width_);
+		for (int i = 0; i < width_; ++i) {
+			texture_data[texture_offset + i * 2] = frame_data1[frame_offset1 + i];
+			texture_data[texture_offset + i * 2 + 1] = frame_data2[frame_offset2 + i];
+;		}
+	}
 
 	device_context->Unmap(texture_, 0);
 }

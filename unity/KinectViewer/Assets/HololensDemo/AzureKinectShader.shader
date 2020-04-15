@@ -3,8 +3,7 @@
     Properties
     {
         _YTex("Y Texture", 2D) = "white" {}
-        _UTex("U Texture", 2D) = "white" {}
-        _VTex("V Texture", 2D) = "white" {}
+        _UvTex("UV Texture", 2D) = "white" {}
         _DepthTex("Depth Texture", 2D) = "white" {}
     }
     SubShader
@@ -39,8 +38,7 @@
             };
 
             Texture2D _YTex;
-            Texture2D _UTex;
-            Texture2D _VTex;
+            Texture2D _UvTex;
             SamplerState sampler_YTex;
             sampler2D _DepthTex;
 
@@ -70,8 +68,7 @@
                 //   with conversion: 43 ms
                 //   without conversion: 40 ms
                 fixed4 yuv = fixed4(_YTex.Sample(sampler_YTex, i.uv).r,
-                                    _UTex.Sample(sampler_YTex, i.uv).r,
-                                    _VTex.Sample(sampler_YTex, i.uv).r,
+                                    _UvTex.Sample(sampler_YTex, i.uv).rg,
                                     1.0);
 
                 return fixed4(dot(yuv, fixed4(1.164383,         0,  1.596027, -0.870787)),

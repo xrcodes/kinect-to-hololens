@@ -10,14 +10,12 @@ void texture_group_init(int texture_group_id, ID3D11Device* device)
 {
     TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
     texture_group->y_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width, texture_group->height);
-    texture_group->u_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
-    texture_group->v_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
+    texture_group->uv_texture = std::make_unique<kh::TwoChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
     texture_group->depth_texture = std::make_unique<kh::DepthTexture>(device, texture_group->width, texture_group->height);
 
     // Set the texture view variables, so Unity can create Unity textures that are connected to the textures through the texture views.
     texture_group->y_texture_view = texture_group->y_texture->getTextureView(device);
-    texture_group->u_texture_view = texture_group->u_texture->getTextureView(device);
-    texture_group->v_texture_view = texture_group->v_texture->getTextureView(device);
+    texture_group->uv_texture_view = texture_group->uv_texture->getTextureView(device);
     texture_group->depth_texture_view = texture_group->depth_texture->getTextureView(device);
 }
 
@@ -25,18 +23,14 @@ void texture_group_init(int texture_group_id, ID3D11Device* device)
 void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
     TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
-    texture_group->y_texture->updatePixels(device, device_context,
-                                           texture_group->width, texture_group->height,
+    texture_group->y_texture->updatePixels(device_context,
                                            texture_group->ffmpeg_frame.av_frame()->data[0],
                                            texture_group->ffmpeg_frame.av_frame()->linesize[0]);
-    texture_group->u_texture->updatePixels(device, device_context,
-                                           texture_group->width / 2, texture_group->height / 2,
-                                           texture_group->ffmpeg_frame.av_frame()->data[1],
-                                           texture_group->ffmpeg_frame.av_frame()->linesize[1]);
-    texture_group->v_texture->updatePixels(device, device_context,
-                                           texture_group->width / 2, texture_group->height / 2,
-                                           texture_group->ffmpeg_frame.av_frame()->data[2],
-                                           texture_group->ffmpeg_frame.av_frame()->linesize[2]);
+    texture_group->uv_texture->updatePixels(device_context,
+                                            texture_group->ffmpeg_frame.av_frame()->data[1],
+                                            texture_group->ffmpeg_frame.av_frame()->linesize[1],
+                                            texture_group->ffmpeg_frame.av_frame()->data[2],
+                                            texture_group->ffmpeg_frame.av_frame()->linesize[2]);
 
     texture_group->depth_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, reinterpret_cast<uint16_t*>(texture_group->depth_pixels.data()));
 }
@@ -66,14 +60,9 @@ extern "C"
         return texture_group->y_texture_view;
     }
 
-    UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API texture_group_get_u_texture_view(TextureGroup* texture_group)
+    UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API texture_group_get_uv_texture_view(TextureGroup* texture_group)
     {
-        return texture_group->u_texture_view;
-    }
-
-    UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API texture_group_get_v_texture_view(TextureGroup* texture_group)
-    {
-        return texture_group->v_texture_view;
+        return texture_group->uv_texture_view;
     }
 
     UNITY_INTERFACE_EXPORT ID3D11ShaderResourceView* UNITY_INTERFACE_API texture_group_get_depth_texture_view(TextureGroup* texture_group)

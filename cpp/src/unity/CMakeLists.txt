@@ -7,6 +7,8 @@ set(SOURCE_FILES
   texture_group.cpp
   channel_texture.h
   channel_texture.cpp
+  two_channel_texture.h
+  two_channel_texture.cpp
   depth_texture.h
   depth_texture.cpp
   interfaces/IUnityGraphics.h

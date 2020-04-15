@@ -6,19 +6,19 @@
 
 namespace kh
 {
-// A class for a single channel of Kinect color pixels.
-// Three (Y, U, and V) ChannelTextures are required to represent the color pixels.
-class ChannelTexture
+class TwoChannelTexture
 {
 public:
-	ChannelTexture(ID3D11Device* device, int width, int height);
-	~ChannelTexture();
+	TwoChannelTexture(ID3D11Device* device, int width, int height);
+	~TwoChannelTexture();
 	int width() { return width_; }
 	int height() { return height_; }
 	ID3D11ShaderResourceView* getTextureView(ID3D11Device* device);
 	void updatePixels(ID3D11DeviceContext* device_context,
-					  uint8_t* frame_data,
-					  int frame_linesize);
+					  uint8_t* frame_data1,
+					  int frame_linesize1,
+					  uint8_t* frame_data2,
+					  int frame_linesize2);
 
 private:
 	int width_;

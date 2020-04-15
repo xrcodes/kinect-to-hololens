@@ -60,24 +60,14 @@ public class TextureGroup
                                                Plugin.texture_group_get_y_texture_view(Ptr));
     }
 
-    public Texture2D GetUTexture()
+    public Texture2D GetUvTexture()
     {
         return Texture2D.CreateExternalTexture(GetWidth() / 2,
                                                GetHeight() / 2,
-                                               TextureFormat.R8,
+                                               TextureFormat.RG16,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_u_texture_view(Ptr));
-    }
-
-    public Texture2D GetVTexture()
-    {
-        return Texture2D.CreateExternalTexture(GetWidth() / 2,
-                                               GetHeight() / 2,
-                                               TextureFormat.R8,
-                                               false,
-                                               false,
-                                               Plugin.texture_group_get_v_texture_view(Ptr));
+                                               Plugin.texture_group_get_uv_texture_view(Ptr));
     }
 
     public Texture2D GetDepthTexture()
