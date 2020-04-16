@@ -40,7 +40,8 @@ PlayerSettings:
     width: 1
     height: 1
   m_SplashScreenLogos: []
-  m_VirtualRealitySplashScreen: {fileID: 0}
+  m_VirtualRealitySplashScreen: {fileID: 2800000, guid: 8d83226b5e213c7468043df7bb89a977,
+    type: 3}
   m_HolographicTrackingLossScreen: {fileID: 0}
   defaultScreenWidth: 1024
   defaultScreenHeight: 768
@@ -567,7 +568,13 @@ PlayerSettings:
   metroCertificateIssuer: Hanseul Jun
   metroCertificateNotAfter: 80a2e0fb5932d701
   metroApplicationDescription: Kinect Viewer
-  wsaImages: {}
+  wsaImages:
+    65736: 
+    2031640: 
+    2031816: Assets/Logo/kinect-viewer-logo-88.png
+    2097352: Assets/Logo/kinect-viewer-logo-142.png
+    2162888: Assets/Logo/kinect-viewer-logo-300.png
+    2228424: Assets/Logo/kinect-viewer-logo-620.png
   metroTileShortName: Kinect Viewer
   metroTileShowName: 0
   metroMediumTileShowName: 0

@@ -1,7 +1,6 @@
 #include <iostream>
 #include <random>
 #include <thread>
-#include <readerwriterqueue/readerwriterqueue.h>
 #include "native/kh_native.h"
 #include "helper/opencv_helper.h"
 #include "helper/soundio_helper.h"
