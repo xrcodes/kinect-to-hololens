@@ -6,7 +6,7 @@ using UnityEngine;
 public class ViewerManager : MonoBehaviour
 {
     private const int PORT = 3773;
-    private const float OFFSET_OFFSET_UNIT = 0.1f;
+    private const float OFFSET_UNIT = 0.1f;
 
     // The main camera's Transform.
     public Transform cameraTransform;
@@ -67,19 +67,19 @@ public class ViewerManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            azureKinectRoot.OffsetDistance -= OFFSET_OFFSET_UNIT;
+            azureKinectRoot.OffsetDistance -= OFFSET_UNIT;
         }
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            azureKinectRoot.OffsetDistance += OFFSET_OFFSET_UNIT;
+            azureKinectRoot.OffsetDistance += OFFSET_UNIT;
         }
         if (Input.GetKeyDown(KeyCode.DownArrow))
         {
-            azureKinectRoot.OffsetHeight -= OFFSET_OFFSET_UNIT;
+            azureKinectRoot.OffsetHeight -= OFFSET_UNIT;
         }
         if (Input.GetKeyDown(KeyCode.UpArrow))
         {
-            azureKinectRoot.OffsetHeight += OFFSET_OFFSET_UNIT;
+            azureKinectRoot.OffsetHeight += OFFSET_UNIT;
         }
 
         offsetText.gameObject.SetActive(!ConnectWindowVisibility && azureKinectRoot.DebugVisibility);
@@ -149,7 +149,7 @@ public class ViewerManager : MonoBehaviour
     {
         if(!ConnectWindowVisibility)
         {
-            print("No more than one ping at a time.");
+            print("Cannot try connecting to more than one remote machine.");
             yield break;
         }
 
@@ -177,7 +177,7 @@ public class ViewerManager : MonoBehaviour
         {
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId), endPoint);
             ++connectCount;
-            UnityEngine.Debug.Log("Sent connect packet");
+            print("Sent connect packet");
 
             yield return new WaitForSeconds(0.3f);
 
@@ -192,18 +192,20 @@ public class ViewerManager : MonoBehaviour
             }
             catch (UdpSocketException e)
             {
-                Debug.Log($"UdpSocketRuntimeError while connecting: {e}");
+                print($"UdpSocketRuntimeError while connecting: {e}");
             }
 
             if (connectCount == 10)
             {
-                UnityEngine.Debug.Log("Tried pinging 10 times and failed to received an init packet...\n");
+                print("Tried pinging 10 times and failed to received an init packet...\n");
                 ConnectWindowVisibility = true;
                 yield break;
             }
         }
 
-        azureKinectRoot.Screen.Setup(initPacketData);
+        print("Start Screen Setup");
+        yield return StartCoroutine(azureKinectRoot.Screen.SetupMesh(initPacketData));
+        print("Finish Screen Setup");
         azureKinectRoot.Speaker.Setup();
         kinectReceiver = new KinectReceiver(azureKinectRoot, udpSocket, sessionId, endPoint, initPacketData);
     }

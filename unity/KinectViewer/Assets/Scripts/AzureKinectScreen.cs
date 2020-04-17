@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using System.Diagnostics;
+using UnityEngine;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
@@ -15,22 +17,18 @@ public class AzureKinectScreen : MonoBehaviour
         }
     }
 
-    public void Setup(InitSenderPacketData initSenderPacketData)
-    {
-        meshFilter.mesh = CreateMesh(initSenderPacketData);
-    }
-
-    //private static Mesh CreateMesh(AzureKinectCalibration calibration)
-    private static Mesh CreateMesh(InitSenderPacketData initSenderPacketData)
+    // Since calculation including Unproject() takes too much time,
+    // this function is made to run as a coroutine that takes a break
+    // every 100 ms.
+    public IEnumerator SetupMesh(InitSenderPacketData initSenderPacketData)
     {
         int width = initSenderPacketData.depthWidth;
         int height = initSenderPacketData.depthHeight;
 
-        //var depthCamera = calibration.DepthCamera;
-
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
 
+        var stopWatch = Stopwatch.StartNew();
         for (int i = 0; i < width; ++i)
         {
             for (int j = 0; j < height; ++j)
@@ -48,6 +46,12 @@ public class AzureKinectScreen : MonoBehaviour
                     vertices[i + j * width] = new Vector3(0.0f, 0.0f, 0.0f);
                 }
                 uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
+            }
+
+            if(stopWatch.ElapsedMilliseconds > 100)
+            {
+                yield return null;
+                stopWatch = Stopwatch.StartNew();
             }
         }
 
@@ -106,6 +110,6 @@ public class AzureKinectScreen : MonoBehaviour
         };
         mesh.SetIndices(triangles, MeshTopology.Triangles, 0);
 
-        return mesh;
+        meshFilter.mesh = mesh;
     }
 }

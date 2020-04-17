@@ -61,7 +61,6 @@ public class KinectReceiver
                 if (receivedAnyStopWatch.Elapsed.TotalSeconds > HEARTBEAT_TIME_OUT_SEC)
                 {
                     UnityEngine.Debug.Log($"Timed out after waiting for {HEARTBEAT_TIME_OUT_SEC} seconds without a received packet.");
-                    //break;
                     return false;
                 }
             }
@@ -69,7 +68,6 @@ public class KinectReceiver
         catch (UdpSocketException e)
         {
             UnityEngine.Debug.Log($"UdpSocketRuntimeError: {e}");
-            //break;
             return false;
         }
 
