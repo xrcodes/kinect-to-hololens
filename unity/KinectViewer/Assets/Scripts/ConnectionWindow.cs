@@ -1,11 +1,18 @@
 ﻿using UnityEngine;
 
+public enum ConnectionTarget
+{
+    Controller, Kinect
+}
+
 public class ConnectionWindow : MonoBehaviour
 {
-    public TextMesh ipAddressText;
+    private static readonly Color BRIGHT_COLOR = new Color(0.0f, 1.0f, 0.254902f);
+    private static readonly Color DARK_COLOR = new Color(0.0f, 0.5f, 0.254902f * 0.5f);
     public TextMesh ipAddressInputField;
-    public TextMesh instructionText;
-    public TextMesh localIpAddressListText;
+    public TextMesh controllerText;
+    public TextMesh kinectText;
+    private ConnectionTarget connectionTarget;
 
     public string IpAddressInputText
     {
@@ -13,15 +20,22 @@ public class ConnectionWindow : MonoBehaviour
         set => ipAddressInputField.text = value;
     }
 
-    // Start is called before the first frame update
-    void Start()
+    public ConnectionTarget ConnectionTarget
     {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        get => connectionTarget;
+        set
+        {
+            if (value == ConnectionTarget.Controller)
+            {
+                controllerText.color = BRIGHT_COLOR;
+                kinectText.color = DARK_COLOR;
+            }
+            else
+            {
+                controllerText.color = DARK_COLOR;
+                kinectText.color = BRIGHT_COLOR;
+            }
+            connectionTarget = value;
+        }
     }
 }

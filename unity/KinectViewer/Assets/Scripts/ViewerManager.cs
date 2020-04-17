@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using UnityEngine;
 
 public class ViewerManager : MonoBehaviour
@@ -34,12 +33,26 @@ public class ViewerManager : MonoBehaviour
         Plugin.texture_group_reset();
 
         statusText.text = "Waiting for user input.";
+        connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
     }
 
     void Update()
     {
         // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
         AbsorbInput();
+
+        if (Input.GetKeyDown(KeyCode.Tab))
+        {
+            if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
+                connectionWindow.ConnectionTarget = ConnectionTarget.Kinect;
+            else
+                connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        {
+            StartCoroutine(Connect());
+        }
 
         // Gives the information of the camera position and floor level.
         if (Input.GetKeyDown(KeyCode.Space))
@@ -73,11 +86,6 @@ public class ViewerManager : MonoBehaviour
         if(offsetText.gameObject.activeSelf)
         {
             offsetText.text = $"Offset\n  - Distance: {azureKinectRoot.OffsetDistance}\n  - Height: {azureKinectRoot.OffsetHeight}";
-        }
-
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown("enter"))
-        {
-            StartCoroutine(Connect());
         }
 
         if (kinectReceiver == null)
@@ -171,13 +179,20 @@ public class ViewerManager : MonoBehaviour
             ++connectCount;
             UnityEngine.Debug.Log("Sent connect packet");
 
-            Thread.Sleep(300);
+            yield return new WaitForSeconds(0.3f);
 
-            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, null);
-            if (senderPacketSet.InitPacketDataList.Count > 0)
+            try
             {
-                initPacketData = senderPacketSet.InitPacketDataList[0];
-                break;
+                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, null);
+                if (senderPacketSet.InitPacketDataList.Count > 0)
+                {
+                    initPacketData = senderPacketSet.InitPacketDataList[0];
+                    break;
+                }
+            }
+            catch (UdpSocketException e)
+            {
+                Debug.Log($"UdpSocketRuntimeError while connecting: {e}");
             }
 
             if (connectCount == 10)
