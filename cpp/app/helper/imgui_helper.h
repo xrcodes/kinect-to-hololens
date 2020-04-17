@@ -13,7 +13,7 @@ void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-GLFWwindow* init_imgui()
+GLFWwindow* init_imgui(int width, int height, std::string title)
 {
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -25,7 +25,7 @@ GLFWwindow* init_imgui()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
     if (window == NULL)
         throw std::runtime_error("no window");
 
@@ -54,6 +54,29 @@ GLFWwindow* init_imgui()
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     return window;
+}
+
+void begin_imgui_frame()
+{
+    glfwPollEvents();
+
+    // Start the Dear ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}
+
+void end_imgui_frame(GLFWwindow* window, ImVec4 clear_color)
+{
+    ImGui::Render();
+    int display_w, display_h;
+    glfwGetFramebufferSize(window, &display_w, &display_h);
+    glViewport(0, 0, display_w, display_h);
+    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    glfwSwapBuffers(window);
 }
 
 void cleanup_imgui(GLFWwindow* window)

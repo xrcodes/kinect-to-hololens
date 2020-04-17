@@ -58,26 +58,26 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
     }
 }
 
-void print_receiver_report_summary(ReceiverReportSummary summary, TimeDuration duration)
+void log_receiver_report_summary(ExampleAppLog& log, ReceiverReportSummary summary, TimeDuration duration)
 {
-    std::cout << "Receiver Reported in " << summary.received_report_count / duration.sec() << " Hz\n"
-              << "  Decoder Time Average: " << summary.decoder_time_ms_sum / summary.received_report_count << " ms\n"
-              << "  Frame Interval Time Average: " << summary.frame_interval_ms_sum / summary.received_report_count << " ms\n";
+    log.AddLog("Receiver Reported in %f Hz\n", summary.received_report_count / duration.sec());
+    log.AddLog("  Decoder Time Average: %f ms\n", summary.decoder_time_ms_sum / summary.received_report_count);
+    log.AddLog("  Frame Interval Time Average: %f ms\n", summary.frame_interval_ms_sum / summary.received_report_count);
 }
 
-void print_kinect_video_sender_summary(KinectVideoSenderSummary summary, TimeDuration duration)
+void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummary summary, TimeDuration duration)
 {
-    std::cout << "KinectDeviceManager Summary:\n"
-              << "  Frame ID: " << summary.frame_id << "\n"
-              << "  FPS: " << summary.frame_count / duration.sec() << "\n"
-              << "  Color Bandwidth: " << summary.color_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f) << " Mbps\n"
-              << "  Depth Bandwidth: " << summary.depth_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f) << " Mbps\n"
-              << "  Keyframe Ratio: " << static_cast<float>(summary.keyframe_count) / summary.frame_count << " ms\n"
-              << "  Shadow Removal Time Average: " << summary.shadow_removal_ms_sum / summary.frame_count << " ms\n"
-              << "  Transformation Time Average: " << summary.transformation_ms_sum / summary.frame_count << " ms\n"
-              << "  Yuv Conversion Time Average: " << summary.yuv_conversion_ms_sum / summary.frame_count << " ms\n"
-              << "  Color Encoder Time Average: " << summary.color_encoder_ms_sum / summary.frame_count << " ms\n"
-              << "  Depth Encoder Time Average: " << summary.depth_encoder_ms_sum / summary.frame_count << " ms\n";
+    log.AddLog("KinectDeviceManager Summary:\n");
+    log.AddLog("  Frame ID: %d\n", summary.frame_id);
+    log.AddLog("  FPS: %f\n", summary.frame_count / duration.sec());
+    log.AddLog("  Color Bandwidth: %f Mbps\n", summary.color_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
+    log.AddLog("  Depth Bandwidth: %f Mbps\n", summary.depth_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
+    log.AddLog("  Keyframe Ratio: %f\n", static_cast<float>(summary.keyframe_count) / summary.frame_count);
+    log.AddLog("  Shadow Removal Time Average: %f\n", summary.shadow_removal_ms_sum / summary.frame_count);
+    log.AddLog("  Transformation Time Average: %f\n", summary.transformation_ms_sum / summary.frame_count);
+    log.AddLog("  Yuv Conversion Time Average: %f\n", summary.yuv_conversion_ms_sum / summary.frame_count);
+    log.AddLog("  Color Encoder Time Average: %f\n", summary.color_encoder_ms_sum / summary.frame_count);
+    log.AddLog("  Depth Encoder Time Average: %f\n", summary.depth_encoder_ms_sum / summary.frame_count);
 }
 
 void main()
@@ -110,11 +110,13 @@ void main()
     asio::ip::udp::resolver resolver(io_context);
     asio::ip::udp::resolver::query query(asio::ip::host_name(), "");
     auto resolver_results = resolver.resolve(query);
+    std::vector<std::string> local_addresses;
     std::cout << "local addresses:\n";
     for (auto it = resolver_results.begin(); it != resolver_results.end(); ++it) {
         if (it->endpoint().protocol() != asio::ip::udp::v4())
             continue;
         std::cout << "  - " << it->endpoint().address() << "\n";
+        local_addresses.push_back(it->endpoint().address().to_string());
     }
 
     // Initialize instances for loop below.
@@ -132,7 +134,7 @@ void main()
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    GLFWwindow* window = init_imgui();
+    GLFWwindow* window = init_imgui(1280, 720, "Kinect Sender");
 
     // Our state
     ExampleAppLog log;
@@ -143,13 +145,12 @@ void main()
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+        begin_imgui_frame();
 
-        glfwPollEvents();
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        ImGui::Begin("Local IP Addresses");
+        for (auto address : local_addresses)
+            ImGui::BulletText(address.c_str());
+        ImGui::End();
 
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
@@ -176,16 +177,7 @@ void main()
         // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
         log.Draw("Example: Log", &open);
 
-        // Rendering
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        glfwSwapBuffers(window);
+        end_imgui_frame(window, clear_color);
 
         try {
             std::vector<int> receiver_session_ids;
@@ -257,10 +249,10 @@ void main()
 
         const auto summary_duration{receiver_report_summary.time_point.elapsed_time()};
         if (summary_duration.sec() > SUMMARY_INTERVAL_SEC) {
-            print_receiver_report_summary(receiver_report_summary, summary_duration);
+            log_receiver_report_summary(log, receiver_report_summary, summary_duration);
             receiver_report_summary = ReceiverReportSummary{};
 
-            print_kinect_video_sender_summary(kinect_video_sender_summary, summary_duration);
+            log_kinect_video_sender_summary(log, kinect_video_sender_summary, summary_duration);
             kinect_video_sender_summary = KinectVideoSenderSummary{};
         }
     }
