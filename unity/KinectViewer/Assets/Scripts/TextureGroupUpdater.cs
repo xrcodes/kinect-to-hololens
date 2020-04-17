@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
@@ -50,7 +49,7 @@ public class TextureGroupUpdater
         this.endPoint = endPoint;
     }
 
-    public void UpdateFrame(ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
+    public void UpdateFrame(List<Tuple<int, VideoSenderMessageData>> videoMessageList)
     {
         // If texture is not created, create and assign them to quads.
         if (!prepared)
@@ -71,8 +70,7 @@ public class TextureGroupUpdater
         }
 
         {
-            Tuple<int, VideoSenderMessageData> frameMessagePair;
-            while (videoMessageQueue.TryDequeue(out frameMessagePair))
+            foreach (var frameMessagePair in videoMessageList)
             {
                 // C# Dictionary throws an error when you add an element with
                 // a key that is already taken.

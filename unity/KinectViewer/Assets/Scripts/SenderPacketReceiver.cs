@@ -1,13 +1,13 @@
-﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-class SenderPacketSet
+public class SenderPacketSet
 {
     public bool ReceivedAny { get; set; }
     public List<InitSenderPacketData> InitPacketDataList { get; private set; }
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
     public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
     public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
+    public List<FloorSenderPacketData> FloorPacketDataList { get; private set; }
 
     public SenderPacketSet()
     {
@@ -16,12 +16,13 @@ class SenderPacketSet
         VideoPacketDataList = new List<VideoSenderPacketData>();
         FecPacketDataList = new List<ParitySenderPacketData>();
         AudioPacketDataList = new List<AudioSenderPacketData>();
+        FloorPacketDataList = new List<FloorSenderPacketData>();
     }
 }
 
-class SenderPacketReceiver
+public static class SenderPacketReceiver
 {
-    public static SenderPacketSet Receive(UdpSocket udpSocket, ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
+    public static SenderPacketSet Receive(UdpSocket udpSocket)
     {
         var senderPacketSet = new SenderPacketSet();
         while (true)
@@ -47,9 +48,7 @@ class SenderPacketReceiver
                     senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet));
                     break;
                 case SenderPacketType.Floor:
-                    // TODO: Remove this if statement.
-                    if(floorPacketDataQueue != null)
-                        floorPacketDataQueue.Enqueue(FloorSenderPacketData.Parse(packet));
+                    senderPacketSet.FloorPacketDataList.Add(FloorSenderPacketData.Parse(packet));
                     break;
             }
         }

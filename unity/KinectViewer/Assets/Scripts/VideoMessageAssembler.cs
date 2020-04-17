@@ -24,7 +24,7 @@ public class VideoMessageAssembler
                          List<VideoSenderPacketData> videoPacketDataList,
                          List<ParitySenderPacketData> parityPacketDataList,
                          int lastVideoFrameId,
-                         ConcurrentQueue<Tuple<int, VideoSenderMessageData>> videoMessageQueue)
+                         List<Tuple<int, VideoSenderMessageData>> videoMessageList)
     {
         int? addedFrameId = null;
         // Collect the received video packets.
@@ -193,7 +193,7 @@ public class VideoMessageAssembler
             }
 
             var videoMessageData = VideoSenderMessageData.Parse(ms.ToArray());
-            videoMessageQueue.Enqueue(new Tuple<int, VideoSenderMessageData>(fullFrameId, videoMessageData));
+            videoMessageList.Add(new Tuple<int, VideoSenderMessageData>(fullFrameId, videoMessageData));
 
             videoPacketCollections.Remove(fullFrameId);
         }

@@ -217,7 +217,7 @@ public class ViewerManager : MonoBehaviour
 
             try
             {
-                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket, null);
+                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
                 if (senderPacketSet.InitPacketDataList.Count > 0)
                 {
                     initPacketData = senderPacketSet.InitPacketDataList[0];

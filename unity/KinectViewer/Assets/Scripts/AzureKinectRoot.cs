@@ -82,19 +82,12 @@ public class AzureKinectRoot : MonoBehaviour
         transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
     }
 
-    public void UpdateFrame(ConcurrentQueue<FloorSenderPacketData> floorPacketDataQueue)
+    public void UpdateFrame(List<FloorSenderPacketData> floorPacketDataList)
     {
-        var floorSenderPacketDataList = new List<FloorSenderPacketData>();
-        FloorSenderPacketData floorSenderPacketData;
-        while (floorPacketDataQueue.TryDequeue(out floorSenderPacketData))
-        {
-            floorSenderPacketDataList.Add(floorSenderPacketData);
-        }
-
-        if (floorSenderPacketDataList.Count == 0)
+        if (floorPacketDataList.Count == 0)
             return;
 
-        floorSenderPacketData = floorSenderPacketDataList[floorSenderPacketDataList.Count - 1];
+        FloorSenderPacketData floorSenderPacketData = floorPacketDataList[floorPacketDataList.Count - 1];
 
         //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
         // y component is fliped since the coordinate system of unity and azure kinect is different.
