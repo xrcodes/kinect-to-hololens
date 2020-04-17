@@ -34,8 +34,9 @@ public class TcpSocket
 
     public void BindAndListen(int port)
     {
+        int BACKLOG = 5;
         Socket.Bind(new IPEndPoint(IPAddress.Any, port));
-        Socket.Listen(10);
+        Socket.Listen(BACKLOG);
     }
 
     public TcpSocket Accept()

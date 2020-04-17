@@ -143,6 +143,57 @@ Transform:
   m_Father: {fileID: 1001718309}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &77780640
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 77780641}
+  - component: {fileID: 77780642}
+  m_Layer: 0
+  m_Name: ConnectionWindow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &77780641
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 77780640}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children:
+  - {fileID: 319397761}
+  - {fileID: 1880768202}
+  - {fileID: 1856880222}
+  - {fileID: 2072709337}
+  m_Father: {fileID: 305340168}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &77780642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 77780640}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebd0237efdb38f9439d0505edfaf1499, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ipAddressText: {fileID: 319397762}
+  ipAddressInputField: {fileID: 1880768203}
+  instructionText: {fileID: 1856880223}
+  localIpAddressListText: {fileID: 2072709338}
 --- !u!1 &174412966
 GameObject:
   m_ObjectHideFlags: 0
@@ -206,7 +257,7 @@ Transform:
   m_LocalScale: {x: 0.02, y: 0.02, z: 0.02}
   m_Children: []
   m_Father: {fileID: 305340168}
-  m_RootOrder: 5
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!102 &261543924
 TextMesh:
@@ -578,11 +629,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
+  - {fileID: 77780641}
   - {fileID: 1010966848}
-  - {fileID: 319397761}
-  - {fileID: 1880768202}
-  - {fileID: 1856880222}
-  - {fileID: 2072709337}
   - {fileID: 261543923}
   m_Father: {fileID: 0}
   m_RootOrder: 1
@@ -616,8 +664,8 @@ Transform:
   m_LocalPosition: {x: -0.621, y: 0.4, z: 3}
   m_LocalScale: {x: 0.02, y: 0.02, z: 0.02}
   m_Children: []
-  m_Father: {fileID: 305340168}
-  m_RootOrder: 1
+  m_Father: {fileID: 77780641}
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!102 &319397762
 TextMesh:
@@ -723,6 +771,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cameraTransform: {fileID: 305340168}
   statusText: {fileID: 1010966850}
+  connectionWindow: {fileID: 77780642}
   ipAddressText: {fileID: 319397762}
   ipAddressInputField: {fileID: 1880768203}
   instructionText: {fileID: 1856880223}
@@ -811,7 +860,7 @@ Transform:
   m_LocalScale: {x: 0.03, y: 0.03, z: 0.03}
   m_Children: []
   m_Father: {fileID: 305340168}
-  m_RootOrder: 0
+  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1010966849
 MonoBehaviour:
@@ -1007,8 +1056,8 @@ Transform:
   m_LocalPosition: {x: -0.636, y: 0.2, z: 3}
   m_LocalScale: {x: 0.02, y: 0.02, z: 0.02}
   m_Children: []
-  m_Father: {fileID: 305340168}
-  m_RootOrder: 3
+  m_Father: {fileID: 77780641}
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!102 &1856880223
 TextMesh:
@@ -1098,8 +1147,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0.4, z: 3}
   m_LocalScale: {x: 0.02, y: 0.02, z: 0.02}
   m_Children: []
-  m_Father: {fileID: 305340168}
-  m_RootOrder: 2
+  m_Father: {fileID: 77780641}
+  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!102 &1880768203
 TextMesh:
@@ -1282,8 +1331,8 @@ Transform:
   m_LocalPosition: {x: -0.636, y: 0, z: 3}
   m_LocalScale: {x: 0.02, y: 0.02, z: 0.02}
   m_Children: []
-  m_Father: {fileID: 305340168}
-  m_RootOrder: 4
+  m_Father: {fileID: 77780641}
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!102 &2072709338
 TextMesh:

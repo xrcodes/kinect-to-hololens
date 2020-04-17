@@ -14,10 +14,7 @@ public class ViewerManager : MonoBehaviour
     // The TextMesh placed above user's head.
     public TextMesh statusText;
     // TextMeshes for the UI.
-    public TextMesh ipAddressText;
-    public TextMesh ipAddressInputField;
-    public TextMesh instructionText;
-    public TextMesh localIpAddressListText;
+    public ConnectionWindow connectionWindow;
     public TextMesh offsetText;
 
     // The root of the scene that includes everything else except the main camera.
@@ -26,26 +23,15 @@ public class ViewerManager : MonoBehaviour
 
     private KinectReceiver kinectReceiver;
 
-    private bool ConnectUiVisibility
+    private bool ConnectWindowVisibility
     {
-        set
-        {
-            ipAddressText.gameObject.SetActive(value);
-            ipAddressInputField.gameObject.SetActive(value);
-            instructionText.gameObject.SetActive(value);
-            localIpAddressListText.gameObject.SetActive(value);
-        }
-        get
-        {
-            return ipAddressText.gameObject.activeSelf;
-        }
+        get => connectionWindow.gameObject.activeSelf;
+        set => connectionWindow.gameObject.SetActive(value);
     }
 
     void Awake()
     {
         Plugin.texture_group_reset();
-
-        ConnectUiVisibility = true;
 
         statusText.text = "Waiting for user input.";
     }
@@ -83,7 +69,7 @@ public class ViewerManager : MonoBehaviour
             azureKinectRoot.OffsetHeight += OFFSET_OFFSET_UNIT;
         }
 
-        offsetText.gameObject.SetActive(!ConnectUiVisibility && azureKinectRoot.DebugVisibility);
+        offsetText.gameObject.SetActive(!ConnectWindowVisibility && azureKinectRoot.DebugVisibility);
         if(offsetText.gameObject.activeSelf)
         {
             offsetText.text = $"Offset\n  - Distance: {azureKinectRoot.OffsetDistance}\n  - Height: {azureKinectRoot.OffsetHeight}";
@@ -100,7 +86,7 @@ public class ViewerManager : MonoBehaviour
         if (!kinectReceiver.UpdateFrame())
         {
             kinectReceiver = null;
-            ConnectUiVisibility = true;
+            ConnectWindowVisibility = true;
         }
     }
 
@@ -132,10 +118,10 @@ public class ViewerManager : MonoBehaviour
         AbsorbKeyCode(KeyCode.KeypadPeriod, '.');
         if (Input.GetKeyDown(KeyCode.Backspace))
         {
-            var text = ipAddressInputField.text;
-            if (ipAddressInputField.text.Length > 0)
+            var text = connectionWindow.IpAddressInputText;
+            if (connectionWindow.IpAddressInputText.Length > 0)
             {
-                ipAddressInputField.text = text.Substring(0, text.Length - 1);
+                connectionWindow.IpAddressInputText = text.Substring(0, text.Length - 1);
             }
         }
     }
@@ -145,7 +131,7 @@ public class ViewerManager : MonoBehaviour
     {
         if (Input.GetKeyDown(keyCode))
         {
-            ipAddressInputField.text += c;
+            connectionWindow.IpAddressInputText += c;
         }
     }
 
@@ -153,16 +139,16 @@ public class ViewerManager : MonoBehaviour
     // there should be only one chance to send a ping.
     private IEnumerator Connect()
     {
-        if(!ConnectUiVisibility)
+        if(!ConnectWindowVisibility)
         {
             print("No more than one ping at a time.");
             yield break;
         }
 
-        ConnectUiVisibility = false;
+        ConnectWindowVisibility = false;
 
         // The default IP address is 127.0.0.1.
-        string ipAddressText = ipAddressInputField.text;
+        string ipAddressText = connectionWindow.IpAddressInputText;
         if (ipAddressText.Length == 0)
             ipAddressText = "127.0.0.1";
 
@@ -197,7 +183,7 @@ public class ViewerManager : MonoBehaviour
             if (connectCount == 10)
             {
                 UnityEngine.Debug.Log("Tried pinging 10 times and failed to received an init packet...\n");
-                ConnectUiVisibility = true;
+                ConnectWindowVisibility = true;
                 yield break;
             }
         }
