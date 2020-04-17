@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
 
-public class KinectViewerManager : MonoBehaviour
+public class ViewerManager : MonoBehaviour
 {
     private const int PORT = 3773;
     private const float OFFSET_OFFSET_UNIT = 0.1f;
