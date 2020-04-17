@@ -32,7 +32,7 @@ public class UdpSocket
 
         if (error != SocketError.Success)
         {
-            throw new UdpSocketException($"Failed to receive bytes: { error }");
+            throw new UdpSocketException($"Failed to receive bytes: {error}");
         }
 
         if (packetSize != bytes.Length)

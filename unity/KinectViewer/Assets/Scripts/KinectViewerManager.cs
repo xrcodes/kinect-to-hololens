@@ -6,7 +6,7 @@ using UnityEngine;
 
 public class KinectViewerManager : MonoBehaviour
 {
-    private const int PORT = 47498;
+    private const int PORT = 3773;
     private const float OFFSET_OFFSET_UNIT = 0.1f;
 
     // The main camera's Transform.

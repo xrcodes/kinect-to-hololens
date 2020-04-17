@@ -109,7 +109,7 @@ void main()
     asio::ip::udp::resolver resolver(io_context);
     asio::ip::udp::resolver::query query(asio::ip::host_name(), "");
     auto resolver_results = resolver.resolve(query);
-    std::cout << "local endpoints:\n";
+    std::cout << "local addresses:\n";
     for (auto it = resolver_results.begin(); it != resolver_results.end(); ++it) {
         if (it->endpoint().protocol() != asio::ip::udp::v4())
             continue;
