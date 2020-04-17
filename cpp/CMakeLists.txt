@@ -47,11 +47,17 @@ else()
 	set(OPUS_BUILD_DIR ${OPUS_DIR}/x86)
 endif()
 
+find_package(imgui CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(gl3w CONFIG REQUIRED)
+
 set(AZURE_KINECT_SAMPLES_DIR ${PROJECT_SOURCE_DIR}/azure-kinect-samples)
+set(IMGUI_EXAMPLES_DIR ${PROJECT_SOURCE_DIR}/imgui-1.73-examples)
 
 # The directory for general source files.
 add_subdirectory(src)
 # The directory for files from Azure Kinect samples (i.e., floor detection).
 add_subdirectory(azure-kinect-samples)
+add_subdirectory(imgui-1.73-examples)
 # The directory for cpp files corresponding to exe files.
 add_subdirectory(app)

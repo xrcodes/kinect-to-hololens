@@ -93,3 +93,18 @@ target_link_libraries(KinectListener
 set_target_properties(KinectListener PROPERTIES
   CXX_STANDARD 17
 )
+
+add_executable(ImguiTest
+  imgui_test.cpp
+)
+target_include_directories(ImguiTest PRIVATE
+  ${IMGUI_EXAMPLES_DIR}
+)
+target_link_libraries(ImguiTest
+  KinectToHololensNative
+  ImguiExamples
+  imgui::imgui
+)
+set_target_properties(ImguiTest PROPERTIES
+  CXX_STANDARD 17
+)
