@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class ViewerManager : MonoBehaviour
 {
-    private const int PORT = 3773;
+    private const int SENDER_PORT = 3773;
     private const float OFFSET_UNIT = 0.1f;
 
     // The main camera's Transform.
@@ -15,11 +15,11 @@ public class ViewerManager : MonoBehaviour
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
     public TextMesh offsetText;
-
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
 
+    private ControllerClient controllerClient;
     private KinectReceiver kinectReceiver;
 
     private bool ConnectWindowVisibility
@@ -51,7 +51,10 @@ public class ViewerManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
         {
-            StartCoroutine(Connect());
+            if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
+                TryConnectToController();
+            else
+                StartCoroutine(TryConnectToKinect());
         }
 
         // Gives the information of the camera position and floor level.
@@ -143,9 +146,40 @@ public class ViewerManager : MonoBehaviour
         }
     }
 
+    private async void TryConnectToController()
+    {
+        if (controllerClient != null)
+        {
+            print("A controller is already connected.");
+            return;
+        }
+
+        if (!ConnectWindowVisibility)
+        {
+            print("Cannot try connecting to more than one remote machine.");
+            return;
+        }
+
+        ConnectWindowVisibility = false;
+
+        var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
+        if (await tcpSocket.ConnectAsync(IPAddress.Loopback, ControllerMessages.PORT))
+        {
+            print("connected");
+            controllerClient = new ControllerClient(tcpSocket);
+        }
+        else
+        {
+            print("not connected");
+        }
+
+
+        ConnectWindowVisibility = true;
+    }
+
     // To copy the c++ receiver, for easier development,
     // there should be only one chance to send a ping.
-    private IEnumerator Connect()
+    private IEnumerator TryConnectToKinect()
     {
         if(!ConnectWindowVisibility)
         {
@@ -169,7 +203,7 @@ public class ViewerManager : MonoBehaviour
 
         var ipAddress = IPAddress.Parse(ipAddressText);
         var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
-        var endPoint = new IPEndPoint(ipAddress, PORT);
+        var endPoint = new IPEndPoint(ipAddress, SENDER_PORT);
 
         InitSenderPacketData initPacketData;
         int connectCount = 0;

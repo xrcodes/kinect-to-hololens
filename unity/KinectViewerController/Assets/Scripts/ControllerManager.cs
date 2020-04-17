@@ -8,7 +8,7 @@ public class ControllerManager : MonoBehaviour
     void Start()
     {
         tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
-        tcpSocket.BindAndListen(1234);
+        tcpSocket.BindAndListen(ControllerMessages.PORT);
     }
 
     void Update()
