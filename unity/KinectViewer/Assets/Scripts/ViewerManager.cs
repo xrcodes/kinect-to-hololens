@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
@@ -91,13 +92,26 @@ public class ViewerManager : MonoBehaviour
             offsetText.text = $"Offset\n  - Distance: {azureKinectRoot.OffsetDistance}\n  - Height: {azureKinectRoot.OffsetHeight}";
         }
 
-        if (kinectReceiver == null)
-            return;
-
-        if (!kinectReceiver.UpdateFrame())
+        if (controllerClient != null)
         {
-            kinectReceiver = null;
-            ConnectWindowVisibility = true;
+            var receiverStates = new List<ReceiverState>();
+            if (kinectReceiver != null)
+            {
+                var receiverState = new ReceiverState(kinectReceiver.SessionId, kinectReceiver.EndPoint.ToString());
+                receiverStates.Add(receiverState);
+            }
+            var viewerState = new ViewerState(receiverStates);
+            var viewerStateJson = JsonUtility.ToJson(viewerState);
+            print($"viewerStateJson: {viewerStateJson}");
+        }
+
+        if (kinectReceiver != null)
+        {
+            if (!kinectReceiver.UpdateFrame())
+            {
+                kinectReceiver = null;
+                ConnectWindowVisibility = true;
+            }
         }
     }
 
@@ -241,6 +255,6 @@ public class ViewerManager : MonoBehaviour
         yield return StartCoroutine(azureKinectRoot.Screen.SetupMesh(initPacketData));
         print("Finish Screen Setup");
         azureKinectRoot.Speaker.Setup();
-        kinectReceiver = new KinectReceiver(azureKinectRoot, udpSocket, sessionId, endPoint, initPacketData);
+        kinectReceiver = new KinectReceiver(sessionId, endPoint, azureKinectRoot, udpSocket, initPacketData);
     }
 }
