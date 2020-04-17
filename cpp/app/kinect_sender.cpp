@@ -81,7 +81,7 @@ void print_kinect_video_sender_summary(KinectVideoSenderSummary summary, TimeDur
 
 void main()
 {
-    constexpr int PORT{47498};
+    constexpr int PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};

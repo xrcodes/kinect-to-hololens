@@ -33,21 +33,19 @@ While this may cause some performance loss, since Opus does not require that muc
 ## Floor Detection
 Microsoft provides floor detection code as a sample: https://github.com/microsoft/Azure-Kinect-Samples/tree/master/body-tracking-samples/floor_detector_sample. The files needed to use the functionality are copied inside cpp/azure-kinect-samples.
 
-# Examples
-## KinectReader.exe
-1. Connect an Azure Kinect to your computer.
-2. Run the exe file.
+# How to Use
+## From the Kinect-side
+1. Download kinect-sender-v0.3.
+2. Run KinectSender.exe.
+3. Allow traffic from both private and public networks.
 
-## KinectSender.exe and KinectReceiver.exe
-1. Connect an Azure Kinect to a server computer.
-2. Run KinectSender.exe and enter a port number (which is 7777 by default).
-3. Run KinectReceiver.exe on a client computer (it will still run even if this is the same one as the server computer) and the IP address and port of the server computer.
-
-## KinectSender.exe and the Unity app
-1. Connect an Azure Kinect to a server computer.
-2. Run KinectSender.exe and enter a port number (which is 7777 by default).
-3. Install the Unity app to a client Hololens (see https://www.microsoft.com/en-us/p/microsoft-hololens/9nblggh4qwnx) and run the app.
-4. Enter IP address and port of the server computer using Windows Device Portal of the client Hololens.
+## From the HoloLens-side
+1. Download kinect-viewer-v0.3.
+2. Install the app package to your HoloLens (see https://www.microsoft.com/en-us/p/microsoft-hololens/9nblggh4qwnx) and run the app Kinect Viewer.
+3. Connect to the HoloLens through the Windows Device Portal.
+4. Enter IP address to the KinectSender.exe and press enter through the portal.
+5. Place your HoloLens beneth your Kinect on the floor and press space through the portal.
+6. Use arrow keys to adjust the position of the scene and press d to remove assisting visuals for the setup.
 
 # To Cite
-Jun, H., Bailenson, J.N., Fuchs, H., & Wetzstein, G. (in press). An Easy-to-use Pipeline for an RGBD Camera and an AR Headset. *PRESENCE: Teleoperators and Virtual Environments*.
+Jun, H., Bailenson, J.N., Fuchs, H., & Wetzstein, G. (2020). An Easy-to-use Pipeline for an RGBD Camera and an AR Headset. *PRESENCE: Teleoperators and Virtual Environments*.

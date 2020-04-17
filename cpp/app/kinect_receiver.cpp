@@ -98,7 +98,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
 
 void main()
 {
-    constexpr int PORT{47498};
+    constexpr int PORT{3773};
 
     for (;;) {
         // Receive IP address from the user.
