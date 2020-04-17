@@ -4,21 +4,19 @@ using UnityEngine;
 
 public class TcpTest : MonoBehaviour
 {
-    private Socket socket;
+    private TcpSocket tcpSocket;
 
     // Start is called before the first frame update
     async void Start()
     {
-        socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        socket.Blocking = false;
-        try
+        tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
+        if(await tcpSocket.ConnectAsync(IPAddress.Loopback, 1234))
         {
-            await socket.ConnectAsync(IPAddress.Loopback, 1234);
             print("connected");
         }
-        catch (SocketException e)
+        else
         {
-            print($"e: {e.Message}");
+            print("not connected");
         }
     }
 

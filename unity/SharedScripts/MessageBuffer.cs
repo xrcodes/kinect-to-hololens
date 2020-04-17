@@ -22,20 +22,20 @@ public class MessageBuffer
     // Try receiving a message from the tcpSocket.
     // Return the message if when succeeded to receive a whole message.
     // Return null if not.
-    public byte[] Receive(TcpSocket tcpSocket)
+    public byte[] TryReceiveMessage(TcpSocket tcpSocket)
     {
         // Try receiving the size of the actual message.
         if (sizeCursor < sizeBytes.Length)
         {
             var sizeResult = tcpSocket.Receive(sizeBytes, sizeCursor, sizeBytes.Length - sizeCursor);
-            var sizeError = sizeResult.Item2;
+            var sizeError = sizeResult.Error;
             if (!(sizeError == SocketError.Success || sizeError == SocketError.WouldBlock))
             {
                 throw new Exception("Error receiving message size: " + sizeError);
             }
             else
             {
-                sizeCursor += sizeResult.Item1;
+                sizeCursor += sizeResult.Size;
             }
 
             if (sizeCursor == sizeBytes.Length)
@@ -51,14 +51,14 @@ public class MessageBuffer
 
         // Try receiving the bytes of the actual message.
         var messageResult = tcpSocket.Receive(messageBytes, messageCursor, messageBytes.Length - messageCursor);
-        var messageError = messageResult.Item2;
+        var messageError = messageResult.Error;
         if (!(messageError == SocketError.Success || messageError == SocketError.WouldBlock))
         {
             throw new Exception("Error receiving message: " + messageError);
         }
         else
         {
-            messageCursor += messageResult.Item1;
+            messageCursor += messageResult.Size;
         }
 
         // If message wasn't not received completety, try it again next time.
