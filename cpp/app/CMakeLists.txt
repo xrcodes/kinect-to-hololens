@@ -37,12 +37,15 @@ target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
   "${OPUS_DIR}/include"
   ${AZURE_KINECT_SAMPLES_DIR}
+  ${IMGUI_EXAMPLES_DIR}
 )
 target_link_libraries(KinectSender
   "${AZURE_KINECT_LIB}/k4a.lib"
   KinectToHololensNative
   ${Libvpx_LIB}
   AzureKinectSamples
+  ImguiExamples
+  imgui::imgui
 )
 set_target_properties(KinectSender PROPERTIES
   CXX_STANDARD 17
