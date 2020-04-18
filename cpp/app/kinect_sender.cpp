@@ -84,6 +84,9 @@ void main()
 {
     constexpr int PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
+    constexpr int IMGUI_WIDTH{1280};
+    constexpr int INGUI_HEIGHT{720};
+    constexpr const char* INGUI_TITLE{"Kinect Sender"};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
     constexpr float HEARTBEAT_TIME_OUT_SEC{10.0f};
@@ -134,48 +137,36 @@ void main()
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    GLFWwindow* window = init_imgui(1280, 720, "Kinect Sender");
+    GLFWwindow* window = init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE);
 
     // Our state
     ExampleAppLog log;
-    bool show_demo_window = true;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    bool open = true;
-    int counter = 0;
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         begin_imgui_frame();
 
         ImGui::Begin("Local IP Addresses");
-        for (auto address : local_addresses)
+        for (auto& address : local_addresses)
             ImGui::BulletText(address.c_str());
         ImGui::End();
 
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
+        ImGui::Begin("Remote Receivers");
+        for (auto& [_, remote_receiver] : remote_receivers)
+            ImGui::BulletText("Endpoint: %s:%d, Session ID: %d",
+                              remote_receiver.endpoint.address().to_string(),
+                              remote_receiver.endpoint.port(),
+                              remote_receiver.session_id);
+        ImGui::End();
 
         // For the demo: add a debug button _BEFORE_ the normal log window contents
         // We take advantage of a rarely used feature: multiple calls to Begin()/End() are appending to the _same_ window.
         // Most of the contents of the window will be added by the log.Draw() call.
         ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Example: Log", &open);
-        if (ImGui::SmallButton("[Debug] Add 5 entries"))
-        {
-            for (int n = 0; n < 5; n++)
-            {
-                const char* categories[3] = {"info", "warn", "error"};
-                const char* words[] = {"Bumfuzzled", "Cattywampus", "Snickersnee", "Abibliophobia", "Absquatulate", "Nincompoop", "Pauciloquent"};
-                log.AddLog("[%05d] [%s] Hello, current time is %.1f, here's a word: '%s'\n",
-                           ImGui::GetFrameCount(), categories[counter % IM_ARRAYSIZE(categories)], ImGui::GetTime(), words[counter % IM_ARRAYSIZE(words)]);
-                counter++;
-            }
-        }
-        ImGui::End();
 
         // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
-        log.Draw("Example: Log", &open);
+        log.Draw("Log");
 
         end_imgui_frame(window, clear_color);
 
