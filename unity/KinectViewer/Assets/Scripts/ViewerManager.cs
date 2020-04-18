@@ -15,6 +15,7 @@ public class ViewerManager : MonoBehaviour
     public TextMesh statusText;
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
+    public TextToaster textToaster;
     public TextMesh offsetText;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
@@ -164,13 +165,13 @@ public class ViewerManager : MonoBehaviour
     {
         if (controllerClient != null)
         {
-            print("A controller is already connected.");
+            textToaster.Toast("A controller is already connected.");
             return;
         }
 
         if (!ConnectWindowVisibility)
         {
-            print("Cannot try connecting to more than one remote machine.");
+            textToaster.Toast("Cannot try connecting to more than one remote machine.");
             return;
         }
 
@@ -179,12 +180,12 @@ public class ViewerManager : MonoBehaviour
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
         if (await tcpSocket.ConnectAsync(IPAddress.Loopback, ControllerMessages.PORT))
         {
-            print("connected");
+            textToaster.Toast("connected");
             controllerClient = new ControllerClient(tcpSocket);
         }
         else
         {
-            print("not connected");
+            textToaster.Toast("not connected");
         }
 
 
@@ -197,7 +198,7 @@ public class ViewerManager : MonoBehaviour
     {
         if(!ConnectWindowVisibility)
         {
-            print("Cannot try connecting to more than one remote machine.");
+            textToaster.Toast("Cannot try connecting to more than one remote machine.");
             yield break;
         }
 
@@ -209,7 +210,7 @@ public class ViewerManager : MonoBehaviour
             ipAddressText = "127.0.0.1";
 
         string logString = $"Try connecting to {ipAddressText}...";
-        print(logString);
+        textToaster.Toast(logString);
         statusText.text = logString;
 
         var random = new System.Random();
@@ -245,15 +246,14 @@ public class ViewerManager : MonoBehaviour
 
             if (connectCount == 10)
             {
-                print("Tried pinging 10 times and failed to received an init packet...\n");
+                textToaster.Toast("Tried connected 10 times but failed to receive an init packet...\n");
                 ConnectWindowVisibility = true;
                 yield break;
             }
         }
 
-        print("Start Screen Setup");
+        textToaster.Toast("Start creating screen");
         yield return StartCoroutine(azureKinectRoot.Screen.SetupMesh(initPacketData));
-        print("Finish Screen Setup");
         azureKinectRoot.Speaker.Setup();
         kinectReceiver = new KinectReceiver(sessionId, endPoint, azureKinectRoot, udpSocket, initPacketData);
     }

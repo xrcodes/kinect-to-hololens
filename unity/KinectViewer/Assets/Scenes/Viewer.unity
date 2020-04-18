@@ -724,9 +724,55 @@ Transform:
   - {fileID: 77780641}
   - {fileID: 1010966848}
   - {fileID: 261543923}
+  - {fileID: 312926913}
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &312926912
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 312926913}
+  - component: {fileID: 312926914}
+  m_Layer: 0
+  m_Name: TextToaster
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &312926913
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 312926912}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 2.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 305340168}
+  m_RootOrder: 3
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &312926914
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 312926912}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87a7bf07318f1e7418e63264c508c98c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  toastText: {fileID: 3165057308582246449, guid: 2416c29961553014093ee8ad5364b08e,
+    type: 3}
 --- !u!1 &319397760
 GameObject:
   m_ObjectHideFlags: 0
@@ -864,6 +910,7 @@ MonoBehaviour:
   cameraTransform: {fileID: 305340168}
   statusText: {fileID: 1010966850}
   connectionWindow: {fileID: 77780642}
+  textToaster: {fileID: 312926914}
   offsetText: {fileID: 261543924}
   azureKinectRoot: {fileID: 1001718310}
 --- !u!1 &995608558
