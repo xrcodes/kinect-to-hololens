@@ -9,7 +9,7 @@ public class KinectReceiver
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
 
     public readonly int SessionId;
-    public readonly IPEndPoint EndPoint;
+    public readonly IPEndPoint SenderEndPoint;
     private AzureKinectRoot azureKinectRoot;
     private UdpSocket udpSocket;
     private VideoMessageAssembler videoMessageAssembler;
@@ -18,15 +18,15 @@ public class KinectReceiver
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int sessionId, IPEndPoint endPoint, AzureKinectRoot azureKinectRoot, UdpSocket udpSocket, InitSenderPacketData initPacketData)
+    public KinectReceiver(int sessionId, IPEndPoint senderEndPoint, AzureKinectRoot azureKinectRoot, UdpSocket udpSocket, InitSenderPacketData initPacketData)
     {
         SessionId = sessionId;
-        EndPoint = endPoint;
+        SenderEndPoint = senderEndPoint;
         this.azureKinectRoot = azureKinectRoot;
         this.udpSocket = udpSocket;
-        videoMessageAssembler = new VideoMessageAssembler(sessionId, endPoint);
+        videoMessageAssembler = new VideoMessageAssembler(sessionId, senderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
-        textureGroupUpdater = new TextureGroupUpdater(azureKinectRoot.Screen.Material, initPacketData, udpSocket, sessionId, endPoint);
+        textureGroupUpdater = new TextureGroupUpdater(azureKinectRoot.Screen.Material, initPacketData, udpSocket, sessionId, senderEndPoint);
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
@@ -39,7 +39,7 @@ public class KinectReceiver
         {
             if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
             {
-                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(SessionId), EndPoint);
+                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(SessionId), SenderEndPoint);
                 heartbeatStopWatch = Stopwatch.StartNew();
             }
 

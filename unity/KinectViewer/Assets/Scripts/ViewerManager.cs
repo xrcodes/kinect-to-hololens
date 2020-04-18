@@ -98,12 +98,14 @@ public class ViewerManager : MonoBehaviour
             var receiverStates = new List<ReceiverState>();
             if (kinectReceiver != null)
             {
-                var receiverState = new ReceiverState(kinectReceiver.SessionId, kinectReceiver.EndPoint.ToString());
+                var receiverState = new ReceiverState(kinectReceiver.SenderEndPoint.Address.ToString(),
+                                                      kinectReceiver.SenderEndPoint.Port,
+                                                      kinectReceiver.SessionId);
                 receiverStates.Add(receiverState);
             }
-            var viewerState = new ViewerState(receiverStates);
+            var viewerState = new ViewerState(controllerClient.UserId, receiverStates);
             var viewerStateJson = JsonUtility.ToJson(viewerState);
-            print($"viewerStateJson: {viewerStateJson}");
+            print($"controllerClient.UserId: {controllerClient.UserId}, viewerStateJson: {viewerStateJson}");
         }
 
         if (kinectReceiver != null)
@@ -177,11 +179,14 @@ public class ViewerManager : MonoBehaviour
 
         ConnectWindowVisibility = false;
 
+        var random = new System.Random();
+        int userId = random.Next();
+
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
         if (await tcpSocket.ConnectAsync(IPAddress.Loopback, ControllerMessages.PORT))
         {
             textToaster.Toast("connected");
-            controllerClient = new ControllerClient(tcpSocket);
+            controllerClient = new ControllerClient(userId, tcpSocket);
         }
         else
         {
