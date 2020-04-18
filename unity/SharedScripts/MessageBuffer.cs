@@ -22,7 +22,7 @@ public class MessageBuffer
     // Try receiving a message from the tcpSocket.
     // Return the message if when succeeded to receive a whole message.
     // Return null if not.
-    public byte[] TryReceiveMessage(TcpSocket tcpSocket)
+    public bool TryReceiveMessage(TcpSocket tcpSocket, out byte[] message)
     {
         // Try receiving the size of the actual message.
         if (sizeCursor < sizeBytes.Length)
@@ -45,7 +45,8 @@ public class MessageBuffer
             }
             else
             {
-                return null;
+                message = null;
+                return false;
             }
         }
 
@@ -63,10 +64,14 @@ public class MessageBuffer
 
         // If message wasn't not received completety, try it again next time.
         if (messageCursor < messageBytes.Length)
-            return null;
+        {
+            message = null;
+            return false;
+        }
 
         sizeCursor = 0;
         messageCursor = 0;
-        return messageBytes;
+        message = messageBytes;
+        return true;
     }
 }

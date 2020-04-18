@@ -78,4 +78,15 @@ public class TcpSocket
         int size = Socket.Receive(buffer, offset, length, SocketFlags.None, out socketError);
         return new TcpSocketReceiveResult(size, socketError);
     }
+
+    public int Send(byte[] buffer)
+    {
+        SocketError socketError;
+        int size = Socket.Send(buffer, 0, buffer.Length, SocketFlags.None, out socketError);
+
+        if (socketError != SocketError.Success)
+            throw new TcpSocketException($"Error from TcpSocket.Send(): {socketError}");
+
+        return size;
+    }
 }

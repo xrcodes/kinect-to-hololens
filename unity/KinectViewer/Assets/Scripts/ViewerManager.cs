@@ -103,9 +103,7 @@ public class ViewerManager : MonoBehaviour
                                                       kinectReceiver.SessionId);
                 receiverStates.Add(receiverState);
             }
-            var viewerState = new ViewerState(controllerClient.UserId, receiverStates);
-            var viewerStateJson = JsonUtility.ToJson(viewerState);
-            print($"controllerClient.UserId: {controllerClient.UserId}, viewerStateJson: {viewerStateJson}");
+            controllerClient.SendViewerState(receiverStates);
         }
 
         if (kinectReceiver != null)
