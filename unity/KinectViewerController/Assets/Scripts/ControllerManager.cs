@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class ControllerManager : MonoBehaviour
 {
     public Text viewerStateText;
+    public InputField kinectAddressInputField;
     private TcpSocket tcpSocket;
     private MessageBuffer messageBuffer;
     private TcpSocket remoteSocket;
@@ -41,7 +42,7 @@ public class ControllerManager : MonoBehaviour
                 var viewerStateJson = Encoding.ASCII.GetString(message);
                 var viewerState = JsonUtility.FromJson<ViewerState>(viewerStateJson);
 
-                print($"this.remoteSocket.Socket.RemoteEndPoint: {this.remoteSocket.Socket.RemoteEndPoint}");
+                //print($"this.remoteSocket.Socket.RemoteEndPoint: {this.remoteSocket.Socket.RemoteEndPoint}");
 
                 viewerStateText.text = $"end point: {this.remoteSocket.Socket.RemoteEndPoint}\nuser ID: {viewerState.userId}";
             }
@@ -51,5 +52,10 @@ public class ControllerManager : MonoBehaviour
     void OnApplicationQuit()
     {
         tcpSocket = null;
+    }
+
+    public void OnConnect()
+    {
+        print($"kinectAddressInputField: {kinectAddressInputField.text}");
     }
 }
