@@ -103,7 +103,15 @@ public class ViewerManager : MonoBehaviour
                                                       kinectReceiver.SessionId);
                 receiverStates.Add(receiverState);
             }
-            controllerClient.SendViewerState(receiverStates);
+            try
+            {
+                controllerClient.SendViewerState(receiverStates);
+            }
+            catch (TcpSocketException e)
+            {
+                print($"TcpSocketException while connecting: {e}");
+                controllerClient = null;
+            }
         }
 
         if (kinectReceiver != null)
@@ -244,7 +252,7 @@ public class ViewerManager : MonoBehaviour
             }
             catch (UdpSocketException e)
             {
-                print($"UdpSocketRuntimeError while connecting: {e}");
+                print($"UdpSocketException while connecting: {e}");
             }
 
             if (connectCount == 10)

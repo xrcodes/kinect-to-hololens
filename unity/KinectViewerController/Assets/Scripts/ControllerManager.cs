@@ -1,10 +1,11 @@
-﻿using System.IO;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ControllerManager : MonoBehaviour
 {
+    public Text viewerStateText;
     private TcpSocket tcpSocket;
     private MessageBuffer messageBuffer;
     private TcpSocket remoteSocket;
@@ -40,7 +41,9 @@ public class ControllerManager : MonoBehaviour
                 var viewerStateJson = Encoding.ASCII.GetString(message);
                 var viewerState = JsonUtility.FromJson<ViewerState>(viewerStateJson);
 
-                print($"viewerStateJson: {viewerStateJson}");
+                print($"this.remoteSocket.Socket.RemoteEndPoint: {this.remoteSocket.Socket.RemoteEndPoint}");
+
+                viewerStateText.text = $"end point: {this.remoteSocket.Socket.RemoteEndPoint}\nuser ID: {viewerState.userId}";
             }
         }
     }
