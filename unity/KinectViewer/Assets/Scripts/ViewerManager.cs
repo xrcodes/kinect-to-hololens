@@ -235,7 +235,7 @@ public class ViewerManager : MonoBehaviour
         int connectCount = 0;
         while (true)
         {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId), endPoint);
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId, true, true, true), endPoint);
             ++connectCount;
             print("Sent connect packet");
 
