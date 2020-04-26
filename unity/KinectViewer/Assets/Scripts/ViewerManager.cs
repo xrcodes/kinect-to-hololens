@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
-using UnityEngine.XR;
-using UnityEngine.XR.ARSubsystems;
 
 public class ViewerManager : MonoBehaviour
 {
@@ -23,7 +21,9 @@ public class ViewerManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
 
-    private XRMeshSubsystem xrMeshSubsystem;
+    public MeshCollider testCube;
+    private FloorDetector floorDetector;
+
     private ControllerClient controllerClient;
     private KinectReceiver kinectReceiver;
 
@@ -37,17 +37,7 @@ public class ViewerManager : MonoBehaviour
     {
         Plugin.texture_group_reset();
 
-        var descriptors = new List<XRMeshSubsystemDescriptor>();
-        SubsystemManager.GetSubsystemDescriptors(descriptors);
-
-        print($"descriptors.Count: {descriptors.Count}");
-        // Find one that supports boundary vertices
-        foreach (var descriptor in descriptors)
-        {
-            print($"descriptor.id: {descriptor.id}");
-            // TODO: use this subsystem to find floor
-            XRMeshSubsystem xrMeshSubSystem = descriptor.Create();
-        }
+        floorDetector = new FloorDetector(testCube);
 
         statusText.text = "Waiting for user input.";
         connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
