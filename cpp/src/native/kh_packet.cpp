@@ -311,17 +311,37 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
     return copy_from_bytes<ReceiverPacketType>(packet_bytes, 4);
 }
 
-std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id)
+std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
+                                                            bool video_requested,
+                                                            bool audio_requested,
+                                                            bool floor_requested)
 {
-    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                sizeof(ReceiverPacketType))};
+    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
+                                                    sizeof(ReceiverPacketType) +
+                                                    sizeof(video_requested) +
+                                                    sizeof(audio_requested) +
+                                                    sizeof(floor_requested))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
     copy_to_bytes(ReceiverPacketType::Connect, packet_bytes, cursor);
+    copy_to_bytes(video_requested, packet_bytes, cursor);
+    copy_to_bytes(audio_requested, packet_bytes, cursor);
+    copy_to_bytes(floor_requested, packet_bytes, cursor);
 
     return packet_bytes;
+}
+
+ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
+{
+    ConnectReceiverPacketData connect_receiver_packet_data;
+    PacketCursor cursor{5};
+    copy_from_bytes(connect_receiver_packet_data.video_requested, packet_bytes, cursor);
+    copy_from_bytes(connect_receiver_packet_data.audio_requested, packet_bytes, cursor);
+    copy_from_bytes(connect_receiver_packet_data.floor_reqeusted, packet_bytes, cursor);
+
+    return connect_receiver_packet_data;
 }
 
 std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id)

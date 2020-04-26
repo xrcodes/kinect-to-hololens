@@ -8,6 +8,7 @@ struct ConnectPacketInfo
 {
     asio::ip::udp::endpoint endpoint;
     int session_id;
+    ConnectReceiverPacketData connect_packet_data;
 };
 
 struct ReceiverPacketSet
@@ -38,7 +39,9 @@ public:
             ReceiverPacketType packet_type{get_packet_type_from_receiver_packet_bytes(packet->bytes)};
 
             if(packet_type == ReceiverPacketType::Connect) {
-                receiver_packet_collection.connect_packet_infos.push_back({packet->endpoint, receiver_session_id});
+                receiver_packet_collection.connect_packet_infos.push_back({packet->endpoint,
+                                                                           receiver_session_id,
+                                                                           parse_connect_receiver_packet_bytes(packet->bytes)});
                 continue;
             }
 

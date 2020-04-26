@@ -158,7 +158,18 @@ std::vector<std::byte> create_floor_sender_packet_bytes(int session_id, float a,
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id);
+struct ConnectReceiverPacketData
+{
+    bool video_requested;
+    bool audio_requested;
+    bool floor_reqeusted;
+};
+
+std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
+                                                            bool video_requested,
+                                                            bool audio_requested,
+                                                            bool floor_requested);
+ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id);
 
