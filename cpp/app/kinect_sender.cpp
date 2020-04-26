@@ -137,7 +137,7 @@ void main()
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    GLFWwindow* window = init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE);
+    GLFWwindow* window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
 
     // Our state
     ExampleAppLog log;
@@ -158,10 +158,13 @@ void main()
         ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.5f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Remote Receivers");
         for (auto& [_, remote_receiver] : remote_receivers)
-            ImGui::BulletText("Endpoint: %s:%d, Session ID: %d",
+            ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nFloor: %s",
                               remote_receiver.endpoint.address().to_string(),
                               remote_receiver.endpoint.port(),
-                              remote_receiver.session_id);
+                              remote_receiver.session_id,
+                              remote_receiver.video_requested ? "Requested" : "Not Requested",
+                              remote_receiver.audio_requested ? "Requested" : "Not Requested",
+                              remote_receiver.floor_requested ? "Requested" : "Not Requested");
         ImGui::End();
 
         // For the demo: add a debug button _BEFORE_ the normal log window contents
@@ -189,8 +192,15 @@ void main()
                 if (remote_receivers.find(connect_packet_info.session_id) != remote_receivers.end())
                     continue;
 
+                std::cout << "connect_packet_info.connect_packet_data.video_requested: " << connect_packet_info.connect_packet_data.video_requested << "\n";
+
                 std::cout << "Receiver " << connect_packet_info.session_id << " connected.\n";
-                remote_receivers.insert({connect_packet_info.session_id, RemoteReceiver{connect_packet_info.endpoint, connect_packet_info.session_id}});
+                remote_receivers.insert({connect_packet_info.session_id,
+                                         RemoteReceiver{connect_packet_info.endpoint,
+                                                        connect_packet_info.session_id,
+                                                        connect_packet_info.connect_packet_data.video_requested,
+                                                        connect_packet_info.connect_packet_data.audio_requested,
+                                                        connect_packet_info.connect_packet_data.floor_requested}});
             }
 
             // Skip the main part of the loop if there is no receiver connected.

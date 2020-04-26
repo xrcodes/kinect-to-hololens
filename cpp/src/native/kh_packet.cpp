@@ -339,7 +339,7 @@ ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const st
     PacketCursor cursor{5};
     copy_from_bytes(connect_receiver_packet_data.video_requested, packet_bytes, cursor);
     copy_from_bytes(connect_receiver_packet_data.audio_requested, packet_bytes, cursor);
-    copy_from_bytes(connect_receiver_packet_data.floor_reqeusted, packet_bytes, cursor);
+    copy_from_bytes(connect_receiver_packet_data.floor_requested, packet_bytes, cursor);
 
     return connect_receiver_packet_data;
 }

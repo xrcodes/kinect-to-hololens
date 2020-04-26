@@ -162,7 +162,7 @@ struct ConnectReceiverPacketData
 {
     bool video_requested;
     bool audio_requested;
-    bool floor_reqeusted;
+    bool floor_requested;
 };
 
 std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
