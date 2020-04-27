@@ -12,7 +12,6 @@ target_link_libraries(ImguiExamples
   glfw
   unofficial::gl3w::gl3w
   d3d11.lib
-  d3dcompiler.lib
 )
 set_target_properties(ImguiExamples PROPERTIES
   CXX_STANDARD 17
