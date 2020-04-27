@@ -21,9 +21,6 @@ public class ViewerManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public AzureKinectRoot azureKinectRoot;
 
-    public MeshCollider testCube;
-    private FloorDetector floorDetector;
-
     private ControllerClient controllerClient;
     private KinectReceiver kinectReceiver;
 
@@ -33,11 +30,9 @@ public class ViewerManager : MonoBehaviour
         set => connectionWindow.gameObject.SetActive(value);
     }
 
-    void Awake()
+    void Start()
     {
         Plugin.texture_group_reset();
-
-        floorDetector = new FloorDetector(testCube);
 
         statusText.text = "Waiting for user input.";
         connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
