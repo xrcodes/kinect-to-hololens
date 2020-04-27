@@ -94,7 +94,7 @@ public class InitSenderPacketData
 {
     public int depthWidth;
     public int depthHeight;
-    public AzureKinectCalibration.Intrinsics depthIntrinsics;
+    public KinectCalibration.Intrinsics depthIntrinsics;
     public float depthMetricRadius;
 
     public static InitSenderPacketData Parse(byte[] packetBytes)
@@ -106,7 +106,7 @@ public class InitSenderPacketData
         initSenderPacketData.depthWidth = reader.ReadInt32();
         initSenderPacketData.depthHeight = reader.ReadInt32();
 
-        var depthIntrinsics = new AzureKinectCalibration.Intrinsics();
+        var depthIntrinsics = new KinectCalibration.Intrinsics();
         depthIntrinsics.cx = reader.ReadSingle();
         depthIntrinsics.cy = reader.ReadSingle();
         depthIntrinsics.fx = reader.ReadSingle();

@@ -7,7 +7,7 @@ public class AudioPacketReceiver
 
     public AudioPacketReceiver()
     {
-        audioDecoder = new AudioDecoder(AzureKinectSpeaker.KH_SAMPLE_RATE, AzureKinectSpeaker.KH_CHANNEL_COUNT);
+        audioDecoder = new AudioDecoder(KinectSpeaker.KH_SAMPLE_RATE, KinectSpeaker.KH_CHANNEL_COUNT);
         lastAudioFrameId = -1;
     }
 
@@ -15,7 +15,7 @@ public class AudioPacketReceiver
     {
         audioPacketDataList.Sort((x, y) => x.frameId.CompareTo(y.frameId));
 
-        float[] pcm = new float[AzureKinectSpeaker.KH_SAMPLES_PER_FRAME * AzureKinectSpeaker.KH_CHANNEL_COUNT];
+        float[] pcm = new float[KinectSpeaker.KH_SAMPLES_PER_FRAME * KinectSpeaker.KH_CHANNEL_COUNT];
         int index = 0;
         while (ringBuffer.FreeSamples >= pcm.Length)
         {
@@ -26,7 +26,7 @@ public class AudioPacketReceiver
             if (audioPacketData.frameId <= lastAudioFrameId)
                 continue;
 
-            audioDecoder.Decode(audioPacketData.opusFrame, pcm, AzureKinectSpeaker.KH_SAMPLES_PER_FRAME);
+            audioDecoder.Decode(audioPacketData.opusFrame, pcm, KinectSpeaker.KH_SAMPLES_PER_FRAME);
             ringBuffer.Write(pcm);
             lastAudioFrameId = audioPacketData.frameId;
         }

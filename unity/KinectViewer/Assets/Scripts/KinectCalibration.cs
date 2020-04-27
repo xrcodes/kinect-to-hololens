@@ -1,4 +1,4 @@
-﻿public class AzureKinectCalibration
+﻿public class KinectCalibration
 {
     public class Intrinsics
     {

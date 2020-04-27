@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class AzureKinectRoot : MonoBehaviour
+public class KinectOrigin : MonoBehaviour
 {
     public Transform floorTransformInverterTransform;
     public Transform offsetTransform;
-    public AzureKinectScreen azureKinectScreen;
-    public AzureKinectSpeaker azureKinectSpeaker;
+    public KinectScreen azureKinectScreen;
+    public KinectSpeaker azureKinectSpeaker;
     public Transform floorTransform;
     public GameObject arrow;
     private float offsetDistance = 0.0f;
@@ -15,7 +15,7 @@ public class AzureKinectRoot : MonoBehaviour
     private List<float> inversePositionYList = new List<float>();
     private List<Vector3> inversePlaneNormalList = new List<Vector3>();
 
-    public AzureKinectScreen Screen
+    public KinectScreen Screen
     {
         get
         {
@@ -23,7 +23,7 @@ public class AzureKinectRoot : MonoBehaviour
         }
     }
 
-    public AzureKinectSpeaker Speaker
+    public KinectSpeaker Speaker
     {
         get
         {

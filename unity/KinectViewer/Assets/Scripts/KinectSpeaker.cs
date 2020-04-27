@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public class AzureKinectSpeaker : MonoBehaviour
+public class KinectSpeaker : MonoBehaviour
 {
     public const int KH_SAMPLE_RATE = 48000;
     public const int KH_CHANNEL_COUNT = 2;

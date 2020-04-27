@@ -19,7 +19,7 @@ public class ViewerManager : MonoBehaviour
     public TextMesh offsetText;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
-    public AzureKinectRoot azureKinectRoot;
+    public KinectOrigin azureKinectRoot;
 
     private ControllerClient controllerClient;
     private KinectReceiver kinectReceiver;

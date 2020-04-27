@@ -10,7 +10,7 @@ public class KinectReceiver
 
     public readonly int SessionId;
     public readonly IPEndPoint SenderEndPoint;
-    private AzureKinectRoot azureKinectRoot;
+    private KinectOrigin azureKinectRoot;
     private UdpSocket udpSocket;
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;
@@ -18,7 +18,7 @@ public class KinectReceiver
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int sessionId, IPEndPoint senderEndPoint, AzureKinectRoot azureKinectRoot, UdpSocket udpSocket, InitSenderPacketData initPacketData)
+    public KinectReceiver(int sessionId, IPEndPoint senderEndPoint, KinectOrigin azureKinectRoot, UdpSocket udpSocket, InitSenderPacketData initPacketData)
     {
         SessionId = sessionId;
         SenderEndPoint = senderEndPoint;

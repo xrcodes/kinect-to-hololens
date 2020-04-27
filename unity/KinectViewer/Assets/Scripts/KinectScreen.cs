@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-public class AzureKinectScreen : MonoBehaviour
+public class KinectScreen : MonoBehaviour
 {
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
@@ -35,7 +35,7 @@ public class AzureKinectScreen : MonoBehaviour
             {
                 float[] xy = new float[2];
                 int valid = 0;
-                if (AzureKinectIntrinsicTransformation.Unproject(initSenderPacketData.depthIntrinsics,
+                if (KinectIntrinsicTransformation.Unproject(initSenderPacketData.depthIntrinsics,
                                                                  initSenderPacketData.depthMetricRadius,
                                                                  new float[2] { i, j }, ref xy, ref valid))
                 {

@@ -1,10 +1,10 @@
 ﻿// A class that is a ported version of src/transformation/intrinsic_transformation.c in Azure Kinect Sensor SDK.
-public static class AzureKinectIntrinsicTransformation
+public static class KinectIntrinsicTransformation
 {
     // Equivalent to transformation_project_internal().
     // Size of uv and xy should be 2.
     // Size of J should be 4.
-    public static bool Project(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
+    public static bool Project(in KinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
     {
         float cx = intrinsics.cx;
         float cy = intrinsics.cy;
@@ -110,7 +110,7 @@ public static class AzureKinectIntrinsicTransformation
 
     // Equivalent to transformation_iterative_unproject().
     // Size of uv and xy should be 2.
-    public static bool InterativeUnproject(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid, int maxPasses)
+    public static bool InterativeUnproject(in KinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid, int maxPasses)
     {
         valid = 1;
         float[] Jinv = new float[4];
@@ -167,7 +167,7 @@ public static class AzureKinectIntrinsicTransformation
 
     // Equivalent to transformation_unproject_internal(). 
     // Size of uv and xy should be 2.
-    public static bool Unproject(in AzureKinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid)
+    public static bool Unproject(in KinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid)
     {
         float cx = intrinsics.cx;
         float cy = intrinsics.cy;
