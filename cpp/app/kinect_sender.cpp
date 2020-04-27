@@ -5,8 +5,7 @@
 #include "sender/kinect_audio_sender.h"
 #include "sender/kinect_video_sender.h"
 #include "sender/receiver_packet_receiver.h"
-//#include "helper/imgui_helper.h"
-#include "helper/imgui_helper2.h"
+#include "helper/imgui_helper.h"
 
 namespace kh
 {

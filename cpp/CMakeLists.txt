@@ -48,8 +48,6 @@ else()
 endif()
 
 find_package(imgui CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-find_package(gl3w CONFIG REQUIRED)
 
 set(AZURE_KINECT_SAMPLES_DIR ${PROJECT_SOURCE_DIR}/azure-kinect-samples)
 set(IMGUI_EXAMPLES_DIR ${PROJECT_SOURCE_DIR}/imgui-1.73-examples)
