@@ -227,12 +227,12 @@ void main()
 
                 // Send video/audio packets to the receivers.
                 kinect_video_sender.send(session_start_time, udp_socket, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
-                kinect_audio_sender.send(udp_socket, remote_endpoints);
+                kinect_audio_sender.send(udp_socket, remote_receivers);
 
                 // Send heartbeat packets to receivers.
                 if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
-                    for (auto& remote_endpoint : remote_endpoints)
-                        udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_endpoint);
+                    for (auto& [_, remote_receiver] : remote_receivers)
+                        udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_receiver.endpoint);
                     heartbeat_time = TimePoint::now();
                 }
 

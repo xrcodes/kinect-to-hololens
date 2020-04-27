@@ -33,7 +33,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     int ping_count{0};
 
     for (;;) {
-        udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true, true), remote_endpoint);
+        udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true, false), remote_endpoint);
         ++ping_count;
         std::cout << "Sent connect packet to " << ip_address << ".\n";
 

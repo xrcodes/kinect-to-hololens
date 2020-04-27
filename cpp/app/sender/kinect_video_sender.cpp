@@ -84,6 +84,43 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
         return;
     }
 
+    // Calculate floor from depth frame only when needed.
+    bool floor_required_by_any = false;
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.floor_requested) {
+            floor_required_by_any = true;
+            break;
+        }
+    }
+
+    if (floor_required_by_any) {
+        // Try sending the floor plane from the Kinect frame.
+        auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
+        if (floor_plane) {
+            const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id_,
+                                                                           floor_plane->Normal.X,
+                                                                           floor_plane->Normal.Y,
+                                                                           floor_plane->Normal.Z,
+                                                                           floor_plane->C)};
+            for (auto& [_, remote_receiver] : remote_receivers) {
+                if(remote_receiver.floor_requested)
+                    udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
+            }
+        }
+    }
+
+    bool video_required_by_any = false;
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_requested) {
+            video_required_by_any = true;
+            break;
+        }
+    }
+
+    // Skip video compression if video is not required by any.
+    if (!video_required_by_any)
+        return;
+
     constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
     const auto frame_time_point{TimePoint::now()};
     const auto frame_time_diff{frame_time_point - last_frame_time_};
@@ -95,18 +132,6 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     // and the sender is too much ahead of the receivers.
     if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
         return;
-
-    // Try sending the floor plane from the Kinect frame.
-    auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
-    if (floor_plane) {
-        const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id_,
-                                                                       floor_plane->Normal.X,
-                                                                       floor_plane->Normal.Y,
-                                                                       floor_plane->Normal.Z,
-                                                                       floor_plane->C)};
-        for (auto& [_, remote_receiver] : remote_receivers)
-            udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
-    }
 
     ++last_frame_id_;
     last_frame_time_ = frame_time_point;
@@ -161,9 +186,13 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
         packet_bytes_ptrs.push_back(&parity_packet_bytes);
 
     std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator_);
-    for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
-        for (auto& [_, remote_receiver] : remote_receivers)
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (!remote_receiver.video_requested)
+            continue;
+
+        for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
             udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
+        }
     }
 
     // Save video/parity packet bytes for retransmission. 

@@ -32,6 +32,7 @@ add_executable(KinectSender
   sender/kinect_video_sender.cpp
   sender/receiver_packet_receiver.h
   sender/video_sender_utils.h
+  sender/remote_receiver.h
   helper/imgui_helper.h
 )
 target_include_directories(KinectSender PRIVATE
@@ -95,21 +96,5 @@ target_link_libraries(KinectListener
   KinectToHololensNative
 )
 set_target_properties(KinectListener PROPERTIES
-  CXX_STANDARD 17
-)
-
-add_executable(ImguiTest
-  imgui_win32_dx11.cpp
-  helper/imgui_helper.h
-)
-target_include_directories(ImguiTest PRIVATE
-  ${IMGUI_EXAMPLES_DIR}
-)
-target_link_libraries(ImguiTest
-  KinectToHololensNative
-  ImguiExamples
-  imgui::imgui
-)
-set_target_properties(ImguiTest PROPERTIES
   CXX_STANDARD 17
 )
