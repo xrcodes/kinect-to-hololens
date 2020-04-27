@@ -5,7 +5,8 @@
 #include "sender/kinect_audio_sender.h"
 #include "sender/kinect_video_sender.h"
 #include "sender/receiver_packet_receiver.h"
-#include "helper/imgui_helper.h"
+//#include "helper/imgui_helper.h"
+#include "helper/imgui_helper2.h"
 
 namespace kh
 {
@@ -137,14 +138,30 @@ void main()
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    GLFWwindow* window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
+    //GLFWwindow* window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
+    Win32Window window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
 
     // Our state
     ExampleAppLog log;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     // Main loop
-    while (!glfwWindowShouldClose(window)) {
+    MSG msg;
+    ZeroMemory(&msg, sizeof(msg));
+    while (msg.message != WM_QUIT) {
+
+        // Poll and handle messages (inputs, window resize, etc.)
+        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
+        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
+        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+        if (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+            continue;
+        }
+
         begin_imgui_frame();
 
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
@@ -176,7 +193,7 @@ void main()
         // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
         log.Draw("Log");
 
-        end_imgui_frame(window, clear_color);
+        end_imgui_frame(clear_color);
 
         try {
             std::vector<int> receiver_session_ids;

@@ -176,8 +176,6 @@ void cleanup_imgui(Win32Window window)
     ImGui::DestroyContext();
 
     CleanupDeviceD3D();
-    //::DestroyWindow(hwnd);
-    //::UnregisterClass(wc.lpszClassName, wc.hInstance);
     ::DestroyWindow(window.hwnd);
     ::UnregisterClass(window.wc.lpszClassName, window.wc.hInstance);
 }
@@ -185,53 +183,7 @@ void cleanup_imgui(Win32Window window)
 // Main code
 int main(int, char**)
 {
-    //// Create application window
-    //WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ImGui Example"), NULL };
-    //::RegisterClassEx(&wc);
-    //HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("Dear ImGui DirectX11 Example"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
-
-    //// Initialize Direct3D
-    //if (!CreateDeviceD3D(hwnd))
-    //{
-    //    CleanupDeviceD3D();
-    //    ::UnregisterClass(wc.lpszClassName, wc.hInstance);
-    //    return 1;
-    //}
-
-    //// Show the window
-    //::ShowWindow(hwnd, SW_SHOWDEFAULT);
-    //::UpdateWindow(hwnd);
-
-    //// Setup Dear ImGui context
-    //IMGUI_CHECKVERSION();
-    //ImGui::CreateContext();
-    //ImGuiIO& io = ImGui::GetIO(); (void)io;
-    ////io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    ////io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-    //// Setup Dear ImGui style
-    //ImGui::StyleColorsDark();
-    ////ImGui::StyleColorsClassic();
-
-    //// Setup Platform/Renderer bindings
-    //ImGui_ImplWin32_Init(hwnd);
-    //ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
     Win32Window window{init_imgui(1280, 800, "Dear ImGui DirectX11 Example")};
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'docs/FONTS.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
 
     // Our state
     bool show_demo_window = true;
@@ -254,11 +206,7 @@ int main(int, char**)
             ::DispatchMessage(&msg);
             continue;
         }
-
-        // Start the Dear ImGui frame
-        //ImGui_ImplDX11_NewFrame();
-        //ImGui_ImplWin32_NewFrame();
-        //ImGui::NewFrame();
+        
         begin_imgui_frame();
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
@@ -298,27 +246,9 @@ int main(int, char**)
             ImGui::End();
         }
 
-        //// Rendering
-        //ImGui::Render();
-        //g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
-        //g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, (float*)&clear_color);
-        //ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-        //g_pSwapChain->Present(1, 0); // Present with vsync
-        ////g_pSwapChain->Present(0, 0); // Present without vsync
         end_imgui_frame(clear_color);
     }
-
-    //// Cleanup
-    //ImGui_ImplDX11_Shutdown();
-    //ImGui_ImplWin32_Shutdown();
-    //ImGui::DestroyContext();
-
-    //CleanupDeviceD3D();
-    ////::DestroyWindow(hwnd);
-    ////::UnregisterClass(wc.lpszClassName, wc.hInstance);
-    //::DestroyWindow(window.hwnd);
-    //::UnregisterClass(window.wc.lpszClassName, window.wc.hInstance);
+    
     cleanup_imgui(window);
 
     return 0;

@@ -33,6 +33,7 @@ add_executable(KinectSender
   sender/receiver_packet_receiver.h
   sender/video_sender_utils.h
   helper/imgui_helper.h
+  helper/imgui_helper2.h
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
