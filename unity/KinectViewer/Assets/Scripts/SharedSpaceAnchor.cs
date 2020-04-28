@@ -13,7 +13,7 @@ public class SharedSpaceAnchor : MonoBehaviour
         set
         {
             if(kinectOrigin)
-                kinectOrigin.DebugVisibility = value;
+                kinectOrigin.FloorVisibility = value;
             kinectModel.SetActive(value);
         }
         get
@@ -26,7 +26,7 @@ public class SharedSpaceAnchor : MonoBehaviour
     {
         kinectOrigin = Instantiate(kinectOriginPrefab, transform);
         kinectOrigin.transform.localRotation = Quaternion.Euler(0.0f, 180.0f, 0.0f);
-        kinectOrigin.DebugVisibility = DebugVisibility;
+        kinectOrigin.FloorVisibility = DebugVisibility;
 
         return kinectOrigin;
     }

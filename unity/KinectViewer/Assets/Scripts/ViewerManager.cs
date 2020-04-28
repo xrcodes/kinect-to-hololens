@@ -16,7 +16,6 @@ public class ViewerManager : MonoBehaviour
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
     public TextToaster textToaster;
-    public TextMesh offsetText;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceAnchor sharedSpaceAnchor;
@@ -29,8 +28,14 @@ public class ViewerManager : MonoBehaviour
 
     private bool ConnectWindowVisibility
     {
-        get => connectionWindow.gameObject.activeSelf;
-        set => connectionWindow.gameObject.SetActive(value);
+        set
+        {
+            connectionWindow.gameObject.SetActive(value);
+        }
+        get
+        {
+            return connectionWindow.gameObject.activeSelf;
+        }
     }
 
     void Start()
@@ -73,36 +78,6 @@ public class ViewerManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.D))
         {
             sharedSpaceAnchor.DebugVisibility = !sharedSpaceAnchor.DebugVisibility;
-        }
-        
-        if (sharedSpaceAnchor.KinectOrigin == null)
-        {
-            offsetText.gameObject.SetActive(false);
-        }
-        else
-        {
-            if (Input.GetKeyDown(KeyCode.LeftArrow))
-            {
-                sharedSpaceAnchor.KinectOrigin.OffsetDistance -= OFFSET_UNIT;
-            }
-            if (Input.GetKeyDown(KeyCode.RightArrow))
-            {
-                sharedSpaceAnchor.KinectOrigin.OffsetDistance += OFFSET_UNIT;
-            }
-            if (Input.GetKeyDown(KeyCode.DownArrow))
-            {
-                sharedSpaceAnchor.KinectOrigin.OffsetHeight -= OFFSET_UNIT;
-            }
-            if (Input.GetKeyDown(KeyCode.UpArrow))
-            {
-                sharedSpaceAnchor.KinectOrigin.OffsetHeight += OFFSET_UNIT;
-            }
-
-            offsetText.gameObject.SetActive(!ConnectWindowVisibility && sharedSpaceAnchor.DebugVisibility);
-            if (offsetText.gameObject.activeSelf)
-            {
-                offsetText.text = $"Offset\n  - Distance: {sharedSpaceAnchor.KinectOrigin.OffsetDistance}\n  - Height: {sharedSpaceAnchor.KinectOrigin.OffsetHeight}";
-            }
         }
 
         if (controllerClient != null)

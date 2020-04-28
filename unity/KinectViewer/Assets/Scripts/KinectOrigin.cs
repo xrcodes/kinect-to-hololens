@@ -4,19 +4,16 @@ using UnityEngine;
 public class KinectOrigin : MonoBehaviour
 {
     public Transform gimbalTransform;
-    public Transform offsetTransform;
     public KinectScreen screen;
     public KinectSpeaker speaker;
     public Transform floorTransform;
-    private float offsetDistance = 0.0f;
-    private float offsetHeight = 0.0f;
     private Queue<Vector3> inversePlaneNormalQueue = new Queue<Vector3>();
     private Queue<float> inversePlaneHeightQueue = new Queue<float>();
 
     public KinectScreen Screen => screen;
     public KinectSpeaker Speaker => speaker;
 
-    public bool DebugVisibility
+    public bool FloorVisibility
     {
         set
         {
@@ -25,34 +22,6 @@ public class KinectOrigin : MonoBehaviour
         get
         {
             return floorTransform.gameObject.activeSelf;
-        }
-    }
-
-    public float OffsetDistance
-    {
-        set
-        {
-            var position = offsetTransform.localPosition;
-            offsetTransform.localPosition = new Vector3(0.0f, position.y, value);
-            offsetDistance = value;
-        }
-        get
-        {
-            return offsetDistance;
-        }
-    }
-
-    public float OffsetHeight
-    {
-        set
-        {
-            var position = offsetTransform.localPosition;
-            offsetTransform.localPosition = new Vector3(0.0f, value, position.z);
-            offsetHeight = value;
-        }
-        get
-        {
-            return offsetHeight;
         }
     }
 
