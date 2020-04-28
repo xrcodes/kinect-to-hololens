@@ -74,8 +74,12 @@ public class ViewerManager : MonoBehaviour
         {
             sharedSpaceAnchor.DebugVisibility = !sharedSpaceAnchor.DebugVisibility;
         }
-
-        if (sharedSpaceAnchor.KinectOrigin != null)
+        
+        if (sharedSpaceAnchor.KinectOrigin == null)
+        {
+            offsetText.gameObject.SetActive(false);
+        }
+        else
         {
             if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
