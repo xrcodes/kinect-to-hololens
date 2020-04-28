@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: AzureKinectScreen
-  m_Shader: {fileID: 4800000, guid: 48fc2a51e1386c641bad367ea7a078c4, type: 3}
+  m_Name: FloorGrid
+  m_Shader: {fileID: 10750, guid: 0000000000000000f000000000000000, type: 0}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -20,10 +20,6 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BumpMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _DepthTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -44,7 +40,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: b7c64cca758a40445870c7739eccaa2f, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -59,73 +55,23 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _SpecGlossMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _UTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _UvTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _VTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _YTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     m_Floats:
     - _BumpScale: 1
-    - _Codx: 0
-    - _Cody: 0
     - _Cutoff: 0.5
-    - _Cx: 636.88434
-    - _Cy: 367.99728
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _Fx: 609.3218
-    - _Fy: 609.28687
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _Height: 720
-    - _K1: 0.60851824
-    - _K2: -2.8204377
-    - _K3: 1.6188337
-    - _K4: 0.48822206
-    - _K5: -2.6471646
-    - _K6: 1.5471088
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _P1: 0.001237936
-    - _P2: -0.00021194342
     - _Parallax: 0.02
-    - _R0: 0.9999965
-    - _R1: -0.0026435037
-    - _R2: -0.00017815737
-    - _R3: 0.0026479806
-    - _R4: 0.99488384
-    - _R5: 0.10099096
-    - _R6: -0.0000897241
-    - _R7: -0.10099108
-    - _R8: 0.99488735
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _T0: -0.031998742
-    - _T1: -0.0020799236
-    - _T2: 0.003983766
     - _UVSec: 0
-    - _Width: 1280
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _VertexOffsetXVector: {r: 1, g: 0, b: 0, a: 0}
-    - _VertexOffsetYVector: {r: -0, g: -1, b: -0, a: 0}

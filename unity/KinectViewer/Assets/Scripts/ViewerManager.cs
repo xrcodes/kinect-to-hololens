@@ -19,7 +19,8 @@ public class ViewerManager : MonoBehaviour
     public TextMesh offsetText;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
-    public KinectOrigin azureKinectRoot;
+    public Transform sharedSpaceAnchor;
+    public KinectOrigin kinectOrigin;
 
     private UdpSocket udpSocket;
 
@@ -66,35 +67,43 @@ public class ViewerManager : MonoBehaviour
         // Gives the information of the camera position and floor level.
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            azureKinectRoot.SetRootTransform(cameraTransform.position, cameraTransform.rotation);
+            sharedSpaceAnchor.transform.localPosition = cameraTransform.position;
+
+            // Using (0,0,-1) instead of (0,0,1) to let the hololens to avoid facing walls.
+            Vector3 azureKinectForward = cameraTransform.rotation * new Vector3(0.0f, 0.0f, -1.0f);
+            float yaw = Mathf.Atan2(azureKinectForward.x, azureKinectForward.z) * Mathf.Rad2Deg;
+            sharedSpaceAnchor.transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
         }
 
-        if (Input.GetKeyDown(KeyCode.D))
+        if (kinectOrigin != null)
         {
-            azureKinectRoot.DebugVisibility = !azureKinectRoot.DebugVisibility;
-        }
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+                kinectOrigin.DebugVisibility = !kinectOrigin.DebugVisibility;
+            }
 
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
-        {
-            azureKinectRoot.OffsetDistance -= OFFSET_UNIT;
-        }
-        if (Input.GetKeyDown(KeyCode.RightArrow))
-        {
-            azureKinectRoot.OffsetDistance += OFFSET_UNIT;
-        }
-        if (Input.GetKeyDown(KeyCode.DownArrow))
-        {
-            azureKinectRoot.OffsetHeight -= OFFSET_UNIT;
-        }
-        if (Input.GetKeyDown(KeyCode.UpArrow))
-        {
-            azureKinectRoot.OffsetHeight += OFFSET_UNIT;
-        }
+            if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                kinectOrigin.OffsetDistance -= OFFSET_UNIT;
+            }
+            if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                kinectOrigin.OffsetDistance += OFFSET_UNIT;
+            }
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                kinectOrigin.OffsetHeight -= OFFSET_UNIT;
+            }
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                kinectOrigin.OffsetHeight += OFFSET_UNIT;
+            }
 
-        offsetText.gameObject.SetActive(!ConnectWindowVisibility && azureKinectRoot.DebugVisibility);
-        if(offsetText.gameObject.activeSelf)
-        {
-            offsetText.text = $"Offset\n  - Distance: {azureKinectRoot.OffsetDistance}\n  - Height: {azureKinectRoot.OffsetHeight}";
+            offsetText.gameObject.SetActive(!ConnectWindowVisibility && kinectOrigin.DebugVisibility);
+            if (offsetText.gameObject.activeSelf)
+            {
+                offsetText.text = $"Offset\n  - Distance: {kinectOrigin.OffsetDistance}\n  - Height: {kinectOrigin.OffsetHeight}";
+            }
         }
 
         if (controllerClient != null)
@@ -104,7 +113,7 @@ public class ViewerManager : MonoBehaviour
             {
                 var receiverState = new ReceiverState(kinectReceiver.SenderEndPoint.Address.ToString(),
                                                       kinectReceiver.SenderEndPoint.Port,
-                                                      kinectReceiver.SessionId);
+                                                      kinectReceiver.ReceiverSessionId);
                 receiverStates.Add(receiverState);
             }
             try
@@ -230,7 +239,7 @@ public class ViewerManager : MonoBehaviour
         statusText.text = logString;
 
         var random = new System.Random();
-        int sessionId = random.Next();
+        int receiverSessionId = random.Next();
 
         var ipAddress = IPAddress.Parse(ipAddressText);
         var endPoint = new IPEndPoint(ipAddress, SENDER_PORT);
@@ -239,7 +248,7 @@ public class ViewerManager : MonoBehaviour
         int connectCount = 0;
         while (true)
         {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(sessionId, true, true, true), endPoint);
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
             ++connectCount;
             print("Sent connect packet");
 
@@ -268,8 +277,8 @@ public class ViewerManager : MonoBehaviour
         }
 
         textToaster.Toast("Start creating screen");
-        yield return StartCoroutine(azureKinectRoot.Screen.SetupMesh(initPacketData));
-        azureKinectRoot.Speaker.Setup();
-        kinectReceiver = new KinectReceiver(sessionId, endPoint, azureKinectRoot, initPacketData);
+        yield return StartCoroutine(kinectOrigin.Screen.SetupMesh(initPacketData));
+        kinectOrigin.Speaker.Setup();
+        kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, kinectOrigin, initPacketData);
     }
 }

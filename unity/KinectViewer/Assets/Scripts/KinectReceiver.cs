@@ -8,8 +8,8 @@ public class KinectReceiver
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
 
-    public readonly int SessionId;
-    public readonly IPEndPoint SenderEndPoint;
+    private int receiverSessionId;
+    private IPEndPoint senderEndPoint;
     private KinectOrigin kinectOrigin;
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;
@@ -17,14 +17,17 @@ public class KinectReceiver
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int sessionId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin, InitSenderPacketData initPacketData)
+    public int ReceiverSessionId => receiverSessionId;
+    public IPEndPoint SenderEndPoint => senderEndPoint;
+
+    public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin, InitSenderPacketData initPacketData)
     {
-        SessionId = sessionId;
-        SenderEndPoint = senderEndPoint;
+        this.receiverSessionId = receiverSessionId;
+        this.senderEndPoint = senderEndPoint;
         this.kinectOrigin = kinectOrigin;
-        videoMessageAssembler = new VideoMessageAssembler(sessionId, senderEndPoint);
+        videoMessageAssembler = new VideoMessageAssembler(receiverSessionId, senderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
-        textureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, initPacketData, sessionId, senderEndPoint);
+        textureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, initPacketData, receiverSessionId, senderEndPoint);
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
@@ -36,7 +39,7 @@ public class KinectReceiver
         {
             if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
             {
-                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(SessionId), SenderEndPoint);
+                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(receiverSessionId), senderEndPoint);
                 heartbeatStopWatch = Stopwatch.StartNew();
             }
 

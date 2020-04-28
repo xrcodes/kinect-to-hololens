@@ -3,10 +3,10 @@ using UnityEngine;
 
 public class KinectOrigin : MonoBehaviour
 {
-    public Transform floorTransformInverterTransform;
+    public Transform gimbalTransform;
     public Transform offsetTransform;
-    public KinectScreen azureKinectScreen;
-    public KinectSpeaker azureKinectSpeaker;
+    public KinectScreen screen;
+    public KinectSpeaker speaker;
     public Transform floorTransform;
     public GameObject arrow;
     private float offsetDistance = 0.0f;
@@ -14,21 +14,8 @@ public class KinectOrigin : MonoBehaviour
     private Queue<Vector3> inversePlaneNormalQueue = new Queue<Vector3>();
     private Queue<float> inversePlaneHeightQueue = new Queue<float>();
 
-    public KinectScreen Screen
-    {
-        get
-        {
-            return azureKinectScreen;
-        }
-    }
-
-    public KinectSpeaker Speaker
-    {
-        get
-        {
-            return azureKinectSpeaker;
-        }
-    }
+    public KinectScreen Screen => screen;
+    public KinectSpeaker Speaker => speaker;
 
     public bool DebugVisibility
     {
@@ -126,7 +113,7 @@ public class KinectOrigin : MonoBehaviour
         float inversePlaneHeightAverage = inversePlaneHeightSum / inversePlaneHeightQueue.Count;
         Quaternion inversePlaneNormalAverageRotation = Quaternion.FromToRotation(Vector3.up, inversePlaneNormalAverage);
 
-        floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePlaneHeightAverage, 0.0f);
-        floorTransformInverterTransform.localRotation = inversePlaneNormalAverageRotation;
+        //floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePlaneHeightAverage, 0.0f);
+        gimbalTransform.localRotation = inversePlaneNormalAverageRotation;
     }
 }

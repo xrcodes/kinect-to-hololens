@@ -1,4 +1,4 @@
-﻿Shader "KinectToHololens/AzureKinectShader"
+﻿Shader "KinectViewer/KinectScreen"
 {
     Properties
     {

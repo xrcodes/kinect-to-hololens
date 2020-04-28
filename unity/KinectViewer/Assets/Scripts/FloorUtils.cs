@@ -27,4 +27,54 @@ public static class FloorUtils
         // In ax + by + cz = d, if x = z = 0, y = d/b.
         height = distance / normal.y;
     }
+
+    // TODO: Implant this code into Controller in the right way.
+    //public void UpdateFrame(List<FloorSenderPacketData> floorPacketDataList)
+    //{
+    //    if (floorPacketDataList.Count == 0)
+    //        return;
+
+    //    FloorSenderPacketData floorSenderPacketData = floorPacketDataList[floorPacketDataList.Count - 1];
+
+    //    Vector3 position;
+    //    Quaternion rotation;
+
+    //    FloorUtils.ConvertFloorSenderPacketDataToPositionAndRotation(floorSenderPacketData, out position, out rotation);
+
+    //    floorTransform.localPosition = position;
+    //    floorTransform.localRotation = rotation;
+
+    //    Vector3 inversePosition;
+    //    Quaternion inverseRotation;
+    //    FloorUtils.InvertPositionAndRotation(position, rotation, out inversePosition, out inverseRotation);
+
+    //    Vector3 inversePlaneNormal;
+    //    float inversePlaneHeight;
+    //    FloorUtils.ConvertPositionAndRotationToNormalAndY(inversePosition, inverseRotation, out inversePlaneNormal, out inversePlaneHeight);
+
+    //    //floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePositionY, 0.0f);
+    //    //floorTransformInverterTransform.localRotation = inverseRotation;
+
+    //    inversePlaneNormalQueue.Enqueue(inversePlaneNormal);
+    //    inversePlaneHeightQueue.Enqueue(inversePlaneHeight);
+
+    //    if (inversePlaneNormalQueue.Count > 30)
+    //        inversePlaneNormalQueue.Dequeue();
+    //    if (inversePlaneHeightQueue.Count > 30)
+    //        inversePlaneHeightQueue.Dequeue();
+
+    //    Vector3 inversePlaneNormalSum = Vector3.zero;
+    //    foreach (var normal in inversePlaneNormalQueue)
+    //        inversePlaneNormalSum += normal;
+    //    float inversePlaneHeightSum = 0.0f;
+    //    foreach (var height in inversePlaneHeightQueue)
+    //        inversePlaneHeightSum += height;
+
+    //    Vector3 inversePlaneNormalAverage = inversePlaneNormalSum / inversePlaneHeightQueue.Count;
+    //    float inversePlaneHeightAverage = inversePlaneHeightSum / inversePlaneHeightQueue.Count;
+    //    Quaternion inversePlaneNormalAverageRotation = Quaternion.FromToRotation(Vector3.up, inversePlaneNormalAverage);
+
+    //    floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePlaneHeightAverage, 0.0f);
+    //    floorTransformInverterTransform.localRotation = inversePlaneNormalAverageRotation;
+    //}
 }

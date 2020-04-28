@@ -9,13 +9,7 @@ public class KinectScreen : MonoBehaviour
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
 
-    public Material Material
-    {
-        get
-        {
-            return meshRenderer.sharedMaterial;
-        }
-    }
+    public Material Material => meshRenderer.sharedMaterial;
 
     // Since calculation including Unproject() takes too much time,
     // this function is made to run as a coroutine that takes a break
