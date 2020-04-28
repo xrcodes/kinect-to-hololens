@@ -19,8 +19,7 @@ public class ViewerManager : MonoBehaviour
     public TextMesh offsetText;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
-    public Transform sharedSpaceAnchor;
-    public KinectOrigin kinectOrigin;
+    public SharedSpaceAnchor sharedSpaceAnchor;
 
     private UdpSocket udpSocket;
 
@@ -75,34 +74,34 @@ public class ViewerManager : MonoBehaviour
             sharedSpaceAnchor.transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
         }
 
-        if (kinectOrigin != null)
+        if (sharedSpaceAnchor.KinectOrigin != null)
         {
             if (Input.GetKeyDown(KeyCode.D))
             {
-                kinectOrigin.DebugVisibility = !kinectOrigin.DebugVisibility;
+                sharedSpaceAnchor.KinectOrigin.DebugVisibility = !sharedSpaceAnchor.KinectOrigin.DebugVisibility;
             }
 
             if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
-                kinectOrigin.OffsetDistance -= OFFSET_UNIT;
+                sharedSpaceAnchor.KinectOrigin.OffsetDistance -= OFFSET_UNIT;
             }
             if (Input.GetKeyDown(KeyCode.RightArrow))
             {
-                kinectOrigin.OffsetDistance += OFFSET_UNIT;
+                sharedSpaceAnchor.KinectOrigin.OffsetDistance += OFFSET_UNIT;
             }
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
-                kinectOrigin.OffsetHeight -= OFFSET_UNIT;
+                sharedSpaceAnchor.KinectOrigin.OffsetHeight -= OFFSET_UNIT;
             }
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
-                kinectOrigin.OffsetHeight += OFFSET_UNIT;
+                sharedSpaceAnchor.KinectOrigin.OffsetHeight += OFFSET_UNIT;
             }
 
-            offsetText.gameObject.SetActive(!ConnectWindowVisibility && kinectOrigin.DebugVisibility);
+            offsetText.gameObject.SetActive(!ConnectWindowVisibility && sharedSpaceAnchor.KinectOrigin.DebugVisibility);
             if (offsetText.gameObject.activeSelf)
             {
-                offsetText.text = $"Offset\n  - Distance: {kinectOrigin.OffsetDistance}\n  - Height: {kinectOrigin.OffsetHeight}";
+                offsetText.text = $"Offset\n  - Distance: {sharedSpaceAnchor.KinectOrigin.OffsetDistance}\n  - Height: {sharedSpaceAnchor.KinectOrigin.OffsetHeight}";
             }
         }
 
@@ -277,8 +276,8 @@ public class ViewerManager : MonoBehaviour
         }
 
         textToaster.Toast("Start creating screen");
-        yield return StartCoroutine(kinectOrigin.Screen.SetupMesh(initPacketData));
-        kinectOrigin.Speaker.Setup();
-        kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, kinectOrigin, initPacketData);
+        yield return StartCoroutine(sharedSpaceAnchor.KinectOrigin.Screen.SetupMesh(initPacketData));
+        sharedSpaceAnchor.KinectOrigin.Speaker.Setup();
+        kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin, initPacketData);
     }
 }

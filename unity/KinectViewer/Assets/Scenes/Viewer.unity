@@ -213,6 +213,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 116884040}
+  - component: {fileID: 116884041}
   m_Layer: 0
   m_Name: SharedSpaceAnchor
   m_TagString: Untagged
@@ -232,9 +233,23 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1001718309}
+  - {fileID: 1881843625}
   m_Father: {fileID: 0}
   m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &116884041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 116884039}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84b18adc7df1b8940ba89714848f57f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  kinectOrigin: {fileID: 1001718310}
 --- !u!1 &174412966
 GameObject:
   m_ObjectHideFlags: 0
@@ -965,7 +980,7 @@ MonoBehaviour:
   connectionWindow: {fileID: 77780642}
   textToaster: {fileID: 312926914}
   offsetText: {fileID: 261543924}
-  sharedSpaceAnchor: {fileID: 116884040}
+  sharedSpaceAnchor: {fileID: 116884041}
   kinectOrigin: {fileID: 1001718310}
 --- !u!1 &995608558
 GameObject:
@@ -1089,7 +1104,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 26390277}
-  - {fileID: 1881843625}
   m_Father: {fileID: 116884040}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1529,7 +1543,7 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
-  m_Father: {fileID: 1001718309}
+  m_Father: {fileID: 116884040}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 90}
 --- !u!64 &1881843626
