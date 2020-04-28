@@ -6,7 +6,6 @@ using UnityEngine;
 
 public class TextureGroupUpdater
 {
-    private UdpSocket udpSocket;
     private int sessionId;
     private IPEndPoint endPoint;
 
@@ -23,7 +22,7 @@ public class TextureGroupUpdater
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    public TextureGroupUpdater(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, UdpSocket udpSocket, int sessionId, IPEndPoint endPoint)
+    public TextureGroupUpdater(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, int sessionId, IPEndPoint endPoint)
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
@@ -44,12 +43,11 @@ public class TextureGroupUpdater
         colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
-        this.udpSocket = udpSocket;
         this.sessionId = sessionId;
         this.endPoint = endPoint;
     }
 
-    public void UpdateFrame(List<Tuple<int, VideoSenderMessageData>> videoMessageList)
+    public void UpdateFrame(UdpSocket udpSocket, List<Tuple<int, VideoSenderMessageData>> videoMessageList)
     {
         // If texture is not created, create and assign them to quads.
         if (!prepared)

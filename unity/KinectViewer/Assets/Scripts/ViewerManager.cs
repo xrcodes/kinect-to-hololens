@@ -21,6 +21,8 @@ public class ViewerManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public KinectOrigin azureKinectRoot;
 
+    private UdpSocket udpSocket;
+
     private ControllerClient controllerClient;
     private KinectReceiver kinectReceiver;
 
@@ -33,6 +35,8 @@ public class ViewerManager : MonoBehaviour
     void Start()
     {
         Plugin.texture_group_reset();
+
+        udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
 
         statusText.text = "Waiting for user input.";
         connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
@@ -116,7 +120,8 @@ public class ViewerManager : MonoBehaviour
 
         if (kinectReceiver != null)
         {
-            if (!kinectReceiver.UpdateFrame())
+            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
+            if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSet))
             {
                 kinectReceiver = null;
                 ConnectWindowVisibility = true;
@@ -228,7 +233,6 @@ public class ViewerManager : MonoBehaviour
         int sessionId = random.Next();
 
         var ipAddress = IPAddress.Parse(ipAddressText);
-        var udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
         var endPoint = new IPEndPoint(ipAddress, SENDER_PORT);
 
         InitSenderPacketData initPacketData;
@@ -266,6 +270,6 @@ public class ViewerManager : MonoBehaviour
         textToaster.Toast("Start creating screen");
         yield return StartCoroutine(azureKinectRoot.Screen.SetupMesh(initPacketData));
         azureKinectRoot.Speaker.Setup();
-        kinectReceiver = new KinectReceiver(sessionId, endPoint, azureKinectRoot, udpSocket, initPacketData);
+        kinectReceiver = new KinectReceiver(sessionId, endPoint, azureKinectRoot, initPacketData);
     }
 }
