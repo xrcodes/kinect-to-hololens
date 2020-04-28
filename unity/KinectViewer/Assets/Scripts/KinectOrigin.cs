@@ -8,7 +8,6 @@ public class KinectOrigin : MonoBehaviour
     public KinectScreen screen;
     public KinectSpeaker speaker;
     public Transform floorTransform;
-    public GameObject arrow;
     private float offsetDistance = 0.0f;
     private float offsetHeight = 0.0f;
     private Queue<Vector3> inversePlaneNormalQueue = new Queue<Vector3>();
@@ -22,7 +21,6 @@ public class KinectOrigin : MonoBehaviour
         set
         {
             floorTransform.gameObject.SetActive(value);
-            arrow.SetActive(value);
         }
         get
         {
@@ -56,16 +54,6 @@ public class KinectOrigin : MonoBehaviour
         {
             return offsetHeight;
         }
-    }
-
-    public void SetRootTransform(Vector3 position, Quaternion rotation)
-    {
-        transform.localPosition = position;
-
-        // Using (0,0,-1) instead of (0,0,1) to let the hololens to avoid facing walls.
-        Vector3 azureKinectForward = rotation * new Vector3(0.0f, 0.0f, -1.0f);
-        float yaw = Mathf.Atan2(azureKinectForward.x, azureKinectForward.z) * Mathf.Rad2Deg;
-        transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
     }
 
     public void UpdateFrame(List<FloorSenderPacketData> floorPacketDataList)

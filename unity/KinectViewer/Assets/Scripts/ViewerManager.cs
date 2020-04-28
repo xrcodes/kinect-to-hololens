@@ -21,6 +21,7 @@ public class ViewerManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceAnchor sharedSpaceAnchor;
 
+
     private UdpSocket udpSocket;
 
     private ControllerClient controllerClient;
@@ -66,21 +67,16 @@ public class ViewerManager : MonoBehaviour
         // Gives the information of the camera position and floor level.
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            sharedSpaceAnchor.transform.localPosition = cameraTransform.position;
+            sharedSpaceAnchor.UpdateTransform(cameraTransform.position, cameraTransform.rotation);
+        }
 
-            // Using (0,0,-1) instead of (0,0,1) to let the hololens to avoid facing walls.
-            Vector3 azureKinectForward = cameraTransform.rotation * new Vector3(0.0f, 0.0f, -1.0f);
-            float yaw = Mathf.Atan2(azureKinectForward.x, azureKinectForward.z) * Mathf.Rad2Deg;
-            sharedSpaceAnchor.transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            sharedSpaceAnchor.DebugVisibility = !sharedSpaceAnchor.DebugVisibility;
         }
 
         if (sharedSpaceAnchor.KinectOrigin != null)
         {
-            if (Input.GetKeyDown(KeyCode.D))
-            {
-                sharedSpaceAnchor.KinectOrigin.DebugVisibility = !sharedSpaceAnchor.KinectOrigin.DebugVisibility;
-            }
-
             if (Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 sharedSpaceAnchor.KinectOrigin.OffsetDistance -= OFFSET_UNIT;
@@ -98,7 +94,7 @@ public class ViewerManager : MonoBehaviour
                 sharedSpaceAnchor.KinectOrigin.OffsetHeight += OFFSET_UNIT;
             }
 
-            offsetText.gameObject.SetActive(!ConnectWindowVisibility && sharedSpaceAnchor.KinectOrigin.DebugVisibility);
+            offsetText.gameObject.SetActive(!ConnectWindowVisibility && sharedSpaceAnchor.DebugVisibility);
             if (offsetText.gameObject.activeSelf)
             {
                 offsetText.text = $"Offset\n  - Distance: {sharedSpaceAnchor.KinectOrigin.OffsetDistance}\n  - Height: {sharedSpaceAnchor.KinectOrigin.OffsetHeight}";
@@ -276,6 +272,10 @@ public class ViewerManager : MonoBehaviour
         }
 
         textToaster.Toast("Start creating screen");
+
+        if(sharedSpaceAnchor.KinectOrigin == null)
+            sharedSpaceAnchor.AddKinectOrigin();
+
         yield return StartCoroutine(sharedSpaceAnchor.KinectOrigin.Screen.SetupMesh(initPacketData));
         sharedSpaceAnchor.KinectOrigin.Speaker.Setup();
         kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin, initPacketData);
