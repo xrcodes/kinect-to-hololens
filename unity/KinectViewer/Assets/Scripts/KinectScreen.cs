@@ -6,6 +6,7 @@ using UnityEngine.Rendering;
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class KinectScreen : MonoBehaviour
 {
+    public Shader shader;
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
 
@@ -13,6 +14,7 @@ public class KinectScreen : MonoBehaviour
 
     void Awake()
     {
+        meshRenderer.material = new Material(shader);
         RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
     }
 
