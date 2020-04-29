@@ -61,6 +61,9 @@ public class KinectScreen : MonoBehaviour
             }
         }
 
+        //print($"vertices[0]: {vertices[0]}"); // (-1.0, 1.0, 1.0): left-top
+        //print($"vertices[last]: {vertices[vertices.Length - 1]}"); // (0.8, -0.6, 1.0): right-bottom
+
         int quadWidth = width - 2;
         int quadHeight = height - 2;
         var quadVertices = new Vector3[quadWidth * quadHeight];
@@ -75,9 +78,12 @@ public class KinectScreen : MonoBehaviour
                 int j = jj + 1;
                 quadVertices[ii + jj * quadWidth] = vertices[i + j * width];
                 quadUv[ii + jj * quadWidth] = uv[i + j * width];
-                quadSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j + 1) * width] - vertices[(i - 1) + (j - 1) * width]) * 0.5f;
+                // Trying to make both x and y to have a positive number.
+                quadSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j - 1) * width] - vertices[(i - 1) + (j + 1) * width]) * 0.5f;
             }
         }
+
+        //print($"quadSizes[0]: {quadSizes[0].x}, {quadSizes[0].y}"); // 0.002900749, 0.003067017
 
         var triangles = new int[quadWidth * quadHeight];
         for (int i = 0; i < quadWidth * quadHeight; ++i)
@@ -104,8 +110,8 @@ public class KinectScreen : MonoBehaviour
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
         // Ignore when it is called from Unity's "Scene" (not "Game").
-        if (camera.cameraType == CameraType.SceneView)
-            return;
+        //if (camera.cameraType == CameraType.SceneView)
+        //    return;
 
         // Using _ModelMatrix since UNITY_MATRIX_M is not working inside the geometry shader.
         // Seems like it is an identity matrix, especially for the universal rendering pipeline.
@@ -122,22 +128,25 @@ public class KinectScreen : MonoBehaviour
         // with an if statement, inverting when the y-component is negative, I decided to detour this case with
         // usage of the cross product with the front vector.
         var worldUpVector = new Vector3(0.0f, 1.0f, 0.0f);
-        var worldRightVector = Vector3.Cross(worldUpVector, worldCameraFrontVector);
-        worldRightVector = new Vector3(worldRightVector.x, 0.0f, worldRightVector.z);
+        var worldCameraRightVector = Vector3.Cross(worldUpVector, worldCameraFrontVector);
+        var worldRightVector = new Vector3(worldCameraRightVector.x, 0.0f, worldCameraRightVector.z);
         worldRightVector.Normalize();
 
-        var localRightVector = transform.InverseTransformDirection(worldRightVector);
-        var localUpVector = transform.InverseTransformDirection(worldUpVector);
+        //meshRenderer.sharedMaterial.SetVector("_SizeDirectionX", new Vector4(worldRightVector.x, worldRightVector.y, worldRightVector.z, 0.0f));
+        //meshRenderer.sharedMaterial.SetVector("_SizeDirectionY", new Vector4(worldUpVector.x, worldUpVector.y, worldUpVector.z, 0.0f));
 
-        // The coordinate system of Kinect's textures have (1) its origin at its left-up side.
-        // Also, the viewpoint of it is sort of (2) the opposite of the viewpoint of the Hololens, considering the typical use case. (this is not the case for Azure Kinect)
-        // Due to (1), vertexOffsetYVector = -localCameraUpVector.
-        // Due to (2), vertexOffsetXVector = -localCameraRightVector.
-        //var vertexOffsetXVector = -localRightVector;
-        var vertexOffsetXVector = localRightVector;
-        var vertexOffsetYVector = -localUpVector;
+        // For the size vectors, it is possible to prepare mul(UNITY_MATRIX_VP, _SizeDirectionX) in script
+        // since they are directions that ignores translations.
+        // Since camera positions only relate to the view matrix's translation,
+        // the position difference between left/right eye does not matter here.
+        // Another issue is that Unity does not provide projection matrix correctly when in comes to Hololens.
+        // It gives the information from the Unity camera component while rendering for a Hololens application detours it.
+        // To make this code work, also when its turned on in Hololens, the fov of the camera component should be
+        // manually matched to the actual device's fov. It is 17.5 degrees vertically for Hololens.
+        var sizeDirectionX = camera.projectionMatrix * camera.worldToCameraMatrix * new Vector4(worldRightVector.x, worldRightVector.y, worldRightVector.z, 0.0f);
+        var sizeDirectionY = camera.projectionMatrix * camera.worldToCameraMatrix * new Vector4(worldUpVector.x, worldUpVector.y, worldUpVector.z, 0.0f);
 
-        meshRenderer.sharedMaterial.SetVector("_VertexOffsetXVector", new Vector4(vertexOffsetXVector.x, vertexOffsetXVector.y, vertexOffsetXVector.z, 0.0f));
-        meshRenderer.sharedMaterial.SetVector("_VertexOffsetYVector", new Vector4(vertexOffsetYVector.x, vertexOffsetYVector.y, vertexOffsetYVector.z, 0.0f));
+        meshRenderer.sharedMaterial.SetVector("_SizeDirectionX", sizeDirectionX);
+        meshRenderer.sharedMaterial.SetVector("_SizeDirectionY", sizeDirectionY);
     }
 }
