@@ -4,7 +4,7 @@ public static class KinectIntrinsicTransformation
     // Equivalent to transformation_project_internal().
     // Size of uv and xy should be 2.
     // Size of J should be 4.
-    public static bool Project(in KinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
+    public static bool Project(KinectCalibration.Intrinsics intrinsics, float metricRadius, float[] xy, ref float[] uv, ref int valid, ref float[] J_xy)
     {
         float cx = intrinsics.cx;
         float cy = intrinsics.cy;
@@ -97,7 +97,7 @@ public static class KinectIntrinsicTransformation
 
     // Equivalent to invert_2x2(). 
     // Size of J and Jinv should be 4.
-    public static void Invert2x2(in float[] J, ref float[] Jinv)
+    public static void Invert2x2(float[] J, ref float[] Jinv)
     {
         float detJ = J[0] * J[3] - J[1] * J[2];
         float inv_detJ = 1.0f / detJ;
@@ -110,7 +110,7 @@ public static class KinectIntrinsicTransformation
 
     // Equivalent to transformation_iterative_unproject().
     // Size of uv and xy should be 2.
-    public static bool InterativeUnproject(in KinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid, int maxPasses)
+    public static bool InterativeUnproject(KinectCalibration.Intrinsics intrinsics, float metricRadius, float[] uv, ref float[] xy, ref int valid, int maxPasses)
     {
         valid = 1;
         float[] Jinv = new float[4];
@@ -167,7 +167,7 @@ public static class KinectIntrinsicTransformation
 
     // Equivalent to transformation_unproject_internal(). 
     // Size of uv and xy should be 2.
-    public static bool Unproject(in KinectCalibration.Intrinsics intrinsics, in float metricRadius, in float[] uv, ref float[] xy, ref int valid)
+    public static bool Unproject(KinectCalibration.Intrinsics intrinsics, float metricRadius, float[] uv, ref float[] xy, ref int valid)
     {
         float cx = intrinsics.cx;
         float cy = intrinsics.cy;

@@ -1,4 +1,5 @@
-﻿Shader "KinectViewer/KinectScreen"
+﻿// Made this shader work with single-pass instanced rendering using code of built-in shader SpatialMappingWireframe.
+Shader "KinectViewer/KinectScreen"
 {
     Properties
     {
@@ -27,6 +28,7 @@
                 float3 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 float2 size : TEXCOORD1;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2g
@@ -34,16 +36,14 @@
                 fixed4 vertex : POSITION;
                 fixed2 uv : TEXCOORD0;
                 fixed2 vertex_offset : TEXCOORD1;
-
-                //UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO_EYE_INDEX
             };
 
             struct g2f
             {
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
-
-                //UNITY_VERTEX_OUTPUT_STEREO
+                UNITY_VERTEX_OUTPUT_STEREO
             };
 
             Texture2D _YTex;
@@ -57,10 +57,8 @@
             v2g vert (appdata v)
             {
                 v2g o;
-
-                //UNITY_SETUP_INSTANCE_ID(v);
-                //UNITY_INITIALIZE_OUTPUT(v2f, o);
-                //UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_INITIALIZE_OUTPUT_STEREO_EYE_INDEX(o);
 
                 // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
                 // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
@@ -81,6 +79,9 @@
                 if (i[0].vertex.z > 0.1)
                 {
                     g2f o;
+                    UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i[0]);
+                    UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
+
                     // Tried using mvp matrix instead of the below one using vp matrix and unity_ObjectToWorld.
                     // It turns calculating vertex, offset_x, and offset_y from 6 matrix-vector multiplications into
                     // a matrix-matrix multiplication and 3 matrix-vector multiplications.
@@ -89,10 +90,12 @@
                     // Using _ModelMatrix since UNITY_MATRIX_M is not working inside the geometry shader.
                     // Seems like it is an identity matrix, especially for the universal rendering pipeline.
                     // If Unity fixes this bug, use UNITY_MATRIX_M instead of _ModelMatrix.
+                    // TODO: mul(_ModelMatrix, _VertexOffsetXVector) as a varaible from CPU.
                     fixed4 vertex = mul(UNITY_MATRIX_VP, mul(_ModelMatrix, i[0].vertex));
                     fixed4 offset_x = mul(UNITY_MATRIX_VP, mul(_ModelMatrix, _VertexOffsetXVector)) * i[0].vertex_offset.x;
                     fixed4 offset_y = mul(UNITY_MATRIX_VP, mul(_ModelMatrix, _VertexOffsetYVector)) * i[0].vertex_offset.y;
 
+                    // TODO: make mesh in a way that this step can be skipped.
                     o.vertex = vertex - offset_x * 0.5 - offset_y * 0.5;
 
                     // This does not optimize code since the code above already was converted to mad by the optimizer.
