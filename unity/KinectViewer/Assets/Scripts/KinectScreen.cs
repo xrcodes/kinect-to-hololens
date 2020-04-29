@@ -64,11 +64,12 @@ public class KinectScreen : MonoBehaviour
         //print($"vertices[0]: {vertices[0]}"); // (-1.0, 1.0, 1.0): left-top
         //print($"vertices[last]: {vertices[vertices.Length - 1]}"); // (0.8, -0.6, 1.0): right-bottom
 
+        const float SIZE_AMPLIFIER = 1.2f;
         int quadWidth = width - 2;
         int quadHeight = height - 2;
         var quadVertices = new Vector3[quadWidth * quadHeight];
         var quadUv = new Vector2[quadWidth * quadHeight];
-        var quadSizes = new Vector2[quadWidth * quadHeight];
+        var quadHalfSizes = new Vector2[quadWidth * quadHeight];
 
         for (int ii = 0; ii < quadWidth; ++ii)
         {
@@ -78,8 +79,9 @@ public class KinectScreen : MonoBehaviour
                 int j = jj + 1;
                 quadVertices[ii + jj * quadWidth] = vertices[i + j * width];
                 quadUv[ii + jj * quadWidth] = uv[i + j * width];
-                // Trying to make both x and y to have a positive number.
-                quadSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j - 1) * width] - vertices[(i - 1) + (j + 1) * width]) * 0.5f;
+                // Trying to make both x and y to have a positive number. The first 0.5f is to make the size relevant to
+                // the vertex in (i, j). The second one is to get the half size of it.
+                quadHalfSizes[ii + jj * quadWidth] = (vertices[(i + 1) + (j - 1) * width] - vertices[(i - 1) + (j + 1) * width]) * 0.5f * 0.5f * SIZE_AMPLIFIER;
             }
         }
 
@@ -88,6 +90,15 @@ public class KinectScreen : MonoBehaviour
         var triangles = new int[quadWidth * quadHeight];
         for (int i = 0; i < quadWidth * quadHeight; ++i)
             triangles[i] = i;
+
+        // 65.535 is equivalent to (2^16 - 1) / 1000, where (2^16 - 1) is to complement
+        // the conversion happened in the texture-level from 0 ~ (2^16 - 1) to 0 ~ 1.
+        // 1000 is the conversion of mm (the unit of Azure Kinect) to m (the unit of Unity3D).
+        for (int i = 0; i < quadVertices.Length; ++i)
+            quadVertices[i] *= 65.535f;
+
+        for (int i = 0; i < quadHalfSizes.Length; ++i)
+            quadHalfSizes[i] *= 65.535f;
 
         // Without the bounds, Unity decides whether to render this mesh or not based on the vertices calculated here.
         // This causes Unity not rendering the mesh transformed by the depth texture even when the transformed one
@@ -99,7 +110,7 @@ public class KinectScreen : MonoBehaviour
             indexFormat = IndexFormat.UInt32,
             vertices = quadVertices,
             uv = quadUv,
-            uv2 = quadSizes,
+            uv2 = quadHalfSizes,
             bounds = bounds,
         };
         mesh.SetIndices(triangles, MeshTopology.Points, 0);
@@ -110,13 +121,8 @@ public class KinectScreen : MonoBehaviour
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
         // Ignore when it is called from Unity's "Scene" (not "Game").
-        //if (camera.cameraType == CameraType.SceneView)
-        //    return;
-
-        // Using _ModelMatrix since UNITY_MATRIX_M is not working inside the geometry shader.
-        // Seems like it is an identity matrix, especially for the universal rendering pipeline.
-        // If Unity fixes this bug, use UNITY_MATRIX_M instead of _ModelMatrix.
-        meshRenderer.sharedMaterial.SetMatrix("_ModelMatrix", transform.localToWorldMatrix);
+        if (camera.cameraType == CameraType.SceneView)
+            return;
 
         var cameraTransform = camera.transform;
         var worldCameraFrontVector = cameraTransform.TransformDirection(new Vector3(0.0f, 0.0f, 1.0f));
@@ -132,21 +138,7 @@ public class KinectScreen : MonoBehaviour
         var worldRightVector = new Vector3(worldCameraRightVector.x, 0.0f, worldCameraRightVector.z);
         worldRightVector.Normalize();
 
-        //meshRenderer.sharedMaterial.SetVector("_SizeDirectionX", new Vector4(worldRightVector.x, worldRightVector.y, worldRightVector.z, 0.0f));
-        //meshRenderer.sharedMaterial.SetVector("_SizeDirectionY", new Vector4(worldUpVector.x, worldUpVector.y, worldUpVector.z, 0.0f));
-
-        // For the size vectors, it is possible to prepare mul(UNITY_MATRIX_VP, _SizeDirectionX) in script
-        // since they are directions that ignores translations.
-        // Since camera positions only relate to the view matrix's translation,
-        // the position difference between left/right eye does not matter here.
-        // Another issue is that Unity does not provide projection matrix correctly when in comes to Hololens.
-        // It gives the information from the Unity camera component while rendering for a Hololens application detours it.
-        // To make this code work, also when its turned on in Hololens, the fov of the camera component should be
-        // manually matched to the actual device's fov. It is 17.5 degrees vertically for Hololens.
-        var sizeDirectionX = camera.projectionMatrix * camera.worldToCameraMatrix * new Vector4(worldRightVector.x, worldRightVector.y, worldRightVector.z, 0.0f);
-        var sizeDirectionY = camera.projectionMatrix * camera.worldToCameraMatrix * new Vector4(worldUpVector.x, worldUpVector.y, worldUpVector.z, 0.0f);
-
-        meshRenderer.sharedMaterial.SetVector("_SizeDirectionX", sizeDirectionX);
-        meshRenderer.sharedMaterial.SetVector("_SizeDirectionY", sizeDirectionY);
+        meshRenderer.sharedMaterial.SetVector("_SizeDirectionX", transform.worldToLocalMatrix * worldRightVector);
+        meshRenderer.sharedMaterial.SetVector("_SizeDirectionY", transform.worldToLocalMatrix * worldUpVector);
     }
 }
