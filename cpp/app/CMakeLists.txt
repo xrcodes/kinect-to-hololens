@@ -34,6 +34,7 @@ add_executable(KinectSender
   sender/video_sender_utils.h
   sender/remote_receiver.h
   helper/imgui_helper.h
+  "${PROJECT_SOURCE_DIR}/resources/KinectSender.rc"
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -60,7 +61,6 @@ add_custom_command(TARGET KinectSender POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4a.dll"
   $<TARGET_FILE_DIR:KinectSender>
 )
-
 add_executable(KinectReceiver
   kinect_receiver.cpp
   helper/opencv_helper.h
