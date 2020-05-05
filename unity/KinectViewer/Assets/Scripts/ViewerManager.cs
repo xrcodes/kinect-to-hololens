@@ -99,14 +99,24 @@ public class ViewerManager : MonoBehaviour
             }
         }
 
-        if (kinectReceiver != null)
+        // This is for the receive part.
+        try
         {
             var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
-            if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSet))
+            if (kinectReceiver != null)
             {
-                kinectReceiver = null;
-                ConnectWindowVisibility = true;
+                if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
+                {
+                    kinectReceiver = null;
+                    ConnectWindowVisibility = true;
+                }
             }
+        }
+        catch (UdpSocketException e)
+        {
+            print($"UdpSocketException: {e}");
+            kinectReceiver = null;
+            ConnectWindowVisibility = true;
         }
     }
 
@@ -189,8 +199,6 @@ public class ViewerManager : MonoBehaviour
         ConnectWindowVisibility = true;
     }
 
-    // To copy the c++ receiver, for easier development,
-    // there should be only one chance to send a ping.
     private IEnumerator TryConnectToKinect()
     {
         if(!ConnectWindowVisibility)
@@ -216,45 +224,18 @@ public class ViewerManager : MonoBehaviour
         var ipAddress = IPAddress.Parse(ipAddressText);
         var endPoint = new IPEndPoint(ipAddress, SENDER_PORT);
 
-        InitSenderPacketData initPacketData = null;
-        for (int i = 0; i < 10; ++i)
-        {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
-            print("Sent connect packet");
-
-            yield return new WaitForSeconds(0.3f);
-
-            try
-            {
-                var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
-                if (senderPacketSet.InitPacketDataList.Count > 0)
-                {
-                    initPacketData = senderPacketSet.InitPacketDataList[0];
-                    break;
-                }
-            }
-            catch (UdpSocketException e)
-            {
-                print($"UdpSocketException while connecting: {e}");
-            }
-        }
-
-        if (initPacketData == null)
-        {
-            TextToaster.Toast("Tried connected 10 times but failed to receive an init packet...\n");
-            ConnectWindowVisibility = true;
-            yield break;
-        }
-
-        TextToaster.Toast("Start creating screen");
-
         if(sharedSpaceAnchor.KinectOrigin == null)
             sharedSpaceAnchor.AddKinectOrigin();
 
         kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin);
         kinectReceiver.KinectOrigin.Speaker.Setup();
 
-        kinectReceiver.KinectOrigin.Screen.StartPrepare(initPacketData);
-        kinectReceiver.TextureGroupUpdater.StartPrepare(this, initPacketData);
+        for (int i = 0; i < 10; ++i)
+        {
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
+            print($"Sent connect packet #{i}");
+
+            yield return new WaitForSeconds(0.3f);
+        }
     }
 }

@@ -33,22 +33,22 @@ public static class SenderPacketReceiver
 
             //int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
             senderPacketSet.ReceivedAny = true;
-            switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet))
+            switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet.bytes))
             {
                 case SenderPacketType.Init:
-                    senderPacketSet.InitPacketDataList.Add(InitSenderPacketData.Parse(packet));
+                    senderPacketSet.InitPacketDataList.Add(InitSenderPacketData.Parse(packet.bytes));
                     break;
                 case SenderPacketType.Frame:
-                    senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet));
+                    senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet.bytes));
                     break;
                 case SenderPacketType.Parity:
-                    senderPacketSet.FecPacketDataList.Add(ParitySenderPacketData.Parse(packet));
+                    senderPacketSet.FecPacketDataList.Add(ParitySenderPacketData.Parse(packet.bytes));
                     break;
                 case SenderPacketType.Audio:
-                    senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet));
+                    senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet.bytes));
                     break;
                 case SenderPacketType.Floor:
-                    senderPacketSet.FloorPacketDataList.Add(FloorSenderPacketData.Parse(packet));
+                    senderPacketSet.FloorPacketDataList.Add(FloorSenderPacketData.Parse(packet.bytes));
                     break;
             }
         }

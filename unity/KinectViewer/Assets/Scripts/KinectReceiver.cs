@@ -35,7 +35,7 @@ public class KinectReceiver
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
 
-    public bool UpdateFrame(UdpSocket udpSocket, SenderPacketSet senderPacketSet)
+    public bool UpdateFrame(MonoBehaviour monoBehaviour, UdpSocket udpSocket, SenderPacketSet senderPacketSet)
     {
         var videoMessageList = new List<Tuple<int, VideoSenderMessageData>>();
         try
@@ -48,10 +48,14 @@ public class KinectReceiver
 
             if (senderPacketSet.ReceivedAny)
             {
+                // Use init packet to prepare rendering video messages.
                 if (senderPacketSet.InitPacketDataList.Count > 0)
                 {
                     if(kinectOrigin.Screen.State == KinectScreenState.Unprepared)
-                        kinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+                    {
+                        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+                        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
+                    }
                 }
 
                 videoMessageAssembler.Assemble(udpSocket,

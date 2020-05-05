@@ -2,6 +2,18 @@
 using System.Net;
 using System.Net.Sockets;
 
+public class UdpSocketPacket
+{
+    public byte[] bytes;
+    public IPEndPoint endPoint;
+
+    public UdpSocketPacket(byte[] bytes, IPEndPoint endPoint)
+    {
+        this.bytes = bytes;
+        this.endPoint = endPoint;
+    }
+};
+
 public class UdpSocketException : Exception
 {
     public UdpSocketException(string message) : base(message)
@@ -19,13 +31,24 @@ public class UdpSocket
         socket.Blocking = false;
     }
 
-    public byte[] Receive()
+    public UdpSocketPacket Receive()
     {
         var bytes = new byte[PacketHelper.PACKET_SIZE];
-        SocketError error;
-        var packetSize = socket.Receive(bytes, 0, bytes.Length, SocketFlags.None, out error);
+        IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Any, 0);
+        EndPoint endPoint = ipEndPoint;
+        SocketError error = SocketError.Success;
+        int packetSize = 0;
+        try
+        {
+            packetSize = socket.ReceiveFrom(bytes, ref endPoint);
+        }
+        catch (SocketException e)
+        {
+            error = e.SocketErrorCode;
+        }
 
-        if (error == SocketError.WouldBlock)
+        // ReceiveFrom throws SocketError.InvalidArgument before the socket got connected to any remote ones.
+        if (error == SocketError.WouldBlock || error == SocketError.InvalidArgument)
         {
             return null;
         }
@@ -39,11 +62,11 @@ public class UdpSocket
         {
             var resizedBytes = new byte[packetSize];
             Array.Copy(bytes, 0, resizedBytes, 0, packetSize);
-            return resizedBytes;
+            return new UdpSocketPacket(resizedBytes, ipEndPoint);
         }
         else
         {
-            return bytes;
+            return new UdpSocketPacket(bytes, ipEndPoint);
         }
     }
 

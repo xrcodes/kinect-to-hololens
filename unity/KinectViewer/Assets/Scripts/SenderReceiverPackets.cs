@@ -33,7 +33,7 @@ public static class PacketHelper
 
     public static SenderPacketType getPacketTypeFromSenderPacketBytes(byte[] packetBytes)
     {
-        return (SenderPacketType)packetBytes[4];
+        return (SenderPacketType) packetBytes[4];
     }
 
     public static byte[] createConnectReceiverPacketBytes(int sessionId,
