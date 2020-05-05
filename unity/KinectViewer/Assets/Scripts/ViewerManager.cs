@@ -15,11 +15,9 @@ public class ViewerManager : MonoBehaviour
     public TextMesh statusText;
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
-    public TextToaster textToaster;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceAnchor sharedSpaceAnchor;
-
 
     private UdpSocket udpSocket;
 
@@ -161,13 +159,13 @@ public class ViewerManager : MonoBehaviour
     {
         if (controllerClient != null)
         {
-            textToaster.Toast("A controller is already connected.");
+            TextToaster.Toast("A controller is already connected.");
             return;
         }
 
         if (!ConnectWindowVisibility)
         {
-            textToaster.Toast("Cannot try connecting to more than one remote machine.");
+            TextToaster.Toast("Cannot try connecting to more than one remote machine.");
             return;
         }
 
@@ -179,12 +177,12 @@ public class ViewerManager : MonoBehaviour
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
         if (await tcpSocket.ConnectAsync(IPAddress.Loopback, ControllerMessages.PORT))
         {
-            textToaster.Toast("connected");
+            TextToaster.Toast("connected");
             controllerClient = new ControllerClient(userId, tcpSocket);
         }
         else
         {
-            textToaster.Toast("not connected");
+            TextToaster.Toast("not connected");
         }
 
 
@@ -197,7 +195,7 @@ public class ViewerManager : MonoBehaviour
     {
         if(!ConnectWindowVisibility)
         {
-            textToaster.Toast("Cannot try connecting to more than one remote machine.");
+            TextToaster.Toast("Cannot try connecting to more than one remote machine.");
             yield break;
         }
 
@@ -209,7 +207,7 @@ public class ViewerManager : MonoBehaviour
             ipAddressText = "127.0.0.1";
 
         string logString = $"Try connecting to {ipAddressText}...";
-        textToaster.Toast(logString);
+        TextToaster.Toast(logString);
         statusText.text = logString;
 
         var random = new System.Random();
@@ -218,12 +216,10 @@ public class ViewerManager : MonoBehaviour
         var ipAddress = IPAddress.Parse(ipAddressText);
         var endPoint = new IPEndPoint(ipAddress, SENDER_PORT);
 
-        InitSenderPacketData initPacketData;
-        int connectCount = 0;
-        while (true)
+        InitSenderPacketData initPacketData = null;
+        for (int i = 0; i < 10; ++i)
         {
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
-            ++connectCount;
             print("Sent connect packet");
 
             yield return new WaitForSeconds(0.3f);
@@ -241,22 +237,22 @@ public class ViewerManager : MonoBehaviour
             {
                 print($"UdpSocketException while connecting: {e}");
             }
-
-            if (connectCount == 10)
-            {
-                textToaster.Toast("Tried connected 10 times but failed to receive an init packet...\n");
-                ConnectWindowVisibility = true;
-                yield break;
-            }
         }
 
-        textToaster.Toast("Start creating screen");
+        if (initPacketData == null)
+        {
+            TextToaster.Toast("Tried connected 10 times but failed to receive an init packet...\n");
+            ConnectWindowVisibility = true;
+            yield break;
+        }
+
+        TextToaster.Toast("Start creating screen");
 
         if(sharedSpaceAnchor.KinectOrigin == null)
             sharedSpaceAnchor.AddKinectOrigin();
 
-        yield return StartCoroutine(sharedSpaceAnchor.KinectOrigin.Screen.SetupMesh(initPacketData));
-        sharedSpaceAnchor.KinectOrigin.Speaker.Setup();
         kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin, initPacketData);
+        kinectReceiver.KinectOrigin.Speaker.Setup();
+        kinectReceiver.KinectOrigin.Screen.StartPrepare(initPacketData);
     }
 }

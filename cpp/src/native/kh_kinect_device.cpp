@@ -14,7 +14,6 @@ k4a_device_configuration_t get_default_configuration()
 
 namespace kh
 {
-
 KinectDevice::KinectDevice(k4a_device_configuration_t configuration, std::chrono::milliseconds timeout)
     : device_{k4a::device::open(K4A_DEVICE_DEFAULT)}, configuration_{configuration}, timeout_{timeout}
 {

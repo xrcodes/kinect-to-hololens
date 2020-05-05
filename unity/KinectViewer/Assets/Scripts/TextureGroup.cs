@@ -3,51 +3,51 @@ using UnityEngine;
 
 public class TextureGroup
 {
-    public IntPtr Ptr { get; private set; }
+    private IntPtr ptr;
 
-    public TextureGroup(IntPtr ptr)
+    public TextureGroup()
     {
-        Ptr = ptr;
+        ptr = Plugin.texture_group_create();
     }
 
     public int GetId()
     {
-        return Plugin.texture_group_get_id(Ptr);
+        return Plugin.texture_group_get_id(ptr);
     }
 
     public bool IsInitialized()
     {
-        return Plugin.texture_group_get_y_texture_view(Ptr).ToInt64() != 0;
+        return Plugin.texture_group_get_y_texture_view(ptr).ToInt64() != 0;
     }
 
     public int GetWidth()
     {
-        return Plugin.texture_group_get_width(Ptr);
+        return Plugin.texture_group_get_width(ptr);
     }
 
     public void SetWidth(int width)
     {
-        Plugin.texture_group_set_width(Ptr, width);
+        Plugin.texture_group_set_width(ptr, width);
     }
 
     public int GetHeight()
     {
-        return Plugin.texture_group_get_height(Ptr);
+        return Plugin.texture_group_get_height(ptr);
     }
 
     public void SetHeight(int height)
     {
-        Plugin.texture_group_set_height(Ptr, height);
+        Plugin.texture_group_set_height(ptr, height);
     }
 
     public void SetFFmpegFrame(FFmpegFrame ffmpegFrame)
     {
-        Plugin.texture_group_set_ffmpeg_frame(Ptr, ffmpegFrame.Ptr);
+        Plugin.texture_group_set_ffmpeg_frame(ptr, ffmpegFrame.Ptr);
     }
 
     public void SetTrvlFrame(TrvlFrame trvlFrame)
     {
-        Plugin.texture_group_set_depth_pixels(Ptr, trvlFrame.Ptr);
+        Plugin.texture_group_set_depth_pixels(ptr, trvlFrame.Ptr);
     }
 
     public Texture2D GetYTexture()
@@ -57,7 +57,7 @@ public class TextureGroup
                                                TextureFormat.R8,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_y_texture_view(Ptr));
+                                               Plugin.texture_group_get_y_texture_view(ptr));
     }
 
     public Texture2D GetUvTexture()
@@ -67,7 +67,7 @@ public class TextureGroup
                                                TextureFormat.RG16,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_uv_texture_view(Ptr));
+                                               Plugin.texture_group_get_uv_texture_view(ptr));
     }
 
     public Texture2D GetDepthTexture()
@@ -77,6 +77,6 @@ public class TextureGroup
                                                TextureFormat.R16,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_depth_texture_view(Ptr));
+                                               Plugin.texture_group_get_depth_texture_view(ptr));
     }
 }

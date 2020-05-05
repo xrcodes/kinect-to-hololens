@@ -3,17 +3,27 @@ using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+public enum KinectScreenState
+{
+    Unprepared,
+    Preparing,
+    Prepared
+}
+
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class KinectScreen : MonoBehaviour
 {
     public Shader shader;
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
+    private KinectScreenState state;
 
     public Material Material => meshRenderer.sharedMaterial;
+    public KinectScreenState State => state;
 
     void Awake()
     {
+        state = KinectScreenState.Unprepared;
         meshRenderer.material = new Material(shader);
         RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
     }
@@ -23,11 +33,18 @@ public class KinectScreen : MonoBehaviour
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
     }
 
+    public void StartPrepare(InitSenderPacketData initSenderPacketData)
+    {
+        StartCoroutine(SetupMesh(initSenderPacketData));
+    }
+
     // Since calculation including Unproject() takes too much time,
     // this function is made to run as a coroutine that takes a break
     // every 100 ms.
-    public IEnumerator SetupMesh(InitSenderPacketData initSenderPacketData)
+    private IEnumerator SetupMesh(InitSenderPacketData initSenderPacketData)
     {
+        state = KinectScreenState.Preparing;
+
         int width = initSenderPacketData.depthWidth;
         int height = initSenderPacketData.depthHeight;
 
@@ -118,6 +135,8 @@ public class KinectScreen : MonoBehaviour
         mesh.SetIndices(triangles, MeshTopology.Points, 0);
 
         meshFilter.mesh = mesh;
+
+        state = KinectScreenState.Prepared;
     }
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)

@@ -23,12 +23,12 @@ Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/h
 
 ## From the Kinect-side
 1. Connect a Kinect for Azure to a PC.
-2. Run KinectSender.exe. Traffic from both private and public networks should be allowed.
+2. Run KinectSender.exe. Allow connection to both private and public networks.
 
 ## From the HoloLens-side
-1. Install the app package in kinect-viewer-v0.3 to your HoloLens (see https://www.microsoft.com/en-us/p/microsoft-hololens/9nblggh4qwnx) and run the installed app Kinect Viewer.
+1. Install the app package in kinect-viewer-v0.3 to your HoloLens (see https://www.microsoft.com/en-us/p/microsoft-hololens/9nblggh4qwnx) and run the installed app--Kinect Viewer.
 2. Access the HoloLens through the Windows Device Portal for virtual key input.
-3. Enter IP address to the KinectSender.exe and press enter using the portal.
+3. Using the virtual key input, enter IP address of KinectSender.exe and press enter.
 4. Place your HoloLens beneth your Kinect on the floor and press space using the portal.
 5. Use arrow keys to adjust the position of the scene and d key to hide the visuals for setup.
 

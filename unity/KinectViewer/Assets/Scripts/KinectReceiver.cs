@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
+using UnityEngine;
 
 public class KinectReceiver
 {
@@ -19,6 +20,8 @@ public class KinectReceiver
 
     public int ReceiverSessionId => receiverSessionId;
     public IPEndPoint SenderEndPoint => senderEndPoint;
+    public KinectOrigin KinectOrigin => kinectOrigin;
+    public TextureGroupUpdater TextureGroupUpdater => textureGroupUpdater;
 
     public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin, InitSenderPacketData initPacketData)
     {
@@ -45,6 +48,12 @@ public class KinectReceiver
 
             if (senderPacketSet.ReceivedAny)
             {
+                if (senderPacketSet.InitPacketDataList.Count > 0)
+                {
+                    if(kinectOrigin.Screen.State == KinectScreenState.Unprepared)
+                        kinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+                }
+
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,

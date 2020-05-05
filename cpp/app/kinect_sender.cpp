@@ -137,7 +137,6 @@ void main()
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    //GLFWwindow* window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
     Win32Window window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
 
     // Our state
@@ -287,5 +286,9 @@ int main()
 {
     std::ios_base::sync_with_stdio(false);
     kh::main();
+
+    std::cout << "\nPress Enter to Exit.\n";
+    getchar();
+
     return 0;
 }

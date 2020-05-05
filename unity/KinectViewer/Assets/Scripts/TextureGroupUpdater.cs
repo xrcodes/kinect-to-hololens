@@ -26,7 +26,7 @@ public class TextureGroupUpdater
     {
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
-        textureGroup = new TextureGroup(Plugin.texture_group_create());
+        textureGroup = new TextureGroup();
         UnityEngine.Debug.Log($"textureGroup id: {textureGroup.GetId()}");
 
         lastVideoFrameId = -1;
