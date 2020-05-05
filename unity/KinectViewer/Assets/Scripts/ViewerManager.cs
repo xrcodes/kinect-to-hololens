@@ -40,7 +40,10 @@ public class ViewerManager : MonoBehaviour
     {
         Plugin.texture_group_reset();
 
-        udpSocket = new UdpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 });
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 };
+        socket.Bind(new IPEndPoint(IPAddress.Any, 0));
+        print($"socket.LocalEndPoint: {socket.LocalEndPoint}");
+        udpSocket = new UdpSocket(socket);
 
         statusText.text = "Waiting for user input.";
         connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
@@ -221,18 +224,18 @@ public class ViewerManager : MonoBehaviour
         var random = new System.Random();
         int receiverSessionId = random.Next();
 
-        var ipAddress = IPAddress.Parse(ipAddressText);
-        var endPoint = new IPEndPoint(ipAddress, SENDER_PORT);
+        var senderIpAddress = IPAddress.Parse(ipAddressText);
+        var senderEndPoint = new IPEndPoint(senderIpAddress, SENDER_PORT);
 
         if(sharedSpaceAnchor.KinectOrigin == null)
             sharedSpaceAnchor.AddKinectOrigin();
 
-        kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin);
+        kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint, sharedSpaceAnchor.KinectOrigin);
         kinectReceiver.KinectOrigin.Speaker.Setup();
 
         for (int i = 0; i < 10; ++i)
         {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), senderEndPoint);
             print($"Sent connect packet #{i}");
 
             yield return new WaitForSeconds(0.3f);
