@@ -23,14 +23,14 @@ public class KinectReceiver
     public KinectOrigin KinectOrigin => kinectOrigin;
     public TextureGroupUpdater TextureGroupUpdater => textureGroupUpdater;
 
-    public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin, InitSenderPacketData initPacketData)
+    public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin)
     {
         this.receiverSessionId = receiverSessionId;
         this.senderEndPoint = senderEndPoint;
         this.kinectOrigin = kinectOrigin;
         videoMessageAssembler = new VideoMessageAssembler(receiverSessionId, senderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
-        textureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, initPacketData, receiverSessionId, senderEndPoint);
+        textureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, receiverSessionId, senderEndPoint);
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }

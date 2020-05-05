@@ -1,11 +1,20 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using UnityEngine;
 
+public enum TextureGroupUpdaterState
+{
+    Unprepared,
+    Preparing,
+    Prepared
+}
+
 public class TextureGroupUpdater
 {
+    private TextureGroupUpdaterState state;
     private int sessionId;
     private IPEndPoint endPoint;
 
@@ -17,13 +26,16 @@ public class TextureGroupUpdater
 
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
-    private bool prepared;
 
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    public TextureGroupUpdater(Material azureKinectScreenMaterial, InitSenderPacketData initPacketData, int sessionId, IPEndPoint endPoint)
+    public TextureGroupUpdaterState State => state;
+
+    public TextureGroupUpdater(Material azureKinectScreenMaterial, int sessionId, IPEndPoint endPoint)
     {
+        state = TextureGroupUpdaterState.Unprepared;
+
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
         textureGroup = new TextureGroup();
@@ -31,52 +43,61 @@ public class TextureGroupUpdater
 
         lastVideoFrameId = -1;
 
-        prepared = false;
-
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
         frameStopWatch = Stopwatch.StartNew();
 
-        textureGroup.SetWidth(initPacketData.depthWidth);
-        textureGroup.SetHeight(initPacketData.depthHeight);
-        PluginHelper.InitTextureGroup(textureGroup.GetId());
+        //textureGroup.SetWidth(initPacketData.depthWidth);
+        //textureGroup.SetHeight(initPacketData.depthHeight);
+        //PluginHelper.InitTextureGroup(textureGroup.GetId());
 
         colorDecoder = new Vp8Decoder();
-        depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
+        //depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
         this.sessionId = sessionId;
         this.endPoint = endPoint;
     }
 
+    public void StartPrepare(MonoBehaviour monoBehaviour, InitSenderPacketData initPacketData)
+    {
+        monoBehaviour.StartCoroutine(SetupTextureGroup(initPacketData));
+    }
+
+    public IEnumerator SetupTextureGroup(InitSenderPacketData initPacketData)
+    {
+        if(state != TextureGroupUpdaterState.Unprepared)
+            throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
+
+        state = TextureGroupUpdaterState.Preparing;
+
+        textureGroup.SetWidth(initPacketData.depthWidth);
+        textureGroup.SetHeight(initPacketData.depthHeight);
+        PluginHelper.InitTextureGroup(textureGroup.GetId());
+
+        depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
+
+        state = TextureGroupUpdaterState.Prepared;
+
+        while (!textureGroup.IsInitialized())
+            yield return null;
+
+        // TextureGroup includes Y, U, V, and a depth texture.
+        azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.GetYTexture());
+        azureKinectScreenMaterial.SetTexture("_UvTex", textureGroup.GetUvTexture());
+        azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
+
+        state = TextureGroupUpdaterState.Prepared;
+    }
+
     public void UpdateFrame(UdpSocket udpSocket, List<Tuple<int, VideoSenderMessageData>> videoMessageList)
     {
-        // If texture is not created, create and assign them to quads.
-        if (!prepared)
+        foreach (var frameMessagePair in videoMessageList)
         {
-            // Check whether the native plugin has Direct3D textures that
-            // can be connected to Unity textures.
-            if (textureGroup.IsInitialized())
-            {
-                // TextureGroup includes Y, U, V, and a depth texture.
-                azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.GetYTexture());
-                azureKinectScreenMaterial.SetTexture("_UvTex", textureGroup.GetUvTexture());
-                azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
+            // C# Dictionary throws an error when you add an element with
+            // a key that is already taken.
+            if (videoMessages.ContainsKey(frameMessagePair.Item1))
+                continue;
 
-                prepared = true;
-
-                UnityEngine.Debug.Log("textureGroup intialized");
-            }
-        }
-
-        {
-            foreach (var frameMessagePair in videoMessageList)
-            {
-                // C# Dictionary throws an error when you add an element with
-                // a key that is already taken.
-                if (videoMessages.ContainsKey(frameMessagePair.Item1))
-                    continue;
-
-                videoMessages.Add(frameMessagePair.Item1, frameMessagePair.Item2);
-            }
+            videoMessages.Add(frameMessagePair.Item1, frameMessagePair.Item2);
         }
 
         if (videoMessages.Count == 0)
@@ -143,7 +164,7 @@ public class TextureGroupUpdater
                                                                     (float)frameTime.TotalMilliseconds), endPoint);
 
         // Invokes a function to be called in a render thread.
-        if (prepared)
+        if (state == TextureGroupUpdaterState.Prepared)
         {
             //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
             textureGroup.SetFFmpegFrame(ffmpegFrame);

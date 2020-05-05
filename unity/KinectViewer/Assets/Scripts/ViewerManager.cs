@@ -251,8 +251,10 @@ public class ViewerManager : MonoBehaviour
         if(sharedSpaceAnchor.KinectOrigin == null)
             sharedSpaceAnchor.AddKinectOrigin();
 
-        kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin, initPacketData);
+        kinectReceiver = new KinectReceiver(receiverSessionId, endPoint, sharedSpaceAnchor.KinectOrigin);
         kinectReceiver.KinectOrigin.Speaker.Setup();
+
         kinectReceiver.KinectOrigin.Screen.StartPrepare(initPacketData);
+        kinectReceiver.TextureGroupUpdater.StartPrepare(this, initPacketData);
     }
 }
