@@ -2,15 +2,15 @@
 using System.Net;
 using System.Net.Sockets;
 
+// Has no endpoint information since C# socket Receive() does not provide such.
+// ReceiveFrom() with Endpoint for any address causes exceptions after IL2CPP translation.
 public class UdpSocketPacket
 {
     public byte[] bytes;
-    public IPEndPoint endPoint;
 
-    public UdpSocketPacket(byte[] bytes, IPEndPoint endPoint)
+    public UdpSocketPacket(byte[] bytes)
     {
         this.bytes = bytes;
-        this.endPoint = endPoint;
     }
 };
 
@@ -34,12 +34,12 @@ public class UdpSocket
     public UdpSocketPacket Receive()
     {
         var bytes = new byte[PacketHelper.PACKET_SIZE];
-        SocketError error = SocketError.Success;
+        SocketError error;
         EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
         int packetSize = 0;
         try
         {
-            packetSize = socket.ReceiveFrom(bytes, 0, bytes.Length, SocketFlags.None, ref endPoint);
+            packetSize = socket.Receive(bytes, 0, bytes.Length, SocketFlags.None, out error);
         }
         catch (SocketException e)
         {
@@ -63,7 +63,7 @@ public class UdpSocket
             bytes = resizedBytes;
         }
 
-        return new UdpSocketPacket(bytes, (IPEndPoint)endPoint);
+        return new UdpSocketPacket(bytes);
     }
 
     public int Send(byte[] buffer, IPEndPoint endPoint)

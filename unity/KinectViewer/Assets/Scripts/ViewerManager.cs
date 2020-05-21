@@ -7,7 +7,6 @@ using UnityEngine;
 public class ViewerManager : MonoBehaviour
 {
     private const int SENDER_PORT = 3773;
-    private const float OFFSET_UNIT = 0.1f;
 
     // The main camera's Transform.
     public Transform cameraTransform;
@@ -233,7 +232,7 @@ public class ViewerManager : MonoBehaviour
         kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint, sharedSpaceAnchor.KinectOrigin);
         kinectReceiver.KinectOrigin.Speaker.Setup();
 
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 5; ++i)
         {
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), senderEndPoint);
             print($"Sent connect packet #{i}");
