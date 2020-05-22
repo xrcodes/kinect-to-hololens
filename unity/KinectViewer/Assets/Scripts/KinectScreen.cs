@@ -3,27 +3,20 @@ using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public enum KinectScreenState
-{
-    Unprepared,
-    Preparing,
-    Prepared
-}
-
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class KinectScreen : MonoBehaviour
 {
     public Shader shader;
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
-    private KinectScreenState state;
+    private PrepareState state;
 
     public Material Material => meshRenderer.sharedMaterial;
-    public KinectScreenState State => state;
+    public PrepareState State => state;
 
     void Awake()
     {
-        state = KinectScreenState.Unprepared;
+        state = PrepareState.Unprepared;
         meshRenderer.material = new Material(shader);
         RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
     }
@@ -43,7 +36,7 @@ public class KinectScreen : MonoBehaviour
     // every 100 ms.
     private IEnumerator SetupMesh(InitSenderPacketData initSenderPacketData)
     {
-        state = KinectScreenState.Preparing;
+        state = PrepareState.Preparing;
 
         int width = initSenderPacketData.depthWidth;
         int height = initSenderPacketData.depthHeight;
@@ -136,7 +129,7 @@ public class KinectScreen : MonoBehaviour
 
         meshFilter.mesh = mesh;
 
-        state = KinectScreenState.Prepared;
+        state = PrepareState.Prepared;
     }
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)

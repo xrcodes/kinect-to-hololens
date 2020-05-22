@@ -198,7 +198,7 @@ void main()
             for (auto& [receiver_session_id, _] : remote_receivers)
                 receiver_session_ids.push_back(receiver_session_id);
             
-            auto receiver_packet_collection = ReceiverPacketReceiver::receive(udp_socket, receiver_session_ids);
+            auto receiver_packet_collection{ReceiverPacketReceiver::receive(udp_socket, receiver_session_ids)};
 
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.

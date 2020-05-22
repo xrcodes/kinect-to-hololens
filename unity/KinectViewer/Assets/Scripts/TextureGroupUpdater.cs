@@ -5,16 +5,9 @@ using System.Diagnostics;
 using System.Net;
 using UnityEngine;
 
-public enum TextureGroupUpdaterState
-{
-    Unprepared,
-    Preparing,
-    Prepared
-}
-
 public class TextureGroupUpdater
 {
-    private TextureGroupUpdaterState state;
+    private PrepareState state;
     private int sessionId;
     private IPEndPoint endPoint;
 
@@ -30,11 +23,11 @@ public class TextureGroupUpdater
     private Dictionary<int, VideoSenderMessageData> videoMessages;
     private Stopwatch frameStopWatch;
 
-    public TextureGroupUpdaterState State => state;
+    public PrepareState State => state;
 
     public TextureGroupUpdater(Material azureKinectScreenMaterial, int sessionId, IPEndPoint endPoint)
     {
-        state = TextureGroupUpdaterState.Unprepared;
+        state = PrepareState.Unprepared;
 
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
@@ -64,10 +57,10 @@ public class TextureGroupUpdater
 
     public IEnumerator SetupTextureGroup(InitSenderPacketData initPacketData)
     {
-        if(state != TextureGroupUpdaterState.Unprepared)
+        if(state != PrepareState.Unprepared)
             throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
 
-        state = TextureGroupUpdaterState.Preparing;
+        state = PrepareState.Preparing;
 
         textureGroup.SetWidth(initPacketData.depthWidth);
         textureGroup.SetHeight(initPacketData.depthHeight);
@@ -75,7 +68,7 @@ public class TextureGroupUpdater
 
         depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
-        state = TextureGroupUpdaterState.Prepared;
+        state = PrepareState.Prepared;
 
         while (!textureGroup.IsInitialized())
             yield return null;
@@ -85,7 +78,7 @@ public class TextureGroupUpdater
         azureKinectScreenMaterial.SetTexture("_UvTex", textureGroup.GetUvTexture());
         azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
 
-        state = TextureGroupUpdaterState.Prepared;
+        state = PrepareState.Prepared;
     }
 
     public void UpdateFrame(UdpSocket udpSocket, List<Tuple<int, VideoSenderMessageData>> videoMessageList)
@@ -164,7 +157,7 @@ public class TextureGroupUpdater
                                                                     (float)frameTime.TotalMilliseconds), endPoint);
 
         // Invokes a function to be called in a render thread.
-        if (state == TextureGroupUpdaterState.Prepared)
+        if (state == PrepareState.Prepared)
         {
             //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
             textureGroup.SetFFmpegFrame(ffmpegFrame);

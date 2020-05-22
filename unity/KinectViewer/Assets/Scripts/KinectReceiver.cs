@@ -4,6 +4,13 @@ using System.Diagnostics;
 using System.Net;
 using UnityEngine;
 
+public enum PrepareState
+{
+    Unprepared,
+    Preparing,
+    Prepared
+}
+
 public class KinectReceiver
 {
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
@@ -23,6 +30,20 @@ public class KinectReceiver
     public KinectOrigin KinectOrigin => kinectOrigin;
     public TextureGroupUpdater TextureGroupUpdater => textureGroupUpdater;
 
+    public PrepareState State
+    {
+        get
+        {
+            if (kinectOrigin.Screen.State == PrepareState.Unprepared || TextureGroupUpdater.State == PrepareState.Unprepared)
+                return PrepareState.Unprepared;
+
+            if (kinectOrigin.Screen.State == PrepareState.Prepared && TextureGroupUpdater.State == PrepareState.Prepared)
+                return PrepareState.Prepared;
+
+            return PrepareState.Preparing;
+        }
+    }
+
     public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin)
     {
         this.receiverSessionId = receiverSessionId;
@@ -33,6 +54,15 @@ public class KinectReceiver
         textureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, receiverSessionId, senderEndPoint);
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
+    }
+
+    public void StartPrepare(MonoBehaviour monoBehaviour, SenderPacketSet senderPacketSet)
+    {
+        if (kinectOrigin.Screen.State == PrepareState.Unprepared)
+        {
+            KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+            TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
+        }
     }
 
     public bool UpdateFrame(MonoBehaviour monoBehaviour, UdpSocket udpSocket, SenderPacketSet senderPacketSet)
@@ -48,16 +78,6 @@ public class KinectReceiver
 
             if (senderPacketSet.ReceivedAny)
             {
-                // Use init packet to prepare rendering video messages.
-                if (senderPacketSet.InitPacketDataList.Count > 0)
-                {
-                    if(kinectOrigin.Screen.State == KinectScreenState.Unprepared)
-                    {
-                        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
-                        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
-                    }
-                }
-
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,

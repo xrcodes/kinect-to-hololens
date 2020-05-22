@@ -107,6 +107,13 @@ public class ViewerManager : MonoBehaviour
             var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
             if (kinectReceiver != null)
             {
+                // Use init packet to prepare rendering video messages.
+                if (senderPacketSet.InitPacketDataList.Count > 0)
+                {
+                    if (kinectReceiver.State == PrepareState.Unprepared)
+                        kinectReceiver.StartPrepare(this, senderPacketSet);
+                }
+
                 if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
                 {
                     kinectReceiver = null;
