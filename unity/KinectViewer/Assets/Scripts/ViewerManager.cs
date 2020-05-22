@@ -132,6 +132,21 @@ public class ViewerManager : MonoBehaviour
             if (remoteSenders.ContainsKey(confirmPacketInfo.SenderSessionId))
                 continue;
 
+            // There should be a receiver trying to connect that the confirmation matches.
+            KinectReceiver kinectReceiver;
+            if (!kinectReceivers.TryGetValue(confirmPacketInfo.ConfirmPacketData.receiverSessionId, out kinectReceiver))
+                continue;
+
+            // Also, the receiver should not have been prepared with a ConfirmSenderPacket yet.
+            if (kinectReceiver.State != PrepareState.Unprepared)
+                continue;
+
+            if (sharedSpaceAnchor.KinectOrigin == null)
+                sharedSpaceAnchor.AddKinectOrigin();
+
+            kinectReceiver.Prepare(sharedSpaceAnchor.KinectOrigin);
+            kinectReceiver.KinectOrigin.Speaker.Setup();
+
             print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
 
             remoteSenders.Add(confirmPacketInfo.SenderSessionId,
@@ -269,13 +284,7 @@ public class ViewerManager : MonoBehaviour
         var senderIpAddress = IPAddress.Parse(ipAddressText);
         var senderEndPoint = new IPEndPoint(senderIpAddress, SENDER_PORT);
 
-        kinectReceivers[receiverSessionId] = new KinectReceiver(receiverSessionId, senderEndPoint);
-
-        if (sharedSpaceAnchor.KinectOrigin == null)
-            sharedSpaceAnchor.AddKinectOrigin();
-
-        kinectReceivers[receiverSessionId].Prepare(sharedSpaceAnchor.KinectOrigin);
-        kinectReceivers[receiverSessionId].KinectOrigin.Speaker.Setup();
+        kinectReceivers.Add(receiverSessionId, new KinectReceiver(receiverSessionId, senderEndPoint));
 
         for (int i = 0; i < 5; ++i)
         {
