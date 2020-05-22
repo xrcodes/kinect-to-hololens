@@ -6,18 +6,25 @@ using System.Net.Sockets;
 // ReceiveFrom() with Endpoint for any address causes exceptions after IL2CPP translation.
 public class UdpSocketPacket
 {
-    public byte[] bytes;
+    public byte[] Bytes { get; private set; }
+    public IPEndPoint EndPoint { get; private set; }
 
-    public UdpSocketPacket(byte[] bytes)
+    public UdpSocketPacket(byte[] bytes, IPEndPoint endPoint)
     {
-        this.bytes = bytes;
+        Bytes = bytes;
+        EndPoint = endPoint;
     }
 };
 
 public class UdpSocketException : Exception
 {
-    public UdpSocketException(string message) : base(message)
+    public SocketError Error { get; private set; }
+    public IPEndPoint EndPoint { get; private set; }
+
+    public UdpSocketException(string message, SocketError error, IPEndPoint endPoint) : base(message)
     {
+        Error = error;
+        EndPoint = endPoint;
     }
 }
 
@@ -31,11 +38,19 @@ public class UdpSocket
         socket.Blocking = false;
     }
 
+    // Receive and ReceiveFrom has been split to figure out where the endpoint of SocketExceptions is.
+    // Unfortunately, when there is an error from the native side, .Net throws an exception without
+    // updating the endpoint parameter...
     public UdpSocketPacket Receive()
+    {
+        EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
+        return ReceiveFrom(endPoint);
+    }
+
+    public UdpSocketPacket ReceiveFrom(EndPoint endPoint)
     {
         var bytes = new byte[PacketHelper.PACKET_SIZE];
         SocketError error = SocketError.Success;
-        EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
         int packetSize = 0;
         try
         {
@@ -43,9 +58,10 @@ public class UdpSocket
         }
         catch (SocketException e)
         {
-            UnityEngine.Debug.Log("socket.ReceiveFrom: " + e.Message);
             error = e.SocketErrorCode;
         }
+
+        //UnityEngine.Debug.Log($"message from {(IPEndPoint)endPoint}");
 
         if (error == SocketError.WouldBlock)
         {
@@ -54,7 +70,7 @@ public class UdpSocket
 
         if (error != SocketError.Success)
         {
-            throw new UdpSocketException($"Failed to receive bytes: {error}");
+            throw new UdpSocketException($"Failed to receive bytes from {endPoint}: {error}", error, (IPEndPoint)endPoint);
         }
 
         if (packetSize != bytes.Length)
@@ -64,7 +80,7 @@ public class UdpSocket
             bytes = resizedBytes;
         }
 
-        return new UdpSocketPacket(bytes);
+        return new UdpSocketPacket(bytes, (IPEndPoint)endPoint);
     }
 
     public int Send(byte[] buffer, IPEndPoint endPoint)

@@ -1,12 +1,15 @@
 ﻿using System.Collections.Generic;
+using System.Net;
 
 public class ConfirmPacketInfo
 {
+    public IPEndPoint SenderEndPoint { get; private set; }
     public int SenderSessionId { get; private set; }
     public ConfirmSenderPacketData ConfirmPacketData { get; private set; }
 
-    public ConfirmPacketInfo(int senderSessionId, ConfirmSenderPacketData confirmPacketData)
+    public ConfirmPacketInfo(IPEndPoint senderEndPoint, int senderSessionId, ConfirmSenderPacketData confirmPacketData)
     {
+        SenderEndPoint = senderEndPoint;
         SenderSessionId = senderSessionId;
         ConfirmPacketData = confirmPacketData;
     }
@@ -46,53 +49,76 @@ public class SenderPacketCollection
 
 public static class SenderPacketReceiver
 {
-    public static SenderPacketCollection Receive(UdpSocket udpSocket, List<int> senderSessionIds)
+    public static SenderPacketCollection Receive(UdpSocket udpSocket, List<RemoteSender> remoteSenders)
     {
+        var senderEndPoints = new List<IPEndPoint>();
         var senderPacketCollection = new SenderPacketCollection();
-        foreach (int senderSessionId in senderSessionIds)
-            senderPacketCollection.SenderPacketSets.Add(senderSessionId, new SenderPacketSet());
+        foreach (var remoteSender in remoteSenders)
+        {
+            senderEndPoints.Add(remoteSender.SenderEndPoint);
+            senderPacketCollection.SenderPacketSets.Add(remoteSender.SenderSessionId, new SenderPacketSet());
+        }
 
-        while (true)
+        // During this loop, SocketExceptions will have endpoint information.
+        foreach(var senderEndPoint in senderEndPoints)
+        {
+            while(true)
+            {
+                var packet = udpSocket.ReceiveFrom(senderEndPoint);
+                if (packet == null)
+                    break;
+
+                CollectPacket(packet, senderPacketCollection);
+            }
+        }
+
+        // During this loop, SocketExceptions won't have endpoint information but connection messages will be received.
+        while(true)
         {
             var packet = udpSocket.Receive();
             if (packet == null)
                 break;
 
-            int senderSessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet.bytes);
-            SenderPacketType packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet.bytes);
-
-            if(packetType == SenderPacketType.Confirm)
-            {
-                senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(senderSessionId, ConfirmSenderPacketData.Parse(packet.bytes)));
-                continue;
-            }
-
-            SenderPacketSet senderPacketSet;
-            if (!senderPacketCollection.SenderPacketSets.TryGetValue(senderSessionId, out senderPacketSet))
-                continue;
-
-            // Heartbeat packets turns on ReceivedAny.
-            senderPacketSet.ReceivedAny = true;
-            switch (packetType)
-            {
-                case SenderPacketType.VideoInit:
-                    senderPacketSet.InitPacketDataList.Add(VideoInitSenderPacketData.Parse(packet.bytes));
-                    break;
-                case SenderPacketType.Frame:
-                    senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet.bytes));
-                    break;
-                case SenderPacketType.Parity:
-                    senderPacketSet.FecPacketDataList.Add(ParitySenderPacketData.Parse(packet.bytes));
-                    break;
-                case SenderPacketType.Audio:
-                    senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet.bytes));
-                    break;
-                case SenderPacketType.Floor:
-                    senderPacketSet.FloorPacketDataList.Add(FloorSenderPacketData.Parse(packet.bytes));
-                    break;
-            }
+            CollectPacket(packet, senderPacketCollection);
         }
 
         return senderPacketCollection;
+    }
+
+    private static void CollectPacket(UdpSocketPacket packet, SenderPacketCollection senderPacketCollection)
+    {
+        int senderSessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet.Bytes);
+        SenderPacketType packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet.Bytes);
+
+        if (packetType == SenderPacketType.Confirm)
+        {
+            senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(packet.EndPoint, senderSessionId, ConfirmSenderPacketData.Parse(packet.Bytes)));
+            return;
+        }
+
+        SenderPacketSet senderPacketSet;
+        if (!senderPacketCollection.SenderPacketSets.TryGetValue(senderSessionId, out senderPacketSet))
+            return;
+
+        // Heartbeat packets turns on ReceivedAny.
+        senderPacketSet.ReceivedAny = true;
+        switch (packetType)
+        {
+            case SenderPacketType.VideoInit:
+                senderPacketSet.InitPacketDataList.Add(VideoInitSenderPacketData.Parse(packet.Bytes));
+                break;
+            case SenderPacketType.Frame:
+                senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet.Bytes));
+                break;
+            case SenderPacketType.Parity:
+                senderPacketSet.FecPacketDataList.Add(ParitySenderPacketData.Parse(packet.Bytes));
+                break;
+            case SenderPacketType.Audio:
+                senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet.Bytes));
+                break;
+            case SenderPacketType.Floor:
+                senderPacketSet.FloorPacketDataList.Add(FloorSenderPacketData.Parse(packet.Bytes));
+                break;
+        }
     }
 }

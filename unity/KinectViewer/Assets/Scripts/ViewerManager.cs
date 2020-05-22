@@ -7,11 +7,13 @@ using UnityEngine;
 
 public class RemoteSender
 {
+    public IPEndPoint SenderEndPoint { get; private set; }
     public int SenderSessionId { get; private set; }
     public int ReceiverSessionId { get; private set; }
 
-    public RemoteSender(int senderSessionId, int receiverSessionId)
+    public RemoteSender(IPEndPoint senderEndPoint, int senderSessionId, int receiverSessionId)
     {
+        SenderEndPoint = senderEndPoint;
         SenderSessionId = senderSessionId;
         ReceiverSessionId = receiverSessionId;
     }
@@ -126,7 +128,7 @@ public class ViewerManager : MonoBehaviour
         // TODO: Make try catch work again.
         //try
         //{
-        var senderPacketCollection = SenderPacketReceiver.Receive(udpSocket, remoteSenders.Keys.ToList());
+        var senderPacketCollection = SenderPacketReceiver.Receive(udpSocket, remoteSenders.Values.ToList());
         foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
         {
             if (remoteSenders.ContainsKey(confirmPacketInfo.SenderSessionId))
@@ -149,7 +151,8 @@ public class ViewerManager : MonoBehaviour
             print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
 
             remoteSenders.Add(confirmPacketInfo.SenderSessionId,
-                                new RemoteSender(confirmPacketInfo.SenderSessionId,
+                                new RemoteSender(confirmPacketInfo.SenderEndPoint,
+                                                 confirmPacketInfo.SenderSessionId,
                                                  confirmPacketInfo.ConfirmPacketData.receiverSessionId));
         }
 
