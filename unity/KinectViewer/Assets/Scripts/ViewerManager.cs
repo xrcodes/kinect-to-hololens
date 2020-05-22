@@ -107,6 +107,10 @@ public class ViewerManager : MonoBehaviour
             var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
             if (kinectReceiver != null)
             {
+                if (senderPacketSet.ConfirmPacketDataList.Count > 0)
+                {
+                    print("Found a confirm packet!!");
+                }
                 // Use init packet to prepare rendering video messages.
                 if (senderPacketSet.InitPacketDataList.Count > 0)
                 {

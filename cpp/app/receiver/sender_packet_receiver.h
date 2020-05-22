@@ -5,7 +5,7 @@ namespace kh
 struct SenderPacketSet
 {
     bool received_any;
-    std::vector<InitSenderPacketData> init_packet_data_vector;
+    std::vector<VideoInitSenderPacketData> init_packet_data_vector;
     std::vector<VideoSenderPacketData> video_packet_data_vector;
     std::vector<ParitySenderPacketData> fec_packet_data_vector;
     std::vector<AudioSenderPacketData> audio_packet_data_vector;

@@ -72,7 +72,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     // Keep send the init packet until the receiver reports a received frame.
     for (auto& [_, remote_receiver] : remote_receivers) {
         if (remote_receiver.video_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID) {
-            const auto init_packet_bytes{create_init_sender_packet_bytes(session_id_, create_init_sender_packet_data(calibration_))};
+            const auto init_packet_bytes{create_video_init_sender_packet_bytes(session_id_, create_video_init_sender_packet_data(calibration_))};
             udp_socket.send(init_packet_bytes, remote_receiver.endpoint);
         }
     }

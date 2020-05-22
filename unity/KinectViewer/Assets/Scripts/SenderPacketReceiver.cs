@@ -3,7 +3,8 @@
 public class SenderPacketSet
 {
     public bool ReceivedAny { get; set; }
-    public List<InitSenderPacketData> InitPacketDataList { get; private set; }
+    public List<ConfirmSenderPacketData> ConfirmPacketDataList { get; private set; }
+    public List<VideoInitSenderPacketData> InitPacketDataList { get; private set; }
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
     public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
     public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
@@ -12,7 +13,8 @@ public class SenderPacketSet
     public SenderPacketSet()
     {
         ReceivedAny = false;
-        InitPacketDataList = new List<InitSenderPacketData>();
+        ConfirmPacketDataList = new List<ConfirmSenderPacketData>();
+        InitPacketDataList = new List<VideoInitSenderPacketData>();
         VideoPacketDataList = new List<VideoSenderPacketData>();
         FecPacketDataList = new List<ParitySenderPacketData>();
         AudioPacketDataList = new List<AudioSenderPacketData>();
@@ -32,11 +34,15 @@ public static class SenderPacketReceiver
                 break;
 
             //int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
+            // Heartbeat packets turns on ReceivedAny.
             senderPacketSet.ReceivedAny = true;
             switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet.bytes))
             {
-                case SenderPacketType.Init:
-                    senderPacketSet.InitPacketDataList.Add(InitSenderPacketData.Parse(packet.bytes));
+                case SenderPacketType.Confirm:
+                    senderPacketSet.ConfirmPacketDataList.Add(ConfirmSenderPacketData.Parse(packet.bytes));
+                    break;
+                case SenderPacketType.VideoInit:
+                    senderPacketSet.InitPacketDataList.Add(VideoInitSenderPacketData.Parse(packet.bytes));
                     break;
                 case SenderPacketType.Frame:
                     senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet.bytes));

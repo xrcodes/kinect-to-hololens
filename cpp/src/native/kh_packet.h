@@ -11,12 +11,13 @@ namespace kh
 // Packet types.
 enum class SenderPacketType : std::uint8_t
 {
-    Init = 0,
+    Confirm = 0,
     Heartbeat = 1,
-    Video = 2,
-    Parity = 3,
-    Audio = 4,
-    Floor = 5,
+    VideoInit = 2,
+    Video = 3,
+    Parity = 4,
+    Audio = 5,
+    Floor = 6,
 };
 
 enum class ReceiverPacketType : std::uint8_t
@@ -84,7 +85,16 @@ T copy_from_bytes(gsl::span<const std::byte> bytes, int position)
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-struct InitSenderPacketData
+struct ConfirmSenderPacketData
+{
+    int receiver_session_id;
+};
+
+std::vector<std::byte> create_confirm_sender_packet_bytes(int session_id, int receiver_session_id);
+
+std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
+
+struct VideoInitSenderPacketData
 {
     int width;
     int height;
@@ -92,11 +102,9 @@ struct InitSenderPacketData
     float metric_radius;
 };
 
-InitSenderPacketData create_init_sender_packet_data(k4a_calibration_t calibration);
-std::vector<std::byte> create_init_sender_packet_bytes(int session_id, const InitSenderPacketData& init_sender_packet_data);
-InitSenderPacketData parse_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-
-std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
+VideoInitSenderPacketData create_video_init_sender_packet_data(k4a_calibration_t calibration);
+std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, const VideoInitSenderPacketData& video_init_sender_packet_data);
+VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct VideoSenderMessageData
 {

@@ -216,6 +216,8 @@ void main()
                                                         connect_packet_info.connect_packet_data.video_requested,
                                                         connect_packet_info.connect_packet_data.audio_requested,
                                                         connect_packet_info.connect_packet_data.floor_requested}});
+
+                udp_socket.send(create_confirm_sender_packet_bytes(session_id, connect_packet_info.session_id), connect_packet_info.endpoint);
             }
 
             // Skip the main part of the loop if there is no receiver connected.

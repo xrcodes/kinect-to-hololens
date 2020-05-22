@@ -4,12 +4,13 @@ using System.IO;
 
 public enum SenderPacketType : byte
 {
-    Init = 0,
+    Confirm = 0,
     Heartbeat = 1,
-    Frame = 2,
-    Parity = 3,
-    Audio = 4,
-    Floor = 5,
+    VideoInit = 2,
+    Frame = 3,
+    Parity = 4,
+    Audio = 5,
+    Floor = 6,
 }
 
 public enum ReceiverPacketType : byte
@@ -90,21 +91,37 @@ public static class PacketHelper
     }
 }
 
-public class InitSenderPacketData
+public class ConfirmSenderPacketData
+{
+    public int receiverSessionId;
+
+    public static ConfirmSenderPacketData Parse(byte[] packetBytes)
+    {
+        var reader = new BinaryReader(new MemoryStream(packetBytes));
+        reader.BaseStream.Position = 5;
+
+        var confirmSenderPacketData = new ConfirmSenderPacketData();
+        confirmSenderPacketData.receiverSessionId = reader.ReadInt32();
+
+        return confirmSenderPacketData;
+    }
+}
+
+public class VideoInitSenderPacketData
 {
     public int depthWidth;
     public int depthHeight;
     public KinectCalibration.Intrinsics depthIntrinsics;
     public float depthMetricRadius;
 
-    public static InitSenderPacketData Parse(byte[] packetBytes)
+    public static VideoInitSenderPacketData Parse(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
         reader.BaseStream.Position = 5;
 
-        var initSenderPacketData = new InitSenderPacketData();
-        initSenderPacketData.depthWidth = reader.ReadInt32();
-        initSenderPacketData.depthHeight = reader.ReadInt32();
+        var videoInitSenderPacketData = new VideoInitSenderPacketData();
+        videoInitSenderPacketData.depthWidth = reader.ReadInt32();
+        videoInitSenderPacketData.depthHeight = reader.ReadInt32();
 
         var depthIntrinsics = new KinectCalibration.Intrinsics();
         depthIntrinsics.cx = reader.ReadSingle();
@@ -122,11 +139,11 @@ public class InitSenderPacketData
         depthIntrinsics.p2 = reader.ReadSingle();
         depthIntrinsics.p1 = reader.ReadSingle();
         depthIntrinsics.metricRadius = reader.ReadSingle();
-        initSenderPacketData.depthIntrinsics = depthIntrinsics;
+        videoInitSenderPacketData.depthIntrinsics = depthIntrinsics;
 
-        initSenderPacketData.depthMetricRadius = reader.ReadSingle();
+        videoInitSenderPacketData.depthMetricRadius = reader.ReadSingle();
 
-        return initSenderPacketData;
+        return videoInitSenderPacketData;
     }
 }
 

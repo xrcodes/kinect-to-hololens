@@ -50,12 +50,12 @@ public class TextureGroupUpdater
         this.endPoint = endPoint;
     }
 
-    public void StartPrepare(MonoBehaviour monoBehaviour, InitSenderPacketData initPacketData)
+    public void StartPrepare(MonoBehaviour monoBehaviour, VideoInitSenderPacketData initPacketData)
     {
         monoBehaviour.StartCoroutine(SetupTextureGroup(initPacketData));
     }
 
-    public IEnumerator SetupTextureGroup(InitSenderPacketData initPacketData)
+    public IEnumerator SetupTextureGroup(VideoInitSenderPacketData initPacketData)
     {
         if(state != PrepareState.Unprepared)
             throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
