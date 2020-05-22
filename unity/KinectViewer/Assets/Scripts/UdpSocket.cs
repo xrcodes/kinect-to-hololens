@@ -34,15 +34,16 @@ public class UdpSocket
     public UdpSocketPacket Receive()
     {
         var bytes = new byte[PacketHelper.PACKET_SIZE];
-        SocketError error;
+        SocketError error = SocketError.Success;
         EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
         int packetSize = 0;
         try
         {
-            packetSize = socket.Receive(bytes, 0, bytes.Length, SocketFlags.None, out error);
+            packetSize = socket.ReceiveFrom(bytes, bytes.Length, SocketFlags.None, ref endPoint);
         }
         catch (SocketException e)
         {
+            UnityEngine.Debug.Log("socket.ReceiveFrom: " + e.Message);
             error = e.SocketErrorCode;
         }
 

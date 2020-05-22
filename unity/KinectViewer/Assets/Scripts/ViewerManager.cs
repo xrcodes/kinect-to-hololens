@@ -141,10 +141,9 @@ public class ViewerManager : MonoBehaviour
             if (kinectReceiver.State != PrepareState.Unprepared)
                 continue;
 
-            if (sharedSpaceAnchor.KinectOrigin == null)
-                sharedSpaceAnchor.AddKinectOrigin();
+            var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
 
-            kinectReceiver.Prepare(sharedSpaceAnchor.KinectOrigin);
+            kinectReceiver.Prepare(kinectOrigin);
             kinectReceiver.KinectOrigin.Speaker.Setup();
 
             print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
@@ -154,7 +153,10 @@ public class ViewerManager : MonoBehaviour
                                                  confirmPacketInfo.ConfirmPacketData.receiverSessionId));
         }
 
-        foreach (var remoteSender in remoteSenders.Values)
+        // Using remoteSenderList instead of directly using remoteSenders.Values,
+        // since otherwise, removing a RemoteSender from remoteSenders inside the loop does not work.
+        var remoteSenderList = remoteSenders.Values.ToList();
+        foreach (var remoteSender in remoteSenderList)
         {
             SenderPacketSet senderPacketSet;
             if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
@@ -167,7 +169,9 @@ public class ViewerManager : MonoBehaviour
             if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
             {
                 //kinectReceiver = null;
+                remoteSenders.Remove(remoteSender.SenderSessionId);
                 kinectReceivers.Remove(remoteSender.ReceiverSessionId);
+                sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
                 ConnectWindowVisibility = true;
             }
         }
