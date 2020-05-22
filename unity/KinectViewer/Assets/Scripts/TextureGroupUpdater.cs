@@ -83,6 +83,12 @@ public class TextureGroupUpdater
 
     public void UpdateFrame(UdpSocket udpSocket, List<Tuple<int, VideoSenderMessageData>> videoMessageList)
     {
+        if (state != PrepareState.Prepared)
+        {
+            UnityEngine.Debug.Log("TextureGroupUpdater is not prepared yet...");
+            return;
+        }
+
         foreach (var frameMessagePair in videoMessageList)
         {
             // C# Dictionary throws an error when you add an element with
@@ -156,15 +162,11 @@ public class TextureGroupUpdater
                                                                     (float)decoderTime.TotalMilliseconds,
                                                                     (float)frameTime.TotalMilliseconds), endPoint);
 
-        // Invokes a function to be called in a render thread.
-        if (state == PrepareState.Prepared)
-        {
-            //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
-            textureGroup.SetFFmpegFrame(ffmpegFrame);
-            //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
-            textureGroup.SetTrvlFrame(trvlFrame);
-            PluginHelper.UpdateTextureGroup(textureGroup.GetId());
-        }
+        //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
+        textureGroup.SetFFmpegFrame(ffmpegFrame);
+        //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
+        textureGroup.SetTrvlFrame(trvlFrame);
+        PluginHelper.UpdateTextureGroup(textureGroup.GetId());
 
         // Remove frame messages before the rendered frame.
         var frameMessageKeys = new List<int>();

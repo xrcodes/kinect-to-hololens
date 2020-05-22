@@ -18,6 +18,7 @@ public class KinectReceiver
 
     private int receiverSessionId;
     private IPEndPoint senderEndPoint;
+    private PrepareState state;
     private KinectOrigin kinectOrigin;
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;
@@ -27,6 +28,7 @@ public class KinectReceiver
 
     public int ReceiverSessionId => receiverSessionId;
     public IPEndPoint SenderEndPoint => senderEndPoint;
+    public PrepareState State => state;
     public KinectOrigin KinectOrigin => kinectOrigin;
     public TextureGroupUpdater TextureGroupUpdater => textureGroupUpdater;
 
@@ -34,10 +36,12 @@ public class KinectReceiver
     {
         this.receiverSessionId = receiverSessionId;
         this.senderEndPoint = senderEndPoint;
+        state = PrepareState.Unprepared;
     }
 
     public void Prepare(KinectOrigin kinectOrigin)
     {
+        state = PrepareState.Prepared;
         this.kinectOrigin = kinectOrigin;
         videoMessageAssembler = new VideoMessageAssembler(receiverSessionId, senderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
@@ -64,8 +68,8 @@ public class KinectReceiver
                 {
                     if (kinectOrigin.Screen.State == PrepareState.Unprepared)
                     {
-                        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
-                        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
+                        kinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+                        textureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
                     }
                 }
 

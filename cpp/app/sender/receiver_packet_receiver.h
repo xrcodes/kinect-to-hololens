@@ -6,8 +6,8 @@ namespace kh
 {
 struct ConnectPacketInfo
 {
-    asio::ip::udp::endpoint endpoint;
-    int session_id;
+    asio::ip::udp::endpoint receiver_endpoint;
+    int receiver_session_id;
     ConnectReceiverPacketData connect_packet_data;
 };
 

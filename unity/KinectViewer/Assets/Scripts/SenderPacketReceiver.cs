@@ -1,9 +1,20 @@
 ﻿using System.Collections.Generic;
 
+public class ConfirmPacketInfo
+{
+    public int SenderSessionId { get; private set; }
+    public ConfirmSenderPacketData ConfirmPacketData { get; private set; }
+
+    public ConfirmPacketInfo(int senderSessionId, ConfirmSenderPacketData confirmPacketData)
+    {
+        SenderSessionId = senderSessionId;
+        ConfirmPacketData = confirmPacketData;
+    }
+}
+
 public class SenderPacketSet
 {
     public bool ReceivedAny { get; set; }
-    public List<ConfirmSenderPacketData> ConfirmPacketDataList { get; private set; }
     public List<VideoInitSenderPacketData> InitPacketDataList { get; private set; }
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
     public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
@@ -13,7 +24,6 @@ public class SenderPacketSet
     public SenderPacketSet()
     {
         ReceivedAny = false;
-        ConfirmPacketDataList = new List<ConfirmSenderPacketData>();
         InitPacketDataList = new List<VideoInitSenderPacketData>();
         VideoPacketDataList = new List<VideoSenderPacketData>();
         FecPacketDataList = new List<ParitySenderPacketData>();
@@ -22,25 +32,49 @@ public class SenderPacketSet
     }
 }
 
+public class SenderPacketCollection
+{
+    public List<ConfirmPacketInfo> ConfirmPacketInfoList { get; private set; }
+    public Dictionary<int, SenderPacketSet> SenderPacketSets { get; private set; }
+
+    public SenderPacketCollection()
+    {
+        ConfirmPacketInfoList = new List<ConfirmPacketInfo>();
+        SenderPacketSets = new Dictionary<int, SenderPacketSet>();
+    }
+};
+
 public static class SenderPacketReceiver
 {
-    public static SenderPacketSet Receive(UdpSocket udpSocket)
+    public static SenderPacketCollection Receive(UdpSocket udpSocket, List<int> senderSessionIds)
     {
-        var senderPacketSet = new SenderPacketSet();
+        var senderPacketCollection = new SenderPacketCollection();
+        foreach (int senderSessionId in senderSessionIds)
+            senderPacketCollection.SenderPacketSets.Add(senderSessionId, new SenderPacketSet());
+
         while (true)
         {
             var packet = udpSocket.Receive();
             if (packet == null)
                 break;
 
-            //int sessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet);
+            int senderSessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet.bytes);
+            SenderPacketType packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet.bytes);
+
+            if(packetType == SenderPacketType.Confirm)
+            {
+                senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(senderSessionId, ConfirmSenderPacketData.Parse(packet.bytes)));
+                continue;
+            }
+
+            SenderPacketSet senderPacketSet;
+            if (!senderPacketCollection.SenderPacketSets.TryGetValue(senderSessionId, out senderPacketSet))
+                continue;
+
             // Heartbeat packets turns on ReceivedAny.
             senderPacketSet.ReceivedAny = true;
-            switch (PacketHelper.getPacketTypeFromSenderPacketBytes(packet.bytes))
+            switch (packetType)
             {
-                case SenderPacketType.Confirm:
-                    senderPacketSet.ConfirmPacketDataList.Add(ConfirmSenderPacketData.Parse(packet.bytes));
-                    break;
                 case SenderPacketType.VideoInit:
                     senderPacketSet.InitPacketDataList.Add(VideoInitSenderPacketData.Parse(packet.bytes));
                     break;
@@ -59,6 +93,6 @@ public static class SenderPacketReceiver
             }
         }
 
-        return senderPacketSet;
+        return senderPacketCollection;
     }
 }

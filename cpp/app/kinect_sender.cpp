@@ -203,21 +203,22 @@ void main()
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
+                // Send packet confirming the receiver that the connect packet got received.
+                udp_socket.send(create_confirm_sender_packet_bytes(session_id, connect_packet_info.receiver_session_id), connect_packet_info.receiver_endpoint);
+
                 // Skip already existing receivers.
-                if (remote_receivers.find(connect_packet_info.session_id) != remote_receivers.end())
+                if (remote_receivers.find(connect_packet_info.receiver_session_id) != remote_receivers.end())
                     continue;
 
                 std::cout << "connect_packet_info.connect_packet_data.video_requested: " << connect_packet_info.connect_packet_data.video_requested << "\n";
 
-                std::cout << "Receiver " << connect_packet_info.session_id << " connected.\n";
-                remote_receivers.insert({connect_packet_info.session_id,
-                                         RemoteReceiver{connect_packet_info.endpoint,
-                                                        connect_packet_info.session_id,
+                std::cout << "Receiver " << connect_packet_info.receiver_session_id << " connected.\n";
+                remote_receivers.insert({connect_packet_info.receiver_session_id,
+                                         RemoteReceiver{connect_packet_info.receiver_endpoint,
+                                                        connect_packet_info.receiver_session_id,
                                                         connect_packet_info.connect_packet_data.video_requested,
                                                         connect_packet_info.connect_packet_data.audio_requested,
                                                         connect_packet_info.connect_packet_data.floor_requested}});
-
-                udp_socket.send(create_confirm_sender_packet_bytes(session_id, connect_packet_info.session_id), connect_packet_info.endpoint);
             }
 
             // Skip the main part of the loop if there is no receiver connected.

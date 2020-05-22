@@ -1,8 +1,21 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
+
+public class RemoteSender
+{
+    public int SenderSessionId { get; private set; }
+    public int ReceiverSessionId { get; private set; }
+
+    public RemoteSender(int senderSessionId, int receiverSessionId)
+    {
+        SenderSessionId = senderSessionId;
+        ReceiverSessionId = receiverSessionId;
+    }
+}
 
 public class ViewerManager : MonoBehaviour
 {
@@ -21,7 +34,10 @@ public class ViewerManager : MonoBehaviour
     private UdpSocket udpSocket;
 
     private ControllerClient controllerClient;
-    private KinectReceiver kinectReceiver;
+    // Key would be receiver session ID.
+    private Dictionary<int, KinectReceiver> kinectReceivers;
+    // Key would be sender session ID.
+    private Dictionary<int, RemoteSender> remoteSenders;
 
     private bool ConnectWindowVisibility
     {
@@ -43,6 +59,9 @@ public class ViewerManager : MonoBehaviour
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
         print($"socket.LocalEndPoint: {socket.LocalEndPoint}");
         udpSocket = new UdpSocket(socket);
+
+        kinectReceivers = new Dictionary<int, KinectReceiver>();
+        remoteSenders = new Dictionary<int, RemoteSender>();
 
         statusText.text = "Waiting for user input.";
         connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
@@ -83,13 +102,15 @@ public class ViewerManager : MonoBehaviour
         if (controllerClient != null)
         {
             var receiverStates = new List<ReceiverState>();
-            if (kinectReceiver != null)
+
+            foreach(var receiver in kinectReceivers.Values)
             {
-                var receiverState = new ReceiverState(kinectReceiver.SenderEndPoint.Address.ToString(),
-                                                      kinectReceiver.SenderEndPoint.Port,
-                                                      kinectReceiver.ReceiverSessionId);
+                var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
+                                                      receiver.SenderEndPoint.Port,
+                                                      receiver.ReceiverSessionId);
                 receiverStates.Add(receiverState);
             }
+
             try
             {
                 controllerClient.SendViewerState(receiverStates);
@@ -102,29 +123,46 @@ public class ViewerManager : MonoBehaviour
         }
 
         // This is for the receive part.
-        try
+        // TODO: Make try catch work again.
+        //try
+        //{
+        var senderPacketCollection = SenderPacketReceiver.Receive(udpSocket, remoteSenders.Keys.ToList());
+        foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
         {
-            var senderPacketSet = SenderPacketReceiver.Receive(udpSocket);
-            if (kinectReceiver != null)
-            {
-                if (senderPacketSet.ConfirmPacketDataList.Count > 0)
-                {
-                    print("Found a confirm packet!!");
-                }
+            if (remoteSenders.ContainsKey(confirmPacketInfo.SenderSessionId))
+                continue;
 
-                if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
-                {
-                    kinectReceiver = null;
-                    ConnectWindowVisibility = true;
-                }
+            print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
+
+            remoteSenders.Add(confirmPacketInfo.SenderSessionId,
+                                new RemoteSender(confirmPacketInfo.SenderSessionId,
+                                                 confirmPacketInfo.ConfirmPacketData.receiverSessionId));
+        }
+
+        foreach (var remoteSender in remoteSenders.Values)
+        {
+            SenderPacketSet senderPacketSet;
+            if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
+                continue;
+
+            KinectReceiver kinectReceiver;
+            if (!kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
+                continue;
+
+            if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
+            {
+                //kinectReceiver = null;
+                kinectReceivers.Remove(remoteSender.ReceiverSessionId);
+                ConnectWindowVisibility = true;
             }
         }
-        catch (UdpSocketException e)
-        {
-            print($"UdpSocketException: {e}");
-            kinectReceiver = null;
-            ConnectWindowVisibility = true;
-        }
+        //}
+        //catch (UdpSocketException e)
+        //{
+        //    print($"UdpSocketException: {e}");
+        //    kinectReceiver = null;
+        //    ConnectWindowVisibility = true;
+        //}
     }
 
     // Sends keystrokes of the virtual keyboard to TextMeshes.
@@ -231,12 +269,13 @@ public class ViewerManager : MonoBehaviour
         var senderIpAddress = IPAddress.Parse(ipAddressText);
         var senderEndPoint = new IPEndPoint(senderIpAddress, SENDER_PORT);
 
-        if(sharedSpaceAnchor.KinectOrigin == null)
+        kinectReceivers[receiverSessionId] = new KinectReceiver(receiverSessionId, senderEndPoint);
+
+        if (sharedSpaceAnchor.KinectOrigin == null)
             sharedSpaceAnchor.AddKinectOrigin();
 
-        kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint);
-        kinectReceiver.Prepare(sharedSpaceAnchor.KinectOrigin);
-        kinectReceiver.KinectOrigin.Speaker.Setup();
+        kinectReceivers[receiverSessionId].Prepare(sharedSpaceAnchor.KinectOrigin);
+        kinectReceivers[receiverSessionId].KinectOrigin.Speaker.Setup();
 
         for (int i = 0; i < 5; ++i)
         {
