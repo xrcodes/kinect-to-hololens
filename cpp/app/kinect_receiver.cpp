@@ -42,8 +42,8 @@ void start_session(const std::string ip_address, const int port, const int sessi
         try {
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
 
-            if (!sender_packet_set.init_packet_data_vector.empty()) {
-                init_sender_packet_data = sender_packet_set.init_packet_data_vector[0];
+            if (!sender_packet_set.video_init_packet_data_vector.empty()) {
+                init_sender_packet_data = sender_packet_set.video_init_packet_data_vector[0];
                 break;
             }
         } catch (UdpSocketRuntimeError e) {

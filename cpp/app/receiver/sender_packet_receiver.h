@@ -5,7 +5,7 @@ namespace kh
 struct SenderPacketSet
 {
     bool received_any;
-    std::vector<VideoInitSenderPacketData> init_packet_data_vector;
+    std::vector<VideoInitSenderPacketData> video_init_packet_data_vector;
     std::vector<VideoSenderPacketData> video_packet_data_vector;
     std::vector<ParitySenderPacketData> fec_packet_data_vector;
     std::vector<AudioSenderPacketData> audio_packet_data_vector;
@@ -23,8 +23,8 @@ public:
             sender_packet_set.received_any = true;
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {
-            case SenderPacketType::Init:
-                sender_packet_set.init_packet_data_vector.push_back(parse_init_sender_packet_bytes(packet->bytes));
+            case SenderPacketType::VideoInit:
+                sender_packet_set.video_init_packet_data_vector.push_back(parse_video_init_sender_packet_bytes(packet->bytes));
                 break;
             case SenderPacketType::Video:
                 sender_packet_set.video_packet_data_vector.push_back(parse_video_sender_packet_bytes(packet->bytes));

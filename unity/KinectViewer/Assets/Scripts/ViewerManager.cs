@@ -111,12 +111,6 @@ public class ViewerManager : MonoBehaviour
                 {
                     print("Found a confirm packet!!");
                 }
-                // Use init packet to prepare rendering video messages.
-                if (senderPacketSet.InitPacketDataList.Count > 0)
-                {
-                    if (kinectReceiver.State == PrepareState.Unprepared)
-                        kinectReceiver.StartPrepare(this, senderPacketSet);
-                }
 
                 if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
                 {
@@ -240,7 +234,8 @@ public class ViewerManager : MonoBehaviour
         if(sharedSpaceAnchor.KinectOrigin == null)
             sharedSpaceAnchor.AddKinectOrigin();
 
-        kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint, sharedSpaceAnchor.KinectOrigin);
+        kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint);
+        kinectReceiver.Prepare(sharedSpaceAnchor.KinectOrigin);
         kinectReceiver.KinectOrigin.Speaker.Setup();
 
         for (int i = 0; i < 5; ++i)
