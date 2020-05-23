@@ -2,8 +2,6 @@
 using System.Net;
 using System.Net.Sockets;
 
-// Has no endpoint information since C# socket Receive() does not provide such.
-// ReceiveFrom() with Endpoint for any address causes exceptions after IL2CPP translation.
 public class UdpSocketPacket
 {
     public byte[] Bytes { get; private set; }
@@ -28,6 +26,7 @@ public class UdpSocketException : Exception
     }
 }
 
+// Socket.ReceiveFrom(), after IL2CPP translation, prints exceptions to the console even when the exception is caught...
 public class UdpSocket
 {
     private Socket socket;

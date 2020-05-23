@@ -163,14 +163,14 @@ void main()
         begin_imgui_frame();
 
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.5f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.45f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Local IP Addresses");
         for (auto& address : local_addresses)
             ImGui::BulletText(address.c_str());
         ImGui::End();
 
-        ImGui::SetNextWindowPos(ImVec2(0.0f, INGUI_HEIGHT * 0.5f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.5f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, INGUI_HEIGHT * 0.45f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.45f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Remote Receivers");
         for (auto& [_, remote_receiver] : remote_receivers)
             ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nFloor: %s",
@@ -186,7 +186,7 @@ void main()
         // We take advantage of a rarely used feature: multiple calls to Begin()/End() are appending to the _same_ window.
         // Most of the contents of the window will be added by the log.Draw() call.
         ImGui::SetNextWindowPos(ImVec2(IMGUI_WIDTH * 0.5f, 0.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.9f), ImGuiCond_FirstUseEver);
 
         // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
         log.Draw("Log");

@@ -38,8 +38,7 @@ public class ViewerManager : MonoBehaviour
     private ControllerClient controllerClient;
     // Key would be receiver session ID.
     private Dictionary<int, KinectReceiver> kinectReceivers;
-    // Key would be sender session ID.
-    private Dictionary<int, RemoteSender> remoteSenders;
+    private List<RemoteSender> remoteSenders;
 
     private bool ConnectWindowVisibility
     {
@@ -63,7 +62,7 @@ public class ViewerManager : MonoBehaviour
         udpSocket = new UdpSocket(socket);
 
         kinectReceivers = new Dictionary<int, KinectReceiver>();
-        remoteSenders = new Dictionary<int, RemoteSender>();
+        remoteSenders = new List<RemoteSender>();
 
         statusText.text = "Waiting for user input.";
         connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
@@ -124,67 +123,75 @@ public class ViewerManager : MonoBehaviour
             }
         }
 
-        // This is for the receive part.
-        // TODO: Make try catch work again.
-        //try
-        //{
-        var senderPacketCollection = SenderPacketReceiver.Receive(udpSocket, remoteSenders.Values.ToList());
-        foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
+        try
         {
-            if (remoteSenders.ContainsKey(confirmPacketInfo.SenderSessionId))
-                continue;
-
-            // There should be a receiver trying to connect that the confirmation matches.
-            KinectReceiver kinectReceiver;
-            if (!kinectReceivers.TryGetValue(confirmPacketInfo.ConfirmPacketData.receiverSessionId, out kinectReceiver))
-                continue;
-
-            // Also, the receiver should not have been prepared with a ConfirmSenderPacket yet.
-            if (kinectReceiver.State != PrepareState.Unprepared)
-                continue;
-
-            var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
-
-            kinectReceiver.Prepare(kinectOrigin);
-            kinectReceiver.KinectOrigin.Speaker.Setup();
-
-            print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
-
-            remoteSenders.Add(confirmPacketInfo.SenderSessionId,
-                                new RemoteSender(confirmPacketInfo.SenderEndPoint,
-                                                 confirmPacketInfo.SenderSessionId,
-                                                 confirmPacketInfo.ConfirmPacketData.receiverSessionId));
-        }
-
-        // Using remoteSenderList instead of directly using remoteSenders.Values,
-        // since otherwise, removing a RemoteSender from remoteSenders inside the loop does not work.
-        var remoteSenderList = remoteSenders.Values.ToList();
-        foreach (var remoteSender in remoteSenderList)
-        {
-            SenderPacketSet senderPacketSet;
-            if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
-                continue;
-
-            KinectReceiver kinectReceiver;
-            if (!kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
-                continue;
-
-            if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
+            var senderPacketCollection = SenderPacketReceiver.Receive(udpSocket, remoteSenders);
+            foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
             {
-                //kinectReceiver = null;
-                remoteSenders.Remove(remoteSender.SenderSessionId);
-                kinectReceivers.Remove(remoteSender.ReceiverSessionId);
-                sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
+                if (remoteSenders.Exists(x => x.SenderSessionId == confirmPacketInfo.SenderSessionId))
+                    continue;
+
+                // There should be a receiver trying to connect that the confirmation matches.
+                KinectReceiver kinectReceiver;
+                if (!kinectReceivers.TryGetValue(confirmPacketInfo.ConfirmPacketData.receiverSessionId, out kinectReceiver))
+                    continue;
+
+                // Also, the receiver should not have been prepared with a ConfirmSenderPacket yet.
+                if (kinectReceiver.State != PrepareState.Unprepared)
+                    continue;
+
+                var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
+
+                kinectReceiver.Prepare(kinectOrigin);
+                kinectReceiver.KinectOrigin.Speaker.Setup();
+
+                print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
+
+                remoteSenders.Add(new RemoteSender(confirmPacketInfo.SenderEndPoint,
+                                                   confirmPacketInfo.SenderSessionId,
+                                                   confirmPacketInfo.ConfirmPacketData.receiverSessionId));
+            }
+
+            // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
+            foreach (var remoteSender in remoteSenders.ToList())
+            {
+                SenderPacketSet senderPacketSet;
+                if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
+                    continue;
+
+                KinectReceiver kinectReceiver;
+                if (!kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
+                    continue;
+
+                if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
+                {
+                    remoteSenders.Remove(remoteSender);
+                    kinectReceivers.Remove(remoteSender.ReceiverSessionId);
+                    sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
+                    ConnectWindowVisibility = true;
+                }
+            }
+        }
+        catch (UdpSocketException e)
+        {
+            print($"UdpSocketException: {e}");
+            var remoteSender = remoteSenders.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
+            if (remoteSender != null)
+            {
+                remoteSenders.Remove(remoteSender);
+                KinectReceiver kinectReceiver;
+                if (kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
+                {
+                    kinectReceivers.Remove(remoteSender.ReceiverSessionId);
+                    sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
+                }
+                else
+                {
+                    print("Failed to find the KinectReceiver to remove...");
+                }
                 ConnectWindowVisibility = true;
             }
         }
-        //}
-        //catch (UdpSocketException e)
-        //{
-        //    print($"UdpSocketException: {e}");
-        //    kinectReceiver = null;
-        //    ConnectWindowVisibility = true;
-        //}
     }
 
     // Sends keystrokes of the virtual keyboard to TextMeshes.
@@ -262,7 +269,6 @@ public class ViewerManager : MonoBehaviour
             TextToaster.Toast("not connected");
         }
 
-
         ConnectWindowVisibility = true;
     }
 
@@ -291,14 +297,24 @@ public class ViewerManager : MonoBehaviour
         var senderIpAddress = IPAddress.Parse(ipAddressText);
         var senderEndPoint = new IPEndPoint(senderIpAddress, SENDER_PORT);
 
-        kinectReceivers.Add(receiverSessionId, new KinectReceiver(receiverSessionId, senderEndPoint));
+        var kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint);
+        kinectReceivers.Add(receiverSessionId, kinectReceiver);
 
+        // Nudge the sender until a confirm packet is received.
         for (int i = 0; i < 5; ++i)
         {
+            if (kinectReceiver.State != PrepareState.Unprepared)
+                yield break;
+
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), senderEndPoint);
             print($"Sent connect packet #{i}");
 
+
             yield return new WaitForSeconds(0.3f);
         }
+
+        // Give up and forget about the connection if a confirm packet has not been received after all the connect packets.
+        if (kinectReceiver.State == PrepareState.Unprepared)
+            kinectReceivers.Remove(receiverSessionId);
     }
 }

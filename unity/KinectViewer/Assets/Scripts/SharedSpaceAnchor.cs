@@ -41,7 +41,7 @@ public class SharedSpaceAnchor : MonoBehaviour
     public void RemoteKinectOrigin(KinectOrigin kinectOrigin)
     {
         KinectOrigins.Remove(kinectOrigin);
-        Destroy(kinectOrigin);
+        Destroy(kinectOrigin.gameObject);
     }
 
     public void UpdateTransform(Vector3 position, Quaternion rotation)
