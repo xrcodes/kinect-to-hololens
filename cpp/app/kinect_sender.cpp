@@ -84,8 +84,8 @@ void main()
 {
     constexpr int PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
-    constexpr int IMGUI_WIDTH{1280};
-    constexpr int INGUI_HEIGHT{720};
+    constexpr int IMGUI_WIDTH{960};
+    constexpr int IMGUI_HEIGHT{540};
     constexpr const char* INGUI_TITLE{"Kinect Sender"};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
@@ -137,7 +137,7 @@ void main()
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    Win32Window window{init_imgui(IMGUI_WIDTH, INGUI_HEIGHT, INGUI_TITLE)};
+    Win32Window window{init_imgui(IMGUI_WIDTH, IMGUI_HEIGHT, INGUI_TITLE)};
 
     // Our state
     ExampleAppLog log;
@@ -161,17 +161,18 @@ void main()
         }
 
         begin_imgui_frame();
-
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.45f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Local IP Addresses");
+        std::cout << "window height1: " << ImGui::GetWindowHeight() << "\n";
         for (auto& address : local_addresses)
             ImGui::BulletText(address.c_str());
         ImGui::End();
 
-        ImGui::SetNextWindowPos(ImVec2(0.0f, INGUI_HEIGHT * 0.45f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.45f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.6f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Remote Receivers");
+        std::cout << "window height2: " << ImGui::GetWindowHeight() << "\n";
         for (auto& [_, remote_receiver] : remote_receivers)
             ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nFloor: %s",
                               remote_receiver.endpoint.address().to_string(),
@@ -185,8 +186,8 @@ void main()
         // For the demo: add a debug button _BEFORE_ the normal log window contents
         // We take advantage of a rarely used feature: multiple calls to Begin()/End() are appending to the _same_ window.
         // Most of the contents of the window will be added by the log.Draw() call.
-        ImGui::SetNextWindowPos(ImVec2(IMGUI_WIDTH * 0.5f, 0.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.5f, INGUI_HEIGHT * 0.9f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(IMGUI_WIDTH * 0.4f, 0.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.6f, IMGUI_HEIGHT), ImGuiCond_FirstUseEver);
 
         // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
         log.Draw("Log");
