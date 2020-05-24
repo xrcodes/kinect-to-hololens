@@ -56,11 +56,11 @@ public class TcpSocket
         }
     }
 
-    public async Task<bool> ConnectAsync(IPAddress address, int port)
+    public async Task<bool> ConnectAsync(IPEndPoint endPoint)
     {
         try
         {
-            await Socket.ConnectAsync(address, port);
+            await Socket.ConnectAsync(endPoint);
             return true;
         }
         catch (SocketException e)

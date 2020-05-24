@@ -1,8 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class ViewerManager : MonoBehaviour
@@ -13,6 +13,7 @@ public class ViewerManager : MonoBehaviour
     public Transform mainCameraTransform;
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
+    public GameObject controllerConnectedTextGameObject;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceAnchor sharedSpaceAnchor;
@@ -23,6 +24,7 @@ public class ViewerManager : MonoBehaviour
     // Key would be receiver session ID.
     private Dictionary<int, KinectReceiver> kinectReceivers;
     private List<RemoteSender> remoteSenders;
+    private bool connecting;
 
     void Start()
     {
@@ -34,27 +36,39 @@ public class ViewerManager : MonoBehaviour
 
         kinectReceivers = new Dictionary<int, KinectReceiver>();
         remoteSenders = new List<RemoteSender>();
+        connecting = false;
+
+        UpdateUiVisibility();
     }
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Return))
+        UpdateUiVisibility();
+
+        if (connectionWindow.Visibility)
         {
-            if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
+            if (Input.GetKeyDown(KeyCode.Return))
             {
-                TryConnectToController();
-            }
-            else
-            {
-                // The default IP address is 127.0.0.1.
-                string ipAddressText = connectionWindow.IpAddress;
-                if (ipAddressText.Length == 0)
-                    ipAddressText = "127.0.0.1";
-                StartCoroutine(TryConnectToKinect(ipAddressText, SENDER_PORT));
+                if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
+                {
+                    string ipAddressText = connectionWindow.IpAddress;
+                    if (ipAddressText.Length == 0)
+                        ipAddressText = "127.0.0.1";
+
+                    TryConnectToController(ipAddressText, ControllerMessages.PORT);
+                }
+                else
+                {
+                    string ipAddressText = connectionWindow.IpAddress;
+                    if (ipAddressText.Length == 0)
+                        ipAddressText = "127.0.0.1";
+
+                    TryConnectToKinect(ipAddressText, SENDER_PORT);
+                }
             }
         }
 
-        // Gives the information of the camera position and floor level.
+        // Sets the anchor's position and rotation using the current position of the HoloLens device.
         if (Input.GetKeyDown(KeyCode.Space))
         {
             sharedSpaceAnchor.SetPositionAndRotation(mainCameraTransform.position, mainCameraTransform.rotation);
@@ -71,7 +85,7 @@ public class ViewerManager : MonoBehaviour
             if(viewerScene != null)
             {
                 print($"viewer scene: {viewerScene.kinectSenderElements[0].address}:{viewerScene.kinectSenderElements[0].port}");
-                StartCoroutine(TryConnectToKinect(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port));
+                TryConnectToKinect(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port);
             }
 
             var receiverStates = new List<ReceiverState>();
@@ -165,50 +179,53 @@ public class ViewerManager : MonoBehaviour
         }
     }
 
-    private async void TryConnectToController()
+    private void UpdateUiVisibility()
+    {
+        connectionWindow.Visibility = controllerClientSocket == null && kinectReceivers.Count == 0 && !connecting;
+        controllerConnectedTextGameObject.SetActive(controllerClientSocket != null && kinectReceivers.Count == 0);
+    }
+
+    private async void TryConnectToController(string ipAddress, int port)
     {
         if (controllerClientSocket != null)
         {
-            TextToaster.Toast("A controller is already connected.");
-            return;
+            TextToaster.Toast("Cannot connect to multiple controllers at once.");
         }
 
-        if (!connectionWindow.Visibility)
+        if (connecting)
         {
-            TextToaster.Toast("Cannot try connecting to more than one remote machine.");
+            TextToaster.Toast("Cannot attempt multiple connections at once.");
             return;
         }
 
-        connectionWindow.Visibility = false;
+        connecting = true;
 
         var random = new System.Random();
         int userId = random.Next();
 
+        var controllerIpAddress = IPAddress.Parse(ipAddress);
+        var controllerEndPoint = new IPEndPoint(controllerIpAddress, port);
+
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
-        if (await tcpSocket.ConnectAsync(IPAddress.Loopback, ControllerMessages.PORT))
+        if (await tcpSocket.ConnectAsync(controllerEndPoint))
         {
-            TextToaster.Toast("connected");
             controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
         }
-        else
-        {
-            TextToaster.Toast("not connected");
-        }
 
-        connectionWindow.Visibility = true;
+        connecting = false;
     }
 
-    private IEnumerator TryConnectToKinect(string ipAddress, int port)
+    private async void TryConnectToKinect(string ipAddress, int port)
     {
-        if(!connectionWindow.Visibility)
+        if (connecting)
         {
-            TextToaster.Toast("Cannot try connecting to more than one remote machine.");
-            yield break;
+            TextToaster.Toast("Cannot attempt multiple connections at once.");
+            return;
         }
 
-        connectionWindow.Visibility = false;
+        connecting = true;
 
-        TextToaster.Toast($"Try connecting to {ipAddress}...");
+        TextToaster.Toast($"Try connecting to a Sender at {ipAddress}:{port}...");
 
         var random = new System.Random();
         int receiverSessionId = random.Next();
@@ -223,17 +240,18 @@ public class ViewerManager : MonoBehaviour
         for (int i = 0; i < 5; ++i)
         {
             if (kinectReceiver.State != PrepareState.Unprepared)
-                yield break;
+                return;
 
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), senderEndPoint);
             print($"Sent connect packet #{i}");
 
-
-            yield return new WaitForSeconds(0.3f);
+            await Task.Delay(300);
         }
 
         // Give up and forget about the connection if a confirm packet has not been received after all the connect packets.
         if (kinectReceiver.State == PrepareState.Unprepared)
             kinectReceivers.Remove(receiverSessionId);
+
+        connecting = false;
     }
 }
