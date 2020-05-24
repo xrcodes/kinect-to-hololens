@@ -4,13 +4,13 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 
-public class ControllerClient
+public class ControllerClientSocket
 {
     public readonly int UserId;
     private TcpSocket tcpSocket;
     private MessageBuffer messageBuffer;
 
-    public ControllerClient(int userId, TcpSocket tcpSocket)
+    public ControllerClientSocket(int userId, TcpSocket tcpSocket)
     {
         UserId = userId;
         this.tcpSocket = tcpSocket;

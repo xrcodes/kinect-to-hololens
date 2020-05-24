@@ -35,22 +35,10 @@ public class ViewerManager : MonoBehaviour
 
     private UdpSocket udpSocket;
 
-    private ControllerClient controllerClient;
+    private ControllerClientSocket controllerClientSocket;
     // Key would be receiver session ID.
     private Dictionary<int, KinectReceiver> kinectReceivers;
     private List<RemoteSender> remoteSenders;
-
-    private bool ConnectWindowVisibility
-    {
-        set
-        {
-            connectionWindow.gameObject.SetActive(value);
-        }
-        get
-        {
-            return connectionWindow.gameObject.activeSelf;
-        }
-    }
 
     void Start()
     {
@@ -58,7 +46,6 @@ public class ViewerManager : MonoBehaviour
 
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 };
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
-        print($"socket.LocalEndPoint: {socket.LocalEndPoint}");
         udpSocket = new UdpSocket(socket);
 
         kinectReceivers = new Dictionary<int, KinectReceiver>();
@@ -70,18 +57,7 @@ public class ViewerManager : MonoBehaviour
 
     void Update()
     {
-        // Sends virtual keyboards strokes to the TextMeshes for the IP address and the port.
-        AbsorbInput();
-
-        if (Input.GetKeyDown(KeyCode.Tab))
-        {
-            if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
-                connectionWindow.ConnectionTarget = ConnectionTarget.Kinect;
-            else
-                connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+        if (Input.GetKeyDown(KeyCode.Return))
         {
             if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
             {
@@ -90,7 +66,7 @@ public class ViewerManager : MonoBehaviour
             else
             {
                 // The default IP address is 127.0.0.1.
-                string ipAddressText = connectionWindow.IpAddressInputText;
+                string ipAddressText = connectionWindow.IpAddress;
                 if (ipAddressText.Length == 0)
                     ipAddressText = "127.0.0.1";
                 StartCoroutine(TryConnectToKinect(ipAddressText, SENDER_PORT));
@@ -108,15 +84,14 @@ public class ViewerManager : MonoBehaviour
             sharedSpaceAnchor.DebugVisibility = !sharedSpaceAnchor.DebugVisibility;
         }
 
-        if (controllerClient != null)
+        if (controllerClientSocket != null)
         {
-            ViewerScene viewerScene = controllerClient.ReceiveViewerScene();
+            ViewerScene viewerScene = controllerClientSocket.ReceiveViewerScene();
             if(viewerScene != null)
             {
                 print($"viewer scene: {viewerScene.kinectSenderElements[0].address}:{viewerScene.kinectSenderElements[0].port}");
                 StartCoroutine(TryConnectToKinect(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port));
             }
-
 
             var receiverStates = new List<ReceiverState>();
             foreach(var receiver in kinectReceivers.Values)
@@ -129,12 +104,12 @@ public class ViewerManager : MonoBehaviour
 
             try
             {
-                controllerClient.SendViewerState(receiverStates);
+                controllerClientSocket.SendViewerState(receiverStates);
             }
             catch (TcpSocketException e)
             {
                 print($"TcpSocketException while connecting: {e}");
-                controllerClient = null;
+                controllerClientSocket = null;
             }
         }
 
@@ -183,7 +158,7 @@ public class ViewerManager : MonoBehaviour
                     remoteSenders.Remove(remoteSender);
                     kinectReceivers.Remove(remoteSender.ReceiverSessionId);
                     sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
-                    ConnectWindowVisibility = true;
+                    connectionWindow.Visibility = true;
                 }
             }
         }
@@ -204,71 +179,26 @@ public class ViewerManager : MonoBehaviour
                 {
                     print("Failed to find the KinectReceiver to remove...");
                 }
-                ConnectWindowVisibility = true;
+                connectionWindow.Visibility = true;
             }
-        }
-    }
-
-    // Sends keystrokes of the virtual keyboard to TextMeshes.
-    // Try connecting the Receiver to a Sender when the user pressed the enter key.
-    private void AbsorbInput()
-    {
-        AbsorbKeyCode(KeyCode.Alpha0, '0');
-        AbsorbKeyCode(KeyCode.Keypad0, '0');
-        AbsorbKeyCode(KeyCode.Alpha1, '1');
-        AbsorbKeyCode(KeyCode.Keypad1, '1');
-        AbsorbKeyCode(KeyCode.Alpha2, '2');
-        AbsorbKeyCode(KeyCode.Keypad2, '2');
-        AbsorbKeyCode(KeyCode.Alpha3, '3');
-        AbsorbKeyCode(KeyCode.Keypad3, '3');
-        AbsorbKeyCode(KeyCode.Alpha4, '4');
-        AbsorbKeyCode(KeyCode.Keypad4, '4');
-        AbsorbKeyCode(KeyCode.Alpha5, '5');
-        AbsorbKeyCode(KeyCode.Keypad5, '5');
-        AbsorbKeyCode(KeyCode.Alpha6, '6');
-        AbsorbKeyCode(KeyCode.Keypad6, '6');
-        AbsorbKeyCode(KeyCode.Alpha7, '7');
-        AbsorbKeyCode(KeyCode.Keypad7, '7');
-        AbsorbKeyCode(KeyCode.Alpha8, '8');
-        AbsorbKeyCode(KeyCode.Keypad8, '8');
-        AbsorbKeyCode(KeyCode.Alpha9, '9');
-        AbsorbKeyCode(KeyCode.Keypad9, '9');
-        AbsorbKeyCode(KeyCode.Period, '.');
-        AbsorbKeyCode(KeyCode.KeypadPeriod, '.');
-        if (Input.GetKeyDown(KeyCode.Backspace))
-        {
-            var text = connectionWindow.IpAddressInputText;
-            if (connectionWindow.IpAddressInputText.Length > 0)
-            {
-                connectionWindow.IpAddressInputText = text.Substring(0, text.Length - 1);
-            }
-        }
-    }
-
-    // A helper method for AbsorbInput().
-    private void AbsorbKeyCode(KeyCode keyCode, char c)
-    {
-        if (Input.GetKeyDown(keyCode))
-        {
-            connectionWindow.IpAddressInputText += c;
         }
     }
 
     private async void TryConnectToController()
     {
-        if (controllerClient != null)
+        if (controllerClientSocket != null)
         {
             TextToaster.Toast("A controller is already connected.");
             return;
         }
 
-        if (!ConnectWindowVisibility)
+        if (!connectionWindow.Visibility)
         {
             TextToaster.Toast("Cannot try connecting to more than one remote machine.");
             return;
         }
 
-        ConnectWindowVisibility = false;
+        connectionWindow.Visibility = false;
 
         var random = new System.Random();
         int userId = random.Next();
@@ -277,25 +207,25 @@ public class ViewerManager : MonoBehaviour
         if (await tcpSocket.ConnectAsync(IPAddress.Loopback, ControllerMessages.PORT))
         {
             TextToaster.Toast("connected");
-            controllerClient = new ControllerClient(userId, tcpSocket);
+            controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
         }
         else
         {
             TextToaster.Toast("not connected");
         }
 
-        ConnectWindowVisibility = true;
+        connectionWindow.Visibility = true;
     }
 
     private IEnumerator TryConnectToKinect(string ipAddress, int port)
     {
-        if(!ConnectWindowVisibility)
+        if(!connectionWindow.Visibility)
         {
             TextToaster.Toast("Cannot try connecting to more than one remote machine.");
             yield break;
         }
 
-        ConnectWindowVisibility = false;
+        connectionWindow.Visibility = false;
 
         string logString = $"Try connecting to {ipAddress}...";
         TextToaster.Toast(logString);

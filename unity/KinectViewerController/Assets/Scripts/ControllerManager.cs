@@ -1,31 +1,26 @@
 ﻿using System.Net.Sockets;
-using System.Text;
 using UnityEngine;
 using ImGuiNET;
 using System.Collections.Generic;
 using System.Linq;
-using System;
-using UnityEngine.Apple.TV;
 
 public class ControllerManager : MonoBehaviour
 {
     private TcpSocket tcpSocket;
-    private MessageBuffer messageBuffer;
-    private List<TcpSocket> remoteSockets;
-    private Dictionary<TcpSocket, ViewerState> viewerStates;
-    private Dictionary<TcpSocket, KinectSenderElement> kinectSenderElements;
+    private List<ControllerServerSocket> serverSockets;
+    private Dictionary<ControllerServerSocket, ViewerState> viewerStates;
+    private Dictionary<ControllerServerSocket, KinectSenderElement> kinectSenderElements;
 
     void Start()
     {
         tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
-        messageBuffer = new MessageBuffer();
-        remoteSockets = new List<TcpSocket>();
-        viewerStates = new Dictionary<TcpSocket, ViewerState>();
-        kinectSenderElements = new Dictionary<TcpSocket, KinectSenderElement>();
+        serverSockets = new List<ControllerServerSocket>();
+        viewerStates = new Dictionary<ControllerServerSocket, ViewerState>();
+        kinectSenderElements = new Dictionary<ControllerServerSocket, KinectSenderElement>();
 
         tcpSocket.BindAndListen(ControllerMessages.PORT);
     }
-
+    
     void Update()
     {
         try
@@ -34,8 +29,9 @@ public class ControllerManager : MonoBehaviour
             if (remoteSocket != null)
             {
                 print($"remoteSocket: {remoteSocket.Socket.RemoteEndPoint}");
-                remoteSockets.Add(remoteSocket);
-                kinectSenderElements.Add(remoteSocket, new KinectSenderElement("127.0.0.1", 3773));
+                var serverSocket = new ControllerServerSocket(remoteSocket);
+                serverSockets.Add(serverSocket);
+                kinectSenderElements.Add(serverSocket, new KinectSenderElement("127.0.0.1", 3773));
             }
         }
         catch(TcpSocketException e)
@@ -43,15 +39,12 @@ public class ControllerManager : MonoBehaviour
             print(e.Message);
         }
 
-        foreach (var remoteSocket in remoteSockets)
+        foreach (var serverSocket in serverSockets)
         {
-            byte[] message;
-            while (messageBuffer.TryReceiveMessage(remoteSocket, out message))
+            var viewerState = serverSocket.ReceiveViewerState();
+            if(viewerState != null)
             {
-                var viewerStateJson = Encoding.ASCII.GetString(message);
-                var viewerState = JsonUtility.FromJson<ViewerState>(viewerStateJson);
-
-                viewerStates[remoteSocket] = viewerState;
+                viewerStates[serverSocket] = viewerState;
             }
         }
     }
@@ -88,28 +81,22 @@ public class ControllerManager : MonoBehaviour
         ImGui.End();
 
         ImGui.Begin("Scene");
-        foreach (var remoteSocket in remoteSockets)
+        foreach (var serverSocket in serverSockets)
         {
             ViewerState viewerState;
-            if (viewerStates.TryGetValue(remoteSocket, out viewerState))
+            if (viewerStates.TryGetValue(serverSocket, out viewerState))
             {
                 ImGui.Text($"Kinect Sender of Viewer User ID {viewerState.userId}");
-                ImGui.InputText("Address", ref kinectSenderElements[remoteSocket].address, 30);
-                ImGui.InputInt("Port", ref kinectSenderElements[remoteSocket].port);
+                ImGui.InputText("Address", ref kinectSenderElements[serverSocket].address, 30);
+                ImGui.InputInt("Port", ref kinectSenderElements[serverSocket].port);
             }
         }
         if(ImGui.Button("Connect"))
         {
             var viewerScene = new ViewerScene(kinectSenderElements.Values.ToList());
-            foreach (var remoteSocket in remoteSockets)
+            foreach (var serverSocket in serverSockets)
             {
-                var viewerSceneJson = JsonUtility.ToJson(viewerScene);
-                var viewerSceneBytes = Encoding.ASCII.GetBytes(viewerSceneJson);
-
-                var ms = new System.IO.MemoryStream();
-                ms.Write(BitConverter.GetBytes(viewerSceneBytes.Length), 0, 4);
-                ms.Write(viewerSceneBytes, 0, viewerSceneBytes.Length);
-                remoteSocket.Send(ms.ToArray());
+                serverSocket.SendViewerState(viewerScene);
             }
         }
         ImGui.End();
