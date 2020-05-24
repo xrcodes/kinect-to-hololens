@@ -44,7 +44,7 @@ public class ConnectionWindow : MonoBehaviour
         {
             return connectionTarget;
         }
-        set
+        private set
         {
             if (value == ConnectionTarget.Controller)
             {
@@ -58,6 +58,11 @@ public class ConnectionWindow : MonoBehaviour
             }
             connectionTarget = value;
         }
+    }
+
+    void Awake()
+    {
+        ConnectionTarget = ConnectionTarget.Controller;
     }
 
     void Update()

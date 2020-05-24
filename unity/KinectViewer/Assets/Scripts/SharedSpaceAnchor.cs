@@ -5,14 +5,13 @@ public class SharedSpaceAnchor : MonoBehaviour
 {
     public KinectOrigin kinectOriginPrefab;
     public GameObject kinectModel;
-    
-    public List<KinectOrigin> KinectOrigins { get; private set; }
+    private List<KinectOrigin> kinectOrigins;
 
-    public bool DebugVisibility
+    public bool GizmoVisibility
     {
         set
         {
-            foreach (var kinectOrigin in KinectOrigins)
+            foreach (var kinectOrigin in kinectOrigins)
                 kinectOrigin.FloorVisibility = value;
 
             kinectModel.SetActive(value);
@@ -25,26 +24,28 @@ public class SharedSpaceAnchor : MonoBehaviour
 
     void Awake()
     {
-        KinectOrigins = new List<KinectOrigin>();
+        kinectOrigins = new List<KinectOrigin>();
     }
 
     public KinectOrigin AddKinectOrigin()
     {
         var kinectOrigin = Instantiate(kinectOriginPrefab, transform);
         kinectOrigin.transform.localRotation = Quaternion.Euler(0.0f, 180.0f, 0.0f);
-        kinectOrigin.FloorVisibility = DebugVisibility;
-        KinectOrigins.Add(kinectOrigin);
+        kinectOrigin.FloorVisibility = GizmoVisibility;
+        kinectOrigins.Add(kinectOrigin);
 
         return kinectOrigin;
     }
 
-    public void RemoteKinectOrigin(KinectOrigin kinectOrigin)
+    public void RemoveKinectOrigin(KinectOrigin kinectOrigin)
     {
-        KinectOrigins.Remove(kinectOrigin);
+        kinectOrigins.Remove(kinectOrigin);
         Destroy(kinectOrigin.gameObject);
     }
 
-    public void UpdateTransform(Vector3 position, Quaternion rotation)
+    // Rotation of the anchor does not directly gets set to the input camera rotation.
+    // It rotates in a way that the virtual floor in Unity can match the real floor.
+    public void SetPositionAndRotation(Vector3 position, Quaternion rotation)
     {
         transform.localPosition = position;
 

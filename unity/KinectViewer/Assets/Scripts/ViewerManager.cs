@@ -5,28 +5,12 @@ using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
 
-public class RemoteSender
-{
-    public IPEndPoint SenderEndPoint { get; private set; }
-    public int SenderSessionId { get; private set; }
-    public int ReceiverSessionId { get; private set; }
-
-    public RemoteSender(IPEndPoint senderEndPoint, int senderSessionId, int receiverSessionId)
-    {
-        SenderEndPoint = senderEndPoint;
-        SenderSessionId = senderSessionId;
-        ReceiverSessionId = receiverSessionId;
-    }
-}
-
 public class ViewerManager : MonoBehaviour
 {
     private const int SENDER_PORT = 3773;
 
     // The main camera's Transform.
-    public Transform cameraTransform;
-    // The TextMesh placed above user's head.
-    public TextMesh statusText;
+    public Transform mainCameraTransform;
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
     // The root of the scene that includes everything else except the main camera.
@@ -50,9 +34,6 @@ public class ViewerManager : MonoBehaviour
 
         kinectReceivers = new Dictionary<int, KinectReceiver>();
         remoteSenders = new List<RemoteSender>();
-
-        statusText.text = "Waiting for user input.";
-        connectionWindow.ConnectionTarget = ConnectionTarget.Controller;
     }
 
     void Update()
@@ -76,12 +57,12 @@ public class ViewerManager : MonoBehaviour
         // Gives the information of the camera position and floor level.
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            sharedSpaceAnchor.UpdateTransform(cameraTransform.position, cameraTransform.rotation);
+            sharedSpaceAnchor.SetPositionAndRotation(mainCameraTransform.position, mainCameraTransform.rotation);
         }
 
-        if (Input.GetKeyDown(KeyCode.D))
+        if (Input.GetKeyDown(KeyCode.V))
         {
-            sharedSpaceAnchor.DebugVisibility = !sharedSpaceAnchor.DebugVisibility;
+            sharedSpaceAnchor.GizmoVisibility = !sharedSpaceAnchor.GizmoVisibility;
         }
 
         if (controllerClientSocket != null)
@@ -157,7 +138,7 @@ public class ViewerManager : MonoBehaviour
                 {
                     remoteSenders.Remove(remoteSender);
                     kinectReceivers.Remove(remoteSender.ReceiverSessionId);
-                    sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
+                    sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
                     connectionWindow.Visibility = true;
                 }
             }
@@ -173,7 +154,7 @@ public class ViewerManager : MonoBehaviour
                 if (kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
                 {
                     kinectReceivers.Remove(remoteSender.ReceiverSessionId);
-                    sharedSpaceAnchor.RemoteKinectOrigin(kinectReceiver.KinectOrigin);
+                    sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
                 }
                 else
                 {
@@ -227,9 +208,7 @@ public class ViewerManager : MonoBehaviour
 
         connectionWindow.Visibility = false;
 
-        string logString = $"Try connecting to {ipAddress}...";
-        TextToaster.Toast(logString);
-        statusText.text = logString;
+        TextToaster.Toast($"Try connecting to {ipAddress}...");
 
         var random = new System.Random();
         int receiverSessionId = random.Next();

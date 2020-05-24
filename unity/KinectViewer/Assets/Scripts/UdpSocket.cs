@@ -57,10 +57,9 @@ public class UdpSocket
         }
         catch (SocketException e)
         {
+            // When ReceiveFrom throws a SocketException, endPoint is not set.
             error = e.SocketErrorCode;
         }
-
-        //UnityEngine.Debug.Log($"message from {(IPEndPoint)endPoint}");
 
         if (error == SocketError.WouldBlock)
         {
