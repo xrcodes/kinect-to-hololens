@@ -63,7 +63,7 @@ public class ViewerManager : MonoBehaviour
                     if (ipAddressText.Length == 0)
                         ipAddressText = "127.0.0.1";
 
-                    TryConnectToKinect(ipAddressText, SENDER_PORT);
+                    TryConnectToKinectSender(ipAddressText, SENDER_PORT);
                 }
             }
         }
@@ -85,7 +85,7 @@ public class ViewerManager : MonoBehaviour
             if(viewerScene != null)
             {
                 print($"viewer scene: {viewerScene.kinectSenderElements[0].address}:{viewerScene.kinectSenderElements[0].port}");
-                TryConnectToKinect(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port);
+                TryConnectToKinectSender(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port);
             }
 
             var receiverStates = new List<ReceiverState>();
@@ -200,6 +200,7 @@ public class ViewerManager : MonoBehaviour
         if (controllerClientSocket != null)
         {
             TextToaster.Toast("Cannot connect to multiple controllers at once.");
+            return;
         }
 
         if (connecting)
@@ -213,7 +214,14 @@ public class ViewerManager : MonoBehaviour
         var random = new System.Random();
         int userId = random.Next();
 
-        var controllerIpAddress = IPAddress.Parse(ipAddress);
+        IPAddress controllerIpAddress;
+        if (!IPAddress.TryParse(ipAddress, out controllerIpAddress))
+        {
+            TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
+            connecting = false;
+            return;
+        }
+
         var controllerEndPoint = new IPEndPoint(controllerIpAddress, port);
 
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
@@ -225,7 +233,7 @@ public class ViewerManager : MonoBehaviour
         connecting = false;
     }
 
-    private async void TryConnectToKinect(string ipAddress, int port)
+    private async void TryConnectToKinectSender(string ipAddress, int port)
     {
         if (connecting)
         {
@@ -240,7 +248,14 @@ public class ViewerManager : MonoBehaviour
         var random = new System.Random();
         int receiverSessionId = random.Next();
 
-        var senderIpAddress = IPAddress.Parse(ipAddress);
+        IPAddress senderIpAddress;
+        if (!IPAddress.TryParse(ipAddress, out senderIpAddress))
+        {
+            TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
+            connecting = false;
+            return;
+        }
+
         var senderEndPoint = new IPEndPoint(senderIpAddress, port);
 
         var kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint);
