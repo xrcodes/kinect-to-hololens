@@ -32,3 +32,26 @@ public class ViewerState
         this.receiverStates = receiverStates;
     }
 }
+
+[Serializable]
+public class KinectSenderElement
+{
+    public string address;
+    public int port;
+
+    public KinectSenderElement(string address, int port)
+    {
+        this.address = address;
+        this.port = port;
+    }
+}
+
+public class ViewerScene
+{
+    public List<KinectSenderElement> kinectSenderElements;
+
+    public ViewerScene(List<KinectSenderElement> kinectSenderElements)
+    {
+        this.kinectSenderElements = kinectSenderElements;
+    }
+}

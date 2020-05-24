@@ -8,11 +8,25 @@ public class ControllerClient
 {
     public readonly int UserId;
     private TcpSocket tcpSocket;
+    private MessageBuffer messageBuffer;
 
     public ControllerClient(int userId, TcpSocket tcpSocket)
     {
         UserId = userId;
         this.tcpSocket = tcpSocket;
+        messageBuffer = new MessageBuffer();
+    }
+
+    public ViewerScene ReceiveViewerScene()
+    {
+        byte[] message;
+        if (!messageBuffer.TryReceiveMessage(tcpSocket, out message))
+            return null;
+
+        var viewerSceneJson = Encoding.ASCII.GetString(message);
+        var viewerScene = JsonUtility.FromJson<ViewerScene>(viewerSceneJson);
+
+        return viewerScene;
     }
 
     public void SendViewerState(List<ReceiverState> receiverStates)

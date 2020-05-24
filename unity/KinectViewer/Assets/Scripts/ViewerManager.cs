@@ -84,9 +84,17 @@ public class ViewerManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
         {
             if (connectionWindow.ConnectionTarget == ConnectionTarget.Controller)
+            {
                 TryConnectToController();
+            }
             else
-                StartCoroutine(TryConnectToKinect());
+            {
+                // The default IP address is 127.0.0.1.
+                string ipAddressText = connectionWindow.IpAddressInputText;
+                if (ipAddressText.Length == 0)
+                    ipAddressText = "127.0.0.1";
+                StartCoroutine(TryConnectToKinect(ipAddressText, SENDER_PORT));
+            }
         }
 
         // Gives the information of the camera position and floor level.
@@ -102,8 +110,15 @@ public class ViewerManager : MonoBehaviour
 
         if (controllerClient != null)
         {
-            var receiverStates = new List<ReceiverState>();
+            ViewerScene viewerScene = controllerClient.ReceiveViewerScene();
+            if(viewerScene != null)
+            {
+                print($"viewer scene: {viewerScene.kinectSenderElements[0].address}:{viewerScene.kinectSenderElements[0].port}");
+                StartCoroutine(TryConnectToKinect(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port));
+            }
 
+
+            var receiverStates = new List<ReceiverState>();
             foreach(var receiver in kinectReceivers.Values)
             {
                 var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
@@ -272,7 +287,7 @@ public class ViewerManager : MonoBehaviour
         ConnectWindowVisibility = true;
     }
 
-    private IEnumerator TryConnectToKinect()
+    private IEnumerator TryConnectToKinect(string ipAddress, int port)
     {
         if(!ConnectWindowVisibility)
         {
@@ -282,20 +297,15 @@ public class ViewerManager : MonoBehaviour
 
         ConnectWindowVisibility = false;
 
-        // The default IP address is 127.0.0.1.
-        string ipAddressText = connectionWindow.IpAddressInputText;
-        if (ipAddressText.Length == 0)
-            ipAddressText = "127.0.0.1";
-
-        string logString = $"Try connecting to {ipAddressText}...";
+        string logString = $"Try connecting to {ipAddress}...";
         TextToaster.Toast(logString);
         statusText.text = logString;
 
         var random = new System.Random();
         int receiverSessionId = random.Next();
 
-        var senderIpAddress = IPAddress.Parse(ipAddressText);
-        var senderEndPoint = new IPEndPoint(senderIpAddress, SENDER_PORT);
+        var senderIpAddress = IPAddress.Parse(ipAddress);
+        var senderEndPoint = new IPEndPoint(senderIpAddress, port);
 
         var kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint);
         kinectReceivers.Add(receiverSessionId, kinectReceiver);
