@@ -13,7 +13,7 @@ public class ViewerManager : MonoBehaviour
     public Transform mainCameraTransform;
     // TextMeshes for the UI.
     public ConnectionWindow connectionWindow;
-    public GameObject controllerConnectedTextGameObject;
+    public ConnectedControllerWindow connectedControllerWindow;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceAnchor sharedSpaceAnchor;
@@ -38,12 +38,12 @@ public class ViewerManager : MonoBehaviour
         remoteSenders = new List<RemoteSender>();
         connecting = false;
 
-        UpdateUiVisibility();
+        UpdateUiWindows();
     }
 
     void Update()
     {
-        UpdateUiVisibility();
+        UpdateUiWindows();
 
         if (connectionWindow.Visibility)
         {
@@ -179,10 +179,20 @@ public class ViewerManager : MonoBehaviour
         }
     }
 
-    private void UpdateUiVisibility()
+    private void UpdateUiWindows()
     {
         connectionWindow.Visibility = controllerClientSocket == null && kinectReceivers.Count == 0 && !connecting;
-        controllerConnectedTextGameObject.SetActive(controllerClientSocket != null && kinectReceivers.Count == 0);
+
+        if (controllerClientSocket != null && kinectReceivers.Count == 0)
+        {
+            connectedControllerWindow.IpAddress = controllerClientSocket.RemoteEndPoint.Address.ToString();
+            connectedControllerWindow.UserId = controllerClientSocket.UserId.ToString();
+            connectedControllerWindow.Visibility = true;
+        }
+        else
+        {
+            connectedControllerWindow.Visibility = false;
+        }
     }
 
     private async void TryConnectToController(string ipAddress, int port)

@@ -28,7 +28,7 @@ public class ControllerManager : MonoBehaviour
             var remoteSocket = tcpSocket.Accept();
             if (remoteSocket != null)
             {
-                print($"remoteSocket: {remoteSocket.Socket.RemoteEndPoint}");
+                print($"remoteSocket: {remoteSocket.RemoteEndPoint}");
                 var serverSocket = new ControllerServerSocket(remoteSocket);
                 serverSockets.Add(serverSocket);
                 kinectSenderElements.Add(serverSocket, new KinectSenderElement("127.0.0.1", 3773));

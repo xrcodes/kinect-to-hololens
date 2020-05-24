@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Text;
 using UnityEngine;
 
@@ -9,6 +10,14 @@ public class ControllerClientSocket
     public readonly int UserId;
     private TcpSocket tcpSocket;
     private MessageBuffer messageBuffer;
+
+    public IPEndPoint RemoteEndPoint
+    {
+        get
+        {
+            return tcpSocket.RemoteEndPoint;
+        }
+    }
 
     public ControllerClientSocket(int userId, TcpSocket tcpSocket)
     {

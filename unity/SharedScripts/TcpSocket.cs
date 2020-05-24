@@ -24,26 +24,34 @@ public class TcpSocketReceiveResult
 
 public class TcpSocket
 {
-    public Socket Socket { get; private set; }
+    private Socket socket;
+
+    public IPEndPoint RemoteEndPoint
+    {
+        get
+        {
+            return (IPEndPoint)socket.RemoteEndPoint;
+        }
+    }
 
     public TcpSocket(Socket socket)
     {
-        Socket = socket;
+        this.socket = socket;
         socket.Blocking = false;
     }
 
     public void BindAndListen(int port)
     {
         int BACKLOG = 5;
-        Socket.Bind(new IPEndPoint(IPAddress.Any, port));
-        Socket.Listen(BACKLOG);
+        socket.Bind(new IPEndPoint(IPAddress.Any, port));
+        socket.Listen(BACKLOG);
     }
 
     public TcpSocket Accept()
     {
         try
         {
-            return new TcpSocket(Socket.Accept());
+            return new TcpSocket(socket.Accept());
         }
         catch (SocketException e)
         {
@@ -60,7 +68,7 @@ public class TcpSocket
     {
         try
         {
-            await Socket.ConnectAsync(endPoint);
+            await socket.ConnectAsync(endPoint);
             return true;
         }
         catch (SocketException e)
@@ -75,14 +83,14 @@ public class TcpSocket
     public TcpSocketReceiveResult Receive(byte[] buffer, int offset, int length)
     {
         SocketError socketError;
-        int size = Socket.Receive(buffer, offset, length, SocketFlags.None, out socketError);
+        int size = socket.Receive(buffer, offset, length, SocketFlags.None, out socketError);
         return new TcpSocketReceiveResult(size, socketError);
     }
 
     public int Send(byte[] buffer)
     {
         SocketError socketError;
-        int size = Socket.Send(buffer, 0, buffer.Length, SocketFlags.None, out socketError);
+        int size = socket.Send(buffer, 0, buffer.Length, SocketFlags.None, out socketError);
 
         if (socketError != SocketError.Success)
             throw new TcpSocketException($"Error from TcpSocket.Send(): {socketError}");
