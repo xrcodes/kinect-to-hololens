@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class ControllerMessages
 {
@@ -38,11 +39,15 @@ public class KinectSenderElement
 {
     public string address;
     public int port;
+    public Vector3 position;
+    public Quaternion rotation;
 
-    public KinectSenderElement(string address, int port)
+    public KinectSenderElement(string address, int port, Vector3 position, Quaternion rotation)
     {
         this.address = address;
         this.port = port;
+        this.position = position;
+        this.rotation = rotation;
     }
 }
 
@@ -50,8 +55,8 @@ public class ViewerScene
 {
     public List<KinectSenderElement> kinectSenderElements;
 
-    public ViewerScene(List<KinectSenderElement> kinectSenderElements)
+    public ViewerScene()
     {
-        this.kinectSenderElements = kinectSenderElements;
+        kinectSenderElements = new List<KinectSenderElement>();
     }
 }

@@ -104,33 +104,33 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             return 0;
         break;
     case WM_DESTROY:
-        ::PostQuitMessage(0);
+        PostQuitMessage(0);
         return 0;
     }
-    return ::DefWindowProc(hWnd, msg, wParam, lParam);
+    return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
 Win32Window init_imgui(int width, int height, std::string title)
 {
     // Create application window
     WNDCLASSEX wc = {sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, "ImGui Example", NULL};
-    ::RegisterClassEx(&wc);
+    RegisterClassEx(&wc);
 
     RECT wr = {0, 0, width, height};
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
-    HWND hwnd = ::CreateWindow(wc.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, wr.right - wr.left, wr.bottom - wr.top, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = CreateWindow(wc.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, wr.right - wr.left, wr.bottom - wr.top, NULL, NULL, wc.hInstance, NULL);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
     {
         CleanupDeviceD3D();
-        ::UnregisterClass(wc.lpszClassName, wc.hInstance);
+        UnregisterClass(wc.lpszClassName, wc.hInstance);
         throw std::runtime_error("Failed to CreateDeviceD3D!");
     }
 
     // Show the window
-    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
-    ::UpdateWindow(hwnd);
+    ShowWindow(hwnd, SW_SHOWDEFAULT);
+    UpdateWindow(hwnd);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -179,8 +179,8 @@ void cleanup_imgui(Win32Window window)
     ImGui::DestroyContext();
 
     CleanupDeviceD3D();
-    ::DestroyWindow(window.hwnd);
-    ::UnregisterClass(window.wc.lpszClassName, window.wc.hInstance);
+    DestroyWindow(window.hwnd);
+    UnregisterClass(window.wc.lpszClassName, window.wc.hInstance);
 }
 
 // Usage:

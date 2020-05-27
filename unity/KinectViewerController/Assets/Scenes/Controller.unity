@@ -298,7 +298,7 @@ MonoBehaviour:
     MoveFromTitleOnly: 0
     MemoryCompactTimer: 60
   _fontAtlasConfiguration: {fileID: 0}
-  _iniSettings: {fileID: 11400000, guid: acf0ee3f78b21d045bee5cffbc70a718, type: 2}
+  _iniSettings: {fileID: 0}
   _shaders: {fileID: 11400000, guid: 9c25b437bdcfe95449d0617c2f2ee93d, type: 2}
   _style: {fileID: 11400000, guid: 2f5e7cc338c3ffc4caddb08baa576db2, type: 2}
   _cursorShapes: {fileID: 11400000, guid: 79f57b40c6f98a5418bdf959f1061379, type: 2}

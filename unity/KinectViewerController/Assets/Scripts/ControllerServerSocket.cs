@@ -26,7 +26,7 @@ public class ControllerServerSocket
         return viewerState;
     }
 
-    public void SendViewerState(ViewerScene viewerScene)
+    public void SendViewerScene(ViewerScene viewerScene)
     {
         var viewerSceneJson = JsonUtility.ToJson(viewerScene);
         var viewerSceneBytes = Encoding.ASCII.GetBytes(viewerSceneJson);

@@ -22,7 +22,7 @@ public class ViewerManager : MonoBehaviour
 
     private ControllerClientSocket controllerClientSocket;
     // Key would be receiver session ID.
-    private Dictionary<int, KinectReceiver> kinectReceivers;
+    private List<KinectReceiver> kinectReceivers;
     private List<RemoteSender> remoteSenders;
     private bool connecting;
 
@@ -34,7 +34,7 @@ public class ViewerManager : MonoBehaviour
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
         udpSocket = new UdpSocket(socket);
 
-        kinectReceivers = new Dictionary<int, KinectReceiver>();
+        kinectReceivers = new List<KinectReceiver>();
         remoteSenders = new List<RemoteSender>();
         connecting = false;
 
@@ -63,7 +63,14 @@ public class ViewerManager : MonoBehaviour
                     if (ipAddressText.Length == 0)
                         ipAddressText = "127.0.0.1";
 
-                    TryConnectToKinectSender(ipAddressText, SENDER_PORT);
+
+                    IPAddress ipAddress;
+                    if (!IPAddress.TryParse(ipAddressText, out ipAddress))
+                    {
+                        TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
+                    }
+
+                    TryConnectToKinectSender(new IPEndPoint(ipAddress, SENDER_PORT));
                 }
             }
         }
@@ -84,12 +91,24 @@ public class ViewerManager : MonoBehaviour
             ViewerScene viewerScene = controllerClientSocket.ReceiveViewerScene();
             if(viewerScene != null)
             {
-                print($"viewer scene: {viewerScene.kinectSenderElements[0].address}:{viewerScene.kinectSenderElements[0].port}");
-                TryConnectToKinectSender(viewerScene.kinectSenderElements[0].address, viewerScene.kinectSenderElements[0].port);
+                foreach(var kinectSenderElement in viewerScene.kinectSenderElements)
+                {
+                    IPAddress ipAddress;
+                    if (!IPAddress.TryParse(kinectSenderElement.address, out ipAddress))
+                    {
+                        TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
+                    }
+
+                    var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
+                    if (kinectReceivers.FirstOrDefault(x => x.SenderEndPoint == endPoint) != null)
+                        continue;
+
+                    TryConnectToKinectSender(endPoint);
+                }
             }
 
             var receiverStates = new List<ReceiverState>();
-            foreach(var receiver in kinectReceivers.Values)
+            foreach(var receiver in kinectReceivers)
             {
                 var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
                                                       receiver.SenderEndPoint.Port,
@@ -117,8 +136,8 @@ public class ViewerManager : MonoBehaviour
                     continue;
 
                 // There should be a receiver trying to connect that the confirmation matches.
-                KinectReceiver kinectReceiver;
-                if (!kinectReceivers.TryGetValue(confirmPacketInfo.ConfirmPacketData.receiverSessionId, out kinectReceiver))
+                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == confirmPacketInfo.ConfirmPacketData.receiverSessionId);
+                if (kinectReceiver == null)
                     continue;
 
                 // Also, the receiver should not have been prepared with a ConfirmSenderPacket yet.
@@ -144,14 +163,14 @@ public class ViewerManager : MonoBehaviour
                 if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
                     continue;
 
-                KinectReceiver kinectReceiver;
-                if (!kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
+                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == remoteSender.ReceiverSessionId);
+                if (kinectReceiver == null)
                     continue;
 
                 if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
                 {
                     remoteSenders.Remove(remoteSender);
-                    kinectReceivers.Remove(remoteSender.ReceiverSessionId);
+                    kinectReceivers.Remove(kinectReceiver);
                     sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
                     connectionWindow.Visibility = true;
                 }
@@ -164,10 +183,10 @@ public class ViewerManager : MonoBehaviour
             if (remoteSender != null)
             {
                 remoteSenders.Remove(remoteSender);
-                KinectReceiver kinectReceiver;
-                if (kinectReceivers.TryGetValue(remoteSender.ReceiverSessionId, out kinectReceiver))
+                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == remoteSender.ReceiverSessionId);
+                if (kinectReceiver != null)
                 {
-                    kinectReceivers.Remove(remoteSender.ReceiverSessionId);
+                    kinectReceivers.Remove(kinectReceiver);
                     sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
                 }
                 else
@@ -233,7 +252,7 @@ public class ViewerManager : MonoBehaviour
         connecting = false;
     }
 
-    private async void TryConnectToKinectSender(string ipAddress, int port)
+    private async void TryConnectToKinectSender(IPEndPoint endPoint)
     {
         if (connecting)
         {
@@ -243,31 +262,30 @@ public class ViewerManager : MonoBehaviour
 
         connecting = true;
 
-        TextToaster.Toast($"Try connecting to a Sender at {ipAddress}:{port}...");
+        TextToaster.Toast($"Try connecting to a Sender at {endPoint}...");
 
         var random = new System.Random();
-        int receiverSessionId = random.Next();
-
-        IPAddress senderIpAddress;
-        if (!IPAddress.TryParse(ipAddress, out senderIpAddress))
+        int receiverSessionId;
+        while (true)
         {
-            TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
-            connecting = false;
-            return;
+            receiverSessionId = random.Next();
+            if (kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == receiverSessionId) == null)
+                break;
         }
 
-        var senderEndPoint = new IPEndPoint(senderIpAddress, port);
-
-        var kinectReceiver = new KinectReceiver(receiverSessionId, senderEndPoint);
-        kinectReceivers.Add(receiverSessionId, kinectReceiver);
+        var kinectReceiver = new KinectReceiver(receiverSessionId, endPoint);
+        kinectReceivers.Add(kinectReceiver);
 
         // Nudge the sender until a confirm packet is received.
         for (int i = 0; i < 5; ++i)
         {
             if (kinectReceiver.State != PrepareState.Unprepared)
+            {
+                connecting = false;
                 return;
+            }
 
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), senderEndPoint);
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
             print($"Sent connect packet #{i}");
 
             await Task.Delay(300);
@@ -275,7 +293,7 @@ public class ViewerManager : MonoBehaviour
 
         // Give up and forget about the connection if a confirm packet has not been received after all the connect packets.
         if (kinectReceiver.State == PrepareState.Unprepared)
-            kinectReceivers.Remove(receiverSessionId);
+            kinectReceivers.Remove(kinectReceiver);
 
         connecting = false;
     }
