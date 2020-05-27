@@ -31,7 +31,7 @@ public class MessageBuffer
             var sizeError = sizeResult.Error;
             if (!(sizeError == SocketError.Success || sizeError == SocketError.WouldBlock))
             {
-                throw new Exception("Error receiving message size: " + sizeError);
+                throw new TcpSocketException("Error receiving message size: " + sizeError);
             }
             else
             {
@@ -55,7 +55,7 @@ public class MessageBuffer
         var messageError = messageResult.Error;
         if (!(messageError == SocketError.Success || messageError == SocketError.WouldBlock))
         {
-            throw new Exception("Error receiving message: " + messageError);
+            throw new TcpSocketException("Error receiving message: " + messageError);
         }
         else
         {

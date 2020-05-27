@@ -88,43 +88,7 @@ public class ViewerManager : MonoBehaviour
 
         if (controllerClientSocket != null)
         {
-            ViewerScene viewerScene = controllerClientSocket.ReceiveViewerScene();
-            if(viewerScene != null)
-            {
-                foreach(var kinectSenderElement in viewerScene.kinectSenderElements)
-                {
-                    IPAddress ipAddress;
-                    if (!IPAddress.TryParse(kinectSenderElement.address, out ipAddress))
-                    {
-                        TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
-                    }
-
-                    var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
-                    if (kinectReceivers.FirstOrDefault(x => x.SenderEndPoint == endPoint) != null)
-                        continue;
-
-                    TryConnectToKinectSender(endPoint);
-                }
-            }
-
-            var receiverStates = new List<ReceiverState>();
-            foreach(var receiver in kinectReceivers)
-            {
-                var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
-                                                      receiver.SenderEndPoint.Port,
-                                                      receiver.ReceiverSessionId);
-                receiverStates.Add(receiverState);
-            }
-
-            try
-            {
-                controllerClientSocket.SendViewerState(receiverStates);
-            }
-            catch (TcpSocketException e)
-            {
-                print($"TcpSocketException while connecting: {e}");
-                controllerClientSocket = null;
-            }
+            UpdateControllerClient();
         }
 
         try
@@ -204,13 +168,72 @@ public class ViewerManager : MonoBehaviour
 
         if (controllerClientSocket != null && kinectReceivers.Count == 0)
         {
-            connectedControllerWindow.IpAddress = controllerClientSocket.RemoteEndPoint.Address.ToString();
+            if (controllerClientSocket.RemoteEndPoint != null)
+            {
+                connectedControllerWindow.IpAddress = controllerClientSocket.RemoteEndPoint.Address.ToString();
+            }
+            else
+            {
+                connectedControllerWindow.IpAddress = "N/A";
+            }
             connectedControllerWindow.UserId = controllerClientSocket.UserId.ToString();
             connectedControllerWindow.Visibility = true;
         }
         else
         {
             connectedControllerWindow.Visibility = false;
+        }
+    }
+
+    private void UpdateControllerClient()
+    {
+        ViewerScene viewerScene = null;
+        try
+        {
+            viewerScene = controllerClientSocket.ReceiveViewerScene();
+        }
+        catch (TcpSocketException e)
+        {
+            print($"TcpSocketException while receiving: {e}");
+            controllerClientSocket = null;
+            return;
+        }
+
+        if (viewerScene != null)
+        {
+            foreach (var kinectSenderElement in viewerScene.kinectSenderElements)
+            {
+                IPAddress ipAddress;
+                if (!IPAddress.TryParse(kinectSenderElement.address, out ipAddress))
+                {
+                    TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
+                }
+
+                var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
+                if (kinectReceivers.FirstOrDefault(x => x.SenderEndPoint == endPoint) != null)
+                    continue;
+
+                TryConnectToKinectSender(endPoint);
+            }
+        }
+
+        var receiverStates = new List<ReceiverState>();
+        foreach (var receiver in kinectReceivers)
+        {
+            var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
+                                                  receiver.SenderEndPoint.Port,
+                                                  receiver.ReceiverSessionId);
+            receiverStates.Add(receiverState);
+        }
+
+        try
+        {
+            controllerClientSocket.SendViewerState(receiverStates);
+        }
+        catch (TcpSocketException e)
+        {
+            print($"TcpSocketException while connecting: {e}");
+            controllerClientSocket = null;
         }
     }
 
