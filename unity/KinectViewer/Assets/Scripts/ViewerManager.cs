@@ -19,8 +19,9 @@ public class ViewerManager : MonoBehaviour
     public SharedSpaceAnchor sharedSpaceAnchor;
 
     private UdpSocket udpSocket;
-
     private ControllerClientSocket controllerClientSocket;
+
+    private ViewerScene viewerScene;
     // Key would be receiver session ID.
     private List<KinectReceiver> kinectReceivers;
     private List<RemoteSender> remoteSenders;
@@ -34,6 +35,7 @@ public class ViewerManager : MonoBehaviour
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
         udpSocket = new UdpSocket(socket);
 
+        viewerScene = null;
         kinectReceivers = new List<KinectReceiver>();
         remoteSenders = new List<RemoteSender>();
         connecting = false;
@@ -215,6 +217,8 @@ public class ViewerManager : MonoBehaviour
 
                 TryConnectToKinectSender(endPoint);
             }
+
+            this.viewerScene = viewerScene;
         }
 
         var receiverStates = new List<ReceiverState>();

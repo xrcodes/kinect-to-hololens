@@ -19,6 +19,7 @@ public class KinectReceiver
     private int receiverSessionId;
     private IPEndPoint senderEndPoint;
     private PrepareState state;
+    
     private KinectOrigin kinectOrigin;
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;

@@ -3,14 +3,18 @@ using UnityEngine;
 using ImGuiNET;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Diagnostics;
 
 public class ControllerManager : MonoBehaviour
 {
     private const int SENDER_PORT = 3773;
+    private const float TIME_OUT_SEC = 5.0f;
     private TcpSocket tcpSocket;
     private List<ControllerServerSocket> serverSockets;
     private Dictionary<ControllerServerSocket, ViewerState> viewerStates;
     private Dictionary<ControllerServerSocket, ViewerScene> viewerScenes;
+    private Dictionary<ControllerServerSocket, Stopwatch> socketTimers;
 
     private string singleCameraAddress;
     private int singleCameraPort;
@@ -24,6 +28,7 @@ public class ControllerManager : MonoBehaviour
         serverSockets = new List<ControllerServerSocket>();
         viewerStates = new Dictionary<ControllerServerSocket, ViewerState>();
         viewerScenes = new Dictionary<ControllerServerSocket, ViewerScene>();
+        socketTimers = new Dictionary<ControllerServerSocket, Stopwatch>();
 
         singleCameraAddress = "127.0.0.1";
         singleCameraPort = SENDER_PORT;
@@ -31,7 +36,7 @@ public class ControllerManager : MonoBehaviour
 
         tcpSocket.BindAndListen(ControllerMessages.PORT);
     }
-    
+
     void Update()
     {
         try
@@ -43,20 +48,40 @@ public class ControllerManager : MonoBehaviour
                 var serverSocket = new ControllerServerSocket(remoteSocket);
                 serverSockets.Add(serverSocket);
                 viewerScenes.Add(serverSocket, new ViewerScene());
+                socketTimers.Add(serverSocket, Stopwatch.StartNew());
             }
         }
-        catch(TcpSocketException e)
+        catch (TcpSocketException e)
         {
             print(e.Message);
         }
 
         foreach (var serverSocket in serverSockets)
         {
-            var viewerState = serverSocket.ReceiveViewerState();
-            if(viewerState != null)
+            while (true)
             {
+                var viewerState = serverSocket.ReceiveViewerState();
+                if (viewerState == null)
+                    break;
+
                 viewerStates[serverSocket] = viewerState;
+                socketTimers[serverSocket] = Stopwatch.StartNew();
             }
+        }
+
+        var timedOutSockets = new List<ControllerServerSocket>();
+        foreach (var socketTimerPair in socketTimers)
+        {
+            if (socketTimerPair.Value.Elapsed.TotalSeconds > TIME_OUT_SEC)
+                timedOutSockets.Add(socketTimerPair.Key);
+        }
+
+        foreach (var timedOutSocket in timedOutSockets)
+        {
+            serverSockets.Remove(timedOutSocket);
+            viewerStates.Remove(timedOutSocket);
+            viewerScenes.Remove(timedOutSocket);
+            socketTimers.Remove(timedOutSocket);
         }
     }
 
@@ -136,6 +161,8 @@ public class ControllerManager : MonoBehaviour
         ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.6f, Screen.height), ImGuiCond.FirstUseEver);
         ImGui.Begin("Scene");
         ImGui.BeginTabBar("Scene TabBar");
+
+        int kinectSenderElementIndex = 0;
         foreach (var viewerStatePair in viewerStates)
         {
             var serverSocket = viewerStatePair.Key;
@@ -145,11 +172,11 @@ public class ControllerManager : MonoBehaviour
             {
                 foreach (var kinectSenderElement in viewerScene.kinectSenderElements.ToList())
                 {
-                    ImGui.InputText("Address", ref kinectSenderElement.address, 30);
-                    ImGui.InputInt("Port", ref kinectSenderElement.port);
-                    ImGui.InputFloat3("Position", ref kinectSenderElement.position);
+                    ImGui.InputText("Address##" + kinectSenderElementIndex, ref kinectSenderElement.address, 30);
+                    ImGui.InputInt("Port##" + kinectSenderElementIndex, ref kinectSenderElement.port);
+                    ImGui.InputFloat3("Position##" + kinectSenderElementIndex, ref kinectSenderElement.position);
                     var eulerAngles = kinectSenderElement.rotation.eulerAngles;
-                    if(ImGui.InputFloat3("Rotation", ref eulerAngles))
+                    if(ImGui.InputFloat3("Rotation##" + kinectSenderElementIndex, ref eulerAngles))
                     {
                         kinectSenderElement.rotation = Quaternion.Euler(eulerAngles);
                     }
@@ -160,6 +187,8 @@ public class ControllerManager : MonoBehaviour
                     }
 
                     ImGui.NewLine();
+
+                    ++kinectSenderElementIndex;
                 }
 
                 if(ImGui.Button("Add Kinect Sender"))
@@ -169,12 +198,35 @@ public class ControllerManager : MonoBehaviour
 
                 if(ImGui.Button("Update Scene"))
                 {
-                    serverSocket.SendViewerScene(viewerScene);
+                    string invalidIpAddress = null;
+                    foreach (var kinectSenderElement in viewerScene.kinectSenderElements)
+                    {
+                        if(!IsValidIpAddress(kinectSenderElement.address))
+                        {
+                            invalidIpAddress = kinectSenderElement.address;
+                            break;
+                        }
+                    }
+
+                    if (invalidIpAddress == null)
+                    {
+                        serverSocket.SendViewerScene(viewerScene);
+                    }
+                    else
+                    {
+                        print($"Scene not updated since an invalid IP address was found: {invalidIpAddress}");
+                    }
                 }
                 ImGui.EndTabItem();
             }
         }
         ImGui.EndTabBar();
         ImGui.End();
+    }
+
+    private static bool IsValidIpAddress(string ipString)
+    {
+        IPAddress address;
+        return IPAddress.TryParse(ipString, out address);
     }
 }

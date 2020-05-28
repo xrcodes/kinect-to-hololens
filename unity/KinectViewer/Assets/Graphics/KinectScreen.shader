@@ -50,9 +50,8 @@ Shader "KinectViewer/KinectScreen"
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
-            Texture2D _YTex;
-            Texture2D _UvTex;
-            SamplerState sampler_YTex;
+            sampler2D _YTex;
+            sampler2D _UvTex;
             sampler2D _DepthTex;
             fixed3 _SizeDirectionX;
             fixed3 _SizeDirectionY;
@@ -104,8 +103,8 @@ Shader "KinectViewer/KinectScreen"
                 // Time per frame:
                 //   with conversion: 43 ms
                 //   without conversion: 40 ms
-                fixed4 yuv = fixed4(_YTex.Sample(sampler_YTex, i.uv).r,
-                                    _UvTex.Sample(sampler_YTex, i.uv).rg,
+                fixed4 yuv = fixed4(tex2D(_YTex, i.uv).r,
+                                    tex2D(_UvTex, i.uv).rg,
                                     1.0);
 
                 return fixed4(dot(yuv, fixed4(1.164383,         0,  1.596027, -0.870787)),
