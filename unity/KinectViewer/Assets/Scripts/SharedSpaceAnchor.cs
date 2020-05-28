@@ -45,12 +45,14 @@ public class SharedSpaceAnchor : MonoBehaviour
 
     // Rotation of the anchor does not directly gets set to the input camera rotation.
     // It rotates in a way that the virtual floor in Unity can match the real floor.
-    public void SetPositionAndRotation(Vector3 position, Quaternion rotation)
+    // Adds 180 degrees to yaw since headset will face the opposite direction of the direction of the anchor.
+    public void SetPositionAndRotation(Vector3 headsetPosition, Quaternion headsetRotation)
     {
-        transform.localPosition = position;
+        transform.localPosition = headsetPosition;
 
-        Vector3 forward = rotation * new Vector3(0.0f, 0.0f, 1.0f);
+        Vector3 forward = headsetRotation * new Vector3(0.0f, 0.0f, 1.0f);
         float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+        yaw += 180.0f;
         transform.localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
     }
 }
