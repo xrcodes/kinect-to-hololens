@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
+using System.Net;
 using UnityEngine;
 
 public class KinectOrigin : MonoBehaviour
 {
+    public TextMesh progressText;
     public Transform gimbalTransform;
     public KinectScreen screen;
     public KinectSpeaker speaker;
@@ -12,6 +14,18 @@ public class KinectOrigin : MonoBehaviour
 
     public KinectScreen Screen => screen;
     public KinectSpeaker Speaker => speaker;
+
+    public bool ProgressTextVisibility
+    {
+        set
+        {
+            progressText.gameObject.SetActive(value);
+        }
+        get
+        {
+            return progressText.gameObject.activeSelf;
+        }
+    }
 
     public bool FloorVisibility
     {
@@ -23,6 +37,11 @@ public class KinectOrigin : MonoBehaviour
         {
             return floorTransform.gameObject.activeSelf;
         }
+    }
+
+    public void SetProgressText(IPEndPoint senderEndPoint, float progress)
+    {
+        progressText.text = $"Preparation for {senderEndPoint}\n{progress * 100.0f:F0}% done.";
     }
 
     public void UpdateFrame(List<FloorSenderPacketData> floorPacketDataList)

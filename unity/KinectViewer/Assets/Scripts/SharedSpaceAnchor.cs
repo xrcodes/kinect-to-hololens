@@ -30,7 +30,6 @@ public class SharedSpaceAnchor : MonoBehaviour
     public KinectOrigin AddKinectOrigin()
     {
         var kinectOrigin = Instantiate(kinectOriginPrefab, transform);
-        kinectOrigin.transform.localRotation = Quaternion.Euler(0.0f, 180.0f, 0.0f);
         kinectOrigin.FloorVisibility = GizmoVisibility;
         kinectOrigins.Add(kinectOrigin);
 

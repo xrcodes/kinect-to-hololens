@@ -9,14 +9,15 @@ public class KinectScreen : MonoBehaviour
     public Shader shader;
     public MeshFilter meshFilter;
     public MeshRenderer meshRenderer;
-    private PrepareState state;
+    public PrepareState State { get; private set; }
+    public float Progress { get; private set; }
 
     public Material Material => meshRenderer.sharedMaterial;
-    public PrepareState State => state;
 
     void Awake()
     {
-        state = PrepareState.Unprepared;
+        State = PrepareState.Unprepared;
+        Progress = 0.0f;
         meshRenderer.material = new Material(shader);
         RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
     }
@@ -36,7 +37,8 @@ public class KinectScreen : MonoBehaviour
     // every 100 ms.
     private IEnumerator SetupMesh(VideoInitSenderPacketData initSenderPacketData)
     {
-        state = PrepareState.Preparing;
+        State = PrepareState.Preparing;
+        Progress = 0.0f;
 
         int width = initSenderPacketData.depthWidth;
         int height = initSenderPacketData.depthHeight;
@@ -68,10 +70,13 @@ public class KinectScreen : MonoBehaviour
 
             if(stopWatch.ElapsedMilliseconds > 100)
             {
+                Progress = (i * 0.99f) / width;
                 yield return null;
                 stopWatch = Stopwatch.StartNew();
             }
         }
+
+        Progress = 0.99f;
 
         //print($"vertices[0]: {vertices[0]}"); // (-1.0, 1.0, 1.0): left-top
         //print($"vertices[last]: {vertices[vertices.Length - 1]}"); // (0.8, -0.6, 1.0): right-bottom
@@ -129,7 +134,7 @@ public class KinectScreen : MonoBehaviour
 
         meshFilter.mesh = mesh;
 
-        state = PrepareState.Prepared;
+        State = PrepareState.Prepared;
     }
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public enum PrepareState
 {
@@ -16,49 +17,46 @@ public class KinectReceiver
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
 
-    private int receiverSessionId;
-    private IPEndPoint senderEndPoint;
-    private PrepareState state;
+    public int ReceiverSessionId { get; private set; }
+    public IPEndPoint SenderEndPoint { get; private set; }
+    public PrepareState State { get; private set; }
     
-    private KinectOrigin kinectOrigin;
+    public KinectOrigin KinectOrigin { get; private set; }
+    public TextureGroupUpdater TextureGroupUpdater { get; private set; }
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;
-    private TextureGroupUpdater textureGroupUpdater;
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public int ReceiverSessionId => receiverSessionId;
-    public IPEndPoint SenderEndPoint => senderEndPoint;
-    public PrepareState State => state;
-    public KinectOrigin KinectOrigin => kinectOrigin;
-    public TextureGroupUpdater TextureGroupUpdater => textureGroupUpdater;
-
     public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint)
     {
-        this.receiverSessionId = receiverSessionId;
-        this.senderEndPoint = senderEndPoint;
-        state = PrepareState.Unprepared;
+        ReceiverSessionId = receiverSessionId;
+        SenderEndPoint = senderEndPoint;
+        State = PrepareState.Unprepared;
     }
 
     public void Prepare(KinectOrigin kinectOrigin)
     {
-        state = PrepareState.Prepared;
-        this.kinectOrigin = kinectOrigin;
-        videoMessageAssembler = new VideoMessageAssembler(receiverSessionId, senderEndPoint);
+        State = PrepareState.Prepared;
+        KinectOrigin = kinectOrigin;
+        TextureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, ReceiverSessionId, SenderEndPoint);
+        videoMessageAssembler = new VideoMessageAssembler(ReceiverSessionId, SenderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
-        textureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, receiverSessionId, senderEndPoint);
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
 
     public bool UpdateFrame(MonoBehaviour monoBehaviour, UdpSocket udpSocket, SenderPacketSet senderPacketSet)
     {
+        // UpdateFrame() should not be called before Prepare().
+        Assert.AreEqual(PrepareState.Prepared, State);
+
         var videoMessageList = new List<Tuple<int, VideoSenderMessageData>>();
         try
         {
             if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
             {
-                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(receiverSessionId), senderEndPoint);
+                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(ReceiverSessionId), SenderEndPoint);
                 heartbeatStopWatch = Stopwatch.StartNew();
             }
 
@@ -67,19 +65,19 @@ public class KinectReceiver
                 // Use init packet to prepare rendering video messages.
                 if (senderPacketSet.InitPacketDataList.Count > 0)
                 {
-                    if (kinectOrigin.Screen.State == PrepareState.Unprepared)
+                    if (KinectOrigin.Screen.State == PrepareState.Unprepared)
                     {
-                        kinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
-                        textureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
+                        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+                        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
                     }
                 }
 
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,
-                                               textureGroupUpdater.lastVideoFrameId,
+                                               TextureGroupUpdater.lastVideoFrameId,
                                                videoMessageList);
-                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, kinectOrigin.Speaker.RingBuffer);
+                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, KinectOrigin.Speaker.RingBuffer);
                 receivedAnyStopWatch = Stopwatch.StartNew();
             }
             else
@@ -97,8 +95,18 @@ public class KinectReceiver
             return false;
         }
 
-        textureGroupUpdater.UpdateFrame(udpSocket, videoMessageList);
-        kinectOrigin.UpdateFrame(senderPacketSet.FloorPacketDataList);
+        if (KinectOrigin.Screen.State == PrepareState.Preparing)
+        {
+            KinectOrigin.SetProgressText(SenderEndPoint, KinectOrigin.screen.Progress);
+            KinectOrigin.ProgressTextVisibility = true;
+        }
+        else if(KinectOrigin.Screen.State == PrepareState.Prepared)
+        {
+            KinectOrigin.ProgressTextVisibility = false;
+        }
+
+        KinectOrigin.UpdateFrame(senderPacketSet.FloorPacketDataList);
+        TextureGroupUpdater.UpdateFrame(udpSocket, videoMessageList);
 
         return true;
     }

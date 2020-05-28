@@ -40,6 +40,8 @@ public class ViewerManager : MonoBehaviour
         remoteSenders = new List<RemoteSender>();
         connecting = false;
 
+        sharedSpaceAnchor.GizmoVisibility = false;
+
         UpdateUiWindows();
     }
 
@@ -210,13 +212,17 @@ public class ViewerManager : MonoBehaviour
 
                 var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
 
-                var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiver.SenderEndPoint.Address.ToString()
-                                                                                            && x.port == kinectReceiver.SenderEndPoint.Port);
-
-                if (kinectSenderElement != null)
+                // viewerScene may not exist if connection through sender did not happen through a controller.
+                if (viewerScene != null)
                 {
-                    kinectOrigin.transform.localPosition = kinectSenderElement.position;
-                    kinectOrigin.transform.localRotation = kinectSenderElement.rotation;
+                    var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiver.SenderEndPoint.Address.ToString()
+                                                                                                && x.port == kinectReceiver.SenderEndPoint.Port);
+
+                    if (kinectSenderElement != null)
+                    {
+                        kinectOrigin.transform.localPosition = kinectSenderElement.position;
+                        kinectOrigin.transform.localRotation = kinectSenderElement.rotation;
+                    }
                 }
 
                 kinectReceiver.Prepare(kinectOrigin);
@@ -238,6 +244,9 @@ public class ViewerManager : MonoBehaviour
 
                 var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == remoteSender.ReceiverSessionId);
                 if (kinectReceiver == null)
+                    continue;
+
+                if (kinectReceiver.State == PrepareState.Unprepared)
                     continue;
 
                 if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
