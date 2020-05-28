@@ -22,10 +22,9 @@ public class ViewerManager : MonoBehaviour
     private ControllerClientSocket controllerClientSocket;
 
     private ViewerScene viewerScene;
-    // Key would be receiver session ID.
     private List<KinectReceiver> kinectReceivers;
     private List<RemoteSender> remoteSenders;
-    private bool connecting;
+    private int connectingCount;
 
     void Start()
     {
@@ -38,7 +37,7 @@ public class ViewerManager : MonoBehaviour
         viewerScene = null;
         kinectReceivers = new List<KinectReceiver>();
         remoteSenders = new List<RemoteSender>();
-        connecting = false;
+        connectingCount = 0;
 
         sharedSpaceAnchor.GizmoVisibility = false;
 
@@ -100,7 +99,7 @@ public class ViewerManager : MonoBehaviour
 
     private void UpdateUiWindows()
     {
-        connectionWindow.Visibility = controllerClientSocket == null && kinectReceivers.Count == 0 && !connecting;
+        connectionWindow.Visibility = controllerClientSocket == null && kinectReceivers.Count == 0 && connectingCount == 0;
 
         if (controllerClientSocket != null && kinectReceivers.Count == 0)
         {
@@ -288,13 +287,7 @@ public class ViewerManager : MonoBehaviour
             return;
         }
 
-        if (connecting)
-        {
-            TextToaster.Toast("Cannot attempt multiple connections at once.");
-            return;
-        }
-
-        connecting = true;
+        ++connectingCount;
 
         var random = new System.Random();
         int userId = random.Next();
@@ -303,7 +296,7 @@ public class ViewerManager : MonoBehaviour
         if (!IPAddress.TryParse(ipAddress, out controllerIpAddress))
         {
             TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
-            connecting = false;
+            --connectingCount;
             return;
         }
 
@@ -315,18 +308,12 @@ public class ViewerManager : MonoBehaviour
             controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
         }
 
-        connecting = false;
+        --connectingCount;
     }
 
     private async void TryConnectToKinectSender(IPEndPoint endPoint)
     {
-        if (connecting)
-        {
-            TextToaster.Toast("Cannot attempt multiple connections at once.");
-            return;
-        }
-
-        connecting = true;
+        ++connectingCount;
 
         TextToaster.Toast($"Try connecting to a Sender at {endPoint}...");
 
@@ -347,7 +334,7 @@ public class ViewerManager : MonoBehaviour
         {
             if (kinectReceiver.State != PrepareState.Unprepared)
             {
-                connecting = false;
+                --connectingCount;
                 return;
             }
 
@@ -361,6 +348,6 @@ public class ViewerManager : MonoBehaviour
         if (kinectReceiver.State == PrepareState.Unprepared)
             kinectReceivers.Remove(kinectReceiver);
 
-        connecting = false;
+        --connectingCount;
     }
 }
