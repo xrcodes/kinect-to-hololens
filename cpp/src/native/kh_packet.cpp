@@ -129,7 +129,7 @@ std::vector<std::vector<std::byte>> split_video_sender_message_bytes(int session
         const bool last{(packet_index + 1) == packet_count};
         const int packet_content_size{last ? gsl::narrow_cast<int>(video_message.size() - message_cursor) : KH_MAX_VIDEO_PACKET_CONTENT_SIZE};
         packets.push_back(create_video_sender_packet_bytes(session_id, frame_id, packet_index, packet_count,
-                                                           gsl::span<const std::byte>{video_message.data() + message_cursor, packet_content_size}));
+                                                           gsl::span<const std::byte>{video_message.data() + message_cursor, gsl::narrow_cast<size_t>(packet_content_size)}));
     }
 
     return packets;

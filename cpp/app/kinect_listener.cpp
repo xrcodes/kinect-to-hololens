@@ -38,7 +38,7 @@ int main()
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
     const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
-    assert(KH_BYTES_PER_SECOND == kinect_microphone_bytes_per_second);
+    Ensures(KH_BYTES_PER_SECOND == kinect_microphone_bytes_per_second);
 
     constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 

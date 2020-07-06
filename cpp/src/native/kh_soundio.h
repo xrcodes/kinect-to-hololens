@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 #include <gsl/gsl>
-#include <soundio.h>
+#include <soundio/soundio.h>
 
 namespace kh
 {

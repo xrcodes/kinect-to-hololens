@@ -8,7 +8,7 @@
 #pragma once
 
 #include <optional>
-#include <soundio.h>
+#include <soundio/soundio.h>
 #include "native/kh_soundio.h"
 
 namespace kh

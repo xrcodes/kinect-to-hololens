@@ -51,7 +51,7 @@ void display_frames()
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
         const auto depth_encoder_frame{depth_encoder.encode({reinterpret_cast<const short*>(kinect_frame->depth_image.get_buffer()),
-                                                             gsl::narrow_cast<ptrdiff_t>(kinect_frame->depth_image.get_size())},
+                                                             gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())},
                                                             false)};
         auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_pixels.data(), 
