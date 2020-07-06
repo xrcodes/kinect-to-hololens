@@ -5,10 +5,10 @@ Seeing through a Kinect from a HoloLens.
 
 # Requirement
 - A Windows 10 computer, an Azure Kinect, and a HoloLens (v1).
-- CMake, Unity3D 2019.3, and Visual Studio 2019.
+- CMake, Unity3D 2019.3, and Visual Studio 2019 (with C++ and UWP components).
 
 # How to Build
-1. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens
+1. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens (make sure git config core.symlinks is turned on true)
 2. Using vcpkg, install these libraries: asio, ffmpeg, imgui, libsoundio, libvpx, ms-gsl, and opencv.
 ```powershell
 .\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows imgui:x86-windows imgui:x64-windows libsoundio:x86-windows libsoundio:x64-windows libvpx:x86-windows libvpx:x64-windows ms-gsl:x86-windows ms-gsl:x64-windows opencv:x86-windows opencv:x64-windows
