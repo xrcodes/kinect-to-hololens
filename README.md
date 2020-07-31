@@ -8,15 +8,16 @@ Seeing through a Kinect from a HoloLens.
 - CMake, Unity3D 2019.3, and Visual Studio 2019 (with C++ and UWP components).
 
 # How to Build
-1. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens (make sure git config core.symlinks is turned on true)
-2. Using vcpkg, install these libraries: asio, ffmpeg, imgui, libsoundio, libvpx, ms-gsl, opencv, and opus.
+1. git config core.symlinks true (allow your git using symbolic links)
+2. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens
+3. Using vcpkg, install these libraries: asio, ffmpeg, imgui, libsoundio, libvpx, ms-gsl, opencv, and opus.
 ```powershell
 .\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows imgui:x86-windows imgui:x64-windows libsoundio:x86-windows libsoundio:x64-windows libvpx:x86-windows libvpx:x64-windows ms-gsl:x86-windows ms-gsl:x64-windows opencv:x86-windows opencv:x64-windows opus:x86-windows opus:x64-windows
 ```
-3. Install Kinect for Azure Kinect Sensor SDK 1.4.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
-4. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.
-5. Run build-plugin.ps1 to build the Unity3D plugin and copy it into the Unity3D project in directory /unity/KinectViewer.
-6. Build applications with the Visual Studio solution in /cpp/build/x64 and the Unity3D project in /unity/KinectViewer.
+4. Install Kinect for Azure Kinect Sensor SDK 1.4.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
+5. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.
+6. Run build-plugin.ps1 to build the Unity3D plugin and copy it into the Unity3D project in directory /unity/KinectViewer.
+7. Build applications with the Visual Studio solution in /cpp/build/x64 and the Unity3D project in /unity/KinectViewer.
 
 # How to Use
 Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/hanseuljun/kinect-to-hololens/releases/tag/v0.3.  
@@ -34,14 +35,14 @@ Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/h
 
 # Additional Notes
 
-## Opus
-Opus 1.3.1 builds decides whether to include SIMD instructions based on the machine that builds it. Unfortunately, while most modern machines support AVX, HoloLens does not. This causes the Opus binary file to include AVX instructions that causes HoloLens to crash. For this reason, we use a version of Opus 1.3.1 manually built to not have AVX instructions.
-
 ## Floor Detection
 Files for floor detection in /cpp/azure-kinect-samples comes from https://github.com/microsoft/Azure-Kinect-Samples/tree/master/body-tracking-samples/floor_detector_sample.
 
 ## Imgui
 Usage of imgui requires imgui_impl files in /cpp/imgui-1.73-examples.
+
+## Spamming Messages from Kinect Viewer in Visual Studio Console
+The current implementation of .Net handles socket errors using exceptions that can be caught in C#. However, when this implementation in converted with IL2CPP, it starts throwing an exception AND printing a message that I do not think can be removed. This leaves a lot of scary messages in the Visual Studio console when testing Kinect Viewer...
 
 # Paper
 Jun, H., Bailenson, J.N., Fuchs, H., & Wetzstein, G. (2020). An Easy-to-use Pipeline for an RGBD Camera and an AR Headset. *PRESENCE: Teleoperators and Virtual Environments*.
