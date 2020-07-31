@@ -39,15 +39,9 @@ find_package(OpenCV REQUIRED)
 
 find_package(libsoundio CONFIG REQUIRED)
 
-# Opus from vcpkg produced some illegal instruction errors, so replacing it by source built opus.
-set(OPUS_DIR ${PROJECT_SOURCE_DIR}/opus-1.3.1-no-avx)
-if(CMAKE_SIZEOF_VOID_P GREATER 4)
-	set(OPUS_BUILD_DIR ${OPUS_DIR}/x64)
-else()
-	set(OPUS_BUILD_DIR ${OPUS_DIR}/x86)
-endif()
-
 find_package(imgui CONFIG REQUIRED)
+
+find_package(Opus CONFIG REQUIRED)
 
 set(AZURE_KINECT_SAMPLES_DIR ${PROJECT_SOURCE_DIR}/azure-kinect-samples)
 set(IMGUI_EXAMPLES_DIR ${PROJECT_SOURCE_DIR}/imgui-1.73-examples)

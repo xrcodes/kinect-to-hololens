@@ -4,7 +4,6 @@ add_executable(KinectReader
 )
 target_include_directories(KinectReader PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
-  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectReader
   ${OpenCV_LIBS}
@@ -38,7 +37,6 @@ add_executable(KinectSender
 )
 target_include_directories(KinectSender PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
-  "${OPUS_DIR}/include"
   ${AZURE_KINECT_SAMPLES_DIR}
   ${IMGUI_EXAMPLES_DIR}
 )
@@ -74,7 +72,6 @@ add_executable(KinectReceiver
 )
 target_include_directories(KinectReceiver PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
-  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectReceiver
   ${OpenCV_LIBS}
@@ -90,7 +87,6 @@ add_executable(KinectListener
 )
 target_include_directories(KinectListener PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
-  "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectListener
   KinectToHololensNative
