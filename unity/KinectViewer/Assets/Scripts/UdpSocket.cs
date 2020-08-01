@@ -54,12 +54,10 @@ public class UdpSocket
         int packetSize = 0;
         try
         {
-            // ReceiveFrom is a little bit awful and it throws an exception whenever there is an error,
-            // even for a WouldBlock error.
-            // This leads to spamming console when converted with IL2CPP since generated code
-            // not only throws an exception but prints a message when there is an error.
-            // In other words, even a WouldBlock situation leaves a message when this project is built for HoloLens.
-            // TODO: Find a way not have those spamming messages.
+            // ReceiveFrom is a little bit awful and it throws an exception whenever there is an error, even for a WouldBlock error.
+            // This leads to spamming console in Visual Studio's output window.
+            // In other words, even a WouldBlock situation leaves a exception message when this project is built as a Visual Studio solution.
+            // TODO: Find a way not have those spamming exception messages.
             packetSize = socket.ReceiveFrom(bytes, bytes.Length, SocketFlags.None, ref endPoint);
         }
         catch (SocketException e)

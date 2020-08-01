@@ -303,9 +303,17 @@ public class ViewerManager : MonoBehaviour
         var controllerEndPoint = new IPEndPoint(controllerIpAddress, port);
 
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
-        if (await tcpSocket.ConnectAsync(controllerEndPoint))
+        try
         {
-            controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
+            if (await tcpSocket.ConnectAsync(controllerEndPoint))
+            {
+                controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
+            }
+        }
+        catch(TcpSocketException e)
+        {
+            TextToaster.Toast("Failed not connect to the controller.");
+            print($"An TcpSocketException while connecting to the controller: {e.Message}");
         }
 
         --connectingCount;
