@@ -33,6 +33,9 @@ Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/h
 4. Place your HoloLens beneth your Kinect on the floor and press space using the portal.
 5. Use arrow keys to adjust the position of the scene and d key to hide the visuals for setup.
 
+## Check firewall when connections don't work.
+Since the sender gets usually turned on a machine that is not built to function as a server, it in-coming connections often gets blocked. Actually, they get blocked by default when the firewall is on. If a connection does not work, first turn off the whole firewall and try it for diagnosis. If this makes the connection to happen, turn on the firewall again and add inbound rules for both sender and controller (this would mean Unity3D if you are running it as a Unity3D project) allowing domain/private/public (choose the ones that belong to your environment; pick all if you are not sure) connection.
+
 # Additional Notes
 
 ## Floor Detection
