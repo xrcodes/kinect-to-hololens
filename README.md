@@ -42,7 +42,7 @@ Files for floor detection in /cpp/azure-kinect-samples comes from https://github
 Usage of imgui requires imgui_impl files in /cpp/imgui-1.73-examples.
 
 ## Spamming Messages from Kinect Viewer in Visual Studio Console
-The current implementation of .Net handles socket errors using exceptions that can be caught in C#. However, when this implementation in converted with IL2CPP, it starts throwing an exception AND printing a message that I do not think can be removed. This leaves a lot of scary messages in the Visual Studio console when testing Kinect Viewer...
+The current implementation of .Net handles socket errors using exceptions that can be caught in C#. However, Visual Studio prints a message to the output window whenever there is an exception by default. This leaves a lot of scary messages in the Visual Studio console when testing Kinect Viewer and prevents from seeing other exception messages. While this is not the best solution, it is possible to turn off exception messages using output's settings. Unfortunately, this turns off all exceptions.
 
 # Paper
 Jun, H., Bailenson, J.N., Fuchs, H., & Wetzstein, G. (2020). An Easy-to-use Pipeline for an RGBD Camera and an AR Headset. *PRESENCE: Teleoperators and Virtual Environments*.
