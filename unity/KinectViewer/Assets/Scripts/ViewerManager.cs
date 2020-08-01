@@ -310,7 +310,7 @@ public class ViewerManager : MonoBehaviour
                 controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
             }
         }
-        catch(TcpSocketException e)
+        catch (TcpSocketException e)
         {
             TextToaster.Toast("Failed not connect to the controller.");
             print($"An TcpSocketException while connecting to the controller: {e.Message}");

@@ -2,7 +2,7 @@
 
 public enum ConnectionTarget
 {
-    Controller, Kinect
+    Kinect, Controller
 }
 
 public class ConnectionWindow : MonoBehaviour
@@ -10,8 +10,8 @@ public class ConnectionWindow : MonoBehaviour
     private static readonly Color BRIGHT_COLOR = new Color(0.0f, 1.0f, 0.254902f);
     private static readonly Color DARK_COLOR = new Color(0.0f, 0.5f, 0.254902f * 0.5f);
     public TextMesh ipAddressInputField;
-    public TextMesh controllerText;
     public TextMesh kinectText;
+    public TextMesh controllerText;
     private ConnectionTarget connectionTarget;
 
     public bool Visibility
@@ -46,15 +46,15 @@ public class ConnectionWindow : MonoBehaviour
         }
         private set
         {
-            if (value == ConnectionTarget.Controller)
-            {
-                controllerText.color = BRIGHT_COLOR;
-                kinectText.color = DARK_COLOR;
-            }
-            else
+            if (value == ConnectionTarget.Kinect)
             {
                 controllerText.color = DARK_COLOR;
                 kinectText.color = BRIGHT_COLOR;
+            }
+            else
+            {
+                controllerText.color = BRIGHT_COLOR;
+                kinectText.color = DARK_COLOR;
             }
             connectionTarget = value;
         }
@@ -62,7 +62,7 @@ public class ConnectionWindow : MonoBehaviour
 
     void Awake()
     {
-        ConnectionTarget = ConnectionTarget.Controller;
+        ConnectionTarget = ConnectionTarget.Kinect;
     }
 
     void Update()
@@ -72,10 +72,10 @@ public class ConnectionWindow : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Tab))
         {
-            if (ConnectionTarget == ConnectionTarget.Controller)
-                ConnectionTarget = ConnectionTarget.Kinect;
-            else
+            if (ConnectionTarget == ConnectionTarget.Kinect)
                 ConnectionTarget = ConnectionTarget.Controller;
+            else
+                ConnectionTarget = ConnectionTarget.Kinect;
         }
     }
 
