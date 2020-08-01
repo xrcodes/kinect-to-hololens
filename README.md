@@ -34,7 +34,7 @@ Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/h
 5. Use arrow keys to adjust the position of the scene and d key to hide the visuals for setup.
 
 ## Check firewall when connections don't work.
-Since the sender gets usually turned on a machine that is not built to function as a server, it in-coming connections often gets blocked. Actually, they get blocked by default when the firewall is on. If a connection does not work, first turn off the whole firewall and try it for diagnosis. If this makes the connection to happen, turn on the firewall again and add inbound rules for both sender and controller (this would mean Unity3D if you are running it as a Unity3D project) allowing domain/private/public (choose the ones that belong to your environment; pick all if you are not sure) connection.
+Since the sender/controller often gets turned on in a machine that is not built to function as a server, incoming connections to the sender/controller often gets blocked. Actually, they get blocked by default when the firewall is on. If a connection does not work, first turn off the whole firewall and try it again. If this makes the connection to happen, it means the firewall was blocking the connection. Now, turn on the firewall again, as turning off the firewall is terrible for your security, and add inbound firewall rules for both sender and controller (this would mean Unity3D if you are running it as a Unity3D project) allowing domain/private/public (choose the ones that belong to your environment; pick all if you are not sure) connections. (For adding inbound firewall rules, see https://www.howtogeek.com/112564/how-to-create-advanced-firewall-rules-in-the-windows-firewall/)
 
 # Additional Notes
 
