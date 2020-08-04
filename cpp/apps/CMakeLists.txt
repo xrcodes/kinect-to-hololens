@@ -1,6 +1,7 @@
 add_executable(KinectReaderApp
   kinect_reader_app.cpp
   helper/opencv_helper.h
+  helper/filesystem_helper.h
 )
 target_include_directories(KinectReaderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

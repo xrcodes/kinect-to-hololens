@@ -6,20 +6,10 @@
 #include "sender/kinect_video_sender.h"
 #include "sender/receiver_packet_receiver.h"
 #include "helper/imgui_helper.h"
+#include "helper/filesystem_helper.h"
 
 namespace kh
 {
-std::optional<KinectDevice> create_and_start_kinect_device()
-{
-    try {
-        KinectDevice kinect_device;
-        kinect_device.start();
-        return kinect_device;
-    } catch (k4a::error e) {
-        return std::nullopt;
-    }
-}
-
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
                           RemoteReceiver& remote_receiver,
@@ -80,7 +70,7 @@ void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummar
     log.AddLog("  Depth Encoder Time Average: %f\n", summary.depth_encoder_ms_sum / summary.frame_count);
 }
 
-void main()
+void start(KinectDeviceInterface& kinect_interface)
 {
     constexpr int PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
@@ -96,12 +86,6 @@ void main()
     const int session_id{gsl::narrow_cast<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
 
     std::cout << "Start kinect_sender (session_id: " << session_id << ").\n";
-
-    std::optional<KinectDevice> kinect_device{create_and_start_kinect_device()};
-    if (!kinect_device) {
-        std::cout << "Failed to create and start the Kinect device.\n";
-        return;
-    }
 
     // Create UdpSocket.
     asio::io_context io_context;
@@ -126,7 +110,7 @@ void main()
     const TimePoint session_start_time{TimePoint::now()};
     TimePoint heartbeat_time{TimePoint::now()};
 
-    KinectVideoSender kinect_video_sender{session_id, std::move(*kinect_device)};
+    KinectVideoSender kinect_video_sender{session_id, kinect_interface};
     KinectVideoSenderSummary kinect_video_sender_summary;
 
     KinectAudioSender kinect_audio_sender{session_id};
@@ -227,7 +211,7 @@ void main()
                     remote_endpoints.push_back(remote_receiver.endpoint);
 
                 // Send video/audio packets to the receivers.
-                kinect_video_sender.send(session_start_time, udp_socket, *kinect_device, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
+                kinect_video_sender.send(session_start_time, udp_socket, kinect_interface, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
                 kinect_audio_sender.send(udp_socket, remote_receivers);
 
                 // Send heartbeat packets to receivers.
@@ -281,6 +265,52 @@ void main()
     }
 
     cleanup_imgui(window);
+}
+void main()
+{
+    const std::string DATA_FOLDER_PATH{"../../../../playback/"};
+
+    std::vector<std::string> filenames(get_filenames_from_folder_path(DATA_FOLDER_PATH));
+
+    std::cout << "Input filenames inside the data folder:" << std::endl;
+    for (int i = 0; i < filenames.size(); ++i) {
+        std::cout << "    (" << i << ") " << filenames[i] << std::endl;
+    }
+
+    std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
+    std::string line;
+    std::getline(std::cin, line);
+
+
+    if (line == "") {
+        try {
+            KinectDevice kinect_device;
+            kinect_device.start();
+            start(kinect_device);
+        } catch (k4a::error e) {
+            std::cout << "Failed to create and start the Kinect device.\n";
+        }
+        return;
+    }
+
+    try {
+        int filename_index{stoi(line)};
+        std::cout << "filename_index: " << filename_index << std::endl;
+        if (filename_index < filenames.size()) {
+            auto filename{filenames[filename_index]};
+            std::cout << "filename: " << filename << std::endl;
+
+            KinectPlayback playback{DATA_FOLDER_PATH + filename};
+            start(playback);
+        } else {
+            std::cout << "filename_index out of range\n";
+        }
+    } catch (std::invalid_argument) {
+        std::cout << "invalid input\n";
+    }
+
+
+
 }
 }
 

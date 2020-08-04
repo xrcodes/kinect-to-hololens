@@ -96,7 +96,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     }
 }
 
-void main()
+void start()
 {
     constexpr int PORT{3773};
 
@@ -119,6 +119,6 @@ void main()
 int main()
 {
     std::ios_base::sync_with_stdio(false);
-    kh::main();
+    kh::start();
     return 0;
 }

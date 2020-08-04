@@ -1,25 +1,10 @@
-#include <filesystem>
 #include <iostream>
 #include "native/kh_native.h"
 #include "helper/opencv_helper.h"
+#include "helper/filesystem_helper.h"
 
 namespace kh
 {
-std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
-{
-    std::vector<std::string> filenames;
-    for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
-        std::string filename = entry.path().filename().string();
-        if (filename == ".gitignore")
-            continue;
-        if (entry.is_directory())
-            continue;
-        filenames.push_back(filename);
-    }
-
-    return filenames;
-}
-
 void read_frames(KinectDeviceInterface& kinect_interface)
 {
     constexpr short CHANGE_THRESHOLD{10};
@@ -156,7 +141,7 @@ void read_device_calibration()
         std::cout << "extrinsic translation[" << i << "]: " << extrinsics.translation[i] << std::endl;
 }
 
-void main()
+void start()
 {
     const std::string DATA_FOLDER_PATH{"../../../../playback/"};
 
@@ -165,7 +150,7 @@ void main()
 
         std::cout << "Input filenames inside the data folder:" << std::endl;
         for (int i = 0; i < filenames.size(); ++i) {
-            std::cout << "\t(" << i << ") " << filenames[i] << std::endl;
+            std::cout << "  (" << i << ") " << filenames[i] << std::endl;
         }
 
         std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
@@ -178,11 +163,19 @@ void main()
         } else if (line == "calibration") {
             read_device_calibration();
         } else {
-            int filename_index{atoi(line.c_str())};
-            std::cout << "filename_index: " << filename_index << std::endl;
-            auto filename{filenames[filename_index]};
-            std::cout << "filename: " << filename << std::endl;
-            read_file_frames(DATA_FOLDER_PATH + filename);
+            try {
+                int filename_index{stoi(line)};
+                std::cout << "filename_index: " << filename_index << std::endl;
+                if (filename_index < filenames.size()) {
+                    auto filename{filenames[filename_index]};
+                    std::cout << "filename: " << filename << std::endl;
+                    read_file_frames(DATA_FOLDER_PATH + filename);
+                } else {
+                    std::cout << "filename_index out of range\n";
+                }
+            } catch (std::invalid_argument) {
+                std::cout << "invalid input\n";
+            }
         }
     }
 }
@@ -190,6 +183,6 @@ void main()
 
 int main()
 {
-    kh::main();
+    kh::start();
     return 0;
 }

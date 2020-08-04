@@ -8,7 +8,7 @@
 
 namespace kh
 {
-int main()
+int start()
 {
     Audio audio;
     auto kinect_microphone{find_kinect_microphone(audio)};
@@ -65,5 +65,5 @@ int main()
 
 int main()
 {
-    return kh::main();
+    return kh::start();
 }
