@@ -6,9 +6,8 @@ target_include_directories(KinectReaderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectReaderApp
-  ${OpenCV_LIBS}
-  "${AZURE_KINECT_LIB}/k4a.lib"
   KinectToHololensNative
+  ${OpenCV_LIBS}
   ${Libvpx_LIB}
 )
 set_target_properties(KinectReaderApp PROPERTIES
@@ -20,6 +19,10 @@ add_custom_command(TARGET KinectReaderApp POST_BUILD
 )
 add_custom_command(TARGET KinectReaderApp POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4a.dll"
+  $<TARGET_FILE_DIR:KinectReaderApp>
+)
+add_custom_command(TARGET KinectReaderApp POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4arecord.dll"
   $<TARGET_FILE_DIR:KinectReaderApp>
 )
 
@@ -41,7 +44,6 @@ target_include_directories(KinectSenderApp PRIVATE
   ${IMGUI_EXAMPLES_DIR}
 )
 target_link_libraries(KinectSenderApp
-  "${AZURE_KINECT_LIB}/k4a.lib"
   KinectToHololensNative
   ${Libvpx_LIB}
   AzureKinectSamples
@@ -59,6 +61,11 @@ add_custom_command(TARGET KinectSenderApp POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4a.dll"
   $<TARGET_FILE_DIR:KinectSenderApp>
 )
+add_custom_command(TARGET KinectSenderApp POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AZURE_KINECT_BIN}/k4arecord.dll"
+  $<TARGET_FILE_DIR:KinectSenderApp>
+)
+
 add_executable(KinectReceiverApp
   kinect_receiver_app.cpp
   helper/opencv_helper.h

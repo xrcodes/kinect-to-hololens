@@ -1,6 +1,5 @@
 #include <filesystem>
 #include <iostream>
-#include <gsl/gsl>
 #include "native/kh_native.h"
 #include "helper/opencv_helper.h"
 
@@ -21,14 +20,12 @@ std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
     return filenames;
 }
 
-void read_device_frames()
+void read_frames(KinectDeviceInterface& kinect_interface)
 {
     constexpr short CHANGE_THRESHOLD{10};
     constexpr int INVALID_THRESHOLD{2};
 
-    KinectDevice kinect_device;
-    
-    const auto calibration{kinect_device.getCalibration()};
+    const auto calibration{kinect_interface.getCalibration()};
     const k4a::transformation transformation{calibration};
 
     Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
@@ -41,10 +38,9 @@ void read_device_frames()
 
     TrvlEncoder depth_encoder{depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD};
     TrvlDecoder depth_decoder{depth_frame_size};
-    kinect_device.start();
 
     for (;;) {
-        auto kinect_frame{kinect_device.getFrame()};
+        auto kinect_frame{kinect_interface.getFrame()};
         if (!kinect_frame) {
             std::cout << "no kinect frame...\n";
             continue;
@@ -70,7 +66,7 @@ void read_device_frames()
                                                              gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())},
                                                             false)};
         auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
-        auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_pixels.data(), 
+        auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_pixels.data(),
                                                              kinect_frame->depth_image.get_width_pixels(),
                                                              kinect_frame->depth_image.get_height_pixels())};
 
@@ -80,6 +76,20 @@ void read_device_frames()
         if (cv::waitKey(1) >= 0)
             break;
     }
+}
+
+
+void read_device_frames()
+{
+    KinectDevice kinect_device;
+    kinect_device.start();
+    read_frames(kinect_device);
+}
+
+void read_file_frames(const std::string& path)
+{
+    KinectPlayback playback{path};
+    read_frames(playback);
 }
 
 void read_device_calibration()
@@ -148,7 +158,7 @@ void read_device_calibration()
 
 void main()
 {
-    const std::string DATA_FOLDER_PATH{"../../../../data/"};
+    const std::string DATA_FOLDER_PATH{"../../../../playback/"};
 
     for (;;) {
         std::vector<std::string> filenames(get_filenames_from_folder_path(DATA_FOLDER_PATH));
@@ -158,7 +168,7 @@ void main()
             std::cout << "\t(" << i << ") " << filenames[i] << std::endl;
         }
 
-        std::cout << "Press Enter to Start: ";
+        std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
         std::string line;
         std::getline(std::cin, line);
 
@@ -168,7 +178,11 @@ void main()
         } else if (line == "calibration") {
             read_device_calibration();
         } else {
-            std::cout << "wrong input: " << line << std::endl;
+            int filename_index{atoi(line.c_str())};
+            std::cout << "filename_index: " << filename_index << std::endl;
+            auto filename{filenames[filename_index]};
+            std::cout << "filename: " << filename << std::endl;
+            read_file_frames(DATA_FOLDER_PATH + filename);
         }
     }
 }
