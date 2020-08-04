@@ -48,11 +48,10 @@ std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::Poin
 }
 
 // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-KinectVideoSender::KinectVideoSender(const int session_id, KinectDevice&& kinect_device)
+KinectVideoSender::KinectVideoSender(const int session_id, KinectDeviceInterface& kinect_interface)
     : session_id_{session_id}
     , random_number_generator_{std::random_device{}()}
-    , kinect_device_{std::move(kinect_device)}
-    , calibration_{kinect_device_.getCalibration()}
+    , calibration_{kinect_interface.getCalibration()}
     , transformation_{calibration_}
     , color_encoder_{create_color_encoder(calibration_)}
     , depth_encoder_{create_depth_encoder(calibration_)}
@@ -65,6 +64,7 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectDevice&& kinect
 
 void KinectVideoSender::send(const TimePoint& session_start_time,
                              UdpSocket& udp_socket,
+                             KinectDeviceInterface& kinect_interface,
                              VideoParityPacketStorage& video_parity_packet_storage,
                              std::unordered_map<int, RemoteReceiver>& remote_receivers,
                              KinectVideoSenderSummary& summary)
@@ -78,7 +78,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     }
 
     // Try getting a Kinect frame.
-    auto kinect_frame{kinect_device_.getFrame()};
+    auto kinect_frame{kinect_interface.getFrame()};
     if (!kinect_frame) {
         std::cout << "no kinect frame...\n";
         return;

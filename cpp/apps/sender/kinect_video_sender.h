@@ -29,16 +29,16 @@ class KinectVideoSender
 {
 public:
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    KinectVideoSender(const int session_id, KinectDevice&& kinect_device);
+    KinectVideoSender(const int session_id, KinectDeviceInterface& kinect_interface);
     void send(const TimePoint& session_start_time,
               UdpSocket& udp_socket,
+              KinectDeviceInterface& kinect_interface,
               VideoParityPacketStorage& video_parity_packet_storage,
               std::unordered_map<int, RemoteReceiver>& remote_receivers,
               KinectVideoSenderSummary& summary);
 private:
     const int session_id_;
     std::mt19937 random_number_generator_;
-    KinectDevice kinect_device_;
     k4a::calibration calibration_;
     k4a::transformation transformation_;
     Vp8Encoder color_encoder_;

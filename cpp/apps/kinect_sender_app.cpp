@@ -227,7 +227,7 @@ void main()
                     remote_endpoints.push_back(remote_receiver.endpoint);
 
                 // Send video/audio packets to the receivers.
-                kinect_video_sender.send(session_start_time, udp_socket, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
+                kinect_video_sender.send(session_start_time, udp_socket, *kinect_device, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
                 kinect_audio_sender.send(udp_socket, remote_receivers);
 
                 // Send heartbeat packets to receivers.
