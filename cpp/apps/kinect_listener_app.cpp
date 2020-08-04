@@ -14,31 +14,8 @@ int start()
     auto kinect_microphone{find_kinect_microphone(audio)};
     auto default_speaker{audio.getDefaultOutputDevice()};
 
-    AudioInStream kinect_microphone_stream(kinect_microphone);
-    // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
-    kinect_microphone_stream.get()->format = SoundIoFormatFloat32LE;
-    kinect_microphone_stream.get()->sample_rate = KH_SAMPLE_RATE;
-    kinect_microphone_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
-    kinect_microphone_stream.get()->software_latency = KH_LATENCY_SECONDS;
-    kinect_microphone_stream.get()->read_callback = soundio_callback::kinect_microphone_read_callback;
-    kinect_microphone_stream.get()->overflow_callback = soundio_callback::overflow_callback;
-    kinect_microphone_stream.open();
-
-    AudioOutStream default_speaker_stream(default_speaker);
-    // These settings are those generic and similar to Azure Kinect's.
-    // It is set to be Stereo, which is the default setting of Unity3D.
-    default_speaker_stream.get()->format = SoundIoFormatFloat32LE;
-    default_speaker_stream.get()->sample_rate = KH_SAMPLE_RATE;
-    default_speaker_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
-    default_speaker_stream.get()->software_latency = KH_LATENCY_SECONDS;
-    default_speaker_stream.get()->write_callback = soundio_callback::write_callback;
-    default_speaker_stream.get()->underflow_callback = soundio_callback::underflow_callback;
-    default_speaker_stream.open();
-
-    // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
-    // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
-    const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
-    Ensures(KH_BYTES_PER_SECOND == kinect_microphone_bytes_per_second);
+    AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
+    AudioOutStream default_speaker_stream{create_default_speaker_stream(audio)};
 
     constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 

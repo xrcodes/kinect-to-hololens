@@ -13,7 +13,7 @@ namespace kh
 struct KinectVideoSenderSummary
 {
     TimePoint start_time{TimePoint::now()};
-    float shadow_removal_ms_sum{0.0f};
+    float occlusion_removal_ms_sum{0.0f};
     float transformation_ms_sum{0.0f};
     float yuv_conversion_ms_sum{0.0f};
     float color_encoder_ms_sum{0.0f};

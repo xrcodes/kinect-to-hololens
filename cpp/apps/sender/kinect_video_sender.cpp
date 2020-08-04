@@ -141,12 +141,12 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     const bool keyframe{has_new_receiver || frame_id_diff > 5};
 
     // Remove the depth pixels that may not have corresponding color information available.
-    auto shadow_removal_start{TimePoint::now()};
+    auto occlusion_removal_start{TimePoint::now()};
     gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
                                         gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())};
     //occlusion_remover_.remove(depth_image_span);
     occlusion_remover_.remove2(depth_image_span);
-    summary.shadow_removal_ms_sum += shadow_removal_start.elapsed_time().ms();
+    summary.occlusion_removal_ms_sum += occlusion_removal_start.elapsed_time().ms();
 
     // Transform the color image to match the depth image in a pixel by pixel manner.
     auto transformation_start{TimePoint::now()};

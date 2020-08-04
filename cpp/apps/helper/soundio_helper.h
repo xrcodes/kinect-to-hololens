@@ -227,6 +227,8 @@ AudioInStream create_kinect_microphone_stream(const Audio& audio)
     kinect_microphone_stream.get()->overflow_callback = soundio_callback::overflow_callback;
     kinect_microphone_stream.open();
 
+    // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
+    // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
     const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
     if (KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second)
         throw std::exception("KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second");

@@ -63,7 +63,7 @@ void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummar
     log.AddLog("  Color Bandwidth: %f Mbps\n", summary.color_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
     log.AddLog("  Depth Bandwidth: %f Mbps\n", summary.depth_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
     log.AddLog("  Keyframe Ratio: %f\n", static_cast<float>(summary.keyframe_count) / summary.frame_count);
-    log.AddLog("  Shadow Removal Time Average: %f\n", summary.shadow_removal_ms_sum / summary.frame_count);
+    log.AddLog("  Occlusion Removal Time Average: %f\n", summary.occlusion_removal_ms_sum / summary.frame_count);
     log.AddLog("  Transformation Time Average: %f\n", summary.transformation_ms_sum / summary.frame_count);
     log.AddLog("  Yuv Conversion Time Average: %f\n", summary.yuv_conversion_ms_sum / summary.frame_count);
     log.AddLog("  Color Encoder Time Average: %f\n", summary.color_encoder_ms_sum / summary.frame_count);
@@ -281,7 +281,6 @@ void main()
     std::string line;
     std::getline(std::cin, line);
 
-
     if (line == "") {
         try {
             KinectDevice kinect_device;
@@ -293,24 +292,23 @@ void main()
         return;
     }
 
+    int filename_index;
     try {
-        int filename_index{stoi(line)};
-        std::cout << "filename_index: " << filename_index << std::endl;
-        if (filename_index < filenames.size()) {
-            auto filename{filenames[filename_index]};
-            std::cout << "filename: " << filename << std::endl;
-
-            KinectPlayback playback{DATA_FOLDER_PATH + filename};
-            start(playback);
-        } else {
-            std::cout << "filename_index out of range\n";
-        }
+        filename_index = stoi(line);
     } catch (std::invalid_argument) {
-        std::cout << "invalid input\n";
+        std::cout << "invalid input: " << line << "\n";
+        return;
     }
 
+    std::cout << "filename_index: " << filename_index << std::endl;
+    if (filename_index >= filenames.size())
+        std::cout << "filename_index out of range\n";
 
+    auto filename{filenames[filename_index]};
+    std::cout << "filename: " << filename << std::endl;
 
+    KinectPlayback playback{DATA_FOLDER_PATH + filename};
+    start(playback);
 }
 }
 
