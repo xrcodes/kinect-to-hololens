@@ -36,7 +36,7 @@ add_executable(KinectSenderApp
   sender/video_sender_utils.h
   sender/remote_receiver.h
   helper/imgui_helper.h
-  "${PROJECT_SOURCE_DIR}/resources/KinectSenderApp.rc"
+  resources/KinectSenderApp.rc
 )
 target_include_directories(KinectSenderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
