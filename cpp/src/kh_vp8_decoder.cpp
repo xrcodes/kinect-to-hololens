@@ -122,7 +122,6 @@ Vp8Decoder::Vp8Decoder()
         throw std::exception("Error from avcodec_open2.");
 }
 
-
 // Decode frames in vp8_frame_data.
 FFmpegFrame Vp8Decoder::decode(gsl::span<const std::byte> vp8_frame)
 {

@@ -79,7 +79,7 @@ YuvImage createYuvImageFromAzureKinectBgraBuffer(const uint8_t* buffer, int widt
     return YuvImage(std::move(y_channel), std::move(u_channel), std::move(v_channel), width, height);
 }
 
-// A helper function for createYuvImageFromAvFrame that converts a AVFrame into a std::vector.
+// A helper function for createYuvImageFromFFmpegFrame that converts a AVFrame into a std::vector.
 std::vector<uint8_t> convertPicturePlaneToBytes(uint8_t* data, int line_size, int width, int height)
 {
     std::vector<uint8_t> bytes(width * height);
@@ -90,13 +90,14 @@ std::vector<uint8_t> convertPicturePlaneToBytes(uint8_t* data, int line_size, in
 }
 
 // Converts an outcome of Vp8Deocder into YuvImage so it can be converted for OpenCV with createCvMatFromYuvImage().
-YuvImage createYuvImageFromAvFrame(const AVFrame& av_frame)
+YuvImage createYuvImageFromFFmpegFrame(FFmpegFrame& ffmpeg_frame)
 {
+    AVFrame* av_frame{ffmpeg_frame.av_frame()};
     return YuvImage(
-        std::move(convertPicturePlaneToBytes(av_frame.data[0], av_frame.linesize[0], av_frame.width, av_frame.height)),
-        std::move(convertPicturePlaneToBytes(av_frame.data[1], av_frame.linesize[1], av_frame.width / 2, av_frame.height / 2)),
-        std::move(convertPicturePlaneToBytes(av_frame.data[2], av_frame.linesize[2], av_frame.width / 2, av_frame.height / 2)),
-        av_frame.width,
-        av_frame.height);
+        std::move(convertPicturePlaneToBytes(av_frame->data[0], av_frame->linesize[0], av_frame->width, av_frame->height)),
+        std::move(convertPicturePlaneToBytes(av_frame->data[1], av_frame->linesize[1], av_frame->width / 2, av_frame->height / 2)),
+        std::move(convertPicturePlaneToBytes(av_frame->data[2], av_frame->linesize[2], av_frame->width / 2, av_frame->height / 2)),
+        av_frame->width,
+        av_frame->height);
 }
 }

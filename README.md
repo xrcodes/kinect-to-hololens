@@ -14,7 +14,7 @@ Seeing through a Kinect from a HoloLens.
 ```powershell
 .\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows imgui:x86-windows imgui:x64-windows libsoundio:x86-windows libsoundio:x64-windows libvpx:x86-windows libvpx:x64-windows ms-gsl:x86-windows ms-gsl:x64-windows opencv:x86-windows opencv:x64-windows opus:x86-windows opus:x64-windows
 ```
-4. Install Kinect for Azure Kinect Sensor SDK 1.4.0 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
+4. Install Kinect for Azure Kinect Sensor SDK 1.4.1 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
 5. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.
 6. Run build-plugin.ps1 to build the Unity3D plugin and copy it into the Unity3D project in directory /unity/KinectViewer.
 7. Build applications with the Visual Studio solution in /cpp/build/x64 and the Unity3D project in /unity/KinectViewer.
@@ -44,7 +44,7 @@ Files for floor detection in /cpp/azure-kinect-samples comes from https://github
 ## Imgui
 Usage of imgui requires imgui_impl files in /cpp/imgui-1.73-examples.
 
-## Spamming Messages from Kinect Viewer in Visual Studio Console
+## Spamming Messages from Kinect Viewer to Visual Studio
 The current implementation of .Net handles socket errors using exceptions that can be caught in C#. However, Visual Studio prints a message to the output window whenever there is an exception by default. This leaves a lot of scary messages in the Visual Studio console when testing Kinect Viewer and prevents from seeing other exception messages. While this is not the best solution, it is possible to turn off exception messages using output's settings. Unfortunately, this turns off all exceptions.
 
 # Paper

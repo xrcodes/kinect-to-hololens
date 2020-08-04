@@ -85,7 +85,7 @@ public:
         other.av_frame_ = nullptr;
         return *this;
     }
-    const AVFrame* av_frame() const { return av_frame_; }
+    AVFrame* av_frame() const { return av_frame_; }
 
 private:
     AVFrame* av_frame_;
@@ -95,5 +95,5 @@ private:
 // createYuvImageFromAvFrame(): converts the outcome of Vp8Decoder to color pixels in Yuv420.
 YuvImage createYuvImageFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride);
 YuvImage createYuvImageFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride);
-YuvImage createYuvImageFromAvFrame(const AVFrame& av_frame);
+YuvImage createYuvImageFromFFmpegFrame(FFmpegFrame& ffmpeg_frame);
 }
