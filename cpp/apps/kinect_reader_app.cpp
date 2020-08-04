@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <gsl/gsl>
 #include "native/kh_native.h"
@@ -5,7 +6,22 @@
 
 namespace kh
 {
-void display_frames()
+std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
+{
+    std::vector<std::string> filenames;
+    for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+        std::string filename = entry.path().filename().string();
+        if (filename == ".gitignore")
+            continue;
+        if (entry.is_directory())
+            continue;
+        filenames.push_back(filename);
+    }
+
+    return filenames;
+}
+
+void read_device_frames()
 {
     constexpr short CHANGE_THRESHOLD{10};
     constexpr int INVALID_THRESHOLD{2};
@@ -55,8 +71,8 @@ void display_frames()
                                                             false)};
         auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_pixels.data(), 
-                                                       kinect_frame->depth_image.get_width_pixels(),
-                                                       kinect_frame->depth_image.get_height_pixels())};
+                                                             kinect_frame->depth_image.get_width_pixels(),
+                                                             kinect_frame->depth_image.get_height_pixels())};
 
         // Displays the color and depth pixels.
         cv::imshow("Color", color_mat);
@@ -66,7 +82,7 @@ void display_frames()
     }
 }
 
-void display_calibration()
+void read_device_calibration()
 {
     auto device{k4a::device::open(K4A_DEVICE_DEFAULT)};
 
@@ -132,16 +148,27 @@ void display_calibration()
 
 void main()
 {
+    const std::string DATA_FOLDER_PATH{"../../../../data/"};
+
     for (;;) {
+        std::vector<std::string> filenames(get_filenames_from_folder_path(DATA_FOLDER_PATH));
+
+        std::cout << "Input filenames inside the data folder:" << std::endl;
+        for (int i = 0; i < filenames.size(); ++i) {
+            std::cout << "\t(" << i << ") " << filenames[i] << std::endl;
+        }
+
         std::cout << "Press Enter to Start: ";
         std::string line;
         std::getline(std::cin, line);
 
         // If "calibration" is entered, prints calibration information instead of displaying frames.
-        if (line == "calibration") {
-            display_calibration();
+        if (line == "") {
+            read_device_frames();
+        } else if (line == "calibration") {
+            read_device_calibration();
         } else {
-            display_frames();
+            std::cout << "wrong input: " << line << std::endl;
         }
     }
 }

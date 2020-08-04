@@ -52,4 +52,4 @@ add_subdirectory(src)
 add_subdirectory(azure-kinect-samples)
 add_subdirectory(imgui-1.73-examples)
 # The directory for cpp files corresponding to exe files.
-add_subdirectory(app)
+add_subdirectory(apps)
