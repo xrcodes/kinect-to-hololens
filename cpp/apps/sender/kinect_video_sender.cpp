@@ -77,6 +77,19 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
         }
     }
 
+    const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
+    const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
+
+    constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
+    const auto frame_time_point{TimePoint::now()};
+    const auto frame_time_diff{frame_time_point - last_frame_time_};
+    const int frame_id_diff{last_frame_id_ - get_minimum_receiver_frame_id(remote_receivers)};
+
+    // Skip a frame if there is no new receiver that requires a frame to start
+    // and the sender is too much ahead of the receivers.
+    if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
+        return;
+
     // Try getting a Kinect frame.
     auto kinect_frame{kinect_interface.getFrame()};
     if (!kinect_frame) {
@@ -121,19 +134,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     if (!video_required_by_any)
         return;
 
-    const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
-    const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
-
-    constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
-    const auto frame_time_point{TimePoint::now()};
-    const auto frame_time_diff{frame_time_point - last_frame_time_};
-    const int frame_id_diff{last_frame_id_ - get_minimum_receiver_frame_id(remote_receivers)};
-
-    // Skip a frame if there is no new receiver that requires a frame to start
-    // and the sender is too much ahead of the receivers.
-    if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
-        return;
-
+    // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
     last_frame_time_ = frame_time_point;
 
@@ -144,7 +145,6 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     auto occlusion_removal_start{TimePoint::now()};
     gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
                                         gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())};
-    //occlusion_remover_.remove(depth_image_span);
     occlusion_remover_.remove2(depth_image_span);
     summary.occlusion_removal_ms_sum += occlusion_removal_start.elapsed_time().ms();
 
