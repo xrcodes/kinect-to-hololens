@@ -92,27 +92,40 @@ VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const s
 
 std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
                                                          gsl::span<const std::byte> color_encoder_frame,
-                                                         gsl::span<const std::byte> depth_encoder_frame)
+                                                         gsl::span<const std::byte> depth_encoder_frame,
+                                                         std::optional<std::array<float, 4>> floor)
 {
     const int message_size{gsl::narrow_cast<int>(sizeof(frame_time_stamp) +
                                                  sizeof(keyframe) +
                                                  sizeof(int) +
                                                  sizeof(int) +
                                                  color_encoder_frame.size() +
-                                                 depth_encoder_frame.size())};
+                                                 depth_encoder_frame.size() +
+                                                 sizeof(bool) +
+                                                 (floor.has_value() ? (sizeof(float) * 4) : 0))};
 
     std::vector<std::byte> message_bytes(message_size);
     PacketCursor cursor;
 
     copy_to_bytes(frame_time_stamp, message_bytes, cursor);
     copy_to_bytes(keyframe, message_bytes, cursor);
-    copy_to_bytes(gsl::narrow_cast<int>(color_encoder_frame.size()), message_bytes, cursor);
-    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
 
+    copy_to_bytes(gsl::narrow_cast<int>(color_encoder_frame.size()), message_bytes, cursor);
     memcpy(message_bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
     cursor.position += gsl::narrow_cast<int>(color_encoder_frame.size());
 
+    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
     memcpy(message_bytes.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
+    cursor.position += gsl::narrow_cast<int>(depth_encoder_frame.size());
+
+    copy_to_bytes(floor.has_value(), message_bytes, cursor);
+
+    if (floor) {
+        copy_to_bytes(floor->at(0), message_bytes, cursor);
+        copy_to_bytes(floor->at(1), message_bytes, cursor);
+        copy_to_bytes(floor->at(2), message_bytes, cursor);
+        copy_to_bytes(floor->at(3), message_bytes, cursor);
+    }
 
     return message_bytes;
 }
@@ -190,20 +203,34 @@ VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byt
     copy_from_bytes(video_sender_message_data.keyframe, message_bytes, cursor);
 
     // Parsing the bytes of the message into the VP8 and TRVL frames.
-    int color_encoder_frame_size = copy_from_bytes<int>(message_bytes, cursor);
-    int depth_encoder_frame_size = copy_from_bytes<int>(message_bytes, cursor);
-
+    int color_encoder_frame_size{copy_from_bytes<int>(message_bytes, cursor)};
     video_sender_message_data.color_encoder_frame = std::vector<std::byte>(color_encoder_frame_size);
     memcpy(video_sender_message_data.color_encoder_frame.data(),
            message_bytes.data() + cursor.position,
            color_encoder_frame_size);
     cursor.position += color_encoder_frame_size;
 
+    int depth_encoder_frame_size{copy_from_bytes<int>(message_bytes, cursor)};
     video_sender_message_data.depth_encoder_frame = std::vector<std::byte>(depth_encoder_frame_size);
     memcpy(video_sender_message_data.depth_encoder_frame.data(),
            message_bytes.data() + cursor.position,
            depth_encoder_frame_size);
     cursor.position += depth_encoder_frame_size;
+
+    bool has_floor;
+    copy_from_bytes(has_floor, message_bytes, cursor);
+
+    if (has_floor) {
+        std::array<float, 4> floor;
+        copy_from_bytes(floor[0], message_bytes, cursor);
+        copy_from_bytes(floor[1], message_bytes, cursor);
+        copy_from_bytes(floor[2], message_bytes, cursor);
+        copy_from_bytes(floor[3], message_bytes, cursor);
+
+        video_sender_message_data.floor = floor;
+    } else {
+        video_sender_message_data.floor = std::nullopt;
+    }
 
     return video_sender_message_data;
 }
@@ -297,27 +324,6 @@ AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte>
            audio_sender_packet_data.opus_frame.size());
 
     return audio_sender_packet_data;
-}
-
-std::vector<std::byte> create_floor_sender_packet_bytes(int session_id, float a, float b, float c, float d)
-{
-    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                sizeof(SenderPacketType) +
-                                                sizeof(a) +
-                                                sizeof(b) +
-                                                sizeof(c) +
-                                                sizeof(d))};
-
-    std::vector<std::byte> packet_bytes(packet_size);
-    PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(SenderPacketType::Floor, packet_bytes, cursor);
-    copy_to_bytes(a, packet_bytes, cursor);
-    copy_to_bytes(b, packet_bytes, cursor);
-    copy_to_bytes(c, packet_bytes, cursor);
-    copy_to_bytes(d, packet_bytes, cursor);
-
-    return packet_bytes;
 }
 
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)

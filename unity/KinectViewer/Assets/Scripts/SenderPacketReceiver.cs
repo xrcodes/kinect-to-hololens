@@ -22,7 +22,6 @@ public class SenderPacketSet
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
     public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
     public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
-    public List<FloorSenderPacketData> FloorPacketDataList { get; private set; }
 
     public SenderPacketSet()
     {
@@ -31,7 +30,6 @@ public class SenderPacketSet
         VideoPacketDataList = new List<VideoSenderPacketData>();
         FecPacketDataList = new List<ParitySenderPacketData>();
         AudioPacketDataList = new List<AudioSenderPacketData>();
-        FloorPacketDataList = new List<FloorSenderPacketData>();
     }
 }
 
@@ -115,9 +113,6 @@ public static class SenderPacketReceiver
                 break;
             case SenderPacketType.Audio:
                 senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet.Bytes));
-                break;
-            case SenderPacketType.Floor:
-                senderPacketSet.FloorPacketDataList.Add(FloorSenderPacketData.Parse(packet.Bytes));
                 break;
         }
     }

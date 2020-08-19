@@ -10,7 +10,6 @@ public enum SenderPacketType : byte
     Frame = 3,
     Parity = 4,
     Audio = 5,
-    Floor = 6,
 }
 
 public enum ReceiverPacketType : byte
@@ -151,6 +150,7 @@ public class VideoSenderMessageData
     public bool keyframe;
     public byte[] colorEncoderFrame;
     public byte[] depthEncoderFrame;
+    public float[] floor;
 
     public static VideoSenderMessageData Parse(byte[] messageBytes)
     {
@@ -161,10 +161,25 @@ public class VideoSenderMessageData
         videoSenderMessageData.keyframe = reader.ReadBoolean();
 
         int colorEncoderFrameSize = reader.ReadInt32();
-        int depthEncoderFrameSize = reader.ReadInt32();
-
         videoSenderMessageData.colorEncoderFrame = reader.ReadBytes(colorEncoderFrameSize);
+
+        int depthEncoderFrameSize = reader.ReadInt32();
         videoSenderMessageData.depthEncoderFrame = reader.ReadBytes(depthEncoderFrameSize);
+
+        bool hasFloor = reader.ReadBoolean();
+        if(hasFloor)
+        {
+            var floor = new float[4];
+            floor[0] = reader.ReadSingle();
+            floor[1] = reader.ReadSingle();
+            floor[2] = reader.ReadSingle();
+            floor[3] = reader.ReadSingle();
+            videoSenderMessageData.floor = floor;
+        }
+        else
+        {
+            videoSenderMessageData.floor = null;
+        }
 
         return videoSenderMessageData;
     }
@@ -232,27 +247,5 @@ public class AudioSenderPacketData
         audioSenderPacketData.opusFrame = reader.ReadBytes(packetBytes.Length - (int)reader.BaseStream.Position);
 
         return audioSenderPacketData;
-    }
-}
-
-public class FloorSenderPacketData
-{
-    public float a;
-    public float b;
-    public float c;
-    public float d;
-
-    public static FloorSenderPacketData Parse(byte[] packetBytes)
-    {
-        var reader = new BinaryReader(new MemoryStream(packetBytes));
-        reader.BaseStream.Position = 5;
-
-        var floorSenderPacketData = new FloorSenderPacketData();
-        floorSenderPacketData.a = reader.ReadSingle();
-        floorSenderPacketData.b = reader.ReadSingle();
-        floorSenderPacketData.c = reader.ReadSingle();
-        floorSenderPacketData.d = reader.ReadSingle();
-
-        return floorSenderPacketData;
     }
 }

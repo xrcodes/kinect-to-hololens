@@ -110,7 +110,17 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
         return;
 
     // Try obtaining floor.
-    auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
+    const auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
+    std::optional<std::array<float, 4>> floor;
+    if (floor_plane) {
+        floor = std::array<float, 4>();
+        floor->at(0) = floor_plane->Normal.X;
+        floor->at(1) = floor_plane->Normal.Y;
+        floor->at(2) = floor_plane->Normal.Z;
+        floor->at(3) = floor_plane->C;
+    } else {
+        floor = std::nullopt;
+    }
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
@@ -151,7 +161,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
-    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame)};
+    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, floor)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
     
@@ -171,19 +181,6 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
         for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
             udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
-        }
-    }
-
-    // Send floor to receivers if there is a floor found.
-    if (floor_plane) {
-        const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id_,
-                                                                       floor_plane->Normal.X,
-                                                                       floor_plane->Normal.Y,
-                                                                       floor_plane->Normal.Z,
-                                                                       floor_plane->C)};
-        for (auto& [_, remote_receiver] : remote_receivers) {
-            if (remote_receiver.video_requested)
-                udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
         }
     }
 

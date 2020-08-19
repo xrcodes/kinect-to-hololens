@@ -35,9 +35,6 @@ public:
             case SenderPacketType::Audio:
                 sender_packet_set.audio_packet_data_vector.push_back(parse_audio_sender_packet_bytes(packet->bytes));
                 break;
-            case SenderPacketType::Floor:
-                // Ignore
-                break;
             }
         }
 

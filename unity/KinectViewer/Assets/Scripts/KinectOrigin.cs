@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
 
@@ -44,17 +45,22 @@ public class KinectOrigin : MonoBehaviour
         progressText.text = $"Preparation for {senderEndPoint}\n{progress * 100.0f:F0}% done.";
     }
 
-    public void UpdateFrame(List<FloorSenderPacketData> floorPacketDataList)
+    public void UpdateFrame(List<Tuple<int, VideoSenderMessageData>> videoMessageList)
     {
-        if (floorPacketDataList.Count == 0)
-            return;
+        VideoSenderMessageData videoMessageData = null;
+        foreach(var videoMessagePair in videoMessageList)
+        {
+            if (videoMessagePair.Item2.floor != null)
+                videoMessageData = videoMessagePair.Item2;
+        }
 
-        FloorSenderPacketData floorSenderPacketData = floorPacketDataList[floorPacketDataList.Count - 1];
+        if (videoMessageData == null)
+            return;
 
         Vector3 position;
         Quaternion rotation;
 
-        FloorUtils.ConvertFloorSenderPacketDataToPositionAndRotation(floorSenderPacketData, out position, out rotation);
+        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessageData, out position, out rotation);
 
         floorTransform.localPosition = position;
         floorTransform.localRotation = rotation;

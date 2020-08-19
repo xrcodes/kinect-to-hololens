@@ -105,7 +105,7 @@ public class KinectReceiver
             KinectOrigin.ProgressTextVisibility = false;
         }
 
-        KinectOrigin.UpdateFrame(senderPacketSet.FloorPacketDataList);
+        KinectOrigin.UpdateFrame(videoMessageList);
         TextureGroupUpdater.UpdateFrame(udpSocket, videoMessageList);
 
         return true;

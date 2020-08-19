@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <vector>
 #include <gsl/gsl>
 #include <k4a/k4a.h>
@@ -17,7 +18,6 @@ enum class SenderPacketType : std::uint8_t
     Video = 3,
     Parity = 4,
     Audio = 5,
-    Floor = 6,
 };
 
 enum class ReceiverPacketType : std::uint8_t
@@ -112,6 +112,7 @@ struct VideoSenderMessageData
     bool keyframe;
     std::vector<std::byte> color_encoder_frame;
     std::vector<std::byte> depth_encoder_frame;
+    std::optional<std::array<float, 4>> floor;
 };
 
 struct VideoSenderPacketData
@@ -124,7 +125,8 @@ struct VideoSenderPacketData
 
 std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
                                                          gsl::span<const std::byte> color_encoder_frame,
-                                                         gsl::span<const std::byte> depth_encoder_frame);
+                                                         gsl::span<const std::byte> depth_encoder_frame,
+                                                         std::optional<std::array<float, 4>> floor);
 std::vector<std::vector<std::byte>> split_video_sender_message_bytes(int session_id, int frame_id,
                                                                      gsl::span<const std::byte> video_message);
 std::vector<std::byte> create_video_sender_packet_bytes(int session_id, int frame_id, int packet_index, int packet_count,
