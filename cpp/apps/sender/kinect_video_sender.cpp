@@ -97,31 +97,6 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
         return;
     }
 
-    // Calculate floor from depth frame only when needed.
-    bool floor_required_by_any = false;
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_requested) {
-            floor_required_by_any = true;
-            break;
-        }
-    }
-
-    if (floor_required_by_any) {
-        // Try sending the floor plane from the Kinect frame.
-        auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
-        if (floor_plane) {
-            const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id_,
-                                                                           floor_plane->Normal.X,
-                                                                           floor_plane->Normal.Y,
-                                                                           floor_plane->Normal.Z,
-                                                                           floor_plane->C)};
-            for (auto& [_, remote_receiver] : remote_receivers) {
-                if(remote_receiver.video_requested)
-                    udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
-            }
-        }
-    }
-
     bool video_required_by_any = false;
     for (auto& [_, remote_receiver] : remote_receivers) {
         if (remote_receiver.video_requested) {
@@ -133,6 +108,9 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     // Skip video compression if video is not required by any.
     if (!video_required_by_any)
         return;
+
+    // Try obtaining floor.
+    auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
@@ -193,6 +171,19 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
         for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
             udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
+        }
+    }
+
+    // Send floor to receivers if there is a floor found.
+    if (floor_plane) {
+        const auto floor_packet_bytes{create_floor_sender_packet_bytes(session_id_,
+                                                                       floor_plane->Normal.X,
+                                                                       floor_plane->Normal.Y,
+                                                                       floor_plane->Normal.Z,
+                                                                       floor_plane->C)};
+        for (auto& [_, remote_receiver] : remote_receivers) {
+            if (remote_receiver.video_requested)
+                udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
         }
     }
 
