@@ -156,13 +156,12 @@ void start(KinectDeviceInterface& kinect_interface)
         ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.6f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Remote Receivers");
         for (auto& [_, remote_receiver] : remote_receivers)
-            ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nFloor: %s",
+            ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s",
                               remote_receiver.endpoint.address().to_string(),
                               remote_receiver.endpoint.port(),
                               remote_receiver.session_id,
                               remote_receiver.video_requested ? "Requested" : "Not Requested",
-                              remote_receiver.audio_requested ? "Requested" : "Not Requested",
-                              remote_receiver.floor_requested ? "Requested" : "Not Requested");
+                              remote_receiver.audio_requested ? "Requested" : "Not Requested");
         ImGui::End();
 
         // For the demo: add a debug button _BEFORE_ the normal log window contents
@@ -200,8 +199,7 @@ void start(KinectDeviceInterface& kinect_interface)
                                          RemoteReceiver{connect_packet_info.receiver_endpoint,
                                                         connect_packet_info.receiver_session_id,
                                                         connect_packet_info.connect_packet_data.video_requested,
-                                                        connect_packet_info.connect_packet_data.audio_requested,
-                                                        connect_packet_info.connect_packet_data.floor_requested}});
+                                                        connect_packet_info.connect_packet_data.audio_requested}});
             }
 
             // Skip the main part of the loop if there is no receiver connected.

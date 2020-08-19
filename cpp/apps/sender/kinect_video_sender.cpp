@@ -100,7 +100,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     // Calculate floor from depth frame only when needed.
     bool floor_required_by_any = false;
     for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.floor_requested) {
+        if (remote_receiver.video_requested) {
             floor_required_by_any = true;
             break;
         }
@@ -116,7 +116,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
                                                                            floor_plane->Normal.Z,
                                                                            floor_plane->C)};
             for (auto& [_, remote_receiver] : remote_receivers) {
-                if(remote_receiver.floor_requested)
+                if(remote_receiver.video_requested)
                     udp_socket.send(floor_packet_bytes, remote_receiver.endpoint);
             }
         }

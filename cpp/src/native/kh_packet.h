@@ -170,13 +170,11 @@ struct ConnectReceiverPacketData
 {
     bool video_requested;
     bool audio_requested;
-    bool floor_requested;
 };
 
 std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
                                                             bool video_requested,
-                                                            bool audio_requested,
-                                                            bool floor_requested);
+                                                            bool audio_requested);
 ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id);

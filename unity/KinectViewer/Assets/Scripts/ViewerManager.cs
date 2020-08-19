@@ -346,7 +346,7 @@ public class ViewerManager : MonoBehaviour
                 return;
             }
 
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true, true), endPoint);
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true), endPoint);
             print($"Sent connect packet #{i}");
 
             await Task.Delay(300);

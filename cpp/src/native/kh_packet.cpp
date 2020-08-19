@@ -332,14 +332,12 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
 
 std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
                                                             bool video_requested,
-                                                            bool audio_requested,
-                                                            bool floor_requested)
+                                                            bool audio_requested)
 {
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(ReceiverPacketType) +
                                                     sizeof(video_requested) +
-                                                    sizeof(audio_requested) +
-                                                    sizeof(floor_requested))};
+                                                    sizeof(audio_requested))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
@@ -347,7 +345,6 @@ std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
     copy_to_bytes(ReceiverPacketType::Connect, packet_bytes, cursor);
     copy_to_bytes(video_requested, packet_bytes, cursor);
     copy_to_bytes(audio_requested, packet_bytes, cursor);
-    copy_to_bytes(floor_requested, packet_bytes, cursor);
 
     return packet_bytes;
 }
@@ -358,7 +355,6 @@ ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const st
     PacketCursor cursor{5};
     copy_from_bytes(connect_receiver_packet_data.video_requested, packet_bytes, cursor);
     copy_from_bytes(connect_receiver_packet_data.audio_requested, packet_bytes, cursor);
-    copy_from_bytes(connect_receiver_packet_data.floor_requested, packet_bytes, cursor);
 
     return connect_receiver_packet_data;
 }

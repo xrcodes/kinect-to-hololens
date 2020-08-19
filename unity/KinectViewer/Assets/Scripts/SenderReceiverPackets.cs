@@ -39,8 +39,7 @@ public static class PacketHelper
 
     public static byte[] createConnectReceiverPacketBytes(int sessionId,
                                                           bool videoRequested,
-                                                          bool audioRequested,
-                                                          bool floorRequested)
+                                                          bool audioRequested)
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
@@ -48,7 +47,6 @@ public static class PacketHelper
         // bools need to be converted to bytes since C# bools are 4 bytes each, different from the 1-byte C++ bools.
         ms.WriteByte(Convert.ToByte(videoRequested));
         ms.WriteByte(Convert.ToByte(audioRequested));
-        ms.WriteByte(Convert.ToByte(floorRequested));
         return ms.ToArray();
     }
 
