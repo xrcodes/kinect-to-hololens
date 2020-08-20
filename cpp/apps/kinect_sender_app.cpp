@@ -112,8 +112,10 @@ void start(KinectDeviceInterface& kinect_interface)
 
     KinectVideoSender kinect_video_sender{session_id, kinect_interface};
     KinectVideoSenderSummary kinect_video_sender_summary;
-
-    KinectAudioSender kinect_audio_sender{session_id};
+    
+    std::unique_ptr<KinectAudioSender> kinect_audio_sender{nullptr};
+    if (kinect_interface.isDevice())
+        kinect_audio_sender.reset(new KinectAudioSender(session_id));
     
     ReceiverReportSummary receiver_report_summary;
 
@@ -210,7 +212,8 @@ void start(KinectDeviceInterface& kinect_interface)
 
                 // Send video/audio packets to the receivers.
                 kinect_video_sender.send(session_start_time, udp_socket, kinect_interface, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
-                kinect_audio_sender.send(udp_socket, remote_receivers);
+                if (kinect_audio_sender)
+                    kinect_audio_sender->send(udp_socket, remote_receivers);
 
                 // Send heartbeat packets to receivers.
                 if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
