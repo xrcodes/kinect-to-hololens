@@ -143,33 +143,41 @@ void read_device_calibration()
 
 void start()
 {
-    const std::string DATA_FOLDER_PATH{"../../../../playback/"};
+    // First one is for running the application inside visual studio, and the other is for running the built application.
+    const std::vector<std::string> DATA_FOLDER_PATHS{"../../../../playback/", "../../../../../playback/"};
 
     for (;;) {
-        std::vector<std::string> filenames(get_filenames_from_folder_path(DATA_FOLDER_PATH));
+        auto data_folder(find_data_folder(DATA_FOLDER_PATHS));
 
-        std::cout << "Input filenames inside the data folder:" << std::endl;
-        for (int i = 0; i < filenames.size(); ++i) {
-            std::cout << "  (" << i << ") " << filenames[i] << std::endl;
+        if (data_folder) {
+            std::cout << "Input filenames inside the data folder:" << std::endl;
+            for (int i = 0; i < data_folder->filenames.size(); ++i) {
+                std::cout << "    (" << i << ") " << data_folder->filenames[i] << std::endl;
+            }
+
+            std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
+        } else {
+            std::cout << "Failed to find the data folder...\n";
+
+            std::cout << "Press Enter to Start: ";
         }
 
-        std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
         std::string line;
         std::getline(std::cin, line);
 
         // If "calibration" is entered, prints calibration information instead of displaying frames.
-        if (line == "") {
-            read_device_frames();
-        } else if (line == "calibration") {
+        if (line == "calibration") {
             read_device_calibration();
+        } else if (!data_folder || line == "") {
+            read_device_frames();
         } else {
             try {
                 int filename_index{stoi(line)};
                 std::cout << "filename_index: " << filename_index << std::endl;
-                if (filename_index < filenames.size()) {
-                    auto filename{filenames[filename_index]};
+                if (filename_index < data_folder->filenames.size()) {
+                    auto filename{data_folder->filenames[filename_index]};
                     std::cout << "filename: " << filename << std::endl;
-                    read_file_frames(DATA_FOLDER_PATH + filename);
+                    read_file_frames(data_folder->folder_path + filename);
                 } else {
                     std::cout << "filename_index out of range\n";
                 }

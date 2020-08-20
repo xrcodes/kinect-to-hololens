@@ -266,23 +266,15 @@ void start(KinectDeviceInterface& kinect_interface)
 }
 void main()
 {
-    // This one is for running the application inside visual studio.
-    const std::string DATA_FOLDER_PATH1{"../../../../playback/"};
-    // This one is for running the built application.
-    const std::string DATA_FOLDER_PATH2{"../../../../../playback/"};
+    // First one is for running the application inside visual studio, and the other is for running the built application.
+    const std::vector<std::string> DATA_FOLDER_PATHS{"../../../../playback/", "../../../../../playback/"};
 
-    std::string data_folder_path{DATA_FOLDER_PATH1};
-    auto filenames(get_filenames_from_folder_path(DATA_FOLDER_PATH1));
+    auto data_folder(find_data_folder(DATA_FOLDER_PATHS));
 
-    if (!filenames) {
-        data_folder_path = DATA_FOLDER_PATH2;
-        filenames = get_filenames_from_folder_path(DATA_FOLDER_PATH2);
-    }
-    
-    if (filenames) {
+    if (data_folder) {
         std::cout << "Input filenames inside the data folder:" << std::endl;
-        for (int i = 0; i < filenames->size(); ++i) {
-            std::cout << "    (" << i << ") " << filenames->at(i) << std::endl;
+        for (int i = 0; i < data_folder->filenames.size(); ++i) {
+            std::cout << "    (" << i << ") " << data_folder->filenames[i] << std::endl;
         }
 
         std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
@@ -295,7 +287,7 @@ void main()
     std::string line;
     std::getline(std::cin, line);
 
-    if (!filenames || line == "") {
+    if (!data_folder || line == "") {
         try {
             KinectDevice kinect_device;
             kinect_device.start();
@@ -315,13 +307,13 @@ void main()
     }
 
     std::cout << "filename_index: " << filename_index << std::endl;
-    if (filename_index >= filenames->size())
+    if (filename_index >= data_folder->filenames.size())
         std::cout << "filename_index out of range\n";
 
-    auto filename{filenames->at(filename_index)};
+    auto filename{data_folder->filenames[filename_index]};
     std::cout << "filename: " << filename << std::endl;
 
-    KinectPlayback playback{data_folder_path + filename};
+    KinectPlayback playback{data_folder->folder_path + filename};
     start(playback);
 }
 }

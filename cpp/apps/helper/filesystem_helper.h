@@ -4,6 +4,12 @@
 
 namespace kh
 {
+struct DataFolder
+{
+    std::string folder_path;
+    std::vector<std::string> filenames;
+};
+
 std::optional<std::vector<std::string>> get_filenames_from_folder_path(std::string folder_path)
 {
     std::vector<std::string> filenames;
@@ -21,5 +27,16 @@ std::optional<std::vector<std::string>> get_filenames_from_folder_path(std::stri
     }
 
     return filenames;
+}
+
+std::optional<DataFolder> find_data_folder(gsl::span<const std::string> folder_paths)
+{
+    for (const auto& folder_path : folder_paths) {
+        auto filenames{get_filenames_from_folder_path(folder_path)};
+        if (filenames)
+            return DataFolder{folder_path, *filenames};
+    }
+
+    return std::nullopt;
 }
 }
