@@ -5,6 +5,11 @@
 
 namespace kh
 {
+cv::Mat create_cv_mat_from_kinect_color_image(uint8_t* color_buffer, int width, int height)
+{
+    return cv::Mat(height, width, CV_8UC4, color_buffer);
+}
+
 cv::Mat create_cv_mat_from_yuv_image(const YuvImage& yuv_image)
 {
     cv::Mat y_channel(yuv_image.height(), yuv_image.width(), CV_8UC1, const_cast<std::uint8_t*>(yuv_image.y_channel().data()));
@@ -31,15 +36,15 @@ cv::Mat create_cv_mat_from_yuv_image(const YuvImage& yuv_image)
 
 cv::Mat create_cv_mat_from_kinect_depth_image(const int16_t* depth_buffer, int width, int height)
 {
-    std::vector<uint8_t> reduced_depth_frame(width * height);
+    std::vector<uint8_t> depth_frame(width * height);
     std::vector<uint8_t> half(width * height);
 
     for (int i = 0; i < width * height; ++i) {
-        reduced_depth_frame[i] = depth_buffer[i] / 32;
+        depth_frame[i] = depth_buffer[i] / 32;
         half[i] = 128;
     }
 
-    cv::Mat y_channel(height, width, CV_8UC1, reduced_depth_frame.data());
+    cv::Mat y_channel(height, width, CV_8UC1, depth_frame.data());
     cv::Mat cr_channel(height, width, CV_8UC1, half.data());
     cv::Mat cb_channel(height, width, CV_8UC1, half.data());
 
