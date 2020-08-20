@@ -32,7 +32,7 @@ int AudioEncoder::encode(std::byte* opus_frame_data, const float* pcm, int frame
                                             max_data_bytes);
 
     if (opus_frame_size < 0)
-        throw std::runtime_error(std::string("Failed to encode a Opus frame: ") + opus_strerror(opus_frame_size));
+        throw std::runtime_error(std::string("Failed to encode an Opus frame: ") + opus_strerror(opus_frame_size));
 
     return opus_frame_size;
 }

@@ -4,7 +4,7 @@
 
 namespace kh
 {
-std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
+std::optional<std::vector<std::string>> get_filenames_from_folder_path(std::string folder_path)
 {
     std::vector<std::string> filenames;
     try {
@@ -17,8 +17,7 @@ std::vector<std::string> get_filenames_from_folder_path(std::string folder_path)
             filenames.push_back(filename);
         }
     } catch (std::filesystem::filesystem_error e) {
-        std::cout << "Error finding files at " << folder_path << " from get_filenames_from_folder_path():\n  " << e.what() << "\n";
-        return std::vector<std::string>();
+        return std::nullopt;
     }
 
     return filenames;

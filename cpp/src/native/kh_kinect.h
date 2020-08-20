@@ -16,6 +16,8 @@ struct KinectFrame
 class KinectDeviceInterface
 {
 public:
+    // To check whether there would be a microphone.
+    virtual bool isDevice() = 0;
     virtual k4a::calibration getCalibration() = 0;
     virtual std::optional<KinectFrame> getFrame() = 0;
 };
@@ -27,6 +29,7 @@ public:
     KinectDevice(k4a_device_configuration_t configuration, std::chrono::milliseconds timeout);
     KinectDevice();
     void start();
+    bool isDevice();
     k4a::calibration getCalibration();
     std::optional<KinectFrame> getFrame();
 
@@ -41,6 +44,7 @@ class KinectPlayback : public KinectDeviceInterface
 public:
     KinectPlayback(const std::string& path);
     void reset();
+    bool isDevice();
     k4a::calibration getCalibration();
     std::optional<KinectFrame> getFrame();
 

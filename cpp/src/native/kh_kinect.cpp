@@ -31,6 +31,11 @@ void KinectDevice::start()
     device_.start_imu();
 }
 
+bool KinectDevice::isDevice()
+{
+    return true;
+}
+
 k4a::calibration KinectDevice::getCalibration()
 {
     return device_.get_calibration(configuration_.depth_mode,
@@ -68,6 +73,11 @@ void KinectPlayback::reset()
 {
     playback_ = k4a::playback::open(path_.c_str());
     playback_.set_color_conversion(K4A_IMAGE_FORMAT_COLOR_BGRA32);
+}
+
+bool KinectPlayback::isDevice()
+{
+    return false;
 }
 
 k4a::calibration KinectPlayback::getCalibration()
