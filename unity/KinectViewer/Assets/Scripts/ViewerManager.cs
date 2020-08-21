@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class ViewerManager : MonoBehaviour
 {
-    private const int SENDER_PORT = 3773;
+    private const int SENDER_DEFAULT_PORT = 3773;
 
     // The main camera's Transform.
     public Transform mainCameraTransform;
@@ -73,7 +73,7 @@ public class ViewerManager : MonoBehaviour
                         TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
                     }
 
-                    TryConnectToKinectSender(new IPEndPoint(ipAddress, SENDER_PORT));
+                    TryConnectToKinectSender(new IPEndPoint(ipAddress, SENDER_DEFAULT_PORT));
                 }
             }
         }
