@@ -72,7 +72,7 @@ void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummar
 
 void start(KinectDeviceInterface& kinect_interface)
 {
-    constexpr int PORT{3773};
+    constexpr int DEFAULT_PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
     constexpr int IMGUI_WIDTH{960};
     constexpr int IMGUI_HEIGHT{540};
@@ -89,9 +89,20 @@ void start(KinectDeviceInterface& kinect_interface)
 
     // Create UdpSocket.
     asio::io_context io_context;
-    asio::ip::udp::socket socket{io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), PORT)};
-    socket.set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
-    UdpSocket udp_socket{std::move(socket)};
+
+    int port{DEFAULT_PORT};
+    std::optional<asio::ip::udp::socket> socket{};
+    for (int i = 0; i < 10; ++i) {
+        try {
+            socket = asio::ip::udp::socket(io_context, asio::ip::udp::endpoint(asio::ip::udp::v4(), port));
+            break;
+        } catch (std::system_error e) {
+            // This can happen due to the port being occupied. Increment the port and try again.
+            ++port;
+        }
+    }
+    socket->set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
+    UdpSocket udp_socket{std::move(*socket)};
 
     // Print IP addresses of this machine.
     asio::ip::udp::resolver resolver(io_context);
@@ -103,7 +114,7 @@ void start(KinectDeviceInterface& kinect_interface)
         if (it->endpoint().protocol() != asio::ip::udp::v4())
             continue;
         std::cout << "  - " << it->endpoint().address() << "\n";
-        local_addresses.push_back(it->endpoint().address().to_string());
+        local_addresses.push_back(it->endpoint().address().to_string() + ":" + std::to_string(port));
     }
 
     // Initialize instances for loop below.

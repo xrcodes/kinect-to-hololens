@@ -32,7 +32,6 @@ void read_frames(KinectDeviceInterface& kinect_interface)
             continue;
         }
 
-
         cv::imshow("Raw Color", create_cv_mat_from_kinect_color_image(kinect_frame->color_image.get_buffer(),
                                                                       kinect_frame->color_image.get_width_pixels(),
                                                                       kinect_frame->color_image.get_height_pixels()));
