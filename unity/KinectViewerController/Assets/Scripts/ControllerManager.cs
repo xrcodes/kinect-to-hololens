@@ -181,9 +181,10 @@ public class ControllerManager : MonoBehaviour
                         kinectSenderElement.rotation = Quaternion.Euler(eulerAngles);
                     }
                     
-                    if(ImGui.Button("Remove This Sender"))
+                    if(ImGui.Button("Remove This Sender##" + kinectSenderElementIndex))
                     {
-                        viewerScene.kinectSenderElements.Remove(kinectSenderElement);
+                        bool removeResult = viewerScene.kinectSenderElements.Remove(kinectSenderElement);
+                        print($"removeResult: {removeResult}");
                     }
 
                     ImGui.NewLine();

@@ -8,6 +8,8 @@ Shader "KinectViewer/KinectScreen"
         _YTex("Y Texture", 2D) = "white" {}
         _UvTex("UV Texture", 2D) = "white" {}
         _DepthTex("Depth Texture", 2D) = "white" {}
+        _SizeDirectionX("Size Direction X", Vector) = (0, 0, 0, 0)
+        _SizeDirectionY("Size Direction Y", Vector) = (0, 0, 0, 0)
     }
     SubShader
     {
