@@ -11,8 +11,6 @@ class OcclusionRemover
 public:
     OcclusionRemover(const k4a::calibration& calibration);
     void remove(gsl::span<int16_t> depth_pixels);
-    void remove_original(gsl::span<int16_t> depth_pixels);
-    void remove2(gsl::span<int16_t> depth_pixels);
 
 private:
     // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.

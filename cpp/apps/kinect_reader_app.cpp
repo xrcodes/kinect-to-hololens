@@ -42,7 +42,7 @@ void read_frames(KinectDeviceInterface& kinect_interface)
 
         gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
                                             gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())};
-        occlusion_remover.remove2(depth_image_span);
+        occlusion_remover.remove(depth_image_span);
 
         const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image, kinect_frame->color_image)};
 

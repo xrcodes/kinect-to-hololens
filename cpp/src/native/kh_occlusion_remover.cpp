@@ -53,123 +53,10 @@ OcclusionRemover::OcclusionRemover(const k4a::calibration& calibration)
 {
 }
 
-// All the inverses are to remove divisions from the calculation of zz.
-// Note that float divisions takes way longer than other operations.
-// The inner loop with ii in average had about 20 times of repetition per pixel in average
-// from a scientific experiment from my dorm room.
-// This modification reduced 25% of the computation time.
-// Using int instead of gsl::index to minimize casting.
-void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
-{
-    // 3.86 m is the operating range of NFOV unbinned mode of Azure Kinect.
-    const float c_inv{1.0f / color_camera_x_};
-
-    //int invalidation_count = 0;
-    //int z_max_update_count = 0;
-    for (int j{0}; j < height_; ++j) {
-        // z_max contains the cutoffs for the j-th row.
-        //std::vector<float> z_max(width, AZURE_KINECT_MAX_DISTANCE);
-        std::vector<float> z_max_inv(width_, AZURE_KINECT_MAX_DISTANCE_INV);
-        const int p_index_offset{j * width_};
-
-        for (int i{width_ - 1}; i >= 0; --i) {
-            // p stands for point.
-            //const int p_index{i + j * width_};
-            const int p_index{i + p_index_offset};
-            const int16_t z{depth_pixels[p_index]};
-
-            // Skip invalid pixels.
-            if (z == 0)
-                continue;
-
-            // Invalidate the pixel if it is covered by another pixel.
-            //if (z > z_max[i]) {
-            //if (z > (1.0f / z_max_inv[i])) {
-            if (z * z_max_inv[i] > 1.0f) {
-                depth_pixels[p_index] = 0;
-                //++invalidation_count;
-                continue;
-            }
-
-            //auto p{unit_depth_point_cloud_.points[p_index].xyz};
-            //const float x{p.x};
-            const float x{x_with_unit_depth_[p_index]};
-            const float z_inv{1.0f / z};
-            const float zz_inv_offset{-x * c_inv + z_inv};
-            const int pp_index_offset{j * width_};
-
-            for (int ii{i - 1}; ii >= 0; --ii) {
-                //gsl::index pp_index{ii + j * width};
-                //auto pp{unit_depth_point_cloud_.points[pp_index].xyz};
-                //const float xx{pp.x};
-                //const float xx{unit_depth_point_cloud_.points[pp_index].xyz.x};
-                //const float xx{x_with_unit_depth_[ii + j * width_]};
-                //const float xx_times_max_distance_inv_{x_with_unit_depth_times_c_inv_[ii + j * width_]};
-                const float xx_times_max_distance_inv_{x_with_unit_depth_times_c_inv_[ii + pp_index_offset]};
-                //const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
-                //const float zz{1.0f / ((xx - x) * c_inv + z_inv)};
-                //const float zz_inv{(xx - x) * c_inv + z_inv};
-                const float zz_inv{xx_times_max_distance_inv_ + zz_inv_offset};
-
-                //if (zz >= z_max[ii])
-                if (zz_inv <= z_max_inv[ii])
-                    break;
-
-                // If zz covers new area, update z_max that indicates the area covered
-                // and continue to the next pixels more on the right side.
-                z_max_inv[ii] = zz_inv;
-                //++z_max_update_count;
-            }
-        }
-    }
-    //std::cout << "invalidation_count: " << invalidation_count << ","
-    //          << "z_max_update_count: " << z_max_update_count << "\n";
-}
-
-// The version without optimization.
-void OcclusionRemover::remove_original(gsl::span<int16_t> depth_pixels)
-{
-    for (int j{0}; j < height_; ++j) {
-        // z_max contains the cutoffs for the j-th row.
-        std::vector<float> z_max(width_, AZURE_KINECT_MAX_DISTANCE);
-
-        for (int i{width_ - 1}; i >= 0; --i) {
-            // p stands for point.
-            const int p_index{i + j * width_};
-            const int16_t z{depth_pixels[p_index]};
-
-            // Skip invalid pixels.
-            if (z == 0)
-                continue;
-
-            // Invalidate the pixel if it is covered by another pixel.
-            if (z > z_max[i]) {
-                depth_pixels[p_index] = 0;
-                continue;
-            }
-
-            const float x{x_with_unit_depth_[p_index]};
-            for (int ii{i - 1}; ii >= 0; --ii) {
-                const float xx{x_with_unit_depth_[ii + j * width_]};
-                const float zz{(color_camera_x_ * z) / ((xx - x) * z + color_camera_x_)};
-
-                if (zz >= z_max[ii])
-                    break;
-
-                // If zz covers new area, update z_max that indicates the area covered
-                // and continue to the next pixels more on the right side.
-                z_max[ii] = zz;
-            }
-        }
-    }
-    //std::cout << "invalidation_count: " << invalidation_count << ","
-    //          << "z_max_update_count: " << z_max_update_count << "\n";
-}
-
 // Instead of removing pixels in two steps as remove(),
 // by ignoring the edge cases, remove2() removes occlusions
 // in one step with much less iterations.
-void OcclusionRemover::remove2(gsl::span<int16_t> depth_pixels)
+void OcclusionRemover::remove(gsl::span<int16_t> depth_pixels)
 {
     for (int j{0}; j < height_; ++j) {
         // z_max contains the cutoffs for the j-th row.
@@ -197,8 +84,12 @@ void OcclusionRemover::remove2(gsl::span<int16_t> depth_pixels)
                 // When the gap between x and xx becomes too large, (x - xx) * z > color_camera_x_,
                 // line_z becomes negative indicating that physically there can be no occlusions.
                 // And, of course, if a point is not blocked, it should not be invalidated.
-                if (line_z < 0 || (zz < line_z))
+                if ((zz < line_z) || (line_z < 0)) {
+                    // Equivalent to setting i to ii for the next loop with i.
+                    // Skipping loops that only finds i is for an invalid pixel.
+                    //i = ii + 1;
                     break;
+                }
 
                 // If line_z covers an existing pixel pp, invalidate pp.
                 depth_pixels[pp_index] = 0;
