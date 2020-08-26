@@ -23,7 +23,7 @@ target_include_directories(KinectToHololensUnity PRIVATE
   "${OPUS_DIR}/include"
 )
 target_link_libraries(KinectToHololensUnity
-  KinectToHololens
+  KinectToHololensCore
 )
 set_target_properties(KinectToHololensUnity PROPERTIES
   CXX_STANDARD 17

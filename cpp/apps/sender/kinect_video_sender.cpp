@@ -16,7 +16,9 @@ Vp8Encoder create_color_encoder(k4a::calibration calibration)
 TrvlEncoder create_depth_encoder(k4a::calibration calibration)
 {
     constexpr short CHANGE_THRESHOLD{10};
-    constexpr int INVALID_THRESHOLD{2};
+    //constexpr int INVALID_THRESHOLD{2};
+    // Tolerating invalid pixels leaves black colored points left when combined with RGBD mapping.
+    constexpr int INVALID_THRESHOLD{1};
 
     return TrvlEncoder{calibration.depth_camera_calibration.resolution_width *
                        calibration.depth_camera_calibration.resolution_height,
