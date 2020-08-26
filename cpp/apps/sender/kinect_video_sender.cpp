@@ -145,7 +145,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
     const auto yuv_conversion_start{TimePoint::now()};
-    const auto yuv_image{createYuvImageFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
+    const auto yuv_image{createYuvFrameFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
                                                                  color_image_from_depth_camera.get_width_pixels(),
                                                                  color_image_from_depth_camera.get_height_pixels(),
                                                                  color_image_from_depth_camera.get_stride_bytes())};

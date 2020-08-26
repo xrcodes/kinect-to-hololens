@@ -10,7 +10,7 @@ cv::Mat create_cv_mat_from_kinect_color_image(uint8_t* color_buffer, int width, 
     return cv::Mat(height, width, CV_8UC4, color_buffer);
 }
 
-cv::Mat create_cv_mat_from_yuv_image(const YuvImage& yuv_image)
+cv::Mat create_cv_mat_from_yuv_image(const YuvFrame& yuv_image)
 {
     cv::Mat y_channel(yuv_image.height(), yuv_image.width(), CV_8UC1, const_cast<std::uint8_t*>(yuv_image.y_channel().data()));
     cv::Mat u_channel(yuv_image.height() / 2, yuv_image.width() / 2, CV_8UC1, const_cast<std::uint8_t*>(yuv_image.u_channel().data()));

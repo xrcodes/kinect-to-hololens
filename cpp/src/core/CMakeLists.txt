@@ -1,5 +1,6 @@
 add_library(KinectToHololensCore
   kh_core.h
+  kh_ffmpeg.h
   kh_opus.h
   kh_opus.cpp
   kh_rvl.h

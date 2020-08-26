@@ -48,14 +48,14 @@ void read_frames(KinectDeviceInterface& kinect_interface)
 
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
-        const auto yuv_image{createYuvImageFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
+        const auto yuv_image{createYuvFrameFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
                                                                      transformed_color_image.get_width_pixels(),
                                                                      transformed_color_image.get_height_pixels(),
                                                                      transformed_color_image.get_stride_bytes())};
 
         const auto vp8_frame{vp8_encoder.encode(yuv_image, false)};
         auto ffmpeg_frame{vp8_decoder.decode(vp8_frame)};
-        cv::imshow("Final Color", create_cv_mat_from_yuv_image(createYuvImageFromFFmpegFrame(ffmpeg_frame)));
+        cv::imshow("Final Color", create_cv_mat_from_yuv_image(createYuvFrameFromFFmpegFrame(ffmpeg_frame)));
 
 
         // Compresses and decompresses the depth pixels to test the compression and decompression functions.
