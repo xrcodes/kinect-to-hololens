@@ -1,16 +1,56 @@
 #pragma once
 
 #include <memory>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavutil/frame.h>
 }
+
+#pragma warning(push)
+#pragma warning(disable: 26812)
 #include <vpx/vp8cx.h>
-#include <vpx/vpx_codec.h>
+#pragma warning(pop)
 #include <gsl/gsl>
-#include "kh_yuv.h"
 
 namespace kh
 {
+class YuvFrame;
+
+// A wrapper for AVFrame, the outcome of Vp8Decoder.
+class FFmpegFrame
+{
+public:
+    FFmpegFrame(AVFrame* av_frame)
+        : av_frame_(av_frame)
+    {
+    }
+    ~FFmpegFrame()
+    {
+        if (av_frame_)
+            av_frame_free(&av_frame_);
+    }
+    FFmpegFrame(const FFmpegFrame& other) = delete;
+    FFmpegFrame& operator=(const FFmpegFrame& other) = delete;
+    FFmpegFrame(FFmpegFrame&& other) noexcept
+        : av_frame_(other.av_frame_)
+    {
+        other.av_frame_ = nullptr;
+    }
+    FFmpegFrame& operator=(FFmpegFrame&& other) noexcept
+    {
+        if (av_frame_)
+            av_frame_free(&av_frame_);
+
+        av_frame_ = other.av_frame_;
+        other.av_frame_ = nullptr;
+        return *this;
+    }
+    AVFrame* av_frame() const { return av_frame_; }
+
+private:
+    AVFrame* av_frame_;
+};
 
 // A wrapper class for libvpx, encoding color pixels into the VP8 codec.
 class Vp8Encoder

@@ -1,5 +1,7 @@
 #include "kh_yuv.h"
 
+#include "kh_vp8.h"
+
 namespace kh
 {
 YuvFrame createYuvFrameFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)

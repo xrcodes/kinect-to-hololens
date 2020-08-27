@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "kh_ffmpeg.h"
-
 namespace kh
 {
+class FFmpegFrame;
+
 // An class that contains color pixels in the YUV420 format which Vp8Encoder and Vp8Decoder like.
 // Data of this class is not supposed to be copy since it is computationally expensive.
 class YuvFrame

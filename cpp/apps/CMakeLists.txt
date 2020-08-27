@@ -9,7 +9,6 @@ target_include_directories(KinectReaderApp PRIVATE
 target_link_libraries(KinectReaderApp
   KinectToHololensNative
   ${OpenCV_LIBS}
-  ${Libvpx_LIB}
 )
 set_target_properties(KinectReaderApp PROPERTIES
   CXX_STANDARD 17

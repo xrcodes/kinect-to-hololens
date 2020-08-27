@@ -1,6 +1,5 @@
 add_library(KinectToHololensCore
   kh_core.h
-  kh_ffmpeg.h
   kh_opus.h
   kh_opus.cpp
   kh_rvl.h
@@ -18,6 +17,7 @@ target_include_directories(KinectToHololensCore PRIVATE
 )
 target_link_libraries(KinectToHololensCore PRIVATE
   ${FFMPEG_LIBRARIES}
+  ${Libvpx_LIB}
   Opus::opus
 )
 set_target_properties(KinectToHololensCore PROPERTIES
