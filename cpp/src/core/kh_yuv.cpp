@@ -5,7 +5,7 @@ namespace kh
 YuvFrame createYuvFrameFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)
 {
     // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
-    std::vector<uint8_t> y_channel(width * height);
+    std::vector<uint8_t> y_channel(static_cast<long long>(width) * height);
     std::vector<uint8_t> u_channel(width * height / 4);
     std::vector<uint8_t> v_channel(width * height / 4);
 
@@ -41,7 +41,7 @@ YuvFrame createYuvFrameFromAzureKinectYuy2Buffer(const uint8_t* buffer, int widt
 YuvFrame createYuvFrameFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride)
 {
     // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
-    std::vector<uint8_t> y_channel(width * height);
+    std::vector<uint8_t> y_channel(static_cast<long long>(width) * height);
     std::vector<uint8_t> u_channel(width * height / 4);
     std::vector<uint8_t> v_channel(width * height / 4);
 
@@ -82,9 +82,9 @@ YuvFrame createYuvFrameFromAzureKinectBgraBuffer(const uint8_t* buffer, int widt
 // A helper function for createYuvImageFromFFmpegFrame that converts a AVFrame into a std::vector.
 std::vector<uint8_t> convertPicturePlaneToBytes(uint8_t* data, int line_size, int width, int height)
 {
-    std::vector<uint8_t> bytes(width * height);
+    std::vector<uint8_t> bytes(static_cast<long long>(width) * height);
     for (int i = 0; i < height; ++i)
-        memcpy(bytes.data() + i * width, data + i * line_size, width);
+        memcpy(bytes.data() + static_cast<long long>(i) * width, data + static_cast<long long>(i) * line_size, width);
 
     return bytes;
 }

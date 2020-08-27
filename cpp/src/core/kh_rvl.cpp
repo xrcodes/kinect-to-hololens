@@ -52,7 +52,10 @@ int CompressRVL(short* input, char* output, int numPixels) noexcept
         for (short* p = input; (p != end) && *p++; nonzeros++);
         EncodeVLE(nonzeros, pBuffer, word, nibblesWritten); // number of nonzeros
         for (int i = 0; i < nonzeros; i++) {
+#pragma warning( push )
+#pragma warning( disable : 28182)
             short current = *input++;
+#pragma warning( pop )
             int delta = current - previous;
             int positive = (delta << 1) ^ (delta >> 31);
             EncodeVLE(positive, pBuffer, word, nibblesWritten); // nonzero value

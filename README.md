@@ -3,9 +3,9 @@ Seeing through a Kinect from a HoloLens.
 
 ![a figure from paper](kinect-to-hololens.jpg)
 
-# Requirement
+# Requirements
 - A Windows 10 computer, an Azure Kinect, and a HoloLens (v1).
-- CMake, Unity3D 2019.3, and Visual Studio 2019 (with C++ and UWP components).
+- CMake, Unity3D 2019.4, and Visual Studio 2019 (with C++ and UWP components).
 
 # How to Build
 1. git config core.symlinks true (allow your git using symbolic links)
