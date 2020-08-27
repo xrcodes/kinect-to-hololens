@@ -274,7 +274,7 @@ std::vector<std::byte> create_parity_sender_packet_bytes(int session_id, int fra
     copy_to_bytes(packet_index, packet_bytes, cursor);
     copy_to_bytes(packet_count, packet_bytes, cursor);
 
-    for (gsl::index i{1}; i < frame_packet_bytes_set.size(); ++i) {
+    for (auto i{1}; i < frame_packet_bytes_set.size(); ++i) {
         for (gsl::index j{KH_VIDEO_PACKET_HEADER_SIZE}; j < KH_PACKET_SIZE; ++j) {
             packet_bytes[j] ^= frame_packet_bytes_set[i][j];
         }

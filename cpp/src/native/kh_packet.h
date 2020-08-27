@@ -92,7 +92,7 @@ SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::b
 
 struct ConfirmSenderPacketData
 {
-    int receiver_session_id;
+    int receiver_session_id{0};
 };
 
 std::vector<std::byte> create_confirm_sender_packet_bytes(int session_id, int receiver_session_id);
@@ -101,23 +101,23 @@ std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
 
 struct VideoInitSenderPacketData
 {
-    int width;
-    int height;
-    float cx;
-    float cy;
-    float fx;
-    float fy;
-    float k1;
-    float k2;
-    float k3;
-    float k4;
-    float k5;
-    float k6;
-    float codx;
-    float cody;
-    float p1;
-    float p2;
-    float max_radius_for_projection;
+    int width{0};
+    int height{0};
+    float cx{0.0f};
+    float cy{0.0f};
+    float fx{0.0f};
+    float fy{0.0f};
+    float k1{0.0f};
+    float k2{0.0f};
+    float k3{0.0f};
+    float k4{0.0f};
+    float k5{0.0f};
+    float k6{0.0f};
+    float codx{0.0f};
+    float cody{0.0f};
+    float p1{0.0f};
+    float p2{0.0f};
+    float max_radius_for_projection{0.0f};
 };
 
 VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration);
@@ -126,8 +126,8 @@ VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const s
 
 struct VideoSenderMessageData
 {
-    float frame_time_stamp;
-    bool keyframe;
+    float frame_time_stamp{0.0f};
+    bool keyframe{false};
     std::vector<std::byte> color_encoder_frame;
     std::vector<std::byte> depth_encoder_frame;
     std::optional<std::array<float, 4>> floor;
@@ -135,9 +135,9 @@ struct VideoSenderMessageData
 
 struct VideoSenderPacketData
 {
-    int frame_id;
-    int packet_index;
-    int packet_count;
+    int frame_id{0};
+    int packet_index{0};
+    int packet_count{0};
     std::vector<std::byte> message_data;
 };
 
@@ -155,9 +155,9 @@ VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byt
 
 struct ParitySenderPacketData
 {
-    int frame_id;
-    int packet_index;
-    int packet_count;
+    int frame_id{0};
+    int packet_index{0};
+    int packet_count{0};
     std::vector<std::byte> bytes;
 };
 
@@ -172,7 +172,7 @@ ParitySenderPacketData parse_parity_sender_packet_bytes(gsl::span<const std::byt
 
 struct AudioSenderPacketData
 {
-    int frame_id;
+    int frame_id{0};
     std::vector<std::byte> opus_frame;
 };
 
@@ -188,8 +188,8 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
 
 struct ConnectReceiverPacketData
 {
-    bool video_requested;
-    bool audio_requested;
+    bool video_requested{false};
+    bool audio_requested{false};
 };
 
 std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
@@ -201,9 +201,9 @@ std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id);
 
 struct ReportReceiverPacketData
 {
-    int frame_id;
-    float decoder_time_ms;
-    float frame_time_ms;
+    int frame_id{0};
+    float decoder_time_ms{0.0f};
+    float frame_time_ms{0.0f};
 };
 
 std::vector<std::byte> create_report_receiver_packet_bytes(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
@@ -211,7 +211,7 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
 
 struct RequestReceiverPacketData
 {
-    int frame_id;
+    int frame_id{0};
     std::vector<int> video_packet_indices;
     std::vector<int> parity_packet_indices;
 };
