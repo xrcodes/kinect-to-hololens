@@ -1,5 +1,7 @@
 #include "kh_packet.h"
 
+#include "kh_kinect.h"
+
 namespace kh
 {
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -44,7 +46,7 @@ std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id)
     return packet_bytes;
 }
 
-VideoInitSenderPacketData create_video_init_sender_packet_data(k4a_calibration_t calibration)
+VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration)
 {
     VideoInitSenderPacketData video_init_sender_packet_data;
     video_init_sender_packet_data.width = calibration.depth_camera_calibration.resolution_width;

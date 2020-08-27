@@ -1,6 +1,7 @@
 #include "kh_occlusion_remover.h"
 
 #include <iostream>
+#include "kh_kinect.h"
 
 namespace kh
 {

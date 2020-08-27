@@ -5,7 +5,10 @@
 #include <vector>
 #include <string>
 #include <gsl/gsl>
+#pragma warning(push)
+#pragma warning(disable: 26812)
 #include <soundio/soundio.h>
+#pragma warning(pop)
 
 namespace kh
 {

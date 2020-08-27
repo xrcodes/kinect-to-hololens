@@ -1,10 +1,24 @@
 #pragma once
 
-// This is for asio
-#define _WIN32_WINNT _WIN32_WINNT_WIN10
 
 #include <optional>
+
+// _WIN32_WINNT is for asio.
+#define _WIN32_WINNT _WIN32_WINNT_WIN10
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#pragma warning(disable: 6001)
+#pragma warning(disable: 6031)
+#pragma warning(disable: 6255)
+#pragma warning(disable: 6258)
+#pragma warning(disable: 6319)
+#pragma warning(disable: 6387)
+#pragma warning(disable: 26439)
+#pragma warning(disable: 26495)
+#pragma warning(disable: 26812)
 #include <asio.hpp>
+#pragma warning(pop)
+
 #include <gsl/gsl>
 
 namespace kh

@@ -2,7 +2,11 @@
 
 #include <vector>
 #include <gsl/gsl>
-#include <k4a/k4a.hpp>
+
+namespace k4a
+{
+struct calibration;
+}
 
 namespace kh
 {

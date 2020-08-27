@@ -7,6 +7,11 @@
 #include <gsl/gsl>
 #include <k4a/k4a.h>
 
+namespace k4a
+{
+struct calibration;
+}
+
 namespace kh
 {
 // Packet types.
@@ -102,7 +107,7 @@ struct VideoInitSenderPacketData
     float metric_radius;
 };
 
-VideoInitSenderPacketData create_video_init_sender_packet_data(k4a_calibration_t calibration);
+VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration);
 std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, const VideoInitSenderPacketData& video_init_sender_packet_data);
 VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
