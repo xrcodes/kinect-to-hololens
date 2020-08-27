@@ -103,8 +103,21 @@ struct VideoInitSenderPacketData
 {
     int width;
     int height;
-    k4a_calibration_intrinsic_parameters_t::_param intrinsics;
-    float metric_radius;
+    float cx;
+    float cy;
+    float fx;
+    float fy;
+    float k1;
+    float k2;
+    float k3;
+    float k4;
+    float k5;
+    float k6;
+    float codx;
+    float cody;
+    float p1;
+    float p2;
+    float max_radius_for_projection;
 };
 
 VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration);

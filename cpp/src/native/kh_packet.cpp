@@ -53,8 +53,21 @@ VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibr
     video_init_sender_packet_data.height = calibration.depth_camera_calibration.resolution_height;
     // color_camera_calibration.intrinsics.parameters.param includes metric radius, but actually it is zero.
     // The real metric_radius value for calibration is at color_camera_calibration.metric_radius.
-    video_init_sender_packet_data.intrinsics = calibration.depth_camera_calibration.intrinsics.parameters.param;
-    video_init_sender_packet_data.metric_radius = calibration.depth_camera_calibration.metric_radius;
+    video_init_sender_packet_data.cx = calibration.depth_camera_calibration.intrinsics.parameters.param.cx;
+    video_init_sender_packet_data.cy = calibration.depth_camera_calibration.intrinsics.parameters.param.cy;
+    video_init_sender_packet_data.fx = calibration.depth_camera_calibration.intrinsics.parameters.param.fx;
+    video_init_sender_packet_data.fy = calibration.depth_camera_calibration.intrinsics.parameters.param.fy;
+    video_init_sender_packet_data.k1 = calibration.depth_camera_calibration.intrinsics.parameters.param.k1;
+    video_init_sender_packet_data.k2 = calibration.depth_camera_calibration.intrinsics.parameters.param.k2;
+    video_init_sender_packet_data.k3 = calibration.depth_camera_calibration.intrinsics.parameters.param.k3;
+    video_init_sender_packet_data.k4 = calibration.depth_camera_calibration.intrinsics.parameters.param.k4;
+    video_init_sender_packet_data.k5 = calibration.depth_camera_calibration.intrinsics.parameters.param.k5;
+    video_init_sender_packet_data.k6 = calibration.depth_camera_calibration.intrinsics.parameters.param.k6;
+    video_init_sender_packet_data.codx = calibration.depth_camera_calibration.intrinsics.parameters.param.codx;
+    video_init_sender_packet_data.cody = calibration.depth_camera_calibration.intrinsics.parameters.param.cody;
+    video_init_sender_packet_data.p1 = calibration.depth_camera_calibration.intrinsics.parameters.param.p1;
+    video_init_sender_packet_data.p2 = calibration.depth_camera_calibration.intrinsics.parameters.param.p2;
+    video_init_sender_packet_data.max_radius_for_projection = calibration.depth_camera_calibration.metric_radius;
 
     return video_init_sender_packet_data;
 }
@@ -63,19 +76,13 @@ std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, con
 {
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(SenderPacketType) +
-                                                    sizeof(video_init_sender_packet_data.width) +
-                                                    sizeof(video_init_sender_packet_data.height) +
-                                                    sizeof(video_init_sender_packet_data.intrinsics) +
-                                                    sizeof(video_init_sender_packet_data.metric_radius))};
+                                                    sizeof(VideoInitSenderPacketData))};
 
     std::vector<std::byte> packet_bytes(packet_size);
     PacketCursor cursor;
     copy_to_bytes(session_id, packet_bytes, cursor);
     copy_to_bytes(SenderPacketType::VideoInit, packet_bytes, cursor);
-    copy_to_bytes(video_init_sender_packet_data.width, packet_bytes, cursor);
-    copy_to_bytes(video_init_sender_packet_data.height, packet_bytes, cursor);
-    copy_to_bytes(video_init_sender_packet_data.intrinsics, packet_bytes, cursor);
-    copy_to_bytes(video_init_sender_packet_data.metric_radius, packet_bytes, cursor);
+    copy_to_bytes(video_init_sender_packet_data, packet_bytes, cursor);
 
     return packet_bytes;
 }
@@ -84,10 +91,7 @@ VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const s
 {
     VideoInitSenderPacketData init_sender_packet_data;
     PacketCursor cursor{5};
-    copy_from_bytes(init_sender_packet_data.width, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.height, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.intrinsics, packet_bytes, cursor);
-    copy_from_bytes(init_sender_packet_data.metric_radius, packet_bytes, cursor);
+    copy_from_bytes(init_sender_packet_data, packet_bytes, cursor);
 
     return init_sender_packet_data;
 }

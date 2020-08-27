@@ -133,12 +133,10 @@ public class VideoInitSenderPacketData
         depthIntrinsics.k6 = reader.ReadSingle();
         depthIntrinsics.codx = reader.ReadSingle();
         depthIntrinsics.cody = reader.ReadSingle();
-        depthIntrinsics.p2 = reader.ReadSingle();
         depthIntrinsics.p1 = reader.ReadSingle();
-        depthIntrinsics.metricRadius = reader.ReadSingle();
+        depthIntrinsics.p2 = reader.ReadSingle();
+        depthIntrinsics.maxRadiusForProjection = reader.ReadSingle();
         videoInitSenderPacketData.depthIntrinsics = depthIntrinsics;
-
-        videoInitSenderPacketData.depthMetricRadius = reader.ReadSingle();
 
         return videoInitSenderPacketData;
     }
