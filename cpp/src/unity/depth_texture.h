@@ -2,7 +2,9 @@
 
 #include <memory>
 #include <vector>
+#define NOMINMAX
 #include <d3d11.h>
+#undef NOMINMAX
 
 namespace kh
 {

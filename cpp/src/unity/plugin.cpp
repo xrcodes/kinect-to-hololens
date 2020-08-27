@@ -1,5 +1,7 @@
 #include <string>
+#define NOMINMAX
 #include <d3d11.h>
+#undef NOMINMAX
 #include "interfaces/IUnityGraphics.h"
 #include "interfaces/IUnityGraphicsD3D11.h"
 #include "texture_group.h"
@@ -11,7 +13,10 @@ static ID3D11Device* d3d11_device_ = nullptr;
 static ID3D11DeviceContext* d3d11_device_context_ = nullptr;
 
 // A callback function for UnityGfxDeviceEvents.
+#pragma warning(push)
+#pragma warning(disable: 26812)
 static void UNITY_INTERFACE_API OnGraphicsDeviceEvent(UnityGfxDeviceEventType eventType)
+#pragma warning(pop)
 {
     switch(eventType) {
     case kUnityGfxDeviceEventInitialize: {

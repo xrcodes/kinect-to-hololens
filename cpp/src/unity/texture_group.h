@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#define NOMINMAX
 #include <d3d11.h>
+#undef NOMINMAX
 #include "core/kh_core.h"
 #include "channel_texture.h"
 #include "two_channel_texture.h"
@@ -13,8 +15,8 @@ public:
     const int id;
 
     // Color and depth texture sizes.
-    int width;
-    int height;
+    int width{0};
+    int height{0};
 
     // Instances of classes for Direct3D textures.
     std::unique_ptr<kh::ChannelTexture> y_texture{nullptr};

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#define NOMINMAX
 #include <d3d11.h>
+#undef NOMINMAX
 #include <gsl/gsl>
 
 namespace kh
