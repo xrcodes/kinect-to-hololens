@@ -16,9 +16,11 @@ public class ControllerManager : MonoBehaviour
     private Dictionary<ControllerServerSocket, ViewerScene> viewerScenes;
     private Dictionary<ControllerServerSocket, Stopwatch> socketTimers;
 
+    private List<IPAddress> localIpAddresses;
     private string singleCameraAddress;
     private int singleCameraPort;
     private float singleCameraDistance;
+
 
     void Start()
     {
@@ -30,6 +32,15 @@ public class ControllerManager : MonoBehaviour
         viewerScenes = new Dictionary<ControllerServerSocket, ViewerScene>();
         socketTimers = new Dictionary<ControllerServerSocket, Stopwatch>();
 
+        localIpAddresses = new List<IPAddress>();
+        var host = Dns.GetHostEntry(Dns.GetHostName());
+        foreach (var ipAddress in host.AddressList)
+        {
+            if (ipAddress.AddressFamily == AddressFamily.InterNetwork)
+            {
+                localIpAddresses.Add(ipAddress);
+            }
+        }
         singleCameraAddress = "127.0.0.1";
         singleCameraPort = SENDER_PORT;
         singleCameraDistance = 0.0f;
@@ -103,7 +114,16 @@ public class ControllerManager : MonoBehaviour
     void OnLayout()
     {
         ImGui.SetNextWindowPos(new Vector2(0.0f, 0.0f), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.4f, Screen.height * 0.4f), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.5f, Screen.height * 0.2f), ImGuiCond.FirstUseEver);
+        ImGui.Begin("Local IP Addresses");
+        foreach (var ipAddress in localIpAddresses)
+        {
+            ImGui.BulletText(ipAddress.ToString());
+        }
+        ImGui.End();
+
+        ImGui.SetNextWindowPos(new Vector2(0.0f, Screen.height * 0.2f), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.5f, Screen.height * 0.4f), ImGuiCond.FirstUseEver);
         ImGui.Begin("Viewer States");
         foreach (var viewerState in viewerStates.Values)
         {
@@ -113,13 +133,14 @@ public class ControllerManager : MonoBehaviour
                 ImGui.BulletText($"Receiver (Session ID: {receiverState.sessionId})");
                 ImGui.Indent();
                 ImGui.Text($"  Sender End Point: {receiverState.senderAddress}:{receiverState.senderPort}");
+                ImGui.Unindent();
             }
             ImGui.NewLine();
         }
         ImGui.End();
 
-        ImGui.SetNextWindowPos(new Vector2(0.0f, Screen.height * 0.4f), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.4f, Screen.height * 0.6f), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowPos(new Vector2(0.0f, Screen.height * 0.6f), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.5f, Screen.height * 0.4f), ImGuiCond.FirstUseEver);
         ImGui.Begin("Scene Templates");
         ImGui.BeginTabBar("Scene Templates TabBar");
         if (ImGui.BeginTabItem("Default"))
@@ -157,8 +178,8 @@ public class ControllerManager : MonoBehaviour
         ImGui.EndTabBar();
         ImGui.End();
 
-        ImGui.SetNextWindowPos(new Vector2(Screen.width * 0.4f, 0.0f), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.6f, Screen.height), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowPos(new Vector2(Screen.width * 0.5f, 0.0f), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(Screen.width * 0.5f, Screen.height), ImGuiCond.FirstUseEver);
         ImGui.Begin("Scene");
         ImGui.BeginTabBar("Scene TabBar");
 
