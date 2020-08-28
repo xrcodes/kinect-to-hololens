@@ -89,7 +89,8 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Skip a frame if there is no new receiver that requires a frame to start
     // and the sender is too much ahead of the receivers.
-    if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
+    //if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
+    if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1))
         return;
 
     // Try getting a Kinect frame.
