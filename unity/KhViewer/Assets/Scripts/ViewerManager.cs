@@ -145,8 +145,21 @@ public class ViewerManager : MonoBehaviour
                 }
 
                 var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
-                if (kinectReceivers.FirstOrDefault(x => x.SenderEndPoint == endPoint) != null)
+                print($"endPoint: {endPoint}");
+                foreach (var receiver in kinectReceivers)
+                {
+                    print($"receiver.SenderEndPoint: {receiver.SenderEndPoint}");
+                }
+
+                if (kinectReceivers.FirstOrDefault(x => x.SenderEndPoint.Equals(endPoint)) != null)
+                {
+                    print("exists");
                     continue;
+                }
+                else
+                {
+                    print("not exists");
+                }
 
                 TryConnectToKinectSender(endPoint);
             }
