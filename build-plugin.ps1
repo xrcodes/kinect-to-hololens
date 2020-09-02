@@ -19,9 +19,7 @@ Copy-Item "$buildPath\x64\src\unity\$configuration\KinectToHololensUnity.dll" -D
 
 $binPath = (Get-Location).path + "\bin"
 Copy-Item "$binPath\msvcp140.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$binPath\msvcp140d.dll" -Destination "$assetsPath\Plugins\WSA"
 Copy-Item "$binPath\vcruntime140.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$binPath\vcruntime140d.dll" -Destination "$assetsPath\Plugins\WSA"
 
 $vcpkgPath = (Get-Location).path + "\vcpkg"
 $ffmpegX86Path = "$vcpkgPath\packages\ffmpeg_x86-windows\bin"
@@ -31,12 +29,10 @@ $opusX64Path = "$vcpkgPath\packages\opus_x64-windows\bin"
 
 Copy-Item "$ffmpegX86Path\avcodec-58.dll" -Destination "$assetsPath\Plugins\WSA"
 Copy-Item "$ffmpegX86Path\avutil-56.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$ffmpegX86Path\swresample-3.dll" -Destination "$assetsPath\Plugins\WSA"
 Copy-Item "$opusX86Path\opus.dll" -Destination "$assetsPath\Plugins\WSA"
 
 Copy-Item "$ffmpegX64Path\avcodec-58.dll" -Destination "$assetsPath\Editor"
 Copy-Item "$ffmpegX64Path\avutil-56.dll" -Destination "$assetsPath\Editor"
-Copy-Item "$ffmpegX64Path\swresample-3.dll" -Destination "$assetsPath\Editor"
 Copy-Item "$opusX64Path\opus.dll" -Destination "$assetsPath\Editor"
 
 Pause

@@ -29,7 +29,7 @@ set(Libvpx_LIB ${VCPKG_INCLUDE_DIR}/../lib/vpxmd.lib)
 
 # Set ${FFMPEG_LIBRARIES} for FFmpeg.
 unset(FFMPEG_LIBRARIES CACHE)
-foreach(FFMPEG_SUBLIBRARY avcodec avdevice avfilter avformat avutil swresample swscale)
+foreach(FFMPEG_SUBLIBRARY avcodec avutil)
   find_library(FFMPEG_lib${FFMPEG_SUBLIBRARY}_LIBRARY NAMES ${FFMPEG_SUBLIBRARY})
   list(APPEND FFMPEG_LIBRARIES ${FFMPEG_lib${FFMPEG_SUBLIBRARY}_LIBRARY})
 endforeach()
