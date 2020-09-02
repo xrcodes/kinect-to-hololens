@@ -29,10 +29,12 @@ $opusX64Path = "$vcpkgPath\packages\opus_x64-windows\bin"
 
 Copy-Item "$ffmpegX86Path\avcodec-58.dll" -Destination "$assetsPath\Plugins\WSA"
 Copy-Item "$ffmpegX86Path\avutil-56.dll" -Destination "$assetsPath\Plugins\WSA"
+Copy-Item "$ffmpegX86Path\swresample-3.dll" -Destination "$assetsPath\Plugins\WSA"
 Copy-Item "$opusX86Path\opus.dll" -Destination "$assetsPath\Plugins\WSA"
 
 Copy-Item "$ffmpegX64Path\avcodec-58.dll" -Destination "$assetsPath\Editor"
 Copy-Item "$ffmpegX64Path\avutil-56.dll" -Destination "$assetsPath\Editor"
+Copy-Item "$ffmpegX64Path\swresample-3.dll" -Destination "$assetsPath\Editor"
 Copy-Item "$opusX64Path\opus.dll" -Destination "$assetsPath\Editor"
 
 Pause
