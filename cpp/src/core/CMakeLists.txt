@@ -6,9 +6,8 @@ add_library(KinectToHololensCore
   kh_rvl.cpp
   kh_trvl.h
   kh_trvl.cpp
-  kh_vp8.h
+  kh_vp8_decoder.h
   kh_vp8_decoder.cpp
-  kh_vp8_encoder.cpp
   kh_yuv.h
   kh_yuv.cpp
  )
@@ -17,7 +16,6 @@ target_include_directories(KinectToHololensCore PRIVATE
 )
 target_link_libraries(KinectToHololensCore PRIVATE
   ${FFMPEG_LIBRARIES}
-  ${Libvpx_LIB}
   Opus::opus
 )
 set_target_properties(KinectToHololensCore PROPERTIES

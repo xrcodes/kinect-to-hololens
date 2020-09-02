@@ -7,3 +7,4 @@
 #include "native/kh_soundio.h"
 #include "native/kh_time.h"
 #include "native/kh_udp_socket.h"
+#include "native/kh_vp8_encoder.h"

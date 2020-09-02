@@ -1,7 +1,6 @@
-#include "kh_vp8.h"
+#include "kh_vp8_encoder.h"
 
 #include <iostream>
-#include "kh_yuv.h"
 
 namespace kh
 {

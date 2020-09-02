@@ -7,16 +7,10 @@ extern "C" {
 #include <libavutil/frame.h>
 }
 
-#pragma warning(push)
-#pragma warning(disable: 26812)
-#include <vpx/vp8cx.h>
-#pragma warning(pop)
 #include <gsl/gsl>
 
 namespace kh
 {
-class YuvFrame;
-
 // A wrapper for AVFrame, the outcome of Vp8Decoder.
 class FFmpegFrame
 {
@@ -50,20 +44,6 @@ public:
 
 private:
     AVFrame* av_frame_;
-};
-
-// A wrapper class for libvpx, encoding color pixels into the VP8 codec.
-class Vp8Encoder
-{
-public:
-    Vp8Encoder(int width, int height);
-    ~Vp8Encoder();
-    std::vector<std::byte> encode(const YuvFrame& yuv_image, bool keyframe);
-
-private:
-    vpx_codec_ctx_t codec_context_;
-    vpx_image_t image_;
-    int frame_index_;
 };
 
 // A wrapper class for FFMpeg, decoding colors pixels in the VP8 codec.

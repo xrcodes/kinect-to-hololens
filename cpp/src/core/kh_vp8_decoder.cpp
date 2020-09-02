@@ -1,4 +1,4 @@
-#include "kh_vp8.h"
+#include "kh_vp8_decoder.h"
 
 #include <iostream>
 #include <libavformat/avformat.h>
