@@ -8,10 +8,6 @@ add_library(KinectToHololensCore
   kh_trvl.cpp
   kh_vp8_decoder.h
   kh_vp8_decoder.cpp
-  kh_vp8_encoder.h
-  kh_vp8_encoder.cpp
-  kh_vp8_encoder2.h
-  kh_vp8_encoder2.cpp
   kh_yuv.h
   kh_yuv.cpp
  )
