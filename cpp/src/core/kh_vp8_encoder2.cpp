@@ -18,8 +18,7 @@ static std::vector<std::byte> encode_frame(AVCodecContext* enc_ctx, AVFrame* fra
     while (ret >= 0) {
         ret = avcodec_receive_packet(enc_ctx, pkt);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-            //return;
-            exit(1);
+            return bytes;
         } else if (ret < 0) {
             fprintf(stderr, "Error during encoding\n");
             exit(1);
@@ -58,14 +57,35 @@ Vp8Encoder2::Vp8Encoder2(int width, int height)
     if (!pkt)
         exit(1);
 
-    /* put sample parameters */
-    c->bit_rate = 400000;
-    /* resolution must be a multiple of two */
+    // From the libvpx version of this encoder.
+    //configuration.g_w = width;
+    //configuration.g_h = height;
+    //configuration.rc_target_bitrate = 4000;
+
+    //configuration.g_threads = 4;
+    //configuration.g_lag_in_frames = 0;
+    //configuration.rc_min_quantizer = 4;
+    //configuration.rc_max_quantizer = 48;
+    ////configuration.rc_max_quantizer = 56;
+
+    //configuration.rc_end_usage = VPX_CBR;
+
+    // See https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/libvpxenc.c for how to configure libvpx.
     c->width = width;
     c->height = height;
+    c->bit_rate = 4000000; // Gets divided by 1000 (into kb) before getting used by libvpx.
+    c->thread_count = 4;
+    av_opt_set_int(c->priv_data, "lag_in_frames", 0, 0);
+    c->qmin = 4;
+    c->qmax = 48;
+
+    c->rc_min_rate = c->bit_rate;
+    c->rc_max_rate = c->rc_min_rate;
+
     /* frames per second */
-    c->time_base = AVRational{1, 25};
-    c->framerate = AVRational{25, 1};
+    c->time_base = AVRational{1, 30};
+    c->framerate = AVRational{30, 1};
+    c->pix_fmt = AV_PIX_FMT_YUV420P;
 
     /* open it */
     auto ret = avcodec_open2(c, codec, NULL);
@@ -105,23 +125,34 @@ std::vector<std::byte> Vp8Encoder2::encode(const YuvFrame& yuv_image, bool keyfr
     if (ret < 0)
         exit(1);
 
-    /* prepare a dummy image */
-    /* Y */
+    ///* prepare a dummy image */
+    ///* Y */
+    //for (int y = 0; y < c->height; y++) {
+    //    for (int x = 0; x < c->width; x++) {
+    //        frame->data[0][y * frame->linesize[0] + x] = x + y + frame_index_ * 3;
+    //    }
+    //}
+
+    ///* Cb and Cr */
+    //for (int y = 0; y < c->height / 2; y++) {
+    //    for (int x = 0; x < c->width / 2; x++) {
+    //        frame->data[1][y * frame->linesize[1] + x] = 128 + y + frame_index_ * 2;
+    //        frame->data[2][y * frame->linesize[2] + x] = 64 + x + frame_index_ * 5;
+    //    }
+    //}
+
+    int width = yuv_image.width();
     for (int y = 0; y < c->height; y++) {
-        for (int x = 0; x < c->width; x++) {
-            frame->data[0][y * frame->linesize[0] + x] = x + y + frame_index_ * 3;
-        }
+        memcpy(&frame->data[0][y * frame->linesize[0]], &yuv_image.y_channel().data()[y * width], width);
     }
 
-    /* Cb and Cr */
+    int half_width = width / 2;
     for (int y = 0; y < c->height / 2; y++) {
-        for (int x = 0; x < c->width / 2; x++) {
-            frame->data[1][y * frame->linesize[1] + x] = 128 + y + frame_index_ * 2;
-            frame->data[2][y * frame->linesize[2] + x] = 64 + x + frame_index_ * 5;
-        }
+        memcpy(&frame->data[1][y * frame->linesize[1]], &yuv_image.u_channel().data()[y * half_width], half_width);
+        memcpy(&frame->data[2][y * frame->linesize[2]], &yuv_image.v_channel().data()[y * half_width], half_width);
     }
-
     frame->pts = frame_index_++;
+    frame->key_frame = keyframe;
 
     /* encode the image */
     return encode_frame(c, frame, pkt);
