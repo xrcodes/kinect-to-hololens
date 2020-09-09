@@ -13,7 +13,7 @@ void read_frames(KinectDeviceInterface& kinect_interface)
     const auto calibration{kinect_interface.getCalibration()};
     const k4a::transformation transformation{calibration};
 
-    Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
+    Vp8Encoder2 vp8_encoder{calibration.depth_camera_calibration.resolution_width,
                            calibration.depth_camera_calibration.resolution_height};
     Vp8Decoder vp8_decoder;
 

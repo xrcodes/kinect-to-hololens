@@ -1,7 +1,9 @@
 #include "kh_vp8_decoder.h"
 
 #include <iostream>
+extern "C" {
 #include <libavformat/avformat.h>
+}
 
 namespace kh
 {
