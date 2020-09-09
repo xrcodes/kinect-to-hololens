@@ -16,15 +16,15 @@ set(SOURCE_FILES
   interfaces/IUnityInterface.h
 )
 
-add_library(KinectToHololensUnity SHARED
+add_library(TelepresenceToolkitUnity SHARED
   ${SOURCE_FILES}
 )
-target_include_directories(KinectToHololensUnity PRIVATE
+target_include_directories(TelepresenceToolkitUnity PRIVATE
   "${OPUS_DIR}/include"
 )
-target_link_libraries(KinectToHololensUnity
-  KinectToHololensCore
+target_link_libraries(TelepresenceToolkitUnity
+  TelepresenceToolkitCore
 )
-set_target_properties(KinectToHololensUnity PROPERTIES
+set_target_properties(TelepresenceToolkitUnity PROPERTIES
   CXX_STANDARD 17
 )

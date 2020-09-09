@@ -18,7 +18,7 @@ target_include_directories(KinectToHololensNative PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectToHololensNative
-  KinectToHololensCore
+  TelepresenceToolkitCore
   "${AZURE_KINECT_LIB}/k4a.lib"
   "${AZURE_KINECT_LIB}/k4arecord.lib"
   libsoundio::libsoundio

@@ -25,7 +25,7 @@ public static class PluginHelper
 // Class with static methods that are bridging to the external functions of KinectToHololensPlugin.dll.
 public static class Plugin
 {
-    private const string DllName = "KinectToHololensUnity";
+    private const string DllName = "TelepresenceToolkitUnity";
 
     [DllImport(DllName)]
     public static extern bool has_unity_interfaces();
