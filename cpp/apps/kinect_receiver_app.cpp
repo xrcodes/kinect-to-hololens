@@ -31,28 +31,29 @@ void start_session(const std::string ip_address, const int port, const int sessi
     // Repeat until it happens.
     int ping_count{0};
 
-    for (;;) {
-        udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true), remote_endpoint);
-        ++ping_count;
-        std::cout << "Sent connect packet to " << ip_address << ".\n";
+    udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true), remote_endpoint);
+    //for (;;) {
+    //    udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true), remote_endpoint);
+    //    ++ping_count;
+    //    std::cout << "Sent connect packet to " << ip_address << ".\n";
 
-        Sleep(300);
+    //    Sleep(300);
 
-        try {
-            auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
+    //    try {
+    //        auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
 
-            if (!sender_packet_set.received_any) {
-                break;
-            }
-        } catch (UdpSocketRuntimeError e) {
-            std::cout << "UdpSocketRuntimeError while trying to receive InitSenderPacketData:\n  " << e.what() << "\n";
-        }
+    //        if (!sender_packet_set.received_any) {
+    //            break;
+    //        }
+    //    } catch (UdpSocketRuntimeError e) {
+    //        std::cout << "UdpSocketRuntimeError while trying to receive InitSenderPacketData:\n  " << e.what() << "\n";
+    //    }
 
-        if (ping_count == 10) {
-            printf("Tried pinging 10 times and failed to received an init packet...\n");
-            return;
-        }
-    }
+    //    if (ping_count == 10) {
+    //        printf("Tried pinging 10 times and failed to received an init packet...\n");
+    //        return;
+    //    }
+    //}
 
     bool stopped{false};
     tt::TimePoint heartbeat_time{tt::TimePoint::now()};
@@ -76,11 +77,11 @@ void start_session(const std::string ip_address, const int port, const int sessi
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
             if (sender_packet_set.received_any) {
                 video_message_assembler.assemble(udp_socket,
-                                                 sender_packet_set.video_packet_data_vector,
-                                                 sender_packet_set.fec_packet_data_vector,
+                                                 sender_packet_set.video_packets,
+                                                 sender_packet_set.parity_packets,
                                                  video_renderer_state,
                                                  video_frame_messages);
-                audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
+                audio_packet_receiver.receive(sender_packet_set.audio_packets);
                 received_any_time = tt::TimePoint::now();
             } else {
                 if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {

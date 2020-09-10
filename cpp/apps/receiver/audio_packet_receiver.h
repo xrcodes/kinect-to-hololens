@@ -22,7 +22,7 @@ public:
         default_speaker_stream_.start();
     }
 
-    void receive(std::vector<AudioSenderPacketData>& audio_packet_data_vector)
+    void receive(std::vector<AudioSenderPacket>& audio_packet_data_vector)
     {
         constexpr float AMPLIFIER{8.0f};
 
@@ -33,7 +33,7 @@ public:
 
         std::sort(audio_packet_data_vector.begin(),
                   audio_packet_data_vector.end(),
-                  [](AudioSenderPacketData& a, AudioSenderPacketData& b) { return a.frame_id < b.frame_id; });
+                  [](AudioSenderPacket& a, AudioSenderPacket& b) { return a.frame_id < b.frame_id; });
 
         char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer)};
         int free_bytes{soundio_ring_buffer_free_count(soundio_callback::ring_buffer)};

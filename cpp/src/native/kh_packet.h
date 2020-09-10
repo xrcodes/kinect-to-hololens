@@ -106,8 +106,10 @@ T copy_from_bytes(gsl::span<const std::byte> bytes, int position)
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-struct ConfirmSenderPacketData
+struct ConfirmSenderPacket
 {
+    int session_id{0};
+    SenderPacketType type{SenderPacketType::Confirm};
     int receiver_session_id{0};
 };
 
@@ -141,8 +143,10 @@ struct VideoSenderMessageData
     std::optional<std::array<float, 4>> floor;
 };
 
-struct VideoSenderPacketData
+struct VideoSenderPacket
 {
+    int session_id{0};
+    SenderPacketType type{SenderPacketType::Video};
     int frame_id{0};
     int packet_index{0};
     int packet_count{0};
@@ -156,12 +160,14 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
                                                          std::optional<std::array<float, 4>> floor);
 std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> video_message);
 Packet create_video_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content);
-VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+VideoSenderPacket parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set);
 VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byte> message_bytes);
 
-struct ParitySenderPacketData
+struct ParitySenderPacket
 {
+    int session_id{0};
+    SenderPacketType type{SenderPacketType::Parity};
     int frame_id{0};
     int packet_index{0};
     int packet_count{0};
@@ -173,16 +179,18 @@ struct ParitySenderPacketData
 // packets to restore the packet.
 std::vector<Packet> create_parity_sender_packets(int session_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets);
 Packet create_parity_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const Packet> video_packets);
-ParitySenderPacketData parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+ParitySenderPacket parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-struct AudioSenderPacketData
+struct AudioSenderPacket
 {
+    int session_id{0};
+    SenderPacketType type{SenderPacketType::Audio};
     int frame_id{0};
     std::vector<std::byte> opus_frame;
 };
 
 Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame);
-AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+AudioSenderPacket parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 /**Receiver Packets**/
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);

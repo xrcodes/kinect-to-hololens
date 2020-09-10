@@ -148,20 +148,22 @@ Packet create_video_sender_packet(int session_id, int frame_id, int packet_index
     return packet;
 }
 
-VideoSenderPacketData parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
+VideoSenderPacket parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
-    PacketCursor cursor{5};
-    VideoSenderPacketData video_sender_packet_data;
-    copy_from_bytes(video_sender_packet_data.frame_id, packet_bytes, cursor);
-    copy_from_bytes(video_sender_packet_data.packet_index, packet_bytes, cursor);
-    copy_from_bytes(video_sender_packet_data.packet_count, packet_bytes, cursor);
+    PacketCursor cursor;
+    VideoSenderPacket video_sender_packet;
+    copy_from_bytes(video_sender_packet.session_id, packet_bytes, cursor);
+    copy_from_bytes(video_sender_packet.type, packet_bytes, cursor);
+    copy_from_bytes(video_sender_packet.frame_id, packet_bytes, cursor);
+    copy_from_bytes(video_sender_packet.packet_index, packet_bytes, cursor);
+    copy_from_bytes(video_sender_packet.packet_count, packet_bytes, cursor);
 
-    video_sender_packet_data.message_data.resize(packet_bytes.size() - cursor.position);
-    memcpy(video_sender_packet_data.message_data.data(),
+    video_sender_packet.message_data.resize(packet_bytes.size() - cursor.position);
+    memcpy(video_sender_packet.message_data.data(),
            &packet_bytes[cursor.position],
-           video_sender_packet_data.message_data.size());
+           video_sender_packet.message_data.size());
 
-    return video_sender_packet_data;
+    return video_sender_packet;
 }
 
 std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set)
@@ -278,20 +280,22 @@ Packet create_parity_sender_packet(int session_id, int frame_id, int packet_inde
     return packet;
 }
 
-ParitySenderPacketData parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
+ParitySenderPacket parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
-    PacketCursor cursor{5};
-    ParitySenderPacketData parity_sender_packet_data;
-    copy_from_bytes(parity_sender_packet_data.frame_id, packet_bytes, cursor);
-    copy_from_bytes(parity_sender_packet_data.packet_index, packet_bytes, cursor);
-    copy_from_bytes(parity_sender_packet_data.packet_count, packet_bytes, cursor);
+    PacketCursor cursor;
+    ParitySenderPacket parity_sender_packet;
+    copy_from_bytes(parity_sender_packet.session_id, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet.type, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet.frame_id, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet.packet_index, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet.packet_count, packet_bytes, cursor);
 
-    parity_sender_packet_data.bytes.resize(packet_bytes.size() - cursor.position);
-    memcpy(parity_sender_packet_data.bytes.data(),
+    parity_sender_packet.bytes.resize(packet_bytes.size() - cursor.position);
+    memcpy(parity_sender_packet.bytes.data(),
            &packet_bytes[cursor.position],
-           parity_sender_packet_data.bytes.size());
+           parity_sender_packet.bytes.size());
 
-    return parity_sender_packet_data;
+    return parity_sender_packet;
 }
 
 Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame)
@@ -312,18 +316,20 @@ Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const 
     return packet;
 }
 
-AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
+AudioSenderPacket parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
-    PacketCursor cursor{5};
-    AudioSenderPacketData audio_sender_packet_data;
-    copy_from_bytes(audio_sender_packet_data.frame_id, packet_bytes, cursor);
+    PacketCursor cursor;
+    AudioSenderPacket audio_sender_packet;
+    copy_from_bytes(audio_sender_packet.session_id, packet_bytes, cursor);
+    copy_from_bytes(audio_sender_packet.type, packet_bytes, cursor);
+    copy_from_bytes(audio_sender_packet.frame_id, packet_bytes, cursor);
 
-    audio_sender_packet_data.opus_frame.resize(packet_bytes.size() - cursor.position);
-    memcpy(audio_sender_packet_data.opus_frame.data(),
+    audio_sender_packet.opus_frame.resize(packet_bytes.size() - cursor.position);
+    memcpy(audio_sender_packet.opus_frame.data(),
            packet_bytes.data() + cursor.position,
-           audio_sender_packet_data.opus_frame.size());
+           audio_sender_packet.opus_frame.size());
 
-    return audio_sender_packet_data;
+    return audio_sender_packet;
 }
 
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
