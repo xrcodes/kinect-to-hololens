@@ -9,14 +9,6 @@ namespace kh
 {
 using Bytes = std::vector<std::byte>;
 
-struct ReceiverReportSummary
-{
-    tt::TimePoint time_point{tt::TimePoint::now()};
-    float decoder_time_ms_sum{0.0f};
-    float frame_interval_ms_sum{0.0f};
-    int received_report_count{0};
-};
-
 // This class includes both video packet bytes and parity packet bytes
 // for a video frame.
 struct VideoParityPacketByteSet

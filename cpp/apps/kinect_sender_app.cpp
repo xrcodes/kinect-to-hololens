@@ -121,7 +121,7 @@ void send_video_message(VideoPipelineFrame& result,
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
                           RemoteReceiver& remote_receiver,
-                          ReceiverReportSummary& summary)
+                          Profiler& profiler)
 {
     // Update receiver_state and summary with Report packets.
     for (auto& report_receiver_packet_data : report_packet_data_vector) {
@@ -131,9 +131,9 @@ void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_d
 
         remote_receiver.video_frame_id = report_receiver_packet_data.frame_id;
 
-        summary.decoder_time_ms_sum += report_receiver_packet_data.decoder_time_ms;
-        summary.frame_interval_ms_sum += report_receiver_packet_data.frame_time_ms;
-        ++summary.received_report_count;
+        profiler.addNumber("report-decode", report_receiver_packet_data.decoder_time_ms);
+        profiler.addNumber("report-interval", report_receiver_packet_data.frame_time_ms);
+        profiler.addNumber("report-count", 1);
     }
 }
 
@@ -156,11 +156,11 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
     }
 }
 
-void log_receiver_report_summary(ExampleAppLog& log, ReceiverReportSummary summary, tt::TimeDuration duration)
+void log_receiver_report_summary(ExampleAppLog& log, Profiler& profiler)
 {
-    log.AddLog("Receiver Reported in %f Hz\n", summary.received_report_count / duration.sec());
-    log.AddLog("  Decoder Time Average: %f ms\n", summary.decoder_time_ms_sum / summary.received_report_count);
-    log.AddLog("  Frame Interval Time Average: %f ms\n", summary.frame_interval_ms_sum / summary.received_report_count);
+    log.AddLog("Receiver Reported in %f Hz\n", profiler.getNumber("report-count") / profiler.getElapsedTime().sec());
+    log.AddLog("  Decoder Time Average: %f ms\n", profiler.getNumber("report-decode") / profiler.getNumber("report-count"));
+    log.AddLog("  Frame Interval Time Average: %f ms\n", profiler.getNumber("report-interval") / profiler.getNumber("report-count"));
 }
 
 void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, Profiler& profiler)
@@ -235,8 +235,6 @@ void start(KinectInterface& kinect_interface)
     if (kinect_interface.isDevice())
         kinect_audio_sender.reset(new KinectAudioSender(session_id));
     
-    ReceiverReportSummary receiver_report_summary;
-
     VideoParityPacketStorage video_parity_packet_storage;
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
@@ -335,7 +333,7 @@ void start(KinectInterface& kinect_interface)
                     if (receiver_packet_set.received_any) {
                         apply_report_packets(receiver_packet_set.report_packet_data_vector,
                                              *remote_receiver_ptr,
-                                             receiver_report_summary);
+                                             profiler);
                         retransmit_requested_packets(udp_socket,
                                                      receiver_packet_set.request_packet_data_vector,
                                                      video_parity_packet_storage,
@@ -363,11 +361,8 @@ void start(KinectInterface& kinect_interface)
             }
         }
 
-        const auto summary_duration{receiver_report_summary.time_point.elapsed_time()};
         if (profiler.getElapsedTime().sec() > SUMMARY_INTERVAL_SEC) {
-            log_receiver_report_summary(log, receiver_report_summary, summary_duration);
-            receiver_report_summary = ReceiverReportSummary{};
-
+            log_receiver_report_summary(log, profiler);
             log_video_pipeline_summary(log, video_pipeline.last_frame_id(), profiler);
             profiler.reset();
         }
