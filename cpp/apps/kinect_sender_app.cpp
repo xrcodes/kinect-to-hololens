@@ -4,7 +4,7 @@
 #include "native/kh_native.h"
 #include "sender/kinect_audio_sender.h"
 #include "modules/video_pipeline.h"
-#include "sender/video_sender_utils.h"
+#include "modules/video_packet_storage.h"
 #include "sender/receiver_packet_receiver.h"
 #include "native/imgui_wrapper.h"
 #include "helper/filesystem_helper.h"
@@ -145,14 +145,16 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
     // Retransmit the requested video packets.
     for (auto& request_receiver_packet_data : request_packet_data_vector) {
         const int frame_id{request_receiver_packet_data.frame_id};
-        if (!video_packet_storage.has(frame_id))
+
+        auto find_result{video_packet_storage.find(frame_id)};
+        if (find_result == video_packet_storage.end())
             continue;
 
         for (int packet_index : request_receiver_packet_data.video_packet_indices)
-            udp_socket.send(video_packet_storage.get(frame_id).video_packets[packet_index].bytes, remote_endpoint);
+            udp_socket.send(find_result->second.video_packets[packet_index].bytes, remote_endpoint);
 
         for (int packet_index : request_receiver_packet_data.parity_packet_indices)
-            udp_socket.send(video_packet_storage.get(frame_id).parity_packets[packet_index].bytes, remote_endpoint);
+            udp_socket.send(find_result->second.parity_packets[packet_index].bytes, remote_endpoint);
     }
 }
 

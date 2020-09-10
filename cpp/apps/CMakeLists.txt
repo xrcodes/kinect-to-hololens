@@ -7,7 +7,7 @@ target_include_directories(KinectReaderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectReaderApp
-  KinectToHololensNative
+  KinectToHololensModules
   ${OpenCV_LIBS}
 )
 set_target_properties(KinectReaderApp PROPERTIES
@@ -31,7 +31,6 @@ add_executable(KinectSenderApp
   helper/soundio_helper.h
   sender/kinect_audio_sender.h
   sender/receiver_packet_receiver.h
-  sender/video_sender_utils.h
   sender/remote_receiver.h
   resources/KinectSenderApp.rc
 )

@@ -1,5 +1,6 @@
 #include <iostream>
 #include "native/kh_native.h"
+#include "modules/occlusion_remover.h"
 #include "helper/opencv_helper.h"
 #include "helper/filesystem_helper.h"
 

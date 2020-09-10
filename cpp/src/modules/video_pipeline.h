@@ -2,6 +2,7 @@
 
 #include "native/kh_native.h"
 #include "native/profiler.h"
+#include "occlusion_remover.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
 #include "external/azure-kinect-samples/PointCloudGenerator.h"

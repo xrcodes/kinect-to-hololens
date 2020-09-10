@@ -115,10 +115,6 @@ std::vector<std::byte> create_confirm_sender_packet_bytes(int session_id, int re
 
 std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
 
-//VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration);
-//std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, const VideoInitSenderPacketData& video_init_sender_packet_data);
-//VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-
 struct VideoSenderMessageData
 {
     float frame_time_stamp{0.0f};
