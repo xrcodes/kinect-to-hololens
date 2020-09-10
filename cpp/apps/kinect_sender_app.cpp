@@ -80,20 +80,20 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
     return {is_ready, keyframe};
 }
 
-void send_video_message(VideoPipelineFrame& result,
-                        const tt::TimePoint& session_start_time,
+void send_video_message(VideoPipelineFrame& video_frame,
+                        int session_id,
+                        tt::TimePoint session_start_time,
                         k4a::calibration calibration,
-                        const int session_id,
                         UdpSocket& udp_socket,
-                        VideoParityPacketStorage& video_parity_packet_storage,
+                        VideoPacketStorage& video_parity_packet_storage,
                         std::unordered_map<int, RemoteReceiver>& remote_receivers,
-                        std::mt19937& random_number_generator)
+                        std::mt19937& rng)
 {
     // Create video/parity packet bytes.
-    const float video_frame_time_stamp{(result.time_point - session_start_time).ms()};
-    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, result.keyframe, calibration, result.vp8_frame, result.trvl_frame, result.floor)};
-    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id, result.frame_id, message_bytes)};
-    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id, result.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
+    const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
+    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
+    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id, video_frame.frame_id, message_bytes)};
+    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
 
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
@@ -104,7 +104,7 @@ void send_video_message(VideoPipelineFrame& result,
     for (auto& parity_packet_bytes : parity_packet_bytes_set)
         packet_bytes_ptrs.push_back(&parity_packet_bytes);
 
-    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator);
+    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), rng);
     for (auto& [_, remote_receiver] : remote_receivers) {
         if (!remote_receiver.video_requested)
             continue;
@@ -115,7 +115,7 @@ void send_video_message(VideoPipelineFrame& result,
     }
 
     // Save video/parity packet bytes for retransmission. 
-    video_parity_packet_storage.add(result.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
+    video_parity_packet_storage.add(video_frame.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
 }
 
 // Update receiver_state and summary with Report packets.
@@ -139,20 +139,20 @@ void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_d
 
 void retransmit_requested_packets(UdpSocket& udp_socket,
                                   std::vector<RequestReceiverPacketData>& request_packet_data_vector,
-                                  VideoParityPacketStorage& video_parity_packet_storage,
+                                  VideoPacketStorage& video_packet_storage,
                                   const asio::ip::udp::endpoint remote_endpoint)
 {
     // Retransmit the requested video packets.
     for (auto& request_receiver_packet_data : request_packet_data_vector) {
         const int frame_id{request_receiver_packet_data.frame_id};
-        if (!video_parity_packet_storage.has(frame_id))
+        if (!video_packet_storage.has(frame_id))
             continue;
 
         for (int packet_index : request_receiver_packet_data.video_packet_indices)
-            udp_socket.send(video_parity_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint);
+            udp_socket.send(video_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint);
 
         for (int packet_index : request_receiver_packet_data.parity_packet_indices)
-            udp_socket.send(video_parity_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint);
+            udp_socket.send(video_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint);
     }
 }
 
@@ -235,11 +235,11 @@ void start(KinectInterface& kinect_interface)
     if (kinect_interface.isDevice())
         kinect_audio_sender.reset(new KinectAudioSender(session_id));
     
-    VideoParityPacketStorage video_parity_packet_storage;
+    VideoPacketStorage video_packet_storage;
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    std::mt19937 random_number_generator{std::random_device{}()};
+    std::mt19937 rng{std::random_device{}()};
 
     Profiler profiler;
 
@@ -304,29 +304,28 @@ void start(KinectInterface& kinect_interface)
 
             // Skip the main part of the loop if there is no receiver connected.
             if (!remote_receivers.empty()) {
-                // Send video/audio packets to the receivers.
-
-                auto [is_ready, keyframe] {plan_video_bitrate_control(remote_receivers, video_pipeline.last_frame_id(), video_pipeline.last_frame_time())};
-                if (is_ready) {
-                    // Try getting a Kinect frame.
-                    auto kinect_frame{kinect_interface.getFrame()};
-                    if (kinect_frame) {
-                        auto result{video_pipeline.process(*kinect_frame, keyframe, profiler)};
-                        send_video_message(result, session_start_time, calibration,
-                                           session_id, udp_socket, video_parity_packet_storage,
-                                           remote_receivers, random_number_generator);
-                    }
-                }
-
-                if (kinect_audio_sender)
-                    kinect_audio_sender->send(udp_socket, remote_receivers);
-
                 // Send heartbeat packets to receivers.
                 if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& [_, remote_receiver] : remote_receivers)
                         udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_receiver.endpoint);
                     last_heartbeat_time = tt::TimePoint::now();
                 }
+
+                // Send video packets to the receivers.
+                auto [is_ready, keyframe] {plan_video_bitrate_control(remote_receivers, video_pipeline.last_frame_id(), video_pipeline.last_frame_time())};
+                if (is_ready) {
+                    // Try getting a Kinect frame.
+                    auto kinect_frame{kinect_interface.getFrame()};
+                    if (kinect_frame) {
+                        auto video_frame{video_pipeline.process(*kinect_frame, keyframe, profiler)};
+                        send_video_message(video_frame, session_id, session_start_time, calibration,
+                                           udp_socket, video_packet_storage, remote_receivers, rng);
+                    }
+                }
+
+                // Send audio packets to the receivers.
+                if (kinect_audio_sender)
+                    kinect_audio_sender->send(udp_socket, remote_receivers);
 
                 for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_sets) {
                     auto remote_receiver_ptr{&remote_receivers.at(receiver_session_id)};
@@ -336,7 +335,7 @@ void start(KinectInterface& kinect_interface)
                                              profiler);
                         retransmit_requested_packets(udp_socket,
                                                      receiver_packet_set.request_packet_data_vector,
-                                                     video_parity_packet_storage,
+                                                     video_packet_storage,
                                                      remote_receiver_ptr->endpoint);
                         remote_receiver_ptr->last_packet_time = tt::TimePoint::now();
                     } else {
@@ -348,7 +347,7 @@ void start(KinectInterface& kinect_interface)
                 }
             }
 
-            video_parity_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
+            video_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError\n  message: " << e.what() << "\n  endpoint: " << e.endpoint() << "\n";
             std::cout << "remote_receivers.size(): " << remote_receivers.size() << "\n";

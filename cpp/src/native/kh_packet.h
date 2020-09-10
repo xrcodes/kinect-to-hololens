@@ -44,6 +44,11 @@ constexpr int KH_MAX_AUDIO_PACKET_CONTENT_SIZE{KH_PACKET_SIZE - KH_AUDIO_PACKET_
 
 constexpr static int KH_FEC_PARITY_GROUP_SIZE{2};
 
+struct Packet
+{
+    std::vector<std::byte> bytes;
+};
+
 struct PacketCursor
 {
     int position{0};
@@ -175,8 +180,6 @@ struct AudioSenderPacketData
 std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
                                                         gsl::span<const std::byte> opus_frame);
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-
-std::vector<std::byte> create_floor_sender_packet_bytes(int session_id, float a, float b, float c, float d);
 
 /**Receiver Packets**/
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
