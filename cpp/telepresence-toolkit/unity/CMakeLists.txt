@@ -1,16 +1,16 @@
 # Source files for the Unity plugin.
 set(SOURCE_FILES
-  plugin.def
-  plugin.cpp
-  kh_plugin.cpp
-  texture_group.h
-  texture_group.cpp
+  graphics.def
   channel_texture.h
   channel_texture.cpp
-  two_channel_texture.h
-  two_channel_texture.cpp
   depth_texture.h
   depth_texture.cpp
+  plugin.cpp
+  graphics.cpp
+  texture_group.h
+  texture_group.cpp
+  two_channel_texture.h
+  two_channel_texture.cpp
   interfaces/IUnityGraphics.h
   interfaces/IUnityGraphicsD3D11.h
   interfaces/IUnityInterface.h
