@@ -3,7 +3,8 @@
 #include <tuple>
 #include "native/kh_native.h"
 #include "sender/kinect_audio_sender.h"
-#include "sender/kinect_video_sender.h"
+#include "modules/video_pipeline.h"
+#include "sender/video_sender_utils.h"
 #include "sender/receiver_packet_receiver.h"
 #include "native/imgui_wrapper.h"
 #include "helper/filesystem_helper.h"
@@ -78,9 +79,9 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
     return {is_ready, keyframe};
 }
 
-void send_video_message(KinectVideoSenderResult& result,
+void send_video_message(VideoPipelineFrame& result,
                         const tt::TimePoint& session_start_time,
-                        k4a::calibration& calibration,
+                        k4a::calibration calibration,
                         const int session_id,
                         UdpSocket& udp_socket,
                         VideoParityPacketStorage& video_parity_packet_storage,
@@ -161,9 +162,9 @@ void log_receiver_report_summary(ExampleAppLog& log, ReceiverReportSummary summa
     log.AddLog("  Frame Interval Time Average: %f ms\n", summary.frame_interval_ms_sum / summary.received_report_count);
 }
 
-void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummary summary, tt::TimeDuration duration)
+void log_video_pipeline_summary(ExampleAppLog& log, VideoPipelineSummary summary, tt::TimeDuration duration)
 {
-    log.AddLog("KinectDeviceManager Summary:\n");
+    log.AddLog("VideoPipeline Summary:\n");
     log.AddLog("  Frame ID: %d\n", summary.frame_id);
     log.AddLog("  FPS: %f\n", summary.frame_count / duration.sec());
     log.AddLog("  Color Bandwidth: %f Mbps\n", summary.color_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
@@ -187,6 +188,7 @@ void start(KinectInterface& kinect_interface)
 
     // The default port (the port when nothing is entered) is 7777.
     const int session_id{gsl::narrow_cast<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
+    const k4a::calibration calibration{kinect_interface.getCalibration()};
 
     std::cout << "Start kinect_sender (session_id: " << session_id << ").\n";
 
@@ -224,8 +226,8 @@ void start(KinectInterface& kinect_interface)
     const tt::TimePoint session_start_time{tt::TimePoint::now()};
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
 
-    KinectVideoSender kinect_video_sender{kinect_interface.getCalibration()};
-    KinectVideoSenderSummary kinect_video_sender_summary;
+    VideoPipeline video_pipeline{calibration};
+    VideoPipelineSummary video_pipeline_summary;
     
     std::unique_ptr<KinectAudioSender> kinect_audio_sender{nullptr};
     if (kinect_interface.isDevice())
@@ -302,13 +304,16 @@ void start(KinectInterface& kinect_interface)
             if (!remote_receivers.empty()) {
                 // Send video/audio packets to the receivers.
 
-                auto [is_ready, keyframe] {plan_video_bitrate_control(remote_receivers, kinect_video_sender.last_frame_id(), kinect_video_sender.last_frame_time())};
+                auto [is_ready, keyframe] {plan_video_bitrate_control(remote_receivers, video_pipeline.last_frame_id(), video_pipeline.last_frame_time())};
                 if (is_ready) {
-                    auto result{kinect_video_sender.send(kinect_interface, keyframe, kinect_video_sender_summary)};
-                    if(result)
-                        send_video_message(*result, session_start_time, kinect_interface.getCalibration(),
+                    // Try getting a Kinect frame.
+                    auto kinect_frame{kinect_interface.getFrame()};
+                    if (kinect_frame) {
+                        auto result{video_pipeline.process(*kinect_frame, keyframe, video_pipeline_summary)};
+                        send_video_message(result, session_start_time, calibration,
                                            session_id, udp_socket, video_parity_packet_storage,
                                            remote_receivers, random_number_generator);
+                    }
                 }
 
                 if (kinect_audio_sender)
@@ -359,8 +364,8 @@ void start(KinectInterface& kinect_interface)
             log_receiver_report_summary(log, receiver_report_summary, summary_duration);
             receiver_report_summary = ReceiverReportSummary{};
 
-            log_kinect_video_sender_summary(log, kinect_video_sender_summary, summary_duration);
-            kinect_video_sender_summary = KinectVideoSenderSummary{};
+            log_video_pipeline_summary(log, video_pipeline_summary, summary_duration);
+            video_pipeline_summary = VideoPipelineSummary{};
         }
     });
 }

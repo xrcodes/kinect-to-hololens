@@ -1,8 +1,6 @@
 #pragma once
 
-#include <random>
 #include "native/kh_native.h"
-#include "video_sender_utils.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
 #include "external/azure-kinect-samples/PointCloudGenerator.h"
@@ -10,7 +8,7 @@
 
 namespace kh
 {
-struct KinectVideoSenderSummary
+struct VideoPipelineSummary
 {
     tt::TimePoint start_time{tt::TimePoint::now()};
     float occlusion_removal_ms_sum{0.0f};
@@ -25,36 +23,26 @@ struct KinectVideoSenderSummary
     int frame_id{0};
 };
 
-//struct KinectVideoSenderResult
-//{
-//    int frame_id{0};
-//    tt::TimePoint time_point{};
-//    bool keyframe{false};
-//    Bytes vp8_frame{};
-//    Bytes trvl_frame{};
-//    std::optional<std::array<float, 4>> floor;
-//};
-
-struct KinectVideoSenderResult
+struct VideoPipelineFrame
 {
     int frame_id{0};
     tt::TimePoint time_point{};
     bool keyframe{false};
-    Bytes vp8_frame{};
-    Bytes trvl_frame{};
+    std::vector<std::byte> vp8_frame{};
+    std::vector<std::byte> trvl_frame{};
     std::optional<std::array<float, 4>> floor{};
 };
 
-class KinectVideoSender
+class VideoPipeline
 {
 public:
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-    KinectVideoSender(k4a::calibration calibration);
+    VideoPipeline(k4a::calibration calibration);
     int last_frame_id() { return last_frame_id_; }
     tt::TimePoint last_frame_time() { return last_frame_time_; }
-    std::optional<KinectVideoSenderResult> send(KinectInterface& kinect_interface,
-                                                bool keyframe,
-                                                KinectVideoSenderSummary& summary);
+    VideoPipelineFrame process(KinectFrame& kinect_frame,
+                               bool keyframe,
+                               VideoPipelineSummary& summary);
 private:
     k4a::calibration calibration_;
     k4a::transformation transformation_;

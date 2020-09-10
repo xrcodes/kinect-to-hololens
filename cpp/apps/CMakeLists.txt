@@ -29,9 +29,6 @@ add_custom_command(TARGET KinectReaderApp POST_BUILD
 add_executable(KinectSenderApp
   kinect_sender_app.cpp
   helper/soundio_helper.h
-  sender/kinect_audio_sender.h
-  sender/kinect_video_sender.h
-  sender/kinect_video_sender.cpp
   sender/receiver_packet_receiver.h
   sender/video_sender_utils.h
   sender/remote_receiver.h
@@ -43,9 +40,8 @@ target_include_directories(KinectSenderApp PRIVATE
   ${IMGUI_EXAMPLES_DIR}
 )
 target_link_libraries(KinectSenderApp
-  KinectToHololensNative
+  KinectToHololensModules
   ${Libvpx_LIB}
-  AzureKinectSamples
   ImguiExamples
   imgui::imgui
 )

@@ -1,4 +1,4 @@
-#include "kinect_video_sender.h"
+#include "video_pipeline.h"
 
 #include <algorithm>
 #include <iostream>
@@ -26,8 +26,8 @@ tt::TrvlEncoder create_depth_encoder(k4a::calibration calibration)
 }
 
 std::optional<std::array<float, 4>> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
-                                                                   KinectFrame kinect_frame,
-                                                                   k4a::calibration calibration)
+                                                                         KinectFrame kinect_frame,
+                                                                         k4a::calibration calibration)
 {
     constexpr int DOWNSAMPLE_STEP{2};
     constexpr size_t MINIMUM_FLOOR_POINT_COUNT{1024 / (DOWNSAMPLE_STEP * DOWNSAMPLE_STEP)};
@@ -44,7 +44,7 @@ std::optional<std::array<float, 4>> detect_floor_plane_from_kinect_frame(Samples
 }
 
 // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-KinectVideoSender::KinectVideoSender(k4a::calibration calibration)
+VideoPipeline::VideoPipeline(k4a::calibration calibration)
     : calibration_{calibration}
     , transformation_{calibration}
     , color_encoder_{create_color_encoder(calibration)}
@@ -56,32 +56,25 @@ KinectVideoSender::KinectVideoSender(k4a::calibration calibration)
 {
 }
 
-std::optional<KinectVideoSenderResult> KinectVideoSender::send(KinectInterface& kinect_interface,
-                                                               bool keyframe,
-                                                               KinectVideoSenderSummary& summary)
+VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
+                                          bool keyframe,
+                                          VideoPipelineSummary& summary)
 {
-    // Try getting a Kinect frame.
-    auto kinect_frame{kinect_interface.getFrame()};
-    if (!kinect_frame) {
-        std::cout << "no kinect frame...\n";
-        return std::nullopt;
-    }
-
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
-    last_frame_time_ = kinect_frame->time_point;
+    last_frame_time_ = kinect_frame.time_point;
 
     // Invalidate RGBD occluded depth pixels.
     auto occlusion_removal_start{tt::TimePoint::now()};
-    gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
-                                        kinect_frame->depth_image.get_size()};
+    gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame.depth_image.get_buffer()),
+                                        kinect_frame.depth_image.get_size()};
 
     occlusion_remover_.remove(depth_image_span);
     summary.occlusion_removal_ms_sum += occlusion_removal_start.elapsed_time().ms();
 
     // Map color pixels to depth pixels.
     auto transformation_start{tt::TimePoint::now()};
-    const auto color_image_from_depth_camera{transformation_.color_image_to_depth_camera(kinect_frame->depth_image, kinect_frame->color_image)};
+    const auto color_image_from_depth_camera{transformation_.color_image_to_depth_camera(kinect_frame.depth_image, kinect_frame.color_image)};
     summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
 
     // Convert Kinect color pixels from BGRA to YUV420 for VP8.
@@ -103,7 +96,7 @@ std::optional<KinectVideoSenderResult> KinectVideoSender::send(KinectInterface& 
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
     // Try obtaining floor.
-    const auto floor{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
+    const auto floor{detect_floor_plane_from_kinect_frame(point_cloud_generator_, kinect_frame, calibration_)};
 
     // Updating variables for profiling.
     if (keyframe)
@@ -113,6 +106,6 @@ std::optional<KinectVideoSenderResult> KinectVideoSender::send(KinectInterface& 
     summary.depth_byte_count += gsl::narrow_cast<int>(trvl_frame.size());
     summary.frame_id = last_frame_id_;
 
-    return KinectVideoSenderResult{last_frame_id_, kinect_frame->time_point, keyframe, vp8_frame, trvl_frame, floor};
+    return VideoPipelineFrame{last_frame_id_, kinect_frame.time_point, keyframe, vp8_frame, trvl_frame, floor};
 }
 }
