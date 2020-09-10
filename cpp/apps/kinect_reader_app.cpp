@@ -1,6 +1,6 @@
 #include <iostream>
 #include "native/kh_native.h"
-#include "modules/occlusion_remover.h"
+#include "modules/video_pipeline.h"
 #include "helper/opencv_helper.h"
 #include "helper/filesystem_helper.h"
 
@@ -14,64 +14,33 @@ void read_frames(KinectInterface& kinect_interface)
     const auto calibration{kinect_interface.getCalibration()};
     const k4a::transformation transformation{calibration};
 
-    Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
-                           calibration.depth_camera_calibration.resolution_height};
+    VideoPipeline video_pipeline{calibration};
     tt::Vp8Decoder vp8_decoder;
+    const int width{calibration.depth_camera_calibration.resolution_width};
+    const int height{calibration.depth_camera_calibration.resolution_height};
+    tt::TrvlDecoder trvl_decoder{width * height};
 
-    const int depth_frame_width{calibration.depth_camera_calibration.resolution_width};
-    const int depth_frame_height{calibration.depth_camera_calibration.resolution_height};
-    const int depth_frame_size{depth_frame_width * depth_frame_height};
-
-    OcclusionRemover occlusion_remover{calibration};
-    tt::TrvlEncoder depth_encoder{depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD};
-    tt::TrvlDecoder depth_decoder{depth_frame_size};
-
+    Profiler profiler;
     for (;;) {
         auto kinect_frame{kinect_interface.getFrame()};
         if (!kinect_frame) {
-            std::cout << "no kinect frame...\n";
             continue;
         }
 
-        cv::imshow("Raw Color", create_cv_mat_from_kinect_color_image(kinect_frame->color_image.get_buffer(),
-                                                                      kinect_frame->color_image.get_width_pixels(),
-                                                                      kinect_frame->color_image.get_height_pixels()));
+        auto frame{video_pipeline.process(*kinect_frame, false, profiler)};
+        auto color_pixels{vp8_decoder.decode(frame.vp8_frame)};
+        cv::imshow("Color", create_cv_mat_from_yuv_image(createYuvFrameFromFFmpegFrame(color_pixels)));
 
-        cv::imshow("Raw Depth", create_cv_mat_from_kinect_depth_image(reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
-                                                                      kinect_frame->depth_image.get_width_pixels(),
-                                                                      kinect_frame->depth_image.get_height_pixels()));
 
-        gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
-                                            gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())};
-        occlusion_remover.remove(depth_image_span);
-
-        const auto transformed_color_image{transformation.color_image_to_depth_camera(kinect_frame->depth_image, kinect_frame->color_image)};
-
-        // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
+        // Decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.
-        const auto yuv_image{tt::createYuvFrameFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
-                                                                         transformed_color_image.get_width_pixels(),
-                                                                         transformed_color_image.get_height_pixels(),
-                                                                         transformed_color_image.get_stride_bytes())};
-
-        const auto vp8_frame{vp8_encoder.encode(yuv_image, false)};
-        auto ffmpeg_frame{vp8_decoder.decode(vp8_frame)};
-        cv::imshow("Final Color", create_cv_mat_from_yuv_image(createYuvFrameFromFFmpegFrame(ffmpeg_frame)));
-
-
-        // Compresses and decompresses the depth pixels to test the compression and decompression functions.
-        // Then, converts the pixels for OpenCV.
-        const auto depth_encoder_frame{depth_encoder.encode(depth_image_span,false)};
-        auto depth_pixels{depth_decoder.decode(depth_encoder_frame, false)};
-        cv::imshow("Final Depth", create_cv_mat_from_kinect_depth_image(depth_pixels.data(),
-                                                                        kinect_frame->depth_image.get_width_pixels(),
-                                                                        kinect_frame->depth_image.get_height_pixels()));
+        auto depth_pixels{trvl_decoder.decode(frame.trvl_frame, frame.keyframe)};
+        cv::imshow("Depth", create_cv_mat_from_kinect_depth_image(depth_pixels.data(), width, height));
 
         if (cv::waitKey(1) >= 0)
             break;
     }
 }
-
 
 void read_device_frames()
 {

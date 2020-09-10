@@ -60,15 +60,15 @@ VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
                                           bool keyframe,
                                           Profiler& profiler)
 {
+    gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame.depth_image.get_buffer()),
+                                        kinect_frame.depth_image.get_size()};
+
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
     last_frame_time_ = kinect_frame.time_point;
 
     // Invalidate RGBD occluded depth pixels.
     auto occlusion_removal_start{tt::TimePoint::now()};
-    gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame.depth_image.get_buffer()),
-                                        kinect_frame.depth_image.get_size()};
-
     occlusion_remover_.remove(depth_image_span);
     profiler.addNumber("pipeline-occlusion", occlusion_removal_start.elapsed_time().ms());
 
