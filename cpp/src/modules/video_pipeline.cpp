@@ -79,10 +79,10 @@ VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
 
     // Convert Kinect color pixels from BGRA to YUV420 for VP8.
     const auto yuv_conversion_start{tt::TimePoint::now()};
-    const auto yuv_image{tt::createYuvFrameFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
-                                                                     color_image_from_depth_camera.get_width_pixels(),
-                                                                     color_image_from_depth_camera.get_height_pixels(),
-                                                                     color_image_from_depth_camera.get_stride_bytes())};
+    const auto yuv_image{tt::YuvFrame::createFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
+                                                                       color_image_from_depth_camera.get_width_pixels(),
+                                                                       color_image_from_depth_camera.get_height_pixels(),
+                                                                       color_image_from_depth_camera.get_stride_bytes())};
     profiler.addNumber("pipeline-yuv", yuv_conversion_start.elapsed_time().ms());
 
     // VP8 compress color pixels.

@@ -2,7 +2,32 @@
 
 namespace tt
 {
-YuvFrame createYuvFrameFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)
+namespace
+{
+// A helper function for createYuvImageFromFFmpegFrame that converts a AVFrame into a std::vector.
+std::vector<uint8_t> convertChannelPlaneToBytes(uint8_t* data, int line_size, int width, int height)
+{
+    std::vector<uint8_t> bytes(static_cast<long long>(width) * height);
+    for (int i = 0; i < height; ++i)
+        memcpy(bytes.data() + static_cast<long long>(i) * width, data + static_cast<long long>(i) * line_size, width);
+
+    return bytes;
+}
+}
+
+// Converts an outcome of Vp8Deocder into YuvImage so it can be converted for OpenCV with createCvMatFromYuvImage().
+YuvFrame YuvFrame::create(FFmpegFrame& ffmpeg_frame)
+{
+    AVFrame* av_frame{ffmpeg_frame.av_frame()};
+    return YuvFrame(
+        std::move(convertChannelPlaneToBytes(av_frame->data[0], av_frame->linesize[0], av_frame->width, av_frame->height)),
+        std::move(convertChannelPlaneToBytes(av_frame->data[1], av_frame->linesize[1], av_frame->width / 2, av_frame->height / 2)),
+        std::move(convertChannelPlaneToBytes(av_frame->data[2], av_frame->linesize[2], av_frame->width / 2, av_frame->height / 2)),
+        av_frame->width,
+        av_frame->height);
+}
+
+YuvFrame YuvFrame::createFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)
 {
     // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
     std::vector<uint8_t> y_channel(static_cast<long long>(width) * height);
@@ -38,7 +63,7 @@ YuvFrame createYuvFrameFromAzureKinectYuy2Buffer(const uint8_t* buffer, int widt
 }
 
 // Reference: https://docs.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering
-YuvFrame createYuvFrameFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride)
+YuvFrame YuvFrame::createFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride)
 {
     // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
     std::vector<uint8_t> y_channel(static_cast<long long>(width) * height);
@@ -77,27 +102,5 @@ YuvFrame createYuvFrameFromAzureKinectBgraBuffer(const uint8_t* buffer, int widt
     }
 
     return YuvFrame(std::move(y_channel), std::move(u_channel), std::move(v_channel), width, height);
-}
-
-// A helper function for createYuvImageFromFFmpegFrame that converts a AVFrame into a std::vector.
-std::vector<uint8_t> convertPicturePlaneToBytes(uint8_t* data, int line_size, int width, int height)
-{
-    std::vector<uint8_t> bytes(static_cast<long long>(width) * height);
-    for (int i = 0; i < height; ++i)
-        memcpy(bytes.data() + static_cast<long long>(i) * width, data + static_cast<long long>(i) * line_size, width);
-
-    return bytes;
-}
-
-// Converts an outcome of Vp8Deocder into YuvImage so it can be converted for OpenCV with createCvMatFromYuvImage().
-YuvFrame createYuvFrameFromFFmpegFrame(FFmpegFrame& ffmpeg_frame)
-{
-    AVFrame* av_frame{ffmpeg_frame.av_frame()};
-    return YuvFrame(
-        std::move(convertPicturePlaneToBytes(av_frame->data[0], av_frame->linesize[0], av_frame->width, av_frame->height)),
-        std::move(convertPicturePlaneToBytes(av_frame->data[1], av_frame->linesize[1], av_frame->width / 2, av_frame->height / 2)),
-        std::move(convertPicturePlaneToBytes(av_frame->data[2], av_frame->linesize[2], av_frame->width / 2, av_frame->height / 2)),
-        av_frame->width,
-        av_frame->height);
 }
 }

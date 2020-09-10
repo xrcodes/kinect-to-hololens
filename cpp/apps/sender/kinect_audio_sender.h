@@ -34,7 +34,6 @@ public:
         const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
         const int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer)};
 
-        //const int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * pcm_.size())};
         constexpr int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT)};
         int cursor = 0;
         while ((fill_bytes - cursor) >= BYTES_PER_FRAME) {

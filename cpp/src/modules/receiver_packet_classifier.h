@@ -11,7 +11,7 @@ struct ConnectPacketInfo
     ConnectReceiverPacketData connect_packet_data;
 };
 
-struct ReceiverPacketSet
+struct ReceiverPacketInfo
 {
     bool received_any{false};
     std::vector<ReportReceiverPacketData> report_packet_data_vector;
@@ -21,36 +21,41 @@ struct ReceiverPacketSet
 struct ReceiverPacketCollection
 {
     std::vector<ConnectPacketInfo> connect_packet_infos;
-    std::unordered_map<int, ReceiverPacketSet> receiver_packet_sets;
+    std::unordered_map<int, ReceiverPacketInfo> receiver_packet_infos;
 };
 
-// This class should stay as a class since it will have additional functionality in the future.
-class ReceiverPacketReceiver
+class ReceiverPacketClassifier
 {
 public:
     static ReceiverPacketCollection receive(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
     {
+        // Prepare ReceiverPacketCollection in regard with the list of RemoteReceivers.
         ReceiverPacketCollection receiver_packet_collection;
         for (auto& [receiver_session_id, _] : remote_receivers)
-            receiver_packet_collection.receiver_packet_sets.insert({receiver_session_id, ReceiverPacketSet{}});
+            receiver_packet_collection.receiver_packet_infos.insert({receiver_session_id, ReceiverPacketInfo{}});
 
+        // Iterate through all received UDP packets.
         while (auto packet{udp_socket.receive()}) {
             int receiver_session_id{get_session_id_from_receiver_packet_bytes(packet->bytes)};
-            ReceiverPacketType packet_type{get_packet_type_from_receiver_packet_bytes(packet->bytes)};
+            auto packet_type{get_packet_type_from_receiver_packet_bytes(packet->bytes)};
 
-            if(packet_type == ReceiverPacketType::Connect) {
+            // Collect attempts from recievers to connect.
+            if (packet_type == ReceiverPacketType::Connect) {
                 receiver_packet_collection.connect_packet_infos.push_back({packet->endpoint,
                                                                            receiver_session_id,
                                                                            parse_connect_receiver_packet_bytes(packet->bytes)});
                 continue;
             }
 
-            auto receiver_packet_set_ref{receiver_packet_collection.receiver_packet_sets.find(receiver_session_id)};
-            if (receiver_packet_set_ref == receiver_packet_collection.receiver_packet_sets.end())
+            // Skip a packet, not for connection, is not from a reciever already connected.
+            auto receiver_packet_set_ref{receiver_packet_collection.receiver_packet_infos.find(receiver_session_id)};
+            if (receiver_packet_set_ref == receiver_packet_collection.receiver_packet_infos.end())
                 continue;
 
             receiver_packet_set_ref->second.received_any = true;
             switch (packet_type) {
+            case ReceiverPacketType::Heartbeat:
+                break;
             case ReceiverPacketType::Report:
                 receiver_packet_set_ref->second.report_packet_data_vector.push_back(parse_report_receiver_packet_bytes(packet->bytes));
                 break;

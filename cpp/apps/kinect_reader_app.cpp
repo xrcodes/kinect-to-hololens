@@ -23,14 +23,12 @@ void read_frames(KinectInterface& kinect_interface)
     Profiler profiler;
     for (;;) {
         auto kinect_frame{kinect_interface.getFrame()};
-        if (!kinect_frame) {
+        if (!kinect_frame)
             continue;
-        }
 
         auto frame{video_pipeline.process(*kinect_frame, false, profiler)};
         auto color_pixels{vp8_decoder.decode(frame.vp8_frame)};
-        cv::imshow("Color", create_cv_mat_from_yuv_image(createYuvFrameFromFFmpegFrame(color_pixels)));
-
+        cv::imshow("Color", create_cv_mat_from_yuv_image(tt::YuvFrame::create(color_pixels)));
 
         // Decompresses the depth pixels to test the compression and decompression functions.
         // Then, converts the pixels for OpenCV.

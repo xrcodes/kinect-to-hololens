@@ -66,7 +66,7 @@ public:
                                                             video_renderer_state.last_frame_time_point.elapsed_time().ms()), remote_endpoint_);
         video_renderer_state.last_frame_time_point = tt::TimePoint::now();
 
-        auto color_mat{create_cv_mat_from_yuv_image(tt::createYuvFrameFromFFmpegFrame(*ffmpeg_frame))};
+        auto color_mat{create_cv_mat_from_yuv_image(tt::YuvFrame::create(*ffmpeg_frame))};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_image.data(), width_, height_)};
 
         // Rendering the depth pixels.

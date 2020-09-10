@@ -38,6 +38,10 @@ public:
         height_ = other.height_;
         return *this;
     }
+    static YuvFrame create(FFmpegFrame& ffmpeg_frame);
+    // Use createFromAzureKinectYuy2Buffer when mapping with YUY2 gets supported in the Azure Kinect SDK.
+    static YuvFrame createFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride);
+    static YuvFrame createFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride);
     const std::vector<uint8_t>& y_channel() const { return y_channel_; }
     const std::vector<uint8_t>& u_channel() const { return u_channel_; }
     const std::vector<uint8_t>& v_channel() const { return v_channel_; }
@@ -51,10 +55,4 @@ private:
     int width_;
     int height_;
 };
-
-// createYuvImageFromAzureKinectYuy2Buffer(): converts color pixels to a YuvImage.
-// createYuvImageFromAvFrame(): converts the outcome of Vp8Decoder to color pixels in Yuv420.
-YuvFrame createYuvFrameFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride);
-YuvFrame createYuvFrameFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride);
-YuvFrame createYuvFrameFromFFmpegFrame(FFmpegFrame& ffmpeg_frame);
 }

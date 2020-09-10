@@ -5,7 +5,7 @@
 #include "sender/kinect_audio_sender.h"
 #include "modules/video_pipeline.h"
 #include "modules/video_packet_storage.h"
-#include "sender/receiver_packet_receiver.h"
+#include "modules/receiver_packet_classifier.h"
 #include "native/imgui_wrapper.h"
 #include "helper/filesystem_helper.h"
 #include "native/profiler.h"
@@ -282,7 +282,7 @@ void start(KinectInterface& kinect_interface)
         end_imgui_frame(clear_color);
 
         try {
-            auto receiver_packet_collection{ReceiverPacketReceiver::receive(udp_socket, remote_receivers)};
+            auto receiver_packet_collection{ReceiverPacketClassifier::receive(udp_socket, remote_receivers)};
 
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.
@@ -329,7 +329,7 @@ void start(KinectInterface& kinect_interface)
                 if (kinect_audio_sender)
                     kinect_audio_sender->send(udp_socket, remote_receivers);
 
-                for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_sets) {
+                for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_infos) {
                     auto remote_receiver_ptr{&remote_receivers.at(receiver_session_id)};
                     if (receiver_packet_set.received_any) {
                         apply_report_packets(receiver_packet_set.report_packet_data_vector,
