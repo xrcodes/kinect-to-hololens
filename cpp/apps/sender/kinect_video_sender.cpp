@@ -41,54 +41,14 @@ std::optional<std::array<float, 4>> detect_floor_plane_from_kinect_frame(Samples
 
     return std::array<float, 4>{floor_plane->Normal.X, floor_plane->Normal.Y, floor_plane->Normal.Z, floor_plane->C};
 }
-
-void send_video_message(KinectVideoSenderResult result,
-                        const tt::TimePoint& session_start_time,
-                        k4a::calibration& calibration,
-                        const int session_id,
-                        UdpSocket& udp_socket,
-                        VideoParityPacketStorage& video_parity_packet_storage,
-                        std::unordered_map<int, RemoteReceiver>& remote_receivers,
-                        std::mt19937& random_number_generator)
-{
-    // Create video/parity packet bytes.
-    const float video_frame_time_stamp{(result.time_point - session_start_time).ms()};
-    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, result.keyframe, calibration, result.vp8_frame, result.trvl_frame, result.floor)};
-    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id, result.frame_id, message_bytes)};
-    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id, result.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
-
-    // Send video/parity packets.
-    // Sending them in a random order makes the packets more robust to packet loss.
-    std::vector<Bytes*> packet_bytes_ptrs;
-    for (auto& video_packet_bytes : video_packet_bytes_set)
-        packet_bytes_ptrs.push_back(&video_packet_bytes);
-
-    for (auto& parity_packet_bytes : parity_packet_bytes_set)
-        packet_bytes_ptrs.push_back(&parity_packet_bytes);
-
-    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator);
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (!remote_receiver.video_requested)
-            continue;
-
-        for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
-            udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
-        }
-    }
-
-    // Save video/parity packet bytes for retransmission. 
-    video_parity_packet_storage.add(result.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
-}
 }
 
 // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-KinectVideoSender::KinectVideoSender(const int session_id, KinectInterface& kinect_interface)
-    : session_id_{session_id}
-    , random_number_generator_{std::random_device{}()}
-    , calibration_{kinect_interface.getCalibration()}
-    , transformation_{calibration_}
-    , color_encoder_{create_color_encoder(calibration_)}
-    , depth_encoder_{create_depth_encoder(calibration_)}
+KinectVideoSender::KinectVideoSender(k4a::calibration calibration)
+    : calibration_{calibration}
+    , transformation_{calibration}
+    , color_encoder_{create_color_encoder(calibration)}
+    , depth_encoder_{create_depth_encoder(calibration)}
     , occlusion_remover_{calibration_}
     , point_cloud_generator_{calibration_}
     , last_frame_id_{-1}
@@ -96,19 +56,15 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectInterface& kine
 {
 }
 
-void KinectVideoSender::send(const tt::TimePoint& session_start_time,
-                             bool keyframe,
-                             UdpSocket& udp_socket,
-                             KinectInterface& kinect_interface,
-                             VideoParityPacketStorage& video_parity_packet_storage,
-                             std::unordered_map<int, RemoteReceiver>& remote_receivers,
-                             KinectVideoSenderSummary& summary)
+std::optional<KinectVideoSenderResult> KinectVideoSender::send(KinectInterface& kinect_interface,
+                                                               bool keyframe,
+                                                               KinectVideoSenderSummary& summary)
 {
     // Try getting a Kinect frame.
     auto kinect_frame{kinect_interface.getFrame()};
     if (!kinect_frame) {
         std::cout << "no kinect frame...\n";
-        return;
+        return std::nullopt;
     }
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
@@ -157,8 +113,6 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
     summary.depth_byte_count += gsl::narrow_cast<int>(trvl_frame.size());
     summary.frame_id = last_frame_id_;
 
-    KinectVideoSenderResult result{last_frame_id_, kinect_frame->time_point, keyframe, vp8_frame, trvl_frame, floor};
-
-    send_video_message(result, session_start_time, calibration_, session_id_, udp_socket, video_parity_packet_storage, remote_receivers, random_number_generator_);
+    return KinectVideoSenderResult{last_frame_id_, kinect_frame->time_point, keyframe, vp8_frame, trvl_frame, floor};
 }
 }

@@ -78,6 +78,44 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
     return {is_ready, keyframe};
 }
 
+void send_video_message(KinectVideoSenderResult& result,
+                        const tt::TimePoint& session_start_time,
+                        k4a::calibration& calibration,
+                        const int session_id,
+                        UdpSocket& udp_socket,
+                        VideoParityPacketStorage& video_parity_packet_storage,
+                        std::unordered_map<int, RemoteReceiver>& remote_receivers,
+                        std::mt19937& random_number_generator)
+{
+    // Create video/parity packet bytes.
+    const float video_frame_time_stamp{(result.time_point - session_start_time).ms()};
+    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, result.keyframe, calibration, result.vp8_frame, result.trvl_frame, result.floor)};
+    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id, result.frame_id, message_bytes)};
+    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id, result.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
+
+    // Send video/parity packets.
+    // Sending them in a random order makes the packets more robust to packet loss.
+    std::vector<Bytes*> packet_bytes_ptrs;
+    for (auto& video_packet_bytes : video_packet_bytes_set)
+        packet_bytes_ptrs.push_back(&video_packet_bytes);
+
+    for (auto& parity_packet_bytes : parity_packet_bytes_set)
+        packet_bytes_ptrs.push_back(&parity_packet_bytes);
+
+    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), random_number_generator);
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (!remote_receiver.video_requested)
+            continue;
+
+        for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
+            udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
+        }
+    }
+
+    // Save video/parity packet bytes for retransmission. 
+    video_parity_packet_storage.add(result.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
+}
+
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
                           RemoteReceiver& remote_receiver,
@@ -186,7 +224,7 @@ void start(KinectInterface& kinect_interface)
     const tt::TimePoint session_start_time{tt::TimePoint::now()};
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
 
-    KinectVideoSender kinect_video_sender{session_id, kinect_interface};
+    KinectVideoSender kinect_video_sender{kinect_interface.getCalibration()};
     KinectVideoSenderSummary kinect_video_sender_summary;
     
     std::unique_ptr<KinectAudioSender> kinect_audio_sender{nullptr};
@@ -198,6 +236,8 @@ void start(KinectInterface& kinect_interface)
     VideoParityPacketStorage video_parity_packet_storage;
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
+
+    std::mt19937 random_number_generator{std::random_device{}()};
 
     // Our state
     ExampleAppLog log;
@@ -263,9 +303,13 @@ void start(KinectInterface& kinect_interface)
                 // Send video/audio packets to the receivers.
 
                 auto [is_ready, keyframe] {plan_video_bitrate_control(remote_receivers, kinect_video_sender.last_frame_id(), kinect_video_sender.last_frame_time())};
-                if (is_ready)
-                    kinect_video_sender.send(session_start_time, keyframe, udp_socket, kinect_interface,
-                                             video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
+                if (is_ready) {
+                    auto result{kinect_video_sender.send(kinect_interface, keyframe, kinect_video_sender_summary)};
+                    if(result)
+                        send_video_message(*result, session_start_time, kinect_interface.getCalibration(),
+                                           session_id, udp_socket, video_parity_packet_storage,
+                                           remote_receivers, random_number_generator);
+                }
 
                 if (kinect_audio_sender)
                     kinect_audio_sender->send(udp_socket, remote_receivers);
