@@ -25,43 +25,6 @@ tt::TrvlEncoder create_depth_encoder(k4a::calibration calibration)
                            CHANGE_THRESHOLD, INVALID_THRESHOLD};
 }
 
-std::pair<bool, bool> plan_frame(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, tt::TimePoint last_frame_time)
-{
-    bool video_required_by_any = false;
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_requested) {
-            video_required_by_any = true;
-            break;
-        }
-    }
-    if (!video_required_by_any)
-        return {false, false};
-
-    int minimum_receiver_frame_id{INT_MAX};
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_frame_id < minimum_receiver_frame_id)
-            minimum_receiver_frame_id = remote_receiver.video_frame_id;
-    }
-
-    // Send out a keyframe if there is a new receiver.
-    if (minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID)
-        return {true, true};
-
-    constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
-    const auto frame_time_point{tt::TimePoint::now()};
-    const auto frame_time_diff{frame_time_point - last_frame_time};
-    const int frame_id_diff{last_frame_id - minimum_receiver_frame_id};
-
-    // Skip a frame if there is no new receiver that requires a frame to start
-    // and the sender is too much ahead of the receivers.
-    const bool is_ready{(frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1)};
-
-    // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
-    const bool keyframe{frame_id_diff > 5};
-
-    return {is_ready, keyframe};
-}
-
 std::optional<std::array<float, 4>> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
                                                                    KinectFrame kinect_frame,
                                                                    k4a::calibration calibration)
@@ -96,16 +59,13 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectDeviceInterface
 }
 
 void KinectVideoSender::send(const tt::TimePoint& session_start_time,
+                             bool keyframe,
                              UdpSocket& udp_socket,
                              KinectDeviceInterface& kinect_interface,
                              VideoParityPacketStorage& video_parity_packet_storage,
                              std::unordered_map<int, RemoteReceiver>& remote_receivers,
                              KinectVideoSenderSummary& summary)
 {
-    auto [is_ready, keyframe] {plan_frame(remote_receivers, last_frame_id_, last_frame_time_)};
-    if (!is_ready)
-        return;
-
     // Try getting a Kinect frame.
     auto kinect_frame{kinect_interface.getFrame()};
     if (!kinect_frame) {

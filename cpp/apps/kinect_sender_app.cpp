@@ -41,6 +41,43 @@ void imgui_loop(const Func& f)
     cleanup_imgui(window);
 };
 
+std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, tt::TimePoint last_frame_time)
+{
+    bool video_required_by_any = false;
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_requested) {
+            video_required_by_any = true;
+            break;
+        }
+    }
+    if (!video_required_by_any)
+        return {false, false};
+
+    int minimum_receiver_frame_id{INT_MAX};
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_frame_id < minimum_receiver_frame_id)
+            minimum_receiver_frame_id = remote_receiver.video_frame_id;
+    }
+
+    // Send out a keyframe if there is a new receiver.
+    if (minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID)
+        return {true, true};
+
+    constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
+    const auto frame_time_point{tt::TimePoint::now()};
+    const auto frame_time_diff{frame_time_point - last_frame_time};
+    const int frame_id_diff{last_frame_id - minimum_receiver_frame_id};
+
+    // Skip a frame if there is no new receiver that requires a frame to start
+    // and the sender is too much ahead of the receivers.
+    const bool is_ready{(frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1)};
+
+    // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
+    const bool keyframe{frame_id_diff > 5};
+
+    return {is_ready, keyframe};
+}
+
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
                           RemoteReceiver& remote_receiver,
@@ -224,7 +261,12 @@ void start(KinectDeviceInterface& kinect_interface)
             // Skip the main part of the loop if there is no receiver connected.
             if (!remote_receivers.empty()) {
                 // Send video/audio packets to the receivers.
-                kinect_video_sender.send(session_start_time, udp_socket, kinect_interface, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
+
+                auto [is_ready, keyframe] {plan_video_bitrate_control(remote_receivers, kinect_video_sender.last_frame_id(), kinect_video_sender.last_frame_time())};
+                if (is_ready)
+                    kinect_video_sender.send(session_start_time, keyframe, udp_socket, kinect_interface,
+                                             video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
+
                 if (kinect_audio_sender)
                     kinect_audio_sender->send(udp_socket, remote_receivers);
 
