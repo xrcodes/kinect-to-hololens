@@ -15,15 +15,15 @@ void read_frames(KinectDeviceInterface& kinect_interface)
 
     Vp8Encoder vp8_encoder{calibration.depth_camera_calibration.resolution_width,
                            calibration.depth_camera_calibration.resolution_height};
-    Vp8Decoder vp8_decoder;
+    tt::Vp8Decoder vp8_decoder;
 
     const int depth_frame_width{calibration.depth_camera_calibration.resolution_width};
     const int depth_frame_height{calibration.depth_camera_calibration.resolution_height};
     const int depth_frame_size{depth_frame_width * depth_frame_height};
 
     OcclusionRemover occlusion_remover{calibration};
-    TrvlEncoder depth_encoder{depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD};
-    TrvlDecoder depth_decoder{depth_frame_size};
+    tt::TrvlEncoder depth_encoder{depth_frame_size, CHANGE_THRESHOLD, INVALID_THRESHOLD};
+    tt::TrvlDecoder depth_decoder{depth_frame_size};
 
     for (;;) {
         auto kinect_frame{kinect_interface.getFrame()};
@@ -48,10 +48,10 @@ void read_frames(KinectDeviceInterface& kinect_interface)
 
         // Encodes and decodes color pixels just to test whether Vp8Encoder and Vp8Decoder works.
         // Then, converts the pixels for OpenCV.
-        const auto yuv_image{createYuvFrameFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
-                                                                     transformed_color_image.get_width_pixels(),
-                                                                     transformed_color_image.get_height_pixels(),
-                                                                     transformed_color_image.get_stride_bytes())};
+        const auto yuv_image{tt::createYuvFrameFromAzureKinectBgraBuffer(transformed_color_image.get_buffer(),
+                                                                         transformed_color_image.get_width_pixels(),
+                                                                         transformed_color_image.get_height_pixels(),
+                                                                         transformed_color_image.get_stride_bytes())};
 
         const auto vp8_frame{vp8_encoder.encode(yuv_image, false)};
         auto ffmpeg_frame{vp8_decoder.decode(vp8_frame)};

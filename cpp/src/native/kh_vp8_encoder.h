@@ -7,7 +7,7 @@
 #include <vpx/vp8cx.h>
 #pragma warning(pop)
 #include <gsl/gsl>
-#include "core/kh_yuv.h"
+#include "core/tt_core.h"
 
 namespace kh
 {
@@ -17,7 +17,7 @@ class Vp8Encoder
 public:
     Vp8Encoder(int width, int height);
     ~Vp8Encoder();
-    std::vector<std::byte> encode(const YuvFrame& yuv_image, bool keyframe);
+    std::vector<std::byte> encode(const tt::YuvFrame& yuv_image, bool keyframe);
 
 private:
     vpx_codec_ctx_t codec_context_;

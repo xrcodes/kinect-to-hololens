@@ -1,9 +1,9 @@
 #include "depth_texture.h"
 
 #include <string>
-#include "core/kh_core.h"
+#include "core/tt_core.h"
 
-namespace kh
+namespace tt
 {
 DepthTexture::DepthTexture(ID3D11Device* device, int width, int height)
 	: width_(width), height_(height), texture_(nullptr)

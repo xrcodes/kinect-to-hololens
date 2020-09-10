@@ -14,23 +14,26 @@ $buildPath = (Get-Location).path + "\cpp\build"
 
 $assetsPath = (Get-Location).path + "\unity\KhViewer\Assets"
 
-$X86Path = "$buildPath\x86\telepresence-toolkit\unity\$configuration"
-$X64Path = "$buildPath\x64\telepresence-toolkit\unity\$configuration"
-Copy-Item "$X86Path\TelepresenceToolkitUnity.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$X64Path\TelepresenceToolkitUnity.dll" -Destination "$assetsPath\Editor"
+$x86Path = "$buildPath\x86\telepresence-toolkit\unity\$configuration"
+$x64Path = "$buildPath\x64\telepresence-toolkit\unity\$configuration"
+$editorPath = "$assetsPath\Editor"
+$uwpPluginPath = "$assetsPath\Plugins\WSA"
+
+Copy-Item "$x86Path\TelepresenceToolkitUnity.dll" -Destination $uwpPluginPath
+Copy-Item "$x64Path\TelepresenceToolkitUnity.dll" -Destination $editorPath
 
 $binPath = (Get-Location).path + "\bin"
-Copy-Item "$binPath\msvcp140.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$binPath\vcruntime140.dll" -Destination "$assetsPath\Plugins\WSA"
+Copy-Item "$binPath\msvcp140.dll" -Destination $uwpPluginPath
+Copy-Item "$binPath\vcruntime140.dll" -Destination $uwpPluginPath
 
-Copy-Item "$X86Path\avcodec-58.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$X86Path\avutil-56.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$X86Path\swresample-3.dll" -Destination "$assetsPath\Plugins\WSA"
-Copy-Item "$X86Path\opus.dll" -Destination "$assetsPath\Plugins\WSA"
+Copy-Item "$x86Path\avcodec-58.dll" -Destination $uwpPluginPath
+Copy-Item "$x86Path\avutil-56.dll" -Destination $uwpPluginPath
+Copy-Item "$x86Path\swresample-3.dll" -Destination $uwpPluginPath
+Copy-Item "$x86Path\opus.dll" -Destination $uwpPluginPath
 
-Copy-Item "$X64Path\avcodec-58.dll" -Destination "$assetsPath\Editor"
-Copy-Item "$X64Path\avutil-56.dll" -Destination "$assetsPath\Editor"
-Copy-Item "$X64Path\swresample-3.dll" -Destination "$assetsPath\Editor"
-Copy-Item "$X64Path\opus.dll" -Destination "$assetsPath\Editor"
+Copy-Item "$x64Path\avcodec-58.dll" -Destination $editorPath
+Copy-Item "$x64Path\avutil-56.dll" -Destination $editorPath
+Copy-Item "$x64Path\swresample-3.dll" -Destination $editorPath
+Copy-Item "$x64Path\opus.dll" -Destination $editorPath
 
 Pause

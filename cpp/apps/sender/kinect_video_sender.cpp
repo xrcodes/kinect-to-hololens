@@ -13,16 +13,16 @@ Vp8Encoder create_color_encoder(k4a::calibration calibration)
                       calibration.depth_camera_calibration.resolution_height};
 }
 
-TrvlEncoder create_depth_encoder(k4a::calibration calibration)
+tt::TrvlEncoder create_depth_encoder(k4a::calibration calibration)
 {
     constexpr short CHANGE_THRESHOLD{10};
     //constexpr int INVALID_THRESHOLD{2};
     // Tolerating invalid pixels leaves black colored points left when combined with RGBD mapping.
     constexpr int INVALID_THRESHOLD{1};
 
-    return TrvlEncoder{calibration.depth_camera_calibration.resolution_width *
-                       calibration.depth_camera_calibration.resolution_height,
-                       CHANGE_THRESHOLD, INVALID_THRESHOLD};
+    return tt::TrvlEncoder{calibration.depth_camera_calibration.resolution_width *
+                           calibration.depth_camera_calibration.resolution_height,
+                           CHANGE_THRESHOLD, INVALID_THRESHOLD};
 }
 
 int get_minimum_receiver_frame_id(std::unordered_map<int, RemoteReceiver>& remote_receivers)
@@ -146,10 +146,10 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
     const auto yuv_conversion_start{TimePoint::now()};
-    const auto yuv_image{createYuvFrameFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
-                                                                 color_image_from_depth_camera.get_width_pixels(),
-                                                                 color_image_from_depth_camera.get_height_pixels(),
-                                                                 color_image_from_depth_camera.get_stride_bytes())};
+    const auto yuv_image{tt::createYuvFrameFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
+                                                                     color_image_from_depth_camera.get_width_pixels(),
+                                                                     color_image_from_depth_camera.get_height_pixels(),
+                                                                     color_image_from_depth_camera.get_stride_bytes())};
     summary.yuv_conversion_ms_sum += yuv_conversion_start.elapsed_time().ms();
 
     // VP8 compress the color image.

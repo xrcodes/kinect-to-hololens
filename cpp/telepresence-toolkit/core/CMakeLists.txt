@@ -1,15 +1,15 @@
 add_library(TelepresenceToolkitCore
-  kh_core.h
-  kh_opus.h
-  kh_opus.cpp
-  kh_rvl.h
-  kh_rvl.cpp
-  kh_trvl.h
-  kh_trvl.cpp
-  kh_vp8_decoder.h
-  kh_vp8_decoder.cpp
-  kh_yuv.h
-  kh_yuv.cpp
+  tt_core.h
+  opus.h
+  opus.cpp
+  rvl.h
+  rvl.cpp
+  trvl.h
+  trvl.cpp
+  vp8_decoder.h
+  vp8_decoder.cpp
+  yuv.h
+  yuv.cpp
  )
 target_include_directories(TelepresenceToolkitCore PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

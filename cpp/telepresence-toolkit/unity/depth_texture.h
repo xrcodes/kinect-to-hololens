@@ -6,7 +6,7 @@
 #include <d3d11.h>
 #undef NOMINMAX
 
-namespace kh
+namespace tt
 {
 // A class for the texture for Kinect depth pixels.
 class DepthTexture

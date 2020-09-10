@@ -1,7 +1,6 @@
-#include "kh_opus.h"
+#include "opus.h"
 
-
-namespace kh
+namespace tt
 {
 AudioEncoder::AudioEncoder(int sample_rate, int channel_count, bool fec)
     : opus_encoder_{nullptr}

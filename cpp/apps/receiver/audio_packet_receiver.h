@@ -75,7 +75,7 @@ private:
     Audio audio_;
     AudioOutStream default_speaker_stream_;
 
-    AudioDecoder audio_decoder_;
+    tt::AudioDecoder audio_decoder_;
     std::array<float, KH_SAMPLES_PER_FRAME* KH_CHANNEL_COUNT> pcm_;
 
     int last_audio_frame_id_;

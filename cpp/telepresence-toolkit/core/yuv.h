@@ -1,9 +1,9 @@
 #pragma once
 
 #include <vector>
-#include "kh_vp8_decoder.h"
+#include "vp8_decoder.h"
 
-namespace kh
+namespace tt
 {
 // An class that contains color pixels in the YUV420 format which Vp8Encoder and Vp8Decoder like.
 // Data of this class is not supposed to be copy since it is computationally expensive.

@@ -61,7 +61,7 @@ private:
 
     Audio audio_;
     AudioInStream kinect_microphone_stream_;
-    AudioEncoder audio_encoder_;
+    tt::AudioEncoder audio_encoder_;
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm_;
     int audio_frame_id_;

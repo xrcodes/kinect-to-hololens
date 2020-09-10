@@ -6,7 +6,7 @@
 #undef NOMINMAX
 #include <gsl/gsl>
 
-namespace kh
+namespace tt
 {
 class TwoChannelTexture
 {

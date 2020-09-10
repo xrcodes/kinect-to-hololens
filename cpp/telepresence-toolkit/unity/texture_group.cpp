@@ -9,9 +9,9 @@ int next_texture_group_id_;
 void texture_group_init(int texture_group_id, ID3D11Device* device)
 {
     TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
-    texture_group->y_texture = std::make_unique<kh::ChannelTexture>(device, texture_group->width, texture_group->height);
-    texture_group->uv_texture = std::make_unique<kh::TwoChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
-    texture_group->depth_texture = std::make_unique<kh::DepthTexture>(device, texture_group->width, texture_group->height);
+    texture_group->y_texture = std::make_unique<tt::ChannelTexture>(device, texture_group->width, texture_group->height);
+    texture_group->uv_texture = std::make_unique<tt::TwoChannelTexture>(device, texture_group->width / 2, texture_group->height / 2);
+    texture_group->depth_texture = std::make_unique<tt::DepthTexture>(device, texture_group->width, texture_group->height);
 
     // Set the texture view variables, so Unity can create Unity textures that are connected to the textures through the texture views.
     texture_group->y_texture_view = texture_group->y_texture->getTextureView(device);
@@ -90,7 +90,7 @@ extern "C"
         texture_group->height = height;
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(TextureGroup* texture_group, kh::FFmpegFrame* ffmpeg_frame)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(TextureGroup* texture_group, tt::FFmpegFrame* ffmpeg_frame)
     {
         texture_group->ffmpeg_frame = std::move(*ffmpeg_frame);
     }

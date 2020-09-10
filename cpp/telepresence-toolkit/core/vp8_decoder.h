@@ -9,7 +9,7 @@ extern "C" {
 
 #include <gsl/gsl>
 
-namespace kh
+namespace tt
 {
 // A wrapper for AVFrame, the outcome of Vp8Decoder.
 class FFmpegFrame

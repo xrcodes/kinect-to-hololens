@@ -6,7 +6,7 @@
 #undef NOMINMAX
 #include <gsl/gsl>
 
-namespace kh
+namespace tt
 {
 // A class for a single channel of Kinect color pixels.
 // Three (Y, U, and V) ChannelTextures are required to represent the color pixels.

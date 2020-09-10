@@ -4,7 +4,7 @@
 #define NOMINMAX
 #include <d3d11.h>
 #undef NOMINMAX
-#include "core/kh_core.h"
+#include "core/tt_core.h"
 #include "channel_texture.h"
 #include "two_channel_texture.h"
 #include "depth_texture.h"
@@ -19,9 +19,9 @@ public:
     int height{0};
 
     // Instances of classes for Direct3D textures.
-    std::unique_ptr<kh::ChannelTexture> y_texture{nullptr};
-    std::unique_ptr<kh::TwoChannelTexture> uv_texture{nullptr};
-    std::unique_ptr<kh::DepthTexture> depth_texture{nullptr};
+    std::unique_ptr<tt::ChannelTexture> y_texture{nullptr};
+    std::unique_ptr<tt::TwoChannelTexture> uv_texture{nullptr};
+    std::unique_ptr<tt::DepthTexture> depth_texture{nullptr};
 
     // Unity connects Unity textures to Direct3D textures through creating Unity textures binded to these texture views.
     ID3D11ShaderResourceView* y_texture_view{nullptr};
@@ -29,8 +29,8 @@ public:
     ID3D11ShaderResourceView* depth_texture_view{nullptr};
 
     // These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
-    kh::FFmpegFrame ffmpeg_frame{nullptr};
-    std::unique_ptr<kh::TrvlDecoder> depth_decoder;
+    tt::FFmpegFrame ffmpeg_frame{nullptr};
+    std::unique_ptr<tt::TrvlDecoder> depth_decoder;
     std::vector<short> depth_pixels;
 
     TextureGroup(int id) : id{id} {};

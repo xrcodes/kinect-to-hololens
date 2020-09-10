@@ -42,7 +42,7 @@ public:
             }
         }
 
-        std::optional<kh::FFmpegFrame> ffmpeg_frame;
+        std::optional<tt::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
         const auto decoder_start{TimePoint::now()};
         for (int i = *begin_frame_id; ; ++i) {
@@ -66,7 +66,7 @@ public:
                                                             video_renderer_state.last_frame_time_point.elapsed_time().ms()), remote_endpoint_);
         video_renderer_state.last_frame_time_point = TimePoint::now();
 
-        auto color_mat{create_cv_mat_from_yuv_image(createYuvFrameFromFFmpegFrame(*ffmpeg_frame))};
+        auto color_mat{create_cv_mat_from_yuv_image(tt::createYuvFrameFromFFmpegFrame(*ffmpeg_frame))};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_image.data(), width_, height_)};
 
         // Rendering the depth pixels.
@@ -90,7 +90,7 @@ private:
     const asio::ip::udp::endpoint remote_endpoint_;
     int width_;
     int height_;
-    Vp8Decoder color_decoder_;
-    TrvlDecoder depth_decoder_;
+    tt::Vp8Decoder color_decoder_;
+    tt::TrvlDecoder depth_decoder_;
 };
 }

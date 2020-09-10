@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace kh
+namespace tt
 {
 ChannelTexture::ChannelTexture(ID3D11Device* device, int width, int height)
 	: width_(width), height_(height), texture_(nullptr)

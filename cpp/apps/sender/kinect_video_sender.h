@@ -42,7 +42,7 @@ private:
     k4a::calibration calibration_;
     k4a::transformation transformation_;
     Vp8Encoder color_encoder_;
-    TrvlEncoder depth_encoder_;
+    tt::TrvlEncoder depth_encoder_;
     OcclusionRemover occlusion_remover_;
     Samples::PointCloudGenerator point_cloud_generator_;
     int last_frame_id_;

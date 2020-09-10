@@ -7,7 +7,7 @@
 #include <gsl/gsl>
 #include <opus/opus.h>
 
-namespace kh
+namespace tt
 {
 class AudioEncoder
 {
