@@ -12,7 +12,7 @@ Vp8Encoder::Vp8Encoder(int width, int height)
 
     vpx_codec_err_t res = vpx_codec_enc_config_default(codec_interface(), &configuration, 0);
     if (res != VPX_CODEC_OK)
-        throw std::exception("Error from vpx_codec_enc_config_default.");
+        throw std::runtime_error("Error from vpx_codec_enc_config_default.");
 
     // From https://developers.google.com/media/vp9/live-encoding
     // See also https://www.webmproject.org/docs/encoder-parameters/
@@ -30,14 +30,14 @@ Vp8Encoder::Vp8Encoder(int width, int height)
 
     res = vpx_codec_enc_init(&codec_context_, codec_interface(), &configuration, 0);
     if (res != VPX_CODEC_OK)
-        throw std::exception("Error from vpx_codec_enc_init.");
+        throw std::runtime_error("Error from vpx_codec_enc_init.");
 
     vpx_codec_control(&codec_context_, VP8E_SET_CPUUSED, 6);
     vpx_codec_control(&codec_context_, VP8E_SET_STATIC_THRESHOLD, 0);
     vpx_codec_control(&codec_context_, VP8E_SET_MAX_INTRA_BITRATE_PCT, 300);
 
     if (!vpx_img_alloc(&image_, VPX_IMG_FMT_I420, configuration.g_w, configuration.g_h, 32))
-        throw std::exception("Error from vpx_img_alloc.");
+        throw std::runtime_error("Error from vpx_img_alloc.");
 }
 
 Vp8Encoder::~Vp8Encoder()
@@ -64,7 +64,7 @@ std::vector<std::byte> Vp8Encoder::encode(const tt::YuvFrame& yuv_image, bool ke
     const vpx_codec_err_t res{vpx_codec_encode(&codec_context_, &image_, frame_index_++, 1, flags, VPX_DL_REALTIME)};
 
     if (res != VPX_CODEC_OK)
-        throw std::exception("Error from vpx_codec_encode in Vp8Encoder::encode()...");
+        throw std::runtime_error("Error from vpx_codec_encode in Vp8Encoder::encode()...");
 
     vpx_codec_iter_t iter{nullptr};
     const vpx_codec_cx_pkt_t* pkt{nullptr};
@@ -72,7 +72,7 @@ std::vector<std::byte> Vp8Encoder::encode(const tt::YuvFrame& yuv_image, bool ke
     while (pkt = vpx_codec_get_cx_data(&codec_context_, &iter)) {
         if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
             if (!bytes.empty())
-                throw std::exception("Multiple frames found from a Vp8 packet...");
+                throw std::runtime_error("Multiple frames found from a Vp8 packet...");
 
             bytes.resize(pkt->data.frame.sz);
             memcpy(bytes.data(), (std::byte*)pkt->data.frame.buf, pkt->data.frame.sz);

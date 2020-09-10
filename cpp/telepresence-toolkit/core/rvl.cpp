@@ -108,7 +108,7 @@ std::vector<std::byte> compress(gsl::span<const std::int16_t> input, int num_pix
     // This is theoretically possible to happen since lossless compression does not guarantee reduction of size.
     // However, it is very unlikely to happen.
     if (size > num_pixels)
-        throw std::exception("RVL compression failed to reduce the size of its input.");
+        throw std::runtime_error("RVL compression failed to reduce the size of its input.");
     
     output.resize(size);
     output.shrink_to_fit();

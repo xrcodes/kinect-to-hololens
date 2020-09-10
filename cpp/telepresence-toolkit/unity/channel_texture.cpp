@@ -25,7 +25,7 @@ ChannelTexture::ChannelTexture(ID3D11Device* device, int width, int height)
 
     if (FAILED(hr)) {
         std::string str = "ChannelTexture::create failed, result: " + std::to_string(hr) + ", texture: " + std::to_string((uint64_t)texture_);
-        throw std::exception(str.c_str());
+        throw std::runtime_error(str.c_str());
     }
 }
 

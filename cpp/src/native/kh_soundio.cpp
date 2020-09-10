@@ -6,11 +6,11 @@ Audio::Audio()
     : ptr_(soundio_create())
 {
     if (!ptr_)
-        throw std::exception("Failed to construct Audio...");
+        throw std::runtime_error("Failed to construct Audio...");
 
     int err = soundio_connect(ptr_);
     if (err) {
-        throw std::exception("Failed to connect Audio...");
+        throw std::runtime_error("Failed to connect Audio...");
     }
 
     soundio_flush_events(ptr_);
@@ -80,7 +80,7 @@ AudioInStream::AudioInStream(AudioDevice& device)
     : ptr_(soundio_instream_create(device.get()))
 {
     if (!ptr_)
-        throw std::exception("Failed to construct AudioInStream...");
+        throw std::runtime_error("Failed to construct AudioInStream...");
 }
 
 AudioInStream::AudioInStream(AudioInStream&& other) noexcept
@@ -111,7 +111,7 @@ AudioOutStream::AudioOutStream(AudioDevice& device)
     : ptr_(soundio_outstream_create(device.get()))
 {
     if (!ptr_)
-        throw std::exception("Failed to construct AudioOutStream...");
+        throw std::runtime_error("Failed to construct AudioOutStream...");
 }
 
 AudioOutStream::AudioOutStream(AudioOutStream&& other) noexcept
@@ -149,6 +149,6 @@ AudioDevice find_kinect_microphone(const Audio& audio)
         }
     }
 
-    throw std::exception("Could not find a Kinect Microphone...");
+    throw std::runtime_error("Could not find a Kinect Microphone...");
 }
 }

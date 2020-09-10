@@ -231,7 +231,7 @@ AudioInStream create_kinect_microphone_stream(const Audio& audio)
     // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
     const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
     if (KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second)
-        throw std::exception("KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second");
+        throw std::runtime_error("KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second");
 
     return kinect_microphone_stream;
 }
@@ -252,7 +252,7 @@ AudioOutStream create_default_speaker_stream(const Audio& audio)
 
     const int default_speaker_bytes_per_second{default_speaker_stream.get()->sample_rate * default_speaker_stream.get()->bytes_per_frame};
     if (KH_BYTES_PER_SECOND != default_speaker_bytes_per_second)
-        throw std::exception("KH_BYTES_PER_SECOND != default_speaker_bytes_per_second");
+        throw std::runtime_error("KH_BYTES_PER_SECOND != default_speaker_bytes_per_second");
 
     return default_speaker_stream;
 }

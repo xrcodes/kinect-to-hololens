@@ -14,7 +14,7 @@ public:
         : codec_context_{avcodec_alloc_context3(codec)}
     {
         if (!codec_context_)
-            throw std::exception("Failed to construct Vp8Decoder::CodecContext...");
+            throw std::runtime_error("Failed to construct Vp8Decoder::CodecContext...");
     }
     CodecContext(const CodecContext&) = delete;
     CodecContext& operator=(const CodecContext&) = delete;
@@ -38,7 +38,7 @@ public:
         : codec_parser_context_{av_parser_init(codec_id)}
     {
         if (!codec_parser_context_)
-            throw std::exception("Failed to construct Vp8Decoder::CodecParserContext...");
+            throw std::runtime_error("Failed to construct Vp8Decoder::CodecParserContext...");
     }
     CodecParserContext(const CodecParserContext&) = delete;
     CodecParserContext& operator=(const CodecParserContext&) = delete;
@@ -62,7 +62,7 @@ public:
         : packet_{av_packet_alloc()}
     {
         if (!packet_)
-            throw std::exception("Failed to construct Vp8Decoder::Packet...");
+            throw std::runtime_error("Failed to construct Vp8Decoder::Packet...");
     }
     Packet(const Packet&) = delete;
     Packet& operator=(const Packet&) = delete;
@@ -85,7 +85,7 @@ AVCodec* find_vp8_codec()
 {
     auto codec = avcodec_find_decoder(AV_CODEC_ID_VP8);
     if (!codec)
-        throw std::exception("find_codec for Vp8Decoder failed...");
+        throw std::runtime_error("find_codec for Vp8Decoder failed...");
     return codec;
 }
 
@@ -93,12 +93,12 @@ AVCodec* find_vp8_codec()
 void decode_packet(AVCodecContext* codec_context, AVPacket* packet, std::vector<FFmpegFrame>& decoder_frames)
 {
     if (avcodec_send_packet(codec_context, packet) < 0)
-        throw std::exception("Error from avcodec_send_packet.");
+        throw std::runtime_error("Error from avcodec_send_packet.");
 
     while (true) {
         auto av_frame = av_frame_alloc();
         if (!av_frame)
-            throw std::exception("Error from av_frame_alloc.");
+            throw std::runtime_error("Error from av_frame_alloc.");
 
         av_frame->format = AV_PIX_FMT_YUV420P;
 
@@ -106,7 +106,7 @@ void decode_packet(AVCodecContext* codec_context, AVPacket* packet, std::vector<
         if (receive_frame_result == AVERROR(EAGAIN) || receive_frame_result == AVERROR_EOF) {
             return;
         } else if (receive_frame_result < 0) {
-            throw std::exception("Error from avcodec_receive_frame.");
+            throw std::runtime_error("Error from avcodec_receive_frame.");
         }
 
         fflush(stdout);
@@ -121,7 +121,7 @@ Vp8Decoder::Vp8Decoder()
     , packet_{std::make_shared<Packet>()}
 {
     if (avcodec_open2(codec_context_->get(), codec_context_->get()->codec, nullptr) < 0)
-        throw std::exception("Error from avcodec_open2.");
+        throw std::runtime_error("Error from avcodec_open2.");
 }
 
 // Decode frames in vp8_frame_data.
@@ -145,7 +145,7 @@ FFmpegFrame Vp8Decoder::decode(gsl::span<const std::byte> vp8_frame)
             data, gsl::narrow_cast<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
 
         if (size < 0)
-            throw std::exception("Error from av_parser_parse2.");
+            throw std::runtime_error("Error from av_parser_parse2.");
         
         data += size;
         data_size -= size;
@@ -155,7 +155,7 @@ FFmpegFrame Vp8Decoder::decode(gsl::span<const std::byte> vp8_frame)
     }
 
     if (decoder_frames.size() != 1)
-        throw std::exception("More or less than one frame found in Vp8Decoder::decode.");
+        throw std::runtime_error("More or less than one frame found in Vp8Decoder::decode.");
 
     return std::move(decoder_frames[0]);
 }

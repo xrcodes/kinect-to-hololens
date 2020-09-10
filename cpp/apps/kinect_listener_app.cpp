@@ -21,7 +21,7 @@ int start()
 
     soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
     if (!soundio_callback::ring_buffer)
-        throw std::exception("Failed in soundio_ring_buffer_create()...");
+        throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
     
     char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer)};
     constexpr int fill_count{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * KH_BYTES_PER_SECOND)};

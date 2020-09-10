@@ -26,7 +26,7 @@ DepthTexture::DepthTexture(ID3D11Device* device, int width, int height)
 
     if (FAILED(hr)) {
         std::string str = "DepthTexture::DepthTexture failed, result: " + std::to_string(hr) + ", texture: " + std::to_string((uint64_t)texture_);
-        throw std::exception(str.c_str());
+        throw std::runtime_error(str.c_str());
     }
 }
 
@@ -55,7 +55,7 @@ void DepthTexture::updatePixels(ID3D11Device* device,
 	HRESULT hr = device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 	if (FAILED(hr)) {
 		std::string str = "DepthTexture::updatePixels failed, result: " + std::to_string(hr) + ", texture: " + std::to_string((uint64_t)texture_);
-		throw std::exception(str.c_str());
+		throw std::runtime_error(str.c_str());
 	}
 
 	// row_pitch should be divided by two to support uint16* since mapped.RowPitch is for bytes.

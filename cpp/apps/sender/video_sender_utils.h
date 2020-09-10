@@ -1,9 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
 #include "native/kh_native.h"
-#include "remote_receiver.h"
 
 namespace kh
 {
