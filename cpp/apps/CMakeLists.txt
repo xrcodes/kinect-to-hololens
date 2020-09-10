@@ -30,7 +30,6 @@ add_executable(KinectSenderApp
   kinect_sender_app.cpp
   helper/soundio_helper.h
   sender/kinect_audio_sender.h
-  sender/remote_receiver.h
   resources/KinectSenderApp.rc
 )
 target_include_directories(KinectSenderApp PRIVATE
