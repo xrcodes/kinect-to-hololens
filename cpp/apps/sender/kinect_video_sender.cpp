@@ -73,26 +73,24 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
         return;
     }
 
-    // Try obtaining floor.
-    const auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
-
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
     last_frame_time_ = kinect_frame->time_point;
 
-    // Remove the depth pixels that may not have corresponding color information available.
+    // Invalidate RGBD occluded depth pixels.
     auto occlusion_removal_start{tt::TimePoint::now()};
     gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
-                                        gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())};
+                                        kinect_frame->depth_image.get_size()};
+
     occlusion_remover_.remove(depth_image_span);
     summary.occlusion_removal_ms_sum += occlusion_removal_start.elapsed_time().ms();
 
-    // Transform the color image to match the depth image in a pixel by pixel manner.
+    // Map color pixels to depth pixels.
     auto transformation_start{tt::TimePoint::now()};
     const auto color_image_from_depth_camera{transformation_.color_image_to_depth_camera(kinect_frame->depth_image, kinect_frame->color_image)};
     summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
 
-    // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
+    // Convert Kinect color pixels from BGRA to YUV420 for VP8.
     const auto yuv_conversion_start{tt::TimePoint::now()};
     const auto yuv_image{tt::createYuvFrameFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
                                                                      color_image_from_depth_camera.get_width_pixels(),
@@ -100,16 +98,28 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
                                                                      color_image_from_depth_camera.get_stride_bytes())};
     summary.yuv_conversion_ms_sum += yuv_conversion_start.elapsed_time().ms();
 
-    // VP8 compress the color image.
+    // VP8 compress color pixels.
     const auto color_encoder_start{tt::TimePoint::now()};
     const auto vp8_frame{color_encoder_.encode(yuv_image, keyframe)};
     summary.color_encoder_ms_sum += color_encoder_start.elapsed_time().ms();
 
-    // TRVL compress the depth image.
+    // TRVL compress depth pixels.
     const auto depth_encoder_start{tt::TimePoint::now()};
     const auto depth_encoder_frame{depth_encoder_.encode(depth_image_span, keyframe)};
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
+    // Try obtaining floor.
+    const auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
+
+    // Updating variables for profiling.
+    if (keyframe)
+        ++summary.keyframe_count;
+    ++summary.frame_count;
+    summary.color_byte_count += gsl::narrow_cast<int>(vp8_frame.size());
+    summary.depth_byte_count += gsl::narrow_cast<int>(depth_encoder_frame.size());
+    summary.frame_id = last_frame_id_;
+
+    // TODO: Split the code below from code above.
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(kinect_frame->time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor_plane)};
@@ -118,7 +128,7 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
     
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
-    std::vector<std::vector<std::byte>*> packet_bytes_ptrs;
+    std::vector<Bytes*> packet_bytes_ptrs;
     for (auto& video_packet_bytes : video_packet_bytes_set)
         packet_bytes_ptrs.push_back(&video_packet_bytes);
     
@@ -137,13 +147,5 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
 
     // Save video/parity packet bytes for retransmission. 
     video_parity_packet_storage.add(last_frame_id_, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
-
-    // Updating variables for profiling.
-    if (keyframe)
-        ++summary.keyframe_count;
-    ++summary.frame_count;
-    summary.color_byte_count += gsl::narrow_cast<int>(vp8_frame.size());
-    summary.depth_byte_count += gsl::narrow_cast<int>(depth_encoder_frame.size());
-    summary.frame_id = last_frame_id_;
 }
 }
