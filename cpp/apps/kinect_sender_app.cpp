@@ -8,6 +8,7 @@
 #include "sender/receiver_packet_receiver.h"
 #include "native/imgui_wrapper.h"
 #include "helper/filesystem_helper.h"
+#include "native/profiler.h"
 
 namespace kh
 {
@@ -71,7 +72,7 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
 
     // Skip a frame if there is no new receiver that requires a frame to start
     // and the sender is too much ahead of the receivers.
-    const bool is_ready{(frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1)};
+    const bool is_ready{(frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) > std::pow(2, frame_id_diff - 1)};
 
     // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
     const bool keyframe{frame_id_diff > 5};
@@ -162,19 +163,21 @@ void log_receiver_report_summary(ExampleAppLog& log, ReceiverReportSummary summa
     log.AddLog("  Frame Interval Time Average: %f ms\n", summary.frame_interval_ms_sum / summary.received_report_count);
 }
 
-void log_video_pipeline_summary(ExampleAppLog& log, VideoPipelineSummary summary, tt::TimeDuration duration)
+void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, Profiler& profiler)
 {
+    auto elapsed_time{profiler.getElapsedTime()};
     log.AddLog("VideoPipeline Summary:\n");
-    log.AddLog("  Frame ID: %d\n", summary.frame_id);
-    log.AddLog("  FPS: %f\n", summary.frame_count / duration.sec());
-    log.AddLog("  Color Bandwidth: %f Mbps\n", summary.color_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
-    log.AddLog("  Depth Bandwidth: %f Mbps\n", summary.depth_byte_count / duration.sec() / (1024.0f * 1024.0f / 8.0f));
-    log.AddLog("  Keyframe Ratio: %f\n", static_cast<float>(summary.keyframe_count) / summary.frame_count);
-    log.AddLog("  Occlusion Removal Time Average: %f\n", summary.occlusion_removal_ms_sum / summary.frame_count);
-    log.AddLog("  Transformation Time Average: %f\n", summary.transformation_ms_sum / summary.frame_count);
-    log.AddLog("  Yuv Conversion Time Average: %f\n", summary.yuv_conversion_ms_sum / summary.frame_count);
-    log.AddLog("  Color Encoder Time Average: %f\n", summary.color_encoder_ms_sum / summary.frame_count);
-    log.AddLog("  Depth Encoder Time Average: %f\n", summary.depth_encoder_ms_sum / summary.frame_count);
+    log.AddLog("  Frame ID: %d\n", last_frame_id);
+    log.AddLog("  FPS: %f\n", profiler.getNumber("pipeline-frame") / elapsed_time.sec());
+    log.AddLog("  Color Bandwidth: %f Mbps\n", profiler.getNumber("pipeline-vp8byte") / elapsed_time.sec() / (1024.0f * 1024.0f / 8.0f));
+    log.AddLog("  Depth Bandwidth: %f Mbps\n", profiler.getNumber("pipeline-trvlbyte") / elapsed_time.sec() / (1024.0f * 1024.0f / 8.0f));
+    log.AddLog("  Keyframe Ratio: %f\n", profiler.getNumber("pipeline-keyframe") / profiler.getNumber("pipeline-frame"));
+    log.AddLog("  Occlusion Removal Time Average: %f\n", profiler.getNumber("pipeline-occlusion") / profiler.getNumber("pipeline-frame"));
+    log.AddLog("  Transformation Time Average: %f\n", profiler.getNumber("pipeline-mapping") / profiler.getNumber("pipeline-frame"));
+    log.AddLog("  Yuv Conversion Time Average: %f\n", profiler.getNumber("pipeline-yuv") / profiler.getNumber("pipeline-frame"));
+    log.AddLog("  Color Encoder Time Average: %f\n", profiler.getNumber("pipeline-vp8") / profiler.getNumber("pipeline-frame"));
+    log.AddLog("  Depth Encoder Time Average: %f\n", profiler.getNumber("pipeline-trvl") / profiler.getNumber("pipeline-frame"));
+    log.AddLog("  Floor Detection Time Average: %f\n", profiler.getNumber("pipeline-floor") / profiler.getNumber("pipeline-frame"));
 }
 
 void start(KinectInterface& kinect_interface)
@@ -227,7 +230,6 @@ void start(KinectInterface& kinect_interface)
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
 
     VideoPipeline video_pipeline{calibration};
-    VideoPipelineSummary video_pipeline_summary;
     
     std::unique_ptr<KinectAudioSender> kinect_audio_sender{nullptr};
     if (kinect_interface.isDevice())
@@ -240,6 +242,8 @@ void start(KinectInterface& kinect_interface)
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
     std::mt19937 random_number_generator{std::random_device{}()};
+
+    Profiler profiler;
 
     // Our state
     ExampleAppLog log;
@@ -309,7 +313,7 @@ void start(KinectInterface& kinect_interface)
                     // Try getting a Kinect frame.
                     auto kinect_frame{kinect_interface.getFrame()};
                     if (kinect_frame) {
-                        auto result{video_pipeline.process(*kinect_frame, keyframe, video_pipeline_summary)};
+                        auto result{video_pipeline.process(*kinect_frame, keyframe, profiler)};
                         send_video_message(result, session_start_time, calibration,
                                            session_id, udp_socket, video_parity_packet_storage,
                                            remote_receivers, random_number_generator);
@@ -360,12 +364,12 @@ void start(KinectInterface& kinect_interface)
         }
 
         const auto summary_duration{receiver_report_summary.time_point.elapsed_time()};
-        if (summary_duration.sec() > SUMMARY_INTERVAL_SEC) {
+        if (profiler.getElapsedTime().sec() > SUMMARY_INTERVAL_SEC) {
             log_receiver_report_summary(log, receiver_report_summary, summary_duration);
             receiver_report_summary = ReceiverReportSummary{};
 
-            log_video_pipeline_summary(log, video_pipeline_summary, summary_duration);
-            video_pipeline_summary = VideoPipelineSummary{};
+            log_video_pipeline_summary(log, video_pipeline.last_frame_id(), profiler);
+            profiler.reset();
         }
     });
 }

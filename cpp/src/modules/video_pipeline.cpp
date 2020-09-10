@@ -58,7 +58,7 @@ VideoPipeline::VideoPipeline(k4a::calibration calibration)
 
 VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
                                           bool keyframe,
-                                          VideoPipelineSummary& summary)
+                                          Profiler& profiler)
 {
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
@@ -70,12 +70,12 @@ VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
                                         kinect_frame.depth_image.get_size()};
 
     occlusion_remover_.remove(depth_image_span);
-    summary.occlusion_removal_ms_sum += occlusion_removal_start.elapsed_time().ms();
+    profiler.addNumber("pipeline-occlusion", occlusion_removal_start.elapsed_time().ms());
 
     // Map color pixels to depth pixels.
     auto transformation_start{tt::TimePoint::now()};
     const auto color_image_from_depth_camera{transformation_.color_image_to_depth_camera(kinect_frame.depth_image, kinect_frame.color_image)};
-    summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
+    profiler.addNumber("pipeline-mapping", transformation_start.elapsed_time().ms());
 
     // Convert Kinect color pixels from BGRA to YUV420 for VP8.
     const auto yuv_conversion_start{tt::TimePoint::now()};
@@ -83,28 +83,28 @@ VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
                                                                      color_image_from_depth_camera.get_width_pixels(),
                                                                      color_image_from_depth_camera.get_height_pixels(),
                                                                      color_image_from_depth_camera.get_stride_bytes())};
-    summary.yuv_conversion_ms_sum += yuv_conversion_start.elapsed_time().ms();
+    profiler.addNumber("pipeline-yuv", yuv_conversion_start.elapsed_time().ms());
 
     // VP8 compress color pixels.
     const auto color_encoder_start{tt::TimePoint::now()};
     const auto vp8_frame{color_encoder_.encode(yuv_image, keyframe)};
-    summary.color_encoder_ms_sum += color_encoder_start.elapsed_time().ms();
+    profiler.addNumber("pipeline-vp8", color_encoder_start.elapsed_time().ms());
 
     // TRVL compress depth pixels.
     const auto depth_encoder_start{tt::TimePoint::now()};
     const auto trvl_frame{depth_encoder_.encode(depth_image_span, keyframe)};
-    summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
+    profiler.addNumber("pipeline-trvl", depth_encoder_start.elapsed_time().ms());
 
     // Try obtaining floor.
+    const auto floor_start{tt::TimePoint::now()};
     const auto floor{detect_floor_plane_from_kinect_frame(point_cloud_generator_, kinect_frame, calibration_)};
+    profiler.addNumber("pipeline-floor", depth_encoder_start.elapsed_time().ms());
 
     // Updating variables for profiling.
-    if (keyframe)
-        ++summary.keyframe_count;
-    ++summary.frame_count;
-    summary.color_byte_count += gsl::narrow_cast<int>(vp8_frame.size());
-    summary.depth_byte_count += gsl::narrow_cast<int>(trvl_frame.size());
-    summary.frame_id = last_frame_id_;
+    profiler.addNumber("pipeline-frame", 1);
+    profiler.addNumber("pipeline-keyframe", keyframe ? 1 : 0);
+    profiler.addNumber("pipeline-vp8byte", vp8_frame.size());
+    profiler.addNumber("pipeline-trvlbyte", trvl_frame.size());
 
     return VideoPipelineFrame{last_frame_id_, kinect_frame.time_point, keyframe, vp8_frame, trvl_frame, floor};
 }

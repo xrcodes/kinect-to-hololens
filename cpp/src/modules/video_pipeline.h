@@ -1,6 +1,7 @@
 #pragma once
 
 #include "native/kh_native.h"
+#include "native/profiler.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
 #include "external/azure-kinect-samples/PointCloudGenerator.h"
@@ -8,21 +9,6 @@
 
 namespace kh
 {
-struct VideoPipelineSummary
-{
-    tt::TimePoint start_time{tt::TimePoint::now()};
-    float occlusion_removal_ms_sum{0.0f};
-    float transformation_ms_sum{0.0f};
-    float yuv_conversion_ms_sum{0.0f};
-    float color_encoder_ms_sum{0.0f};
-    float depth_encoder_ms_sum{0.0f};
-    int frame_count{0};
-    int color_byte_count{0};
-    int depth_byte_count{0};
-    int keyframe_count{0};
-    int frame_id{0};
-};
-
 struct VideoPipelineFrame
 {
     int frame_id{0};
@@ -42,7 +28,7 @@ public:
     tt::TimePoint last_frame_time() { return last_frame_time_; }
     VideoPipelineFrame process(KinectFrame& kinect_frame,
                                bool keyframe,
-                               VideoPipelineSummary& summary);
+                               Profiler& profiler);
 private:
     k4a::calibration calibration_;
     k4a::transformation transformation_;
