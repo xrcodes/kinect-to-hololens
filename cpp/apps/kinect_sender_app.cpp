@@ -92,30 +92,30 @@ void send_video_message(VideoPipelineFrame& video_frame,
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
-    auto video_packet_bytes_set{split_video_sender_message_bytes(session_id, video_frame.frame_id, message_bytes)};
-    auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
+    auto video_packets{split_video_sender_message_bytes(session_id, video_frame.frame_id, message_bytes)};
+    auto parity_packets{create_parity_sender_packets(session_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packets)};
 
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
-    std::vector<Bytes*> packet_bytes_ptrs;
-    for (auto& video_packet_bytes : video_packet_bytes_set)
-        packet_bytes_ptrs.push_back(&video_packet_bytes);
+    std::vector<Packet*> packet_ptrs;
+    for (auto& video_packet : video_packets)
+        packet_ptrs.push_back(&video_packet);
 
-    for (auto& parity_packet_bytes : parity_packet_bytes_set)
-        packet_bytes_ptrs.push_back(&parity_packet_bytes);
+    for (auto& parity_packet : parity_packets)
+        packet_ptrs.push_back(&parity_packet);
 
-    std::shuffle(packet_bytes_ptrs.begin(), packet_bytes_ptrs.end(), rng);
+    std::shuffle(packet_ptrs.begin(), packet_ptrs.end(), rng);
     for (auto& [_, remote_receiver] : remote_receivers) {
         if (!remote_receiver.video_requested)
             continue;
 
-        for (auto& packet_bytes_ptr : packet_bytes_ptrs) {
-            udp_socket.send(*packet_bytes_ptr, remote_receiver.endpoint);
+        for (auto& packet_bytes_ptr : packet_ptrs) {
+            udp_socket.send(packet_bytes_ptr->bytes, remote_receiver.endpoint);
         }
     }
 
     // Save video/parity packet bytes for retransmission. 
-    video_parity_packet_storage.add(video_frame.frame_id, std::move(video_packet_bytes_set), std::move(parity_packet_bytes_set));
+    video_parity_packet_storage.add(video_frame.frame_id, std::move(video_packets), std::move(parity_packets));
 }
 
 // Update receiver_state and summary with Report packets.
@@ -149,10 +149,10 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
             continue;
 
         for (int packet_index : request_receiver_packet_data.video_packet_indices)
-            udp_socket.send(video_packet_storage.get(frame_id).video_packet_byte_set[packet_index], remote_endpoint);
+            udp_socket.send(video_packet_storage.get(frame_id).video_packets[packet_index].bytes, remote_endpoint);
 
         for (int packet_index : request_receiver_packet_data.parity_packet_indices)
-            udp_socket.send(video_packet_storage.get(frame_id).parity_packet_byte_set[packet_index], remote_endpoint);
+            udp_socket.send(video_packet_storage.get(frame_id).parity_packets[packet_index].bytes, remote_endpoint);
     }
 }
 

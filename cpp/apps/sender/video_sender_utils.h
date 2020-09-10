@@ -12,13 +12,13 @@ struct VideoPacketByteSet
 {
     const int frame_id;
     const tt::TimePoint creation_time_point;
-    std::vector<Bytes> video_packet_byte_set;
-    std::vector<Bytes> parity_packet_byte_set;
+    std::vector<Packet> video_packets;
+    std::vector<Packet> parity_packets;
 
     VideoPacketByteSet(int frame_id,
-                       std::vector<std::vector<std::byte>>&& video_packet_byte_set,
-                       std::vector<std::vector<std::byte>>&& parity_packet_byte_set)
-        : frame_id{frame_id}, creation_time_point{tt::TimePoint::now()}, video_packet_byte_set{video_packet_byte_set}, parity_packet_byte_set{parity_packet_byte_set}
+                       std::vector<Packet>&& video_packets,
+                       std::vector<Packet>&& parity_packets)
+        : frame_id{frame_id}, creation_time_point{tt::TimePoint::now()}, video_packets{video_packets}, parity_packets{parity_packets}
     {
     }
 };
@@ -31,13 +31,9 @@ public:
     {
     }
 
-    void add(int frame_id,
-             std::vector<std::vector<std::byte>>&& video_packet_byte_set,
-             std::vector<std::vector<std::byte>>&& parity_packet_byte_set)
+    void add(int frame_id, std::vector<Packet>&& video_packets, std::vector<Packet>&& parity_packets)
     {
-        video_packet_byte_sets_.insert({frame_id, VideoPacketByteSet(frame_id,
-                                                                     std::move(video_packet_byte_set),
-                                                                     std::move(parity_packet_byte_set))});
+        video_packet_byte_sets_.insert({frame_id, VideoPacketByteSet(frame_id, std::move(video_packets), std::move(parity_packets))});
     }
 
     bool has(int frame_id)
