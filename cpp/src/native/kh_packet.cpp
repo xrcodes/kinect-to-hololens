@@ -14,88 +14,33 @@ SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::b
     return copy_from_bytes<SenderPacketType>(packet_bytes, 4);
 }
 
-std::vector<std::byte> create_confirm_sender_packet_bytes(int session_id, int receiver_session_id)
+Packet create_confirm_sender_packet(int session_id, int receiver_session_id)
 {
-
-
-
-
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(SenderPacketType) +
                                                     sizeof(receiver_session_id))};
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet{packet_size};
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(SenderPacketType::Confirm, packet_bytes, cursor);
-    copy_to_bytes(receiver_session_id, packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(SenderPacketType::Confirm, packet, cursor);
+    copy_to_packet(receiver_session_id, packet, cursor);
 
-    return packet_bytes;
+    return packet;
 }
 
-std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id)
+Packet create_heartbeat_sender_packet(int session_id)
 {
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(SenderPacketType))};
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet(packet_size);
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(SenderPacketType::Heartbeat, packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(SenderPacketType::Heartbeat, packet, cursor);
 
-    return packet_bytes;
+    return packet;
 }
-/*
-VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration)
-{
-    VideoInitSenderPacketData video_init_sender_packet_data;
-    video_init_sender_packet_data.width = calibration.depth_camera_calibration.resolution_width;
-    video_init_sender_packet_data.height = calibration.depth_camera_calibration.resolution_height;
-    // color_camera_calibration.intrinsics.parameters.param includes metric radius, but actually it is zero.
-    // The real metric_radius value for calibration is at color_camera_calibration.metric_radius.
-    video_init_sender_packet_data.cx = calibration.depth_camera_calibration.intrinsics.parameters.param.cx;
-    video_init_sender_packet_data.cy = calibration.depth_camera_calibration.intrinsics.parameters.param.cy;
-    video_init_sender_packet_data.fx = calibration.depth_camera_calibration.intrinsics.parameters.param.fx;
-    video_init_sender_packet_data.fy = calibration.depth_camera_calibration.intrinsics.parameters.param.fy;
-    video_init_sender_packet_data.k1 = calibration.depth_camera_calibration.intrinsics.parameters.param.k1;
-    video_init_sender_packet_data.k2 = calibration.depth_camera_calibration.intrinsics.parameters.param.k2;
-    video_init_sender_packet_data.k3 = calibration.depth_camera_calibration.intrinsics.parameters.param.k3;
-    video_init_sender_packet_data.k4 = calibration.depth_camera_calibration.intrinsics.parameters.param.k4;
-    video_init_sender_packet_data.k5 = calibration.depth_camera_calibration.intrinsics.parameters.param.k5;
-    video_init_sender_packet_data.k6 = calibration.depth_camera_calibration.intrinsics.parameters.param.k6;
-    video_init_sender_packet_data.codx = calibration.depth_camera_calibration.intrinsics.parameters.param.codx;
-    video_init_sender_packet_data.cody = calibration.depth_camera_calibration.intrinsics.parameters.param.cody;
-    video_init_sender_packet_data.p1 = calibration.depth_camera_calibration.intrinsics.parameters.param.p1;
-    video_init_sender_packet_data.p2 = calibration.depth_camera_calibration.intrinsics.parameters.param.p2;
-    video_init_sender_packet_data.max_radius_for_projection = calibration.depth_camera_calibration.metric_radius;
-
-    return video_init_sender_packet_data;
-}
-
-std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, const VideoInitSenderPacketData& video_init_sender_packet_data)
-{
-    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                    sizeof(SenderPacketType) +
-                                                    sizeof(VideoInitSenderPacketData))};
-
-    std::vector<std::byte> packet_bytes(packet_size);
-    PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(SenderPacketType::VideoInit, packet_bytes, cursor);
-    copy_to_bytes(video_init_sender_packet_data, packet_bytes, cursor);
-
-    return packet_bytes;
-}
-
-VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
-{
-    VideoInitSenderPacketData init_sender_packet_data;
-    PacketCursor cursor{5};
-    copy_from_bytes(init_sender_packet_data, packet_bytes, cursor);
-
-    return init_sender_packet_data;
-}
-*/
 
 std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
                                                          const k4a::calibration& calibration,
@@ -191,7 +136,7 @@ std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_i
 
 Packet create_video_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content)
 {
-    Packet packet(KH_PACKET_SIZE);
+    Packet packet{KH_PACKET_SIZE};
     PacketCursor cursor;
     copy_to_packet(session_id, packet, cursor);
     copy_to_packet(SenderPacketType::Video, packet, cursor);
@@ -349,23 +294,22 @@ ParitySenderPacketData parse_parity_sender_packet_bytes(gsl::span<const std::byt
     return parity_sender_packet_data;
 }
 
-std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
-                                                        gsl::span<const std::byte> opus_frame)
+Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame)
 {
     const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                 sizeof(SenderPacketType) +
                                                 sizeof(frame_id) +
                                                 opus_frame.size())};
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet(packet_size);
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(SenderPacketType::Audio, packet_bytes, cursor);
-    copy_to_bytes(frame_id, packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(SenderPacketType::Audio, packet, cursor);
+    copy_to_packet(frame_id, packet, cursor);
 
-    memcpy(packet_bytes.data() + cursor.position, opus_frame.data(), opus_frame.size());
+    memcpy(packet.bytes.data() + cursor.position, opus_frame.data(), opus_frame.size());
 
-    return packet_bytes;
+    return packet;
 }
 
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)

@@ -48,7 +48,7 @@ public:
             opus_frame.resize(opus_frame_size);
             for (auto& [_, remote_receiver] : remote_receivers) {
                 if(remote_receiver.audio_requested)
-                    udp_socket.send(create_audio_sender_packet_bytes(session_id_, audio_frame_id_++, opus_frame), remote_receiver.endpoint);
+                    udp_socket.send(create_audio_sender_packet(session_id_, audio_frame_id_++, opus_frame).bytes, remote_receiver.endpoint);
             }
             cursor += BYTES_PER_FRAME;
         }

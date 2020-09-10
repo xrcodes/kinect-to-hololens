@@ -111,9 +111,9 @@ struct ConfirmSenderPacketData
     int receiver_session_id{0};
 };
 
-std::vector<std::byte> create_confirm_sender_packet_bytes(int session_id, int receiver_session_id);
+Packet create_confirm_sender_packet(int session_id, int receiver_session_id);
 
-std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
+Packet create_heartbeat_sender_packet(int session_id);
 
 struct VideoSenderMessageData
 {
@@ -181,8 +181,7 @@ struct AudioSenderPacketData
     std::vector<std::byte> opus_frame;
 };
 
-std::vector<std::byte> create_audio_sender_packet_bytes(int session_id, int frame_id,
-                                                        gsl::span<const std::byte> opus_frame);
+Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame);
 AudioSenderPacketData parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 /**Receiver Packets**/

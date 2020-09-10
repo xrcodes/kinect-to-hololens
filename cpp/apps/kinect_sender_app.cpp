@@ -288,7 +288,7 @@ void start(KinectInterface& kinect_interface)
             // Then, create ReceiverState with it.
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
                 // Send packet confirming the receiver that the connect packet got received.
-                udp_socket.send(create_confirm_sender_packet_bytes(session_id, connect_packet_info.receiver_session_id), connect_packet_info.receiver_endpoint);
+                udp_socket.send(create_confirm_sender_packet(session_id, connect_packet_info.receiver_session_id).bytes, connect_packet_info.receiver_endpoint);
 
                 // Skip already existing receivers.
                 if (remote_receivers.find(connect_packet_info.receiver_session_id) != remote_receivers.end())
@@ -309,7 +309,7 @@ void start(KinectInterface& kinect_interface)
                 // Send heartbeat packets to receivers.
                 if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& [_, remote_receiver] : remote_receivers)
-                        udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_receiver.endpoint);
+                        udp_socket.send(create_heartbeat_sender_packet(session_id).bytes, remote_receiver.endpoint);
                     last_heartbeat_time = tt::TimePoint::now();
                 }
 
