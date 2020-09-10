@@ -28,10 +28,10 @@ struct ReceiverPacketCollection
 class ReceiverPacketReceiver
 {
 public:
-    static ReceiverPacketCollection receive(UdpSocket& udp_socket, std::vector<int>& receiver_session_ids)
+    static ReceiverPacketCollection receive(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
     {
         ReceiverPacketCollection receiver_packet_collection;
-        for (int receiver_session_id : receiver_session_ids)
+        for (auto& [receiver_session_id, _] : remote_receivers)
             receiver_packet_collection.receiver_packet_sets.insert({receiver_session_id, ReceiverPacketSet{}});
 
         while (auto packet{udp_socket.receive()}) {

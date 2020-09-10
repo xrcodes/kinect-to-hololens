@@ -60,7 +60,7 @@ std::optional<KinectFrame> KinectDevice::getFrame()
     if (!device_.get_imu_sample(&imu_sample, timeout_))
         return std::nullopt;
 
-    return KinectFrame{std::move(color_image), std::move(depth_image), std::move(imu_sample)};
+    return KinectFrame{tt::TimePoint::now(), std::move(color_image), std::move(depth_image), std::move(imu_sample)};
 }
 
 KinectPlayback::KinectPlayback(const std::string& path)
@@ -107,6 +107,6 @@ std::optional<KinectFrame> KinectPlayback::getFrame()
     if (!playback_.get_next_imu_sample(&imu_sample))
         return std::nullopt;
 
-    return KinectFrame{std::move(color_image), std::move(depth_image), std::move(imu_sample)};
+    return KinectFrame{tt::TimePoint::now(), std::move(color_image), std::move(depth_image), std::move(imu_sample)};
 }
 }

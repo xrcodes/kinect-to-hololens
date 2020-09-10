@@ -118,7 +118,7 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
-    last_frame_time_ = tt::TimePoint::now();
+    last_frame_time_ = kinect_frame->time_point;
 
     // Remove the depth pixels that may not have corresponding color information available.
     auto occlusion_removal_start{tt::TimePoint::now()};
@@ -151,7 +151,7 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
     // Create video/parity packet bytes.
-    const float video_frame_time_stamp{(tt::TimePoint::now() - session_start_time).ms()};
+    const float video_frame_time_stamp{(kinect_frame->time_point - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor_plane)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};

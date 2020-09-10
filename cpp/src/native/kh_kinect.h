@@ -6,11 +6,13 @@
 #pragma warning(disable: 26812)
 #include <k4arecord/playback.hpp>
 #pragma warning(pop)
+#include "core/tt_core.h"
 
 namespace kh
 {
 struct KinectFrame
 {
+    tt::TimePoint time_point;
     k4a::image color_image;
     k4a::image depth_image;
     k4a_imu_sample_t imu_sample;

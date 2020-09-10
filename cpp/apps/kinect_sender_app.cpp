@@ -10,6 +10,37 @@
 
 namespace kh
 {
+constexpr int IMGUI_WIDTH{960};
+constexpr int IMGUI_HEIGHT{540};
+constexpr const char* INGUI_TITLE{"Kinect Sender"};
+
+template<typename Func>
+void imgui_loop(const Func& f)
+{
+    Win32Window window{init_imgui(IMGUI_WIDTH, IMGUI_HEIGHT, INGUI_TITLE)};
+
+    // Main loop
+    MSG msg;
+    ZeroMemory(&msg, sizeof(msg));
+    while (msg.message != WM_QUIT) {
+        // Poll and handle messages (inputs, window resize, etc.)
+        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
+        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
+        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+        if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+            continue;
+        }
+
+        f();
+    }
+
+    cleanup_imgui(window);
+};
+
 // Update receiver_state and summary with Report packets.
 void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
                           RemoteReceiver& remote_receiver,
@@ -74,9 +105,6 @@ void start(KinectDeviceInterface& kinect_interface)
 {
     constexpr int DEFAULT_PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};
-    constexpr int IMGUI_WIDTH{960};
-    constexpr int IMGUI_HEIGHT{540};
-    constexpr const char* INGUI_TITLE{"Kinect Sender"};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC{3.0f};
     constexpr float HEARTBEAT_TIME_OUT_SEC{10.0f};
@@ -134,29 +162,11 @@ void start(KinectDeviceInterface& kinect_interface)
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
-    Win32Window window{init_imgui(IMGUI_WIDTH, IMGUI_HEIGHT, INGUI_TITLE)};
-
     // Our state
     ExampleAppLog log;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color{0.45f, 0.55f, 0.60f, 1.00f};
 
-    // Main loop
-    MSG msg;
-    ZeroMemory(&msg, sizeof(msg));
-    while (msg.message != WM_QUIT) {
-
-        // Poll and handle messages (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-            continue;
-        }
-
+    imgui_loop([&] {
         begin_imgui_frame();
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
@@ -189,11 +199,7 @@ void start(KinectDeviceInterface& kinect_interface)
         end_imgui_frame(clear_color);
 
         try {
-            std::vector<int> receiver_session_ids;
-            for (auto& [receiver_session_id, _] : remote_receivers)
-                receiver_session_ids.push_back(receiver_session_id);
-            
-            auto receiver_packet_collection{ReceiverPacketReceiver::receive(udp_socket, receiver_session_ids)};
+            auto receiver_packet_collection{ReceiverPacketReceiver::receive(udp_socket, remote_receivers)};
 
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.
@@ -270,10 +276,9 @@ void start(KinectDeviceInterface& kinect_interface)
             log_kinect_video_sender_summary(log, kinect_video_sender_summary, summary_duration);
             kinect_video_sender_summary = KinectVideoSenderSummary{};
         }
-    }
-
-    cleanup_imgui(window);
+    });
 }
+
 void main()
 {
     // First one is for running the application inside visual studio, and the other is for running the built application.
