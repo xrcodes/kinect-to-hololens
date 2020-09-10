@@ -19,11 +19,11 @@
         public float maxRadiusForProjection;
     }
 
-    public class Extrinsics
-    {
-        // 3x3 rotation matrix stored in row major order.
-        public float[] rotation = new float[9];
-        // Translation vector (x, y, z), in millimeters.
-        public float[] translation = new float[3];
-    }
+    //public class Extrinsics
+    //{
+    //    // 3x3 rotation matrix stored in row major order.
+    //    public float[] rotation = new float[9];
+    //    // Translation vector (x, y, z), in millimeters.
+    //    public float[] translation = new float[3];
+    //}
 }

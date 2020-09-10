@@ -71,14 +71,6 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
                              std::unordered_map<int, RemoteReceiver>& remote_receivers,
                              KinectVideoSenderSummary& summary)
 {
-    // Keep send the init packet until the receiver reports a received frame.
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID) {
-            const auto init_packet_bytes{create_video_init_sender_packet_bytes(session_id_, create_video_init_sender_packet_data(calibration_))};
-            udp_socket.send(init_packet_bytes, remote_receiver.endpoint);
-        }
-    }
-
     const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
     const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
 
@@ -164,7 +156,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
-    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, vp8_frame, depth_encoder_frame, floor)};
+    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
     

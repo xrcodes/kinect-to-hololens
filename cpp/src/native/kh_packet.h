@@ -19,10 +19,9 @@ enum class SenderPacketType : std::uint8_t
 {
     Confirm = 0,
     Heartbeat = 1,
-    VideoInit = 2,
-    Video = 3,
-    Parity = 4,
-    Audio = 5,
+    Video = 2,
+    Parity = 3,
+    Audio = 4,
 };
 
 enum class ReceiverPacketType : std::uint8_t
@@ -99,8 +98,14 @@ std::vector<std::byte> create_confirm_sender_packet_bytes(int session_id, int re
 
 std::vector<std::byte> create_heartbeat_sender_packet_bytes(int session_id);
 
-struct VideoInitSenderPacketData
+//VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration);
+//std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, const VideoInitSenderPacketData& video_init_sender_packet_data);
+//VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+
+struct VideoSenderMessageData
 {
+    float frame_time_stamp{0.0f};
+    bool keyframe{false};
     int width{0};
     int height{0};
     float cx{0.0f};
@@ -118,16 +123,6 @@ struct VideoInitSenderPacketData
     float p1{0.0f};
     float p2{0.0f};
     float max_radius_for_projection{0.0f};
-};
-
-VideoInitSenderPacketData create_video_init_sender_packet_data(const k4a::calibration& calibration);
-std::vector<std::byte> create_video_init_sender_packet_bytes(int session_id, const VideoInitSenderPacketData& video_init_sender_packet_data);
-VideoInitSenderPacketData parse_video_init_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
-
-struct VideoSenderMessageData
-{
-    float frame_time_stamp{0.0f};
-    bool keyframe{false};
     std::vector<std::byte> color_encoder_frame;
     std::vector<std::byte> depth_encoder_frame;
     std::optional<std::array<float, 4>> floor;
@@ -142,6 +137,7 @@ struct VideoSenderPacketData
 };
 
 std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
+                                                         const k4a::calibration& calibration,
                                                          gsl::span<const std::byte> color_encoder_frame,
                                                          gsl::span<const std::byte> depth_encoder_frame,
                                                          std::optional<std::array<float, 4>> floor);

@@ -18,7 +18,6 @@ public class ConfirmPacketInfo
 public class SenderPacketSet
 {
     public bool ReceivedAny { get; set; }
-    public List<VideoInitSenderPacketData> InitPacketDataList { get; private set; }
     public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
     public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
     public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
@@ -26,7 +25,6 @@ public class SenderPacketSet
     public SenderPacketSet()
     {
         ReceivedAny = false;
-        InitPacketDataList = new List<VideoInitSenderPacketData>();
         VideoPacketDataList = new List<VideoSenderPacketData>();
         FecPacketDataList = new List<ParitySenderPacketData>();
         AudioPacketDataList = new List<AudioSenderPacketData>();
@@ -102,9 +100,6 @@ public static class SenderPacketReceiver
         senderPacketSet.ReceivedAny = true;
         switch (packetType)
         {
-            case SenderPacketType.VideoInit:
-                senderPacketSet.InitPacketDataList.Add(VideoInitSenderPacketData.Parse(packet.Bytes));
-                break;
             case SenderPacketType.Frame:
                 senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet.Bytes));
                 break;

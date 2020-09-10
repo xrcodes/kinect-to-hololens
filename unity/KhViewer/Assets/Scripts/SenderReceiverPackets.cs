@@ -6,10 +6,9 @@ public enum SenderPacketType : byte
 {
     Confirm = 0,
     Heartbeat = 1,
-    VideoInit = 2,
-    Frame = 3,
-    Parity = 4,
-    Audio = 5,
+    Frame = 2,
+    Parity = 3,
+    Audio = 4,
 }
 
 public enum ReceiverPacketType : byte
@@ -104,21 +103,29 @@ public class ConfirmSenderPacketData
     }
 }
 
-public class VideoInitSenderPacketData
+public class VideoSenderMessageData
 {
-    public int depthWidth;
-    public int depthHeight;
-    public KinectCalibration.Intrinsics depthIntrinsics;
-    public float depthMetricRadius;
+    public float frameTimeStamp;
+    public bool keyframe;
 
-    public static VideoInitSenderPacketData Parse(byte[] packetBytes)
+    public int width;
+    public int height;
+    public KinectCalibration.Intrinsics intrinsics;
+
+    public byte[] colorEncoderFrame;
+    public byte[] depthEncoderFrame;
+    public float[] floor;
+
+    public static VideoSenderMessageData Parse(byte[] messageBytes)
     {
-        var reader = new BinaryReader(new MemoryStream(packetBytes));
-        reader.BaseStream.Position = 5;
+        var reader = new BinaryReader(new MemoryStream(messageBytes));
 
-        var videoInitSenderPacketData = new VideoInitSenderPacketData();
-        videoInitSenderPacketData.depthWidth = reader.ReadInt32();
-        videoInitSenderPacketData.depthHeight = reader.ReadInt32();
+        var videoSenderMessageData = new VideoSenderMessageData();
+        videoSenderMessageData.frameTimeStamp = reader.ReadSingle();
+        videoSenderMessageData.keyframe = reader.ReadBoolean();
+
+        videoSenderMessageData.width = reader.ReadInt32();
+        videoSenderMessageData.height = reader.ReadInt32();
 
         var depthIntrinsics = new KinectCalibration.Intrinsics();
         depthIntrinsics.cx = reader.ReadSingle();
@@ -136,27 +143,7 @@ public class VideoInitSenderPacketData
         depthIntrinsics.p1 = reader.ReadSingle();
         depthIntrinsics.p2 = reader.ReadSingle();
         depthIntrinsics.maxRadiusForProjection = reader.ReadSingle();
-        videoInitSenderPacketData.depthIntrinsics = depthIntrinsics;
-
-        return videoInitSenderPacketData;
-    }
-}
-
-public class VideoSenderMessageData
-{
-    public float frameTimeStamp;
-    public bool keyframe;
-    public byte[] colorEncoderFrame;
-    public byte[] depthEncoderFrame;
-    public float[] floor;
-
-    public static VideoSenderMessageData Parse(byte[] messageBytes)
-    {
-        var reader = new BinaryReader(new MemoryStream(messageBytes));
-
-        var videoSenderMessageData = new VideoSenderMessageData();
-        videoSenderMessageData.frameTimeStamp = reader.ReadSingle();
-        videoSenderMessageData.keyframe = reader.ReadBoolean();
+        videoSenderMessageData.intrinsics = depthIntrinsics;
 
         int colorEncoderFrameSize = reader.ReadInt32();
         videoSenderMessageData.colorEncoderFrame = reader.ReadBytes(colorEncoderFrameSize);

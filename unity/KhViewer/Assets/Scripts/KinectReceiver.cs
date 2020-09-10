@@ -63,20 +63,30 @@ public class KinectReceiver
             if (senderPacketSet.ReceivedAny)
             {
                 // Use init packet to prepare rendering video messages.
-                if (senderPacketSet.InitPacketDataList.Count > 0)
-                {
-                    if (KinectOrigin.Screen.State == PrepareState.Unprepared)
-                    {
-                        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
-                        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
-                    }
-                }
+                //if (senderPacketSet.InitPacketDataList.Count > 0)
+                //{
+                //    if (KinectOrigin.Screen.State == PrepareState.Unprepared)
+                //    {
+                //        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
+                //        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
+                //    }
+                //}
 
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,
                                                TextureGroupUpdater.lastVideoFrameId,
                                                videoMessageList);
+
+                if (videoMessageList.Count > 0)
+                {
+                    if (KinectOrigin.Screen.State == PrepareState.Unprepared)
+                    {
+                        KinectOrigin.Screen.StartPrepare(videoMessageList[0].Item2);
+                        TextureGroupUpdater.StartPrepare(monoBehaviour, videoMessageList[0].Item2);
+                    }
+                }
+
                 audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, KinectOrigin.Speaker.RingBuffer);
                 receivedAnyStopWatch = Stopwatch.StartNew();
             }

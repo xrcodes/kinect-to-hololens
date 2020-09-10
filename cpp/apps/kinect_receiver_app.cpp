@@ -27,7 +27,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
     asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)};
     UdpSocket udp_socket{std::move(socket)};
 
-    VideoInitSenderPacketData init_sender_packet_data;
     // When ping then check if a init packet arrived.
     // Repeat until it happens.
     int ping_count{0};
@@ -42,8 +41,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
         try {
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
 
-            if (!sender_packet_set.video_init_packet_data_vector.empty()) {
-                init_sender_packet_data = sender_packet_set.video_init_packet_data_vector[0];
+            if (!sender_packet_set.received_any) {
                 break;
             }
         } catch (UdpSocketRuntimeError e) {
@@ -63,7 +61,9 @@ void start_session(const std::string ip_address, const int port, const int sessi
     VideoRendererState video_renderer_state;
     VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
-    VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
+    //VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
+    // TODO: Fix to use recieved width and height.
+    VideoRenderer video_renderer{session_id, remote_endpoint, 640, 576};
     std::map<int, VideoSenderMessageData> video_frame_messages;
 
     for (;;) {

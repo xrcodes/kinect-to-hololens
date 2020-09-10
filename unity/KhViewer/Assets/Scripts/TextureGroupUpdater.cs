@@ -50,23 +50,23 @@ public class TextureGroupUpdater
         this.endPoint = endPoint;
     }
 
-    public void StartPrepare(MonoBehaviour monoBehaviour, VideoInitSenderPacketData initPacketData)
+    public void StartPrepare(MonoBehaviour monoBehaviour, VideoSenderMessageData videoMessageData)
     {
-        monoBehaviour.StartCoroutine(SetupTextureGroup(initPacketData));
+        monoBehaviour.StartCoroutine(SetupTextureGroup(videoMessageData));
     }
 
-    public IEnumerator SetupTextureGroup(VideoInitSenderPacketData initPacketData)
+    public IEnumerator SetupTextureGroup(VideoSenderMessageData videoMessageData)
     {
         if(state != PrepareState.Unprepared)
             throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
 
         state = PrepareState.Preparing;
 
-        textureGroup.SetWidth(initPacketData.depthWidth);
-        textureGroup.SetHeight(initPacketData.depthHeight);
+        textureGroup.SetWidth(videoMessageData.width);
+        textureGroup.SetHeight(videoMessageData.height);
         PluginHelper.InitTextureGroup(textureGroup.GetId());
 
-        depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
+        depthDecoder = new TrvlDecoder(videoMessageData.width * videoMessageData.height);
 
         state = PrepareState.Prepared;
 

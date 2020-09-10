@@ -27,21 +27,21 @@ public class KinectScreen : MonoBehaviour
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
     }
 
-    public void StartPrepare(VideoInitSenderPacketData initSenderPacketData)
+    public void StartPrepare(VideoSenderMessageData videoMessageData)
     {
-        StartCoroutine(SetupMesh(initSenderPacketData));
+        StartCoroutine(SetupMesh(videoMessageData));
     }
 
     // Since calculation including Unproject() takes too much time,
     // this function is made to run as a coroutine that takes a break
     // every 100 ms.
-    private IEnumerator SetupMesh(VideoInitSenderPacketData initSenderPacketData)
+    private IEnumerator SetupMesh(VideoSenderMessageData videoMessageData)
     {
         State = PrepareState.Preparing;
         Progress = 0.0f;
 
-        int width = initSenderPacketData.depthWidth;
-        int height = initSenderPacketData.depthHeight;
+        int width = videoMessageData.width;
+        int height = videoMessageData.height;
 
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
@@ -53,8 +53,9 @@ public class KinectScreen : MonoBehaviour
             {
                 float[] xy = new float[2];
                 int valid = 0;
-                if (KinectIntrinsicTransformation.Unproject(initSenderPacketData.depthIntrinsics,
-                                                            initSenderPacketData.depthMetricRadius,
+                // TODO: Check whether using videoMessageData.intrinsics.maxRadiusForProjection is correct.
+                if (KinectIntrinsicTransformation.Unproject(videoMessageData.intrinsics,
+                                                            videoMessageData.intrinsics.maxRadiusForProjection,
                                                             new float[2] { i, j }, ref xy, ref valid))
                 {
                     // Flip y since Azure Kinect's y axis is downwards.
