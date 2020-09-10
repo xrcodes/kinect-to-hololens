@@ -25,38 +25,44 @@ tt::TrvlEncoder create_depth_encoder(k4a::calibration calibration)
                            CHANGE_THRESHOLD, INVALID_THRESHOLD};
 }
 
-int get_minimum_receiver_frame_id(std::unordered_map<int, RemoteReceiver>& remote_receivers)
-{
-    int minimum_frame_id{INT_MAX};
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_frame_id < minimum_frame_id)
-            minimum_frame_id = remote_receiver.video_frame_id;
-    }
-
-    return minimum_frame_id;
-}
-
 std::pair<bool, bool> plan_frame(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, tt::TimePoint last_frame_time)
 {
-    const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
-    const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
+    bool video_required_by_any = false;
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_requested) {
+            video_required_by_any = true;
+            break;
+        }
+    }
+    if (!video_required_by_any)
+        return {false, false};
+
+    int minimum_receiver_frame_id{INT_MAX};
+    for (auto& [_, remote_receiver] : remote_receivers) {
+        if (remote_receiver.video_frame_id < minimum_receiver_frame_id)
+            minimum_receiver_frame_id = remote_receiver.video_frame_id;
+    }
+
+    // Send out a keyframe if there is a new receiver.
+    if (minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID)
+        return {true, true};
 
     constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
     const auto frame_time_point{tt::TimePoint::now()};
     const auto frame_time_diff{frame_time_point - last_frame_time};
-    const int frame_id_diff{last_frame_id - get_minimum_receiver_frame_id(remote_receivers)};
+    const int frame_id_diff{last_frame_id - minimum_receiver_frame_id};
 
     // Skip a frame if there is no new receiver that requires a frame to start
     // and the sender is too much ahead of the receivers.
-    const bool is_ready{has_new_receiver || ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1))};
+    const bool is_ready{(frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1)};
 
     // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
-    const bool keyframe{has_new_receiver || frame_id_diff > 5};
+    const bool keyframe{frame_id_diff > 5};
 
     return {is_ready, keyframe};
 }
 
-std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
+std::optional<std::array<float, 4>> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
                                                                    KinectFrame kinect_frame,
                                                                    k4a::calibration calibration)
 {
@@ -65,7 +71,12 @@ std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::Poin
 
     point_cloud_generator.Update(kinect_frame.depth_image.handle());
     auto cloud_points{point_cloud_generator.GetCloudPoints(DOWNSAMPLE_STEP)};
-    return Samples::FloorDetector::TryDetectFloorPlane(cloud_points, kinect_frame.imu_sample, calibration, MINIMUM_FLOOR_POINT_COUNT);
+    auto floor_plane{Samples::FloorDetector::TryDetectFloorPlane(cloud_points, kinect_frame.imu_sample, calibration, MINIMUM_FLOOR_POINT_COUNT)};
+    
+    if (!floor_plane)
+        return std::nullopt;
+
+    return std::array<float, 4>{floor_plane->Normal.X, floor_plane->Normal.Y, floor_plane->Normal.Z, floor_plane->C};
 }
 }
 
@@ -91,7 +102,7 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
                              std::unordered_map<int, RemoteReceiver>& remote_receivers,
                              KinectVideoSenderSummary& summary)
 {
-    auto [is_ready, keyframe] = plan_frame(remote_receivers, last_frame_id_, last_frame_time_);
+    auto [is_ready, keyframe] {plan_frame(remote_receivers, last_frame_id_, last_frame_time_)};
     if (!is_ready)
         return;
 
@@ -102,30 +113,8 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
         return;
     }
 
-    bool video_required_by_any = false;
-    for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_requested) {
-            video_required_by_any = true;
-            break;
-        }
-    }
-
-    // Skip video compression if video is not required by any.
-    if (!video_required_by_any)
-        return;
-
     // Try obtaining floor.
     const auto floor_plane{detect_floor_plane_from_kinect_frame(point_cloud_generator_, *kinect_frame, calibration_)};
-    std::optional<std::array<float, 4>> floor;
-    if (floor_plane) {
-        floor = std::array<float, 4>();
-        floor->at(0) = floor_plane->Normal.X;
-        floor->at(1) = floor_plane->Normal.Y;
-        floor->at(2) = floor_plane->Normal.Z;
-        floor->at(3) = floor_plane->C;
-    } else {
-        floor = std::nullopt;
-    }
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
@@ -163,7 +152,7 @@ void KinectVideoSender::send(const tt::TimePoint& session_start_time,
 
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(tt::TimePoint::now() - session_start_time).ms()};
-    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor)};
+    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor_plane)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
     

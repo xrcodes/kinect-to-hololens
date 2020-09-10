@@ -119,7 +119,7 @@ void start(KinectDeviceInterface& kinect_interface)
 
     // Initialize instances for loop below.
     const tt::TimePoint session_start_time{tt::TimePoint::now()};
-    tt::TimePoint heartbeat_time{tt::TimePoint::now()};
+    tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
 
     KinectVideoSender kinect_video_sender{session_id, kinect_interface};
     KinectVideoSenderSummary kinect_video_sender_summary;
@@ -217,20 +217,16 @@ void start(KinectDeviceInterface& kinect_interface)
 
             // Skip the main part of the loop if there is no receiver connected.
             if (!remote_receivers.empty()) {
-                std::vector<asio::ip::udp::endpoint> remote_endpoints;
-                for (auto& [_, remote_receiver] : remote_receivers)
-                    remote_endpoints.push_back(remote_receiver.endpoint);
-
                 // Send video/audio packets to the receivers.
                 kinect_video_sender.send(session_start_time, udp_socket, kinect_interface, video_parity_packet_storage, remote_receivers, kinect_video_sender_summary);
                 if (kinect_audio_sender)
                     kinect_audio_sender->send(udp_socket, remote_receivers);
 
                 // Send heartbeat packets to receivers.
-                if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
+                if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& [_, remote_receiver] : remote_receivers)
                         udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_receiver.endpoint);
-                    heartbeat_time = tt::TimePoint::now();
+                    last_heartbeat_time = tt::TimePoint::now();
                 }
 
                 for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_sets) {
