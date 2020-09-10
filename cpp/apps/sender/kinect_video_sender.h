@@ -25,6 +25,26 @@ struct KinectVideoSenderSummary
     int frame_id{0};
 };
 
+//struct KinectVideoSenderResult
+//{
+//    int frame_id{0};
+//    tt::TimePoint time_point{};
+//    bool keyframe{false};
+//    Bytes vp8_frame{};
+//    Bytes trvl_frame{};
+//    std::optional<std::array<float, 4>> floor;
+//};
+
+struct KinectVideoSenderResult
+{
+    int frame_id{0};
+    tt::TimePoint time_point{};
+    bool keyframe{false};
+    Bytes vp8_frame{};
+    Bytes trvl_frame{};
+    std::optional<std::array<float, 4>> floor{};
+};
+
 class KinectVideoSender
 {
 public:
