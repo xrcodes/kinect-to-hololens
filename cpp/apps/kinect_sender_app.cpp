@@ -138,7 +138,7 @@ void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummar
     log.AddLog("  Depth Encoder Time Average: %f\n", summary.depth_encoder_ms_sum / summary.frame_count);
 }
 
-void start(KinectDeviceInterface& kinect_interface)
+void start(KinectInterface& kinect_interface)
 {
     constexpr int DEFAULT_PORT{3773};
     constexpr int SENDER_SEND_BUFFER_SIZE{128 * 1024};

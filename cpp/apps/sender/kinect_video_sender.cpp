@@ -44,7 +44,7 @@ std::optional<std::array<float, 4>> detect_floor_plane_from_kinect_frame(Samples
 }
 
 // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
-KinectVideoSender::KinectVideoSender(const int session_id, KinectDeviceInterface& kinect_interface)
+KinectVideoSender::KinectVideoSender(const int session_id, KinectInterface& kinect_interface)
     : session_id_{session_id}
     , random_number_generator_{std::random_device{}()}
     , calibration_{kinect_interface.getCalibration()}
@@ -61,7 +61,7 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectDeviceInterface
 void KinectVideoSender::send(const tt::TimePoint& session_start_time,
                              bool keyframe,
                              UdpSocket& udp_socket,
-                             KinectDeviceInterface& kinect_interface,
+                             KinectInterface& kinect_interface,
                              VideoParityPacketStorage& video_parity_packet_storage,
                              std::unordered_map<int, RemoteReceiver>& remote_receivers,
                              KinectVideoSenderSummary& summary)

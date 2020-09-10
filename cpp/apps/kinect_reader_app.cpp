@@ -5,7 +5,7 @@
 
 namespace kh
 {
-void read_frames(KinectDeviceInterface& kinect_interface)
+void read_frames(KinectInterface& kinect_interface)
 {
     constexpr short CHANGE_THRESHOLD{10};
     constexpr int INVALID_THRESHOLD{2};

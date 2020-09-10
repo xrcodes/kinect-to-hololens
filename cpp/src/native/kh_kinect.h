@@ -18,7 +18,7 @@ struct KinectFrame
     k4a_imu_sample_t imu_sample;
 };
 
-class KinectDeviceInterface
+class KinectInterface
 {
 public:
     // To check whether there would be a microphone.
@@ -28,7 +28,7 @@ public:
 };
 
 // For having an interface combining devices and playbacks one day in the future...
-class KinectDevice : public KinectDeviceInterface
+class KinectDevice : public KinectInterface
 {
 public:
     KinectDevice(k4a_device_configuration_t configuration, std::chrono::milliseconds timeout);
@@ -44,7 +44,7 @@ private:
     std::chrono::milliseconds timeout_;
 };
 
-class KinectPlayback : public KinectDeviceInterface
+class KinectPlayback : public KinectInterface
 {
 public:
     KinectPlayback(const std::string& path);
