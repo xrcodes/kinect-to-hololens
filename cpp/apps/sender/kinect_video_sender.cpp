@@ -36,6 +36,26 @@ int get_minimum_receiver_frame_id(std::unordered_map<int, RemoteReceiver>& remot
     return minimum_frame_id;
 }
 
+std::pair<bool, bool> plan_frame(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, kh::TimePoint last_frame_time)
+{
+    const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
+    const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
+
+    constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
+    const auto frame_time_point{TimePoint::now()};
+    const auto frame_time_diff{frame_time_point - last_frame_time};
+    const int frame_id_diff{last_frame_id - get_minimum_receiver_frame_id(remote_receivers)};
+
+    // Skip a frame if there is no new receiver that requires a frame to start
+    // and the sender is too much ahead of the receivers.
+    const bool is_ready{has_new_receiver || ((frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1))};
+
+    // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
+    const bool keyframe{has_new_receiver || frame_id_diff > 5};
+
+    return {is_ready, keyframe};
+}
+
 std::optional<Samples::Plane> detect_floor_plane_from_kinect_frame(Samples::PointCloudGenerator& point_cloud_generator,
                                                                    KinectFrame kinect_frame,
                                                                    k4a::calibration calibration)
@@ -71,18 +91,8 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
                              std::unordered_map<int, RemoteReceiver>& remote_receivers,
                              KinectVideoSenderSummary& summary)
 {
-    const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
-    const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
-
-    constexpr float AZURE_KINECT_FRAME_RATE = 30.0f;
-    const auto frame_time_point{TimePoint::now()};
-    const auto frame_time_diff{frame_time_point - last_frame_time_};
-    const int frame_id_diff{last_frame_id_ - get_minimum_receiver_frame_id(remote_receivers)};
-
-    // Skip a frame if there is no new receiver that requires a frame to start
-    // and the sender is too much ahead of the receivers.
-    //if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 3))
-    if (!has_new_receiver && (frame_time_diff.sec() * AZURE_KINECT_FRAME_RATE) < std::pow(2, frame_id_diff - 1))
+    auto [is_ready, keyframe] = plan_frame(remote_receivers, last_frame_id_, last_frame_time_);
+    if (!is_ready)
         return;
 
     // Try getting a Kinect frame.
@@ -119,10 +129,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
-    last_frame_time_ = frame_time_point;
-
-    // Send a keyframe when there is a new receiver or at least a receiver needs to catch up by jumping forward using a keyframe.
-    const bool keyframe{has_new_receiver || frame_id_diff > 5};
+    last_frame_time_ = TimePoint::now();
 
     // Remove the depth pixels that may not have corresponding color information available.
     auto occlusion_removal_start{TimePoint::now()};
@@ -155,7 +162,7 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
     // Create video/parity packet bytes.
-    const float video_frame_time_stamp{(frame_time_point - session_start_time).ms()};
+    const float video_frame_time_stamp{(TimePoint::now() - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};
