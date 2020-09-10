@@ -5,8 +5,8 @@
 #include "video_sender_utils.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
-#include "PointCloudGenerator.h"
-#include "FloorDetector.h"
+#include "external/azure-kinect-samples/PointCloudGenerator.h"
+#include "external/azure-kinect-samples/FloorDetector.h"
 
 namespace kh
 {

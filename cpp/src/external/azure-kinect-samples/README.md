@@ -1,0 +1,1 @@
+These files are from body-tracking-samples/floor_detector_sample of Azure-Kinect-Samples (https://github.com/microsoft/Azure-Kinect-Samples).

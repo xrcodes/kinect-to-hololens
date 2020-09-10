@@ -35,7 +35,6 @@ add_executable(KinectSenderApp
   sender/receiver_packet_receiver.h
   sender/video_sender_utils.h
   sender/remote_receiver.h
-  helper/imgui_helper.h
   resources/KinectSenderApp.rc
 )
 target_include_directories(KinectSenderApp PRIVATE
