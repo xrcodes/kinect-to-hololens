@@ -12,7 +12,7 @@ namespace kh
 {
 struct KinectVideoSenderSummary
 {
-    TimePoint start_time{TimePoint::now()};
+    tt::TimePoint start_time{tt::TimePoint::now()};
     float occlusion_removal_ms_sum{0.0f};
     float transformation_ms_sum{0.0f};
     float yuv_conversion_ms_sum{0.0f};
@@ -30,7 +30,7 @@ class KinectVideoSender
 public:
     // Color encoder also uses the depth width/height since color pixels get transformed to the depth camera.
     KinectVideoSender(const int session_id, KinectDeviceInterface& kinect_interface);
-    void send(const TimePoint& session_start_time,
+    void send(const tt::TimePoint& session_start_time,
               UdpSocket& udp_socket,
               KinectDeviceInterface& kinect_interface,
               VideoParityPacketStorage& video_parity_packet_storage,
@@ -46,6 +46,6 @@ private:
     OcclusionRemover occlusion_remover_;
     Samples::PointCloudGenerator point_cloud_generator_;
     int last_frame_id_;
-    TimePoint last_frame_time_;
+    tt::TimePoint last_frame_time_;
 };
 }

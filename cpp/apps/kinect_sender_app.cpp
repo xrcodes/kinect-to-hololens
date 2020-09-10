@@ -48,14 +48,14 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
     }
 }
 
-void log_receiver_report_summary(ExampleAppLog& log, ReceiverReportSummary summary, TimeDuration duration)
+void log_receiver_report_summary(ExampleAppLog& log, ReceiverReportSummary summary, tt::TimeDuration duration)
 {
     log.AddLog("Receiver Reported in %f Hz\n", summary.received_report_count / duration.sec());
     log.AddLog("  Decoder Time Average: %f ms\n", summary.decoder_time_ms_sum / summary.received_report_count);
     log.AddLog("  Frame Interval Time Average: %f ms\n", summary.frame_interval_ms_sum / summary.received_report_count);
 }
 
-void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummary summary, TimeDuration duration)
+void log_kinect_video_sender_summary(ExampleAppLog& log, KinectVideoSenderSummary summary, tt::TimeDuration duration)
 {
     log.AddLog("KinectDeviceManager Summary:\n");
     log.AddLog("  Frame ID: %d\n", summary.frame_id);
@@ -118,8 +118,8 @@ void start(KinectDeviceInterface& kinect_interface)
     }
 
     // Initialize instances for loop below.
-    const TimePoint session_start_time{TimePoint::now()};
-    TimePoint heartbeat_time{TimePoint::now()};
+    const tt::TimePoint session_start_time{tt::TimePoint::now()};
+    tt::TimePoint heartbeat_time{tt::TimePoint::now()};
 
     KinectVideoSender kinect_video_sender{session_id, kinect_interface};
     KinectVideoSenderSummary kinect_video_sender_summary;
@@ -230,7 +230,7 @@ void start(KinectDeviceInterface& kinect_interface)
                 if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& [_, remote_receiver] : remote_receivers)
                         udp_socket.send(create_heartbeat_sender_packet_bytes(session_id), remote_receiver.endpoint);
-                    heartbeat_time = TimePoint::now();
+                    heartbeat_time = tt::TimePoint::now();
                 }
 
                 for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_sets) {
@@ -243,7 +243,7 @@ void start(KinectDeviceInterface& kinect_interface)
                                                      receiver_packet_set.request_packet_data_vector,
                                                      video_parity_packet_storage,
                                                      remote_receiver_ptr->endpoint);
-                        remote_receiver_ptr->last_packet_time = TimePoint::now();
+                        remote_receiver_ptr->last_packet_time = tt::TimePoint::now();
                     } else {
                         if (remote_receiver_ptr->last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
                             std::cout << "Timed out receiver " << receiver_session_id << " after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";

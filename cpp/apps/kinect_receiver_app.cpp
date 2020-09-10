@@ -55,8 +55,8 @@ void start_session(const std::string ip_address, const int port, const int sessi
     }
 
     bool stopped{false};
-    TimePoint heartbeat_time{TimePoint::now()};
-    TimePoint received_any_time{TimePoint::now()};
+    tt::TimePoint heartbeat_time{tt::TimePoint::now()};
+    tt::TimePoint received_any_time{tt::TimePoint::now()};
 
     VideoRendererState video_renderer_state;
     VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
@@ -70,7 +70,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
         try {
             if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                 udp_socket.send(create_heartbeat_receiver_packet_bytes(session_id), remote_endpoint);
-                heartbeat_time = TimePoint::now();
+                heartbeat_time = tt::TimePoint::now();
             }
 
             auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
@@ -81,7 +81,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
                                                  video_renderer_state,
                                                  video_frame_messages);
                 audio_packet_receiver.receive(sender_packet_set.audio_packet_data_vector);
-                received_any_time = TimePoint::now();
+                received_any_time = tt::TimePoint::now();
             } else {
                 if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
                     std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";

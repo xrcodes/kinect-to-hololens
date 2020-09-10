@@ -44,7 +44,7 @@ public:
 
         std::optional<tt::FFmpegFrame> ffmpeg_frame;
         std::vector<short> depth_image;
-        const auto decoder_start{TimePoint::now()};
+        const auto decoder_start{tt::TimePoint::now()};
         for (int i = *begin_frame_id; ; ++i) {
             // break loop is there is no frame with frame_id i.
             if (video_frame_messages.find(i) == video_frame_messages.end())
@@ -64,7 +64,7 @@ public:
                                                             video_renderer_state.frame_id,
                                                             decoder_start.elapsed_time().ms(),
                                                             video_renderer_state.last_frame_time_point.elapsed_time().ms()), remote_endpoint_);
-        video_renderer_state.last_frame_time_point = TimePoint::now();
+        video_renderer_state.last_frame_time_point = tt::TimePoint::now();
 
         auto color_mat{create_cv_mat_from_yuv_image(tt::createYuvFrameFromFFmpegFrame(*ffmpeg_frame))};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(depth_image.data(), width_, height_)};

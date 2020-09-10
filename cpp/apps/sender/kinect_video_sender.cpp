@@ -36,13 +36,13 @@ int get_minimum_receiver_frame_id(std::unordered_map<int, RemoteReceiver>& remot
     return minimum_frame_id;
 }
 
-std::pair<bool, bool> plan_frame(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, kh::TimePoint last_frame_time)
+std::pair<bool, bool> plan_frame(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, tt::TimePoint last_frame_time)
 {
     const int minimum_receiver_frame_id{get_minimum_receiver_frame_id(remote_receivers)};
     const bool has_new_receiver{minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID};
 
     constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
-    const auto frame_time_point{TimePoint::now()};
+    const auto frame_time_point{tt::TimePoint::now()};
     const auto frame_time_diff{frame_time_point - last_frame_time};
     const int frame_id_diff{last_frame_id - get_minimum_receiver_frame_id(remote_receivers)};
 
@@ -80,11 +80,11 @@ KinectVideoSender::KinectVideoSender(const int session_id, KinectDeviceInterface
     , occlusion_remover_{calibration_}
     , point_cloud_generator_{calibration_}
     , last_frame_id_{-1}
-    , last_frame_time_{TimePoint::now()}
+    , last_frame_time_{tt::TimePoint::now()}
 {
 }
 
-void KinectVideoSender::send(const TimePoint& session_start_time,
+void KinectVideoSender::send(const tt::TimePoint& session_start_time,
                              UdpSocket& udp_socket,
                              KinectDeviceInterface& kinect_interface,
                              VideoParityPacketStorage& video_parity_packet_storage,
@@ -129,22 +129,22 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
 
     // Update last_frame_id_ and last_frame_time_ after testing all conditions.
     ++last_frame_id_;
-    last_frame_time_ = TimePoint::now();
+    last_frame_time_ = tt::TimePoint::now();
 
     // Remove the depth pixels that may not have corresponding color information available.
-    auto occlusion_removal_start{TimePoint::now()};
+    auto occlusion_removal_start{tt::TimePoint::now()};
     gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame->depth_image.get_buffer()),
                                         gsl::narrow_cast<size_t>(kinect_frame->depth_image.get_size())};
     occlusion_remover_.remove(depth_image_span);
     summary.occlusion_removal_ms_sum += occlusion_removal_start.elapsed_time().ms();
 
     // Transform the color image to match the depth image in a pixel by pixel manner.
-    auto transformation_start{TimePoint::now()};
+    auto transformation_start{tt::TimePoint::now()};
     const auto color_image_from_depth_camera{transformation_.color_image_to_depth_camera(kinect_frame->depth_image, kinect_frame->color_image)};
     summary.transformation_ms_sum += transformation_start.elapsed_time().ms();
 
     // Format the color pixels from the Kinect for the Vp8Encoder then encode the pixels with Vp8Encoder.
-    const auto yuv_conversion_start{TimePoint::now()};
+    const auto yuv_conversion_start{tt::TimePoint::now()};
     const auto yuv_image{tt::createYuvFrameFromAzureKinectBgraBuffer(color_image_from_depth_camera.get_buffer(),
                                                                      color_image_from_depth_camera.get_width_pixels(),
                                                                      color_image_from_depth_camera.get_height_pixels(),
@@ -152,17 +152,17 @@ void KinectVideoSender::send(const TimePoint& session_start_time,
     summary.yuv_conversion_ms_sum += yuv_conversion_start.elapsed_time().ms();
 
     // VP8 compress the color image.
-    const auto color_encoder_start{TimePoint::now()};
+    const auto color_encoder_start{tt::TimePoint::now()};
     const auto vp8_frame{color_encoder_.encode(yuv_image, keyframe)};
     summary.color_encoder_ms_sum += color_encoder_start.elapsed_time().ms();
 
     // TRVL compress the depth image.
-    const auto depth_encoder_start{TimePoint::now()};
+    const auto depth_encoder_start{tt::TimePoint::now()};
     const auto depth_encoder_frame{depth_encoder_.encode(depth_image_span, keyframe)};
     summary.depth_encoder_ms_sum += depth_encoder_start.elapsed_time().ms();
 
     // Create video/parity packet bytes.
-    const float video_frame_time_stamp{(TimePoint::now() - session_start_time).ms()};
+    const float video_frame_time_stamp{(tt::TimePoint::now() - session_start_time).ms()};
     const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, keyframe, calibration_, vp8_frame, depth_encoder_frame, floor)};
     auto video_packet_bytes_set{split_video_sender_message_bytes(session_id_, last_frame_id_, message_bytes)};
     auto parity_packet_bytes_set{create_parity_sender_packet_bytes_set(session_id_, last_frame_id_, KH_FEC_PARITY_GROUP_SIZE, video_packet_bytes_set)};

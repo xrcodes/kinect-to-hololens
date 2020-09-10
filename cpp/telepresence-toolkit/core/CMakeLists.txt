@@ -4,6 +4,7 @@ add_library(TelepresenceToolkitCore
   opus.cpp
   rvl.h
   rvl.cpp
+  time.h
   trvl.h
   trvl.cpp
   vp8_decoder.h

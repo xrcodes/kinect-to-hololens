@@ -11,7 +11,7 @@ using Bytes = std::vector<std::byte>;
 
 struct ReceiverReportSummary
 {
-    TimePoint time_point{TimePoint::now()};
+    tt::TimePoint time_point{tt::TimePoint::now()};
     float decoder_time_ms_sum{0.0f};
     float frame_interval_ms_sum{0.0f};
     int received_report_count{0};
@@ -21,7 +21,7 @@ struct ReceiverReportSummary
 // for a video frame.
 struct VideoParityPacketByteSet
 {
-    const TimePoint time_point;
+    const tt::TimePoint time_point;
     const int frame_id;
     std::vector<std::vector<std::byte>> video_packet_byte_set;
     std::vector<std::vector<std::byte>> parity_packet_byte_set;
@@ -29,7 +29,7 @@ struct VideoParityPacketByteSet
     VideoParityPacketByteSet(int frame_id,
                              std::vector<std::vector<std::byte>>&& video_packet_byte_set,
                              std::vector<std::vector<std::byte>>&& parity_packet_byte_set)
-        : time_point{TimePoint::now()}, frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, parity_packet_byte_set{parity_packet_byte_set}
+        : time_point{tt::TimePoint::now()}, frame_id{frame_id}, video_packet_byte_set{video_packet_byte_set}, parity_packet_byte_set{parity_packet_byte_set}
     {
     }
 };

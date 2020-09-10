@@ -8,7 +8,6 @@ add_library(KinectToHololensNative
   kh_occlusion_remover.cpp
   kh_soundio.h
   kh_soundio.cpp
-  kh_time.h
   kh_udp_socket.h
   kh_udp_socket.cpp
   kh_vp8_encoder.h

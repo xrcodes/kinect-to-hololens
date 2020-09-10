@@ -14,7 +14,7 @@ struct RemoteReceiver
     bool video_requested;
     bool audio_requested;
     int video_frame_id;
-    TimePoint last_packet_time;
+    tt::TimePoint last_packet_time;
 
     RemoteReceiver(asio::ip::udp::endpoint endpoint, int session_id, bool video_requested, bool audio_requested)
         : endpoint{endpoint}
@@ -22,7 +22,7 @@ struct RemoteReceiver
         , video_requested{video_requested}
         , audio_requested{audio_requested}
         , video_frame_id{INITIAL_VIDEO_FRAME_ID}
-        , last_packet_time{TimePoint::now()}
+        , last_packet_time{tt::TimePoint::now()}
     {
     }
 };

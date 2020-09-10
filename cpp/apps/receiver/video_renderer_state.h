@@ -7,6 +7,6 @@ namespace kh
 struct VideoRendererState
 {
     int frame_id{-1};
-    TimePoint last_frame_time_point{TimePoint::now()};
+    tt::TimePoint last_frame_time_point{tt::TimePoint::now()};
 };
 }

@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-namespace kh
+namespace tt
 {
 class TimeDuration
 {
