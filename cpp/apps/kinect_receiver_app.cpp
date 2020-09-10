@@ -31,7 +31,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     // Repeat until it happens.
     int ping_count{0};
 
-    udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true), remote_endpoint);
+    udp_socket.send(create_connect_receiver_packet(session_id, true, true).bytes, remote_endpoint);
     //for (;;) {
     //    udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true), remote_endpoint);
     //    ++ping_count;
@@ -70,7 +70,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     for (;;) {
         try {
             if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
-                udp_socket.send(create_heartbeat_receiver_packet_bytes(session_id), remote_endpoint);
+                udp_socket.send(create_heartbeat_receiver_packet(session_id).bytes, remote_endpoint);
                 heartbeat_time = tt::TimePoint::now();
             }
 

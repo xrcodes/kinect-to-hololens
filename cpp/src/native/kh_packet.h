@@ -202,12 +202,12 @@ struct ConnectReceiverPacketData
     bool audio_requested{false};
 };
 
-std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
-                                                            bool video_requested,
-                                                            bool audio_requested);
+Packet create_connect_receiver_packet(int session_id,
+                                      bool video_requested,
+                                      bool audio_requested);
 ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id);
+Packet create_heartbeat_receiver_packet(int session_id);
 
 struct ReportReceiverPacketData
 {
@@ -216,7 +216,7 @@ struct ReportReceiverPacketData
     float frame_time_ms{0.0f};
 };
 
-std::vector<std::byte> create_report_receiver_packet_bytes(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
+Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
 ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct RequestReceiverPacketData
@@ -226,8 +226,8 @@ struct RequestReceiverPacketData
     std::vector<int> parity_packet_indices;
 };
 
-std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id,
-                                                            const std::vector<int>& video_packet_indices,
-                                                            const std::vector<int>& parity_packet_indices);
+Packet create_request_receiver_packet(int session_id, int frame_id,
+                                      const std::vector<int>& video_packet_indices,
+                                      const std::vector<int>& parity_packet_indices);
 RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 }

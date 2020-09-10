@@ -60,10 +60,10 @@ public:
             depth_image = depth_decoder_.decode(frame_message_pair_ptr->depth_encoder_frame, frame_message_pair_ptr->keyframe);
         }
 
-        udp_socket.send(create_report_receiver_packet_bytes(session_id_,
-                                                            video_renderer_state.frame_id,
-                                                            decoder_start.elapsed_time().ms(),
-                                                            video_renderer_state.last_frame_time_point.elapsed_time().ms()), remote_endpoint_);
+        udp_socket.send(create_report_receiver_packet(session_id_,
+                                                      video_renderer_state.frame_id,
+                                                      decoder_start.elapsed_time().ms(),
+                                                      video_renderer_state.last_frame_time_point.elapsed_time().ms()).bytes, remote_endpoint_);
         video_renderer_state.last_frame_time_point = tt::TimePoint::now();
 
         auto color_mat{create_cv_mat_from_yuv_image(tt::YuvFrame::create(*ffmpeg_frame))};

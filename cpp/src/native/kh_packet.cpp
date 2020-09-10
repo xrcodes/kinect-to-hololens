@@ -342,23 +342,23 @@ ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const st
     return copy_from_bytes<ReceiverPacketType>(packet_bytes, 4);
 }
 
-std::vector<std::byte> create_connect_receiver_packet_bytes(int session_id,
-                                                            bool video_requested,
-                                                            bool audio_requested)
+Packet create_connect_receiver_packet(int session_id,
+                                      bool video_requested,
+                                      bool audio_requested)
 {
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(ReceiverPacketType) +
                                                     sizeof(video_requested) +
                                                     sizeof(audio_requested))};
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet{packet_size};
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(ReceiverPacketType::Connect, packet_bytes, cursor);
-    copy_to_bytes(video_requested, packet_bytes, cursor);
-    copy_to_bytes(audio_requested, packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(ReceiverPacketType::Connect, packet, cursor);
+    copy_to_packet(video_requested, packet, cursor);
+    copy_to_packet(audio_requested, packet, cursor);
 
-    return packet_bytes;
+    return packet;
 }
 
 ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -371,20 +371,20 @@ ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const st
     return connect_receiver_packet_data;
 }
 
-std::vector<std::byte> create_heartbeat_receiver_packet_bytes(int session_id)
+Packet create_heartbeat_receiver_packet(int session_id)
 {
     constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                     sizeof(ReceiverPacketType))};
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet{packet_size};
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(ReceiverPacketType::Heartbeat, packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(ReceiverPacketType::Heartbeat, packet, cursor);
 
-    return packet_bytes;
+    return packet;
 }
 
-std::vector<std::byte> create_report_receiver_packet_bytes(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms)
+Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms)
 {
     const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
                                                 sizeof(ReceiverPacketType) +
@@ -392,15 +392,15 @@ std::vector<std::byte> create_report_receiver_packet_bytes(int session_id, int f
                                                 sizeof(decoder_time_ms) +
                                                 sizeof(frame_time_ms))};
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet{packet_size};
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(ReceiverPacketType::Report, packet_bytes, cursor);
-    copy_to_bytes(frame_id, packet_bytes, cursor);
-    copy_to_bytes(decoder_time_ms, packet_bytes, cursor);
-    copy_to_bytes(frame_time_ms, packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(ReceiverPacketType::Report, packet, cursor);
+    copy_to_packet(frame_id, packet, cursor);
+    copy_to_packet(decoder_time_ms, packet, cursor);
+    copy_to_packet(frame_time_ms, packet, cursor);
 
-    return packet_bytes;
+    return packet;
 }
 
 ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -414,9 +414,9 @@ ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std:
     return report_receiver_packet_data;
 }
 
-std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int frame_id,
-                                                            const std::vector<int>& video_packet_indices,
-                                                            const std::vector<int>& parity_packet_indices)
+Packet create_request_receiver_packet(int session_id, int frame_id,
+                                      const std::vector<int>& video_packet_indices,
+                                      const std::vector<int>& parity_packet_indices)
 {
     const int packet_size(sizeof(session_id) +
                           sizeof(ReceiverPacketType) +
@@ -426,21 +426,21 @@ std::vector<std::byte> create_request_receiver_packet_bytes(int session_id, int 
                           sizeof(int) * gsl::narrow_cast<int>(video_packet_indices.size()) +
                           sizeof(int) * gsl::narrow_cast<int>(parity_packet_indices.size()));
 
-    std::vector<std::byte> packet_bytes(packet_size);
+    Packet packet{packet_size};
     PacketCursor cursor;
-    copy_to_bytes(session_id, packet_bytes, cursor);
-    copy_to_bytes(ReceiverPacketType::Request, packet_bytes, cursor);
-    copy_to_bytes(frame_id, packet_bytes, cursor);
-    copy_to_bytes(gsl::narrow_cast<int>(video_packet_indices.size()), packet_bytes, cursor);
-    copy_to_bytes(gsl::narrow_cast<int>(parity_packet_indices.size()), packet_bytes, cursor);
+    copy_to_packet(session_id, packet, cursor);
+    copy_to_packet(ReceiverPacketType::Request, packet, cursor);
+    copy_to_packet(frame_id, packet, cursor);
+    copy_to_packet(gsl::narrow_cast<int>(video_packet_indices.size()), packet, cursor);
+    copy_to_packet(gsl::narrow_cast<int>(parity_packet_indices.size()), packet, cursor);
 
     for (int index : video_packet_indices)
-        copy_to_bytes(index, packet_bytes, cursor);
+        copy_to_packet(index, packet, cursor);
 
     for (int index : parity_packet_indices)
-        copy_to_bytes(index, packet_bytes, cursor);
+        copy_to_packet(index, packet, cursor);
 
-    return packet_bytes;
+    return packet;
 }
 
 RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
