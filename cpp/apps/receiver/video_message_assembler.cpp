@@ -12,13 +12,13 @@ VideoMessageAssembler::VideoMessageAssembler(const int session_id, const asio::i
 void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                                      std::vector<VideoSenderPacket>& video_packet_data_vector,
                                      std::vector<ParitySenderPacket>& parity_packet_data_vector,
-                                     VideoRendererState video_renderer_state,
+                                     int last_frame_id,
                                      std::map<int, VideoSenderMessageData>& video_frame_messages)
 {
     std::optional<int> added_frame_id{std::nullopt};
     // Collect the received video packets.
     for (auto& video_sender_packet_data : video_packet_data_vector) {
-        if (video_sender_packet_data.frame_id <= video_renderer_state.frame_id)
+        if (video_sender_packet_data.frame_id <= last_frame_id)
             continue;
 
         auto video_packet_iter{video_packet_collections_.find(video_sender_packet_data.frame_id)};
@@ -36,7 +36,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
 
     // Collect the received parity packets.
     for (auto& parity_sender_packet_data : parity_packet_data_vector) {
-        if (parity_sender_packet_data.frame_id <= video_renderer_state.frame_id)
+        if (parity_sender_packet_data.frame_id <= last_frame_id)
             continue;
 
         auto parity_packet_iter{parity_packet_collections_.find(parity_sender_packet_data.frame_id)};
@@ -188,7 +188,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
 
     // Clean up frame_packet_collections.
     for (auto it = video_packet_collections_.begin(); it != video_packet_collections_.end();) {
-        if (it->first <= video_renderer_state.frame_id) {
+        if (it->first <= last_frame_id) {
             it = video_packet_collections_.erase(it);
         } else {
             ++it;
@@ -197,7 +197,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
 
     // Clean up parity_packet_collections.
     for (auto it = parity_packet_collections_.begin(); it != parity_packet_collections_.end();) {
-        if (it->first <= video_renderer_state.frame_id) {
+        if (it->first <= last_frame_id) {
             it = parity_packet_collections_.erase(it);
         } else {
             ++it;

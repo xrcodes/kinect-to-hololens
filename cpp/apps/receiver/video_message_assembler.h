@@ -1,7 +1,7 @@
 #pragma once
 
 #include <map>
-#include "video_renderer_state.h"
+#include "native/kh_native.h"
 
 namespace kh
 {
@@ -12,7 +12,7 @@ public:
     void assemble(UdpSocket& udp_socket,
                   std::vector<VideoSenderPacket>& video_packet_data_vector,
                   std::vector<ParitySenderPacket>& parity_packet_data_vector,
-                  VideoRendererState video_renderer_state,
+                  int last_frame_id,
                   std::map<int, VideoSenderMessageData>& video_frame_messages);
 
 private:

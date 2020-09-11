@@ -36,7 +36,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
     tt::TimePoint heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint received_any_time{tt::TimePoint::now()};
 
-    VideoRendererState video_renderer_state;
     VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
     //VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
@@ -56,7 +55,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
                 video_message_assembler.assemble(udp_socket,
                                                  sender_packet_set.video_packets,
                                                  sender_packet_set.parity_packets,
-                                                 video_renderer_state,
+                                                 video_renderer.last_frame_id(),
                                                  video_frame_messages);
                 audio_packet_receiver.receive(sender_packet_set.audio_packets);
                 received_any_time = tt::TimePoint::now();
@@ -70,7 +69,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;
         }
-        video_renderer.render(udp_socket, video_renderer_state, video_frame_messages);
+        video_renderer.render(udp_socket, video_frame_messages);
     }
 }
 
