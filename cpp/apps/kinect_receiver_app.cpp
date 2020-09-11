@@ -5,7 +5,7 @@
 #include "helper/opencv_helper.h"
 #include "helper/soundio_helper.h"
 #include "receiver/video_renderer.h"
-#include "receiver/sender_packet_receiver.h"
+#include "receiver/sender_packet_classifier.h"
 #include "receiver/video_message_assembler.h"
 #include "receiver/audio_packet_receiver.h"
 
@@ -24,7 +24,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     //std::cout << "endpoint: " << socket.remote_endpoint().port() << "\n";
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
 
-    asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow_cast<unsigned short>(port)};
+    asio::ip::udp::endpoint remote_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow<unsigned short>(port)};
     UdpSocket udp_socket{std::move(socket)};
 
     // When ping then check if a init packet arrived.
@@ -32,29 +32,6 @@ void start_session(const std::string ip_address, const int port, const int sessi
     int ping_count{0};
 
     udp_socket.send(create_connect_receiver_packet(session_id, true, true).bytes, remote_endpoint);
-    //for (;;) {
-    //    udp_socket.send(create_connect_receiver_packet_bytes(session_id, true, true), remote_endpoint);
-    //    ++ping_count;
-    //    std::cout << "Sent connect packet to " << ip_address << ".\n";
-
-    //    Sleep(300);
-
-    //    try {
-    //        auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
-
-    //        if (!sender_packet_set.received_any) {
-    //            break;
-    //        }
-    //    } catch (UdpSocketRuntimeError e) {
-    //        std::cout << "UdpSocketRuntimeError while trying to receive InitSenderPacketData:\n  " << e.what() << "\n";
-    //    }
-
-    //    if (ping_count == 10) {
-    //        printf("Tried pinging 10 times and failed to received an init packet...\n");
-    //        return;
-    //    }
-    //}
-
     bool stopped{false};
     tt::TimePoint heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint received_any_time{tt::TimePoint::now()};
@@ -74,7 +51,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
                 heartbeat_time = tt::TimePoint::now();
             }
 
-            auto sender_packet_set{SenderPacketReceiver::receive(udp_socket)};
+            auto sender_packet_set{SenderPacketClassifier::categorizePackets(udp_socket)};
             if (sender_packet_set.received_any) {
                 video_message_assembler.assemble(udp_socket,
                                                  sender_packet_set.video_packets,
@@ -110,7 +87,7 @@ void start()
         if (ip_address.empty())
             ip_address = "127.0.0.1";
 
-        const int session_id{gsl::narrow_cast<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
+        const int session_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
 
         start_session(ip_address, PORT, session_id);
     }

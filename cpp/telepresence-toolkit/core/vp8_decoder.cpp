@@ -142,7 +142,7 @@ FFmpegFrame Vp8Decoder::decode(gsl::span<const std::byte> vp8_frame)
         // Returns the number of bytes used.
         const int size = av_parser_parse2(codec_parser_context_->get(),
             codec_context_->get(), &packet_->get()->data, &packet_->get()->size,
-            data, gsl::narrow_cast<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+            data, gsl::narrow<int>(data_size), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
 
         if (size < 0)
             throw std::runtime_error("Error from av_parser_parse2.");

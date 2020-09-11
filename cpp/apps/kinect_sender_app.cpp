@@ -91,8 +91,8 @@ void send_video_message(VideoPipelineFrame& video_frame,
 {
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
-    const auto message_bytes{create_video_sender_message_bytes(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
-    auto video_packets{split_video_sender_message_bytes(session_id, video_frame.frame_id, message_bytes)};
+    const auto message{create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
+    auto video_packets{split_video_sender_message_bytes(session_id, video_frame.frame_id, message.bytes)};
     auto parity_packets{create_parity_sender_packets(session_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packets)};
 
     // Send video/parity packets.
@@ -192,7 +192,7 @@ void start(KinectInterface& kinect_interface)
     constexpr float SUMMARY_INTERVAL_SEC{10.0f};
 
     // The default port (the port when nothing is entered) is 7777.
-    const int session_id{gsl::narrow_cast<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
+    const int session_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
     const k4a::calibration calibration{kinect_interface.getCalibration()};
 
     std::cout << "Start kinect_sender (session_id: " << session_id << ").\n";
@@ -282,7 +282,7 @@ void start(KinectInterface& kinect_interface)
         end_imgui_frame(clear_color);
 
         try {
-            auto receiver_packet_collection{ReceiverPacketClassifier::receive(udp_socket, remote_receivers)};
+            auto receiver_packet_collection{ReceiverPacketClassifier::categorizePackets(udp_socket, remote_receivers)};
 
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.

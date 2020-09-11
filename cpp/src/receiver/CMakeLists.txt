@@ -1,0 +1,9 @@
+add_library(KinectToHololensReceiverModules
+  sender_packet_classifier.h
+)
+target_link_libraries(KinectToHololensReceiverModules
+  KinectToHololensNative
+)
+set_target_properties(KinectToHololensReceiverModules PROPERTIES
+  CXX_STANDARD 17
+)

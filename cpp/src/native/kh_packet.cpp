@@ -16,9 +16,9 @@ SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::b
 
 Packet create_confirm_sender_packet(int session_id, int receiver_session_id)
 {
-    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                    sizeof(SenderPacketType) +
-                                                    sizeof(receiver_session_id))};
+    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
+                                               sizeof(SenderPacketType) +
+                                               sizeof(receiver_session_id))};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -31,8 +31,8 @@ Packet create_confirm_sender_packet(int session_id, int receiver_session_id)
 
 Packet create_heartbeat_sender_packet(int session_id)
 {
-    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                    sizeof(SenderPacketType))};
+    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
+                                               sizeof(SenderPacketType))};
 
     Packet packet(packet_size);
     PacketCursor cursor;
@@ -42,93 +42,93 @@ Packet create_heartbeat_sender_packet(int session_id)
     return packet;
 }
 
-std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
-                                                         const k4a::calibration& calibration,
-                                                         gsl::span<const std::byte> color_encoder_frame,
-                                                         gsl::span<const std::byte> depth_encoder_frame,
-                                                         std::optional<std::array<float, 4>> floor)
+Message create_video_sender_message(float frame_time_stamp, bool keyframe,
+                                    const k4a::calibration& calibration,
+                                    gsl::span<const std::byte> color_encoder_frame,
+                                    gsl::span<const std::byte> depth_encoder_frame,
+                                    std::optional<std::array<float, 4>> floor)
 {
-    const int message_size{gsl::narrow_cast<int>(sizeof(frame_time_stamp) +
-                                                 sizeof(keyframe) +
-                                                 sizeof(int) + // width
-                                                 sizeof(int) + // height
-                                                 sizeof(float) + // cx
-                                                 sizeof(float) + // cy
-                                                 sizeof(float) + // fx
-                                                 sizeof(float) + // fy
-                                                 sizeof(float) + // k1
-                                                 sizeof(float) + // k2
-                                                 sizeof(float) + // k3
-                                                 sizeof(float) + // k4
-                                                 sizeof(float) + // k5
-                                                 sizeof(float) + // k6
-                                                 sizeof(float) + // codx
-                                                 sizeof(float) + // cody
-                                                 sizeof(float) + // p1
-                                                 sizeof(float) + // p2
-                                                 sizeof(float) + // max_radius_for_projection
-                                                 sizeof(int) + // size of color_encoder_frame 
-                                                 sizeof(int) + // size of depth_encoder_frame
-                                                 color_encoder_frame.size() +
-                                                 depth_encoder_frame.size() +
-                                                 sizeof(bool) +
-                                                 (floor.has_value() ? (sizeof(float) * 4) : 0))};
+    const int message_size{gsl::narrow<int>(sizeof(frame_time_stamp) +
+                                            sizeof(keyframe) +
+                                            sizeof(int) + // width
+                                            sizeof(int) + // height
+                                            sizeof(float) + // cx
+                                            sizeof(float) + // cy
+                                            sizeof(float) + // fx
+                                            sizeof(float) + // fy
+                                            sizeof(float) + // k1
+                                            sizeof(float) + // k2
+                                            sizeof(float) + // k3
+                                            sizeof(float) + // k4
+                                            sizeof(float) + // k5
+                                            sizeof(float) + // k6
+                                            sizeof(float) + // codx
+                                            sizeof(float) + // cody
+                                            sizeof(float) + // p1
+                                            sizeof(float) + // p2
+                                            sizeof(float) + // max_radius_for_projection
+                                            sizeof(int) + // size of color_encoder_frame 
+                                            sizeof(int) + // size of depth_encoder_frame
+                                            color_encoder_frame.size() +
+                                            depth_encoder_frame.size() +
+                                            sizeof(bool) +
+                                            (floor.has_value() ? (sizeof(float) * 4) : 0))};
+    
+    Message message{gsl::narrow<std::vector<std::byte>::size_type>(message_size)};
+    MessageCursor cursor;
 
-    std::vector<std::byte> message_bytes(message_size);
-    PacketCursor cursor;
+    copy_to_message(frame_time_stamp, message, cursor);
+    copy_to_message(keyframe, message, cursor);
+    copy_to_message(calibration.depth_camera_calibration.resolution_width, message, cursor); // width
+    copy_to_message(calibration.depth_camera_calibration.resolution_height, message, cursor); // height
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.cx, message, cursor); // cx
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.cy, message, cursor); // cy
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.fx, message, cursor); // fx
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.fy, message, cursor); // fy
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k1, message, cursor); // k1
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k2, message, cursor); // k2
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k3, message, cursor); // k3
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k4, message, cursor); // k4
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k5, message, cursor); // k5
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k6, message, cursor); // k6
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.codx, message, cursor); // codx
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.cody, message, cursor); // cody
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.p1, message, cursor); // p1
+    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.p2, message, cursor); // p2
+    copy_to_message(calibration.depth_camera_calibration.metric_radius, message, cursor); // max_radius_for_projection
 
-    copy_to_bytes(frame_time_stamp, message_bytes, cursor);
-    copy_to_bytes(keyframe, message_bytes, cursor);
-    copy_to_bytes(calibration.depth_camera_calibration.resolution_width, message_bytes, cursor); // width
-    copy_to_bytes(calibration.depth_camera_calibration.resolution_height, message_bytes, cursor); // height
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.cx, message_bytes, cursor); // cx
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.cy, message_bytes, cursor); // cy
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.fx, message_bytes, cursor); // fx
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.fy, message_bytes, cursor); // fy
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.k1, message_bytes, cursor); // k1
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.k2, message_bytes, cursor); // k2
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.k3, message_bytes, cursor); // k3
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.k4, message_bytes, cursor); // k4
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.k5, message_bytes, cursor); // k5
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.k6, message_bytes, cursor); // k6
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.codx, message_bytes, cursor); // codx
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.cody, message_bytes, cursor); // cody
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.p1, message_bytes, cursor); // p1
-    copy_to_bytes(calibration.depth_camera_calibration.intrinsics.parameters.param.p2, message_bytes, cursor); // p2
-    copy_to_bytes(calibration.depth_camera_calibration.metric_radius, message_bytes, cursor); // max_radius_for_projection
+    copy_to_message(gsl::narrow<int>(color_encoder_frame.size()), message, cursor);
+    memcpy(message.bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
+    cursor.position += gsl::narrow<int>(color_encoder_frame.size());
 
-    copy_to_bytes(gsl::narrow_cast<int>(color_encoder_frame.size()), message_bytes, cursor);
-    memcpy(message_bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
-    cursor.position += gsl::narrow_cast<int>(color_encoder_frame.size());
+    copy_to_message(gsl::narrow<int>(depth_encoder_frame.size()), message, cursor);
+    memcpy(message.bytes.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
+    cursor.position += gsl::narrow<int>(depth_encoder_frame.size());
 
-    copy_to_bytes(gsl::narrow_cast<int>(depth_encoder_frame.size()), message_bytes, cursor);
-    memcpy(message_bytes.data() + cursor.position, depth_encoder_frame.data(), depth_encoder_frame.size());
-    cursor.position += gsl::narrow_cast<int>(depth_encoder_frame.size());
-
-    copy_to_bytes(floor.has_value(), message_bytes, cursor);
+    copy_to_message(floor.has_value(), message, cursor);
 
     if (floor) {
-        copy_to_bytes(floor->at(0), message_bytes, cursor);
-        copy_to_bytes(floor->at(1), message_bytes, cursor);
-        copy_to_bytes(floor->at(2), message_bytes, cursor);
-        copy_to_bytes(floor->at(3), message_bytes, cursor);
+        copy_to_message(floor->at(0), message, cursor);
+        copy_to_message(floor->at(1), message, cursor);
+        copy_to_message(floor->at(2), message, cursor);
+        copy_to_message(floor->at(3), message, cursor);
     }
 
-    return message_bytes;
+    return message;
 }
 
 std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> video_message)
 {
     // The size of frame packets is defined to match the upper limit for udp packets.
-    int packet_count{gsl::narrow_cast<int>(video_message.size() - 1) / KH_MAX_VIDEO_PACKET_CONTENT_SIZE + 1};
+    int packet_count{gsl::narrow<int>(video_message.size() - 1) / KH_MAX_VIDEO_PACKET_CONTENT_SIZE + 1};
     std::vector<Packet> packets;
     for (int packet_index = 0; packet_index < packet_count; ++packet_index) {
         int message_cursor = KH_MAX_VIDEO_PACKET_CONTENT_SIZE * packet_index;
 
         const bool last{(packet_index + 1) == packet_count};
-        const int packet_content_size{last ? gsl::narrow_cast<int>(video_message.size() - message_cursor) : KH_MAX_VIDEO_PACKET_CONTENT_SIZE};
+        const int packet_content_size{last ? gsl::narrow<int>(video_message.size() - message_cursor) : KH_MAX_VIDEO_PACKET_CONTENT_SIZE};
         packets.push_back(create_video_sender_packet(session_id, frame_id, packet_index, packet_count,
-                                                     gsl::span<const std::byte>{video_message.data() + message_cursor, gsl::narrow_cast<size_t>(packet_content_size)}));
+                                                     gsl::span<const std::byte>{video_message.data() + message_cursor, gsl::narrow<size_t>(packet_content_size)}));
     }
 
     return packets;
@@ -170,13 +170,13 @@ std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std:
 {
     int message_size{0};
     for (auto& message_data : video_sender_message_data_set)
-        message_size += gsl::narrow_cast<int>(message_data.size());
+        message_size += gsl::narrow<int>(message_data.size());
 
     std::vector<std::byte> message_bytes(message_size);
     int cursor{0};
     for (auto& message_data : video_sender_message_data_set) {
         memcpy(message_bytes.data() + cursor, message_data.data(), message_data.size());
-        cursor += gsl::narrow_cast<int>(message_data.size());
+        cursor += gsl::narrow<int>(message_data.size());
     }
 
     return message_bytes;
@@ -246,13 +246,13 @@ std::vector<Packet> create_parity_sender_packets(int session_id, int frame_id, i
                                                                           gsl::span<const Packet> video_packets)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
-    const int parity_packet_count{gsl::narrow_cast<int>(video_packets.size() - 1) / parity_group_size + 1};
+    const int parity_packet_count{gsl::narrow<int>(video_packets.size() - 1) / parity_group_size + 1};
 
     std::vector<Packet> parity_packets;
     for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
         const int frame_packet_bytes_cursor{gsl::narrow<int>(parity_packet_index * parity_group_size)};
-        const int parity_frame_packet_count{std::min<int>(parity_group_size, gsl::narrow_cast<int>(video_packets.size()) - frame_packet_bytes_cursor)};
-        parity_packets.push_back(create_parity_sender_packet(session_id, frame_id, gsl::narrow_cast<int>(parity_packet_index), parity_packet_count,
+        const int parity_frame_packet_count{std::min<int>(parity_group_size, gsl::narrow<int>(video_packets.size()) - frame_packet_bytes_cursor)};
+        parity_packets.push_back(create_parity_sender_packet(session_id, frame_id, gsl::narrow<int>(parity_packet_index), parity_packet_count,
                                                              gsl::span<const Packet>(&video_packets[frame_packet_bytes_cursor], parity_frame_packet_count)));
     }
     return parity_packets;
@@ -300,10 +300,10 @@ ParitySenderPacket read_parity_sender_packet(gsl::span<const std::byte> packet_b
 
 Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame)
 {
-    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                sizeof(SenderPacketType) +
-                                                sizeof(frame_id) +
-                                                opus_frame.size())};
+    const int packet_size{gsl::narrow<int>(sizeof(session_id) +
+                                           sizeof(SenderPacketType) +
+                                           sizeof(frame_id) +
+                                           opus_frame.size())};
 
     Packet packet(packet_size);
     PacketCursor cursor;
@@ -346,10 +346,10 @@ Packet create_connect_receiver_packet(int session_id,
                                       bool video_requested,
                                       bool audio_requested)
 {
-    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                    sizeof(ReceiverPacketType) +
-                                                    sizeof(video_requested) +
-                                                    sizeof(audio_requested))};
+    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
+                                               sizeof(ReceiverPacketType) +
+                                               sizeof(video_requested) +
+                                               sizeof(audio_requested))};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -372,8 +372,8 @@ ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> pa
 
 Packet create_heartbeat_receiver_packet(int session_id)
 {
-    constexpr int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                    sizeof(ReceiverPacketType))};
+    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
+                                               sizeof(ReceiverPacketType))};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -385,11 +385,11 @@ Packet create_heartbeat_receiver_packet(int session_id)
 
 Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms)
 {
-    const int packet_size{gsl::narrow_cast<int>(sizeof(session_id) +
-                                                sizeof(ReceiverPacketType) +
-                                                sizeof(frame_id) +
-                                                sizeof(decoder_time_ms) +
-                                                sizeof(frame_time_ms))};
+    const int packet_size{gsl::narrow<int>(sizeof(session_id) +
+                                           sizeof(ReceiverPacketType) +
+                                           sizeof(frame_id) +
+                                           sizeof(decoder_time_ms) +
+                                           sizeof(frame_time_ms))};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -420,16 +420,16 @@ Packet create_request_receiver_packet(int session_id, int frame_id,
                           sizeof(frame_id) +
                           sizeof(int) +
                           sizeof(int) +
-                          sizeof(int) * gsl::narrow_cast<int>(video_packet_indices.size()) +
-                          sizeof(int) * gsl::narrow_cast<int>(parity_packet_indices.size()));
+                          sizeof(int) * gsl::narrow<int>(video_packet_indices.size()) +
+                          sizeof(int) * gsl::narrow<int>(parity_packet_indices.size()));
 
-    Packet packet{packet_size};
+    Packet packet{gsl::narrow<std::vector<std::byte>::size_type>(packet_size)};
     PacketCursor cursor;
     copy_to_packet(session_id, packet, cursor);
     copy_to_packet(ReceiverPacketType::Request, packet, cursor);
     copy_to_packet(frame_id, packet, cursor);
-    copy_to_packet(gsl::narrow_cast<int>(video_packet_indices.size()), packet, cursor);
-    copy_to_packet(gsl::narrow_cast<int>(parity_packet_indices.size()), packet, cursor);
+    copy_to_packet(gsl::narrow<int>(video_packet_indices.size()), packet, cursor);
+    copy_to_packet(gsl::narrow<int>(parity_packet_indices.size()), packet, cursor);
 
     for (int index : video_packet_indices)
         copy_to_packet(index, packet, cursor);

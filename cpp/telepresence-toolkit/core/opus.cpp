@@ -56,7 +56,7 @@ int AudioDecoder::decode(std::optional<gsl::span<const std::byte>> opus_frame, f
     if (opus_frame)
         return opus_decode_float(opus_decoder_,
                                  reinterpret_cast<const unsigned char*>(opus_frame->data()),
-                                 gsl::narrow_cast<opus_int32>(opus_frame->size()),
+                                 gsl::narrow<opus_int32>(opus_frame->size()),
                                  pcm, frame_size, decode_fec);
     else
         return opus_decode_float(opus_decoder_, nullptr, 0, pcm, frame_size, decode_fec);

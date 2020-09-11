@@ -53,7 +53,7 @@ void TwoChannelTexture::updatePixels(ID3D11DeviceContext* device_context,
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
-	int row_pitch{gsl::narrow_cast<int>(mapped.RowPitch)};
+	int row_pitch{gsl::narrow<int>(mapped.RowPitch)};
 	uint8_t* texture_data{reinterpret_cast<uint8_t*>(mapped.pData)};
 
 	for (int j = 0; j < height_; ++j) {

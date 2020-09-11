@@ -23,7 +23,7 @@ extern "C"
         int frame_size
     )
     {
-        return new tt::FFmpegFrame(std::move(decoder->decode({frame_data, gsl::narrow_cast<size_t>(frame_size)})));
+        return new tt::FFmpegFrame(std::move(decoder->decode({frame_data, gsl::narrow<size_t>(frame_size)})));
     }
 
     UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_ffmpeg_frame(tt::FFmpegFrame* ptr)
@@ -49,7 +49,7 @@ extern "C"
         bool keyframe
     )
     {
-        return new std::vector<std::int16_t>(std::move(decoder->decode({frame_data, gsl::narrow_cast<size_t>(frame_size)}, keyframe)));
+        return new std::vector<std::int16_t>(std::move(decoder->decode({frame_data, gsl::narrow<size_t>(frame_size)}, keyframe)));
     }
 
     UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_depth_pixels(std::vector<int16_t>* ptr)
@@ -77,7 +77,7 @@ extern "C"
     )
     {
         if(opus_frame_data)
-            return decoder->decode(gsl::span<std::byte>{opus_frame_data, gsl::narrow_cast<size_t>(opus_frame_size)}, pcm_data, frame_size, 0);
+            return decoder->decode(gsl::span<std::byte>{opus_frame_data, gsl::narrow<size_t>(opus_frame_size)}, pcm_data, frame_size, 0);
         else
             return decoder->decode(std::nullopt, pcm_data, frame_size, 0);
     }

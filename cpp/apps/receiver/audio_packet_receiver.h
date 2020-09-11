@@ -13,7 +13,7 @@ public:
         audio_decoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT},
         pcm_{}, last_audio_frame_id_{-1}
     {
-        constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
+        constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 
         soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
         if (!soundio_callback::ring_buffer)
@@ -38,7 +38,7 @@ public:
         char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer)};
         int free_bytes{soundio_ring_buffer_free_count(soundio_callback::ring_buffer)};
 
-        const int FRAME_BYTE_SIZE{gsl::narrow_cast<int>(sizeof(float) * pcm_.size())};
+        const int FRAME_BYTE_SIZE{gsl::narrow<int>(sizeof(float) * pcm_.size())};
 
         int write_cursor{0};
         auto packet_it = audio_packet_data_vector.begin();

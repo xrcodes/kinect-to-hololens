@@ -51,11 +51,11 @@ void ChannelTexture::updatePixels(ID3D11DeviceContext* device_context,
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
     
-	int row_pitch{gsl::narrow_cast<int>(mapped.RowPitch)};
+	int row_pitch{gsl::narrow<int>(mapped.RowPitch)};
 	uint8_t* texture_data{reinterpret_cast<uint8_t*>(mapped.pData)};
 
 	for (int i = 0; i < height_; ++i)
-		memcpy(texture_data + gsl::narrow_cast<int>(i * row_pitch), frame_data + gsl::narrow_cast<int>(i * frame_linesize), width_);
+		memcpy(texture_data + gsl::narrow<int>(i * row_pitch), frame_data + gsl::narrow<int>(i * frame_linesize), width_);
 
 	device_context->Unmap(texture_, 0);
 }

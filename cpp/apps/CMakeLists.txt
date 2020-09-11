@@ -64,7 +64,6 @@ add_executable(KinectReceiverApp
   helper/opencv_helper.h
   helper/soundio_helper.h
   receiver/audio_packet_receiver.h
-  receiver/sender_packet_receiver.h
   receiver/video_message_assembler.h
   receiver/video_message_assembler.cpp
   receiver/video_renderer.h

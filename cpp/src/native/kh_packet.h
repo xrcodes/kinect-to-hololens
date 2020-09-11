@@ -40,11 +40,24 @@ constexpr int KH_MAX_AUDIO_PACKET_CONTENT_SIZE{KH_PACKET_SIZE - KH_AUDIO_PACKET_
 
 constexpr static int KH_FEC_PARITY_GROUP_SIZE{2};
 
+// Both Packet and Message as classes are for readibility.
+// They do not provide any additional functionality over std::vector<std::byte>>.
+// The same for PacketCursor and MessageCursor.
 struct Packet
 {
     std::vector<std::byte> bytes;
 
-    Packet(int byte_size)
+    Packet(std::vector<std::byte>::size_type byte_size)
+        : bytes(byte_size)
+    {
+    }
+};
+
+struct Message
+{
+    std::vector<std::byte> bytes;
+
+    Message(std::vector<std::byte>::size_type byte_size)
         : bytes(byte_size)
     {
     }
@@ -55,8 +68,20 @@ struct PacketCursor
     int position{0};
 };
 
+struct MessageCursor
+{
+    int position{0};
+};
+
 template<class T>
 void copy_to_packet(const T& t, Packet& packet, PacketCursor& cursor)
+{
+    memcpy(&packet.bytes[cursor.position], &t, sizeof(T));
+    cursor.position += sizeof(T);
+}
+
+template<class T>
+void copy_to_message(const T& t, Message& packet, MessageCursor& cursor)
 {
     memcpy(&packet.bytes[cursor.position], &t, sizeof(T));
     cursor.position += sizeof(T);
@@ -149,11 +174,11 @@ struct VideoSenderPacket
     std::vector<std::byte> message_data;
 };
 
-std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp, bool keyframe,
-                                                         const k4a::calibration& calibration,
-                                                         gsl::span<const std::byte> color_encoder_frame,
-                                                         gsl::span<const std::byte> depth_encoder_frame,
-                                                         std::optional<std::array<float, 4>> floor);
+Message create_video_sender_message(float frame_time_stamp, bool keyframe,
+                                    const k4a::calibration& calibration,
+                                    gsl::span<const std::byte> color_encoder_frame,
+                                    gsl::span<const std::byte> depth_encoder_frame,
+                                    std::optional<std::array<float, 4>> floor);
 std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> video_message);
 Packet create_video_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content);
 VideoSenderPacket read_video_sender_packet(gsl::span<const std::byte> packet_bytes);

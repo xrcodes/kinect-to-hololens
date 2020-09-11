@@ -20,7 +20,7 @@ public:
         , pcm_{}
         , audio_frame_id_{0}
     {
-        constexpr int capacity{gsl::narrow_cast<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
+        constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
         soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
         if (!soundio_callback::ring_buffer)
             throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
@@ -34,7 +34,7 @@ public:
         const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
         const int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer)};
 
-        constexpr int BYTES_PER_FRAME{gsl::narrow_cast<int>(sizeof(float) * KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT)};
+        constexpr int BYTES_PER_FRAME{gsl::narrow<int>(sizeof(float) * KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT)};
         int cursor = 0;
         while ((fill_bytes - cursor) >= BYTES_PER_FRAME) {
             memcpy(pcm_.data(), read_ptr + cursor, BYTES_PER_FRAME);
@@ -43,7 +43,7 @@ public:
             const int opus_frame_size{audio_encoder_.encode(opus_frame.data(),
                                                             pcm_.data(),
                                                             KH_SAMPLES_PER_FRAME,
-                                                            gsl::narrow_cast<opus_int32>(opus_frame.size()))};
+                                                            gsl::narrow<opus_int32>(opus_frame.size()))};
             opus_frame.resize(opus_frame_size);
             for (auto& [_, remote_receiver] : remote_receivers) {
                 if(remote_receiver.audio_requested)

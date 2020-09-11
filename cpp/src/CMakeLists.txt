@@ -2,3 +2,4 @@
 add_subdirectory(native)
 add_subdirectory(external)
 add_subdirectory(sender)
+add_subdirectory(receiver)

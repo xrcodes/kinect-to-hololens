@@ -48,7 +48,7 @@ TrvlEncoder::TrvlEncoder(int pixel_count, int16_t change_threshold, int invalid_
 
 std::vector<std::byte> TrvlEncoder::encode(gsl::span<const int16_t> depth_buffer, bool keyframe)
 {
-    const int frame_size{gsl::narrow_cast<int>(pixels_.size())};
+    const int frame_size{gsl::narrow<int>(pixels_.size())};
     if (keyframe) {
         for (gsl::index i{0}; i < frame_size; ++i) {
             pixels_[i].value = depth_buffer[i];
@@ -76,7 +76,7 @@ TrvlDecoder::TrvlDecoder(int pixel_count)
 
 std::vector<int16_t> TrvlDecoder::decode(gsl::span<const std::byte> trvl_frame, bool keyframe) noexcept
 {
-    const int pixel_count{gsl::narrow_cast<int>(prev_pixel_values_.size())};
+    const int pixel_count{gsl::narrow<int>(prev_pixel_values_.size())};
     if (keyframe) {
         prev_pixel_values_ = rvl::decompress(trvl_frame, pixel_count);
         return prev_pixel_values_;

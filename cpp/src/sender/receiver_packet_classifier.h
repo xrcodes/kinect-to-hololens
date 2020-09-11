@@ -26,7 +26,7 @@ struct ReceiverPacketCollection
 class ReceiverPacketClassifier
 {
 public:
-    static ReceiverPacketCollection receive(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
+    static ReceiverPacketCollection categorizePackets(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
     {
         // Prepare ReceiverPacketCollection in regard with the list of RemoteReceivers.
         ReceiverPacketCollection receiver_packet_collection;

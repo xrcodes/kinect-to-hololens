@@ -16,12 +16,12 @@ std::vector<float> compute_unit_depth_x(const k4a::calibration& calibration)
     const int width{calibration.depth_camera_calibration.resolution_width};
     const int height{calibration.depth_camera_calibration.resolution_height};
 
-    std::vector<float> unit_depth_x(gsl::narrow_cast<int>(width * height));
+    std::vector<float> unit_depth_x(gsl::narrow<int>(width * height));
 
     k4a_float3_t point;
     for (gsl::index j{0}; j < height; ++j) {
         for (gsl::index i{0}; i < width; ++i) {
-            if (!calibration.convert_2d_to_3d(k4a_float2_t{gsl::narrow_cast<float>(i), gsl::narrow_cast<float>(j)},
+            if (!calibration.convert_2d_to_3d(k4a_float2_t{gsl::narrow<float>(i), gsl::narrow<float>(j)},
                                               1.0f,
                                               K4A_CALIBRATION_TYPE_DEPTH,
                                               K4A_CALIBRATION_TYPE_DEPTH,
