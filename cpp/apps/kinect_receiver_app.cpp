@@ -40,7 +40,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     //VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     // TODO: Fix to use recieved width and height.
     VideoRenderer video_renderer{session_id, remote_endpoint, 640, 576};
-    std::map<int, VideoSenderMessageData> video_frame_messages;
+    std::map<int, VideoSenderMessage> video_frame_messages;
 
     for (;;) {
         try {

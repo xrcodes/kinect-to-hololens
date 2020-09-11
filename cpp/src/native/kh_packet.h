@@ -95,6 +95,13 @@ void copy_to_bytes(const T& t, gsl::span<std::byte> bytes, PacketCursor& cursor)
 }
 
 template<class T>
+void copy_from_bytes(T& t, gsl::span<const std::byte> bytes, MessageCursor& cursor)
+{
+    memcpy(&t, &bytes[cursor.position], sizeof(T));
+    cursor.position += sizeof(T);
+}
+
+template<class T>
 void copy_from_bytes(T& t, gsl::span<const std::byte> bytes, PacketCursor& cursor)
 {
     memcpy(&t, &bytes[cursor.position], sizeof(T));
@@ -144,7 +151,7 @@ struct HeartbeatSenderPacket
 
 Packet create_heartbeat_sender_packet(int session_id);
 
-struct VideoSenderMessageData
+struct VideoSenderMessage
 {
     float frame_time_stamp{0.0f};
     bool keyframe{false};
@@ -188,8 +195,8 @@ Message create_video_sender_message(float frame_time_stamp, bool keyframe,
 std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> video_message);
 Packet create_video_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content);
 VideoSenderPacket read_video_sender_packet(gsl::span<const std::byte> packet_bytes);
-std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set);
-VideoSenderMessageData read_video_sender_message_data(gsl::span<const std::byte> message_bytes);
+std::vector<std::byte> merge_video_sender_packets(gsl::span<VideoSenderPacket*> video_packet_ptrs);
+VideoSenderMessage read_video_sender_message(gsl::span<const std::byte> message_bytes);
 
 struct ParitySenderPacket
 {

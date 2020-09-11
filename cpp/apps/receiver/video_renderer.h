@@ -13,8 +13,7 @@ public:
 
     int last_frame_id() { return last_frame_id_; }
 
-    void render(UdpSocket& udp_socket,
-                std::map<int, VideoSenderMessageData>& video_frame_messages)
+    void render(UdpSocket& udp_socket, std::map<int, VideoSenderMessage>& video_frame_messages)
     {
         if (video_frame_messages.empty())
             return;
