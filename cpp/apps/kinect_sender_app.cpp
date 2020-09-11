@@ -287,6 +287,7 @@ void start(KinectInterface& kinect_interface)
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
+                std::cout << "connect_packet_info.connect_packet.session_id: " << connect_packet_info.connect_packet.session_id << std::endl;
                 // Send packet confirming the receiver that the connect packet got received.
                 udp_socket.send(create_confirm_sender_packet(session_id, connect_packet_info.connect_packet.session_id).bytes, connect_packet_info.receiver_endpoint);
 

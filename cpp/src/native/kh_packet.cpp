@@ -1,5 +1,6 @@
 #include "kh_packet.h"
 
+#include <iostream>
 #include "kh_kinect.h"
 
 namespace kh
@@ -11,14 +12,14 @@ int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_by
 
 SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
-    return copy_from_bytes<SenderPacketType>(packet_bytes, 4);
+    return copy_from_bytes<SenderPacketType>(packet_bytes, sizeof(int));
 }
 
 Packet create_confirm_sender_packet(int session_id, int receiver_session_id)
 {
-    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
-                                               sizeof(SenderPacketType) +
-                                               sizeof(receiver_session_id))};
+    constexpr auto packet_size{sizeof(session_id) +
+                               sizeof(SenderPacketType) +
+                               sizeof(receiver_session_id)};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -31,8 +32,8 @@ Packet create_confirm_sender_packet(int session_id, int receiver_session_id)
 
 Packet create_heartbeat_sender_packet(int session_id)
 {
-    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
-                                               sizeof(SenderPacketType))};
+    constexpr auto packet_size{sizeof(session_id) +
+                               sizeof(SenderPacketType)};
 
     Packet packet(packet_size);
     PacketCursor cursor;
@@ -339,17 +340,15 @@ int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_
 
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes)
 {
-    return copy_from_bytes<ReceiverPacketType>(packet_bytes, 4);
+    return copy_from_bytes<ReceiverPacketType>(packet_bytes, sizeof(int));
 }
 
-Packet create_connect_receiver_packet(int session_id,
-                                      bool video_requested,
-                                      bool audio_requested)
+Packet create_connect_receiver_packet(int session_id, bool video_requested, bool audio_requested)
 {
-    constexpr int packet_size{gsl::narrow<int>(sizeof(session_id) +
-                                               sizeof(ReceiverPacketType) +
-                                               sizeof(video_requested) +
-                                               sizeof(audio_requested))};
+    constexpr auto packet_size{sizeof(session_id) +
+                               sizeof(ReceiverPacketType) +
+                               sizeof(video_requested) +
+                               sizeof(audio_requested)};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -366,6 +365,7 @@ ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> pa
     PacketCursor cursor;
     ConnectReceiverPacket connect_receiver_packet;
     copy_from_bytes(connect_receiver_packet, packet_bytes, cursor);
+    std::cout << "connect_receiver_packet.session_id" << connect_receiver_packet.session_id << std::endl;
 
     return connect_receiver_packet;
 }
@@ -385,11 +385,11 @@ Packet create_heartbeat_receiver_packet(int session_id)
 
 Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms)
 {
-    const int packet_size{gsl::narrow<int>(sizeof(session_id) +
-                                           sizeof(ReceiverPacketType) +
-                                           sizeof(frame_id) +
-                                           sizeof(decoder_time_ms) +
-                                           sizeof(frame_time_ms))};
+    constexpr auto packet_size{sizeof(session_id) +
+                               sizeof(ReceiverPacketType) +
+                               sizeof(frame_id) +
+                               sizeof(decoder_time_ms) +
+                               sizeof(frame_time_ms)};
 
     Packet packet{packet_size};
     PacketCursor cursor;

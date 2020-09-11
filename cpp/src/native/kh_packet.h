@@ -136,6 +136,12 @@ struct ConfirmSenderPacket
 
 Packet create_confirm_sender_packet(int session_id, int receiver_session_id);
 
+struct HeartbeatSenderPacket
+{
+    int session_id{0};
+    SenderPacketType type{SenderPacketType::Heartbeat};
+};
+
 Packet create_heartbeat_sender_packet(int session_id);
 
 struct VideoSenderMessageData
@@ -230,6 +236,12 @@ Packet create_connect_receiver_packet(int session_id,
                                       bool video_requested,
                                       bool audio_requested);
 ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> packet_bytes);
+
+struct HeartbeatReceiverPacket
+{
+    int session_id{0};
+    ReceiverPacketType type{ReceiverPacketType::Heartbeat};
+};
 
 Packet create_heartbeat_receiver_packet(int session_id);
 
