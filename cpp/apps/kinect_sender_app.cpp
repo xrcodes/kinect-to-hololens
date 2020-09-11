@@ -93,7 +93,7 @@ void send_video_message(VideoPipelineFrame& video_frame,
     const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
     const auto message{create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
     auto video_packets{split_video_sender_message_bytes(sender_id, video_frame.frame_id, message.bytes)};
-    auto parity_packets{create_parity_sender_packets(sender_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packets)};
+    auto parity_packets{create_parity_sender_packets(sender_id, video_frame.frame_id, video_packets)};
 
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
@@ -264,14 +264,13 @@ void start(KinectInterface& kinect_interface)
         ImGui::SetNextWindowPos(ImVec2(0.0f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.6f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Remote Receivers");
-        for (auto& [_, remote_receiver] : remote_receivers)
-            ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nVideo Frame ID: %d",
-                              remote_receiver.endpoint.address().to_string(),
-                              remote_receiver.endpoint.port(),
-                              remote_receiver.receiver_id,
-                              remote_receiver.video_requested ? "Requested" : "Not Requested",
-                              remote_receiver.audio_requested ? "Requested" : "Not Requested",
-                              remote_receiver.video_frame_id);
+        for (auto& [_, remote_receiver] : remote_receivers) {
+            ImGui::Text("End Point: %s:%d", remote_receiver.endpoint.address().to_string(), remote_receiver.endpoint.port());
+            ImGui::BulletText("Receiver ID: %d", remote_receiver.receiver_id);
+            ImGui::BulletText("Video: %s", remote_receiver.video_requested ? "Requested" : "Not Requested");
+            ImGui::BulletText("Audio: %s", remote_receiver.audio_requested ? "Requested" : "Not Requested");
+            ImGui::BulletText("Frame ID: %d", remote_receiver.video_frame_id);
+        }
         ImGui::End();
 
         // For the demo: add a debug button _BEFORE_ the normal log window contents

@@ -52,7 +52,8 @@ public class VideoMessageAssembler
 
             if (!parityPacketCollections.ContainsKey(paritySenderPacketData.frameId))
             {
-                parityPacketCollections[paritySenderPacketData.frameId] = new ParitySenderPacketData[paritySenderPacketData.packetCount];
+                int parityPacketCount = (paritySenderPacketData.videoPacketCount - 1) / FEC_GROUP_SIZE + 1;
+                parityPacketCollections[paritySenderPacketData.frameId] = new ParitySenderPacketData[parityPacketCount];
             }
 
             parityPacketCollections[paritySenderPacketData.frameId][paritySenderPacketData.packetIndex] = paritySenderPacketData;

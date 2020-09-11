@@ -37,7 +37,7 @@ constexpr int KH_MAX_VIDEO_PACKET_CONTENT_SIZE{KH_PACKET_SIZE - KH_VIDEO_PACKET_
 constexpr int KH_AUDIO_PACKET_HEADER_SIZE{16};
 constexpr int KH_MAX_AUDIO_PACKET_CONTENT_SIZE{KH_PACKET_SIZE - KH_AUDIO_PACKET_HEADER_SIZE};
 
-constexpr static int KH_FEC_PARITY_GROUP_SIZE{2};
+constexpr static int KH_FEC_GROUP_SIZE{2};
 
 // Both Packet and Message as classes are for readibility.
 // They do not provide any additional functionality over std::vector<std::byte>>.
@@ -203,15 +203,15 @@ struct ParitySenderPacket
     SenderPacketType type{SenderPacketType::Parity};
     int frame_id{0};
     int packet_index{0};
-    int packet_count{0};
+    int video_packet_count{0};
     std::vector<std::byte> bytes;
 };
 
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets);
-Packet create_parity_sender_packet(int sender_id, int frame_id, int packet_index, int packet_count, gsl::span<const Packet> video_packets);
+std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, gsl::span<const Packet> video_packets);
+Packet create_parity_sender_packet(int sender_id, int frame_id, int packet_index, int video_packet_count, gsl::span<const Packet> video_packets);
 ParitySenderPacket read_parity_sender_packet(gsl::span<const std::byte> packet_bytes);
 
 struct AudioSenderPacket

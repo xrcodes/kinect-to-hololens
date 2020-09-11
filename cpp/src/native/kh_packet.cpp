@@ -243,22 +243,22 @@ VideoSenderMessage read_video_sender_message(gsl::span<const std::byte> message_
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets)
+std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, gsl::span<const Packet> video_packets)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
-    const auto parity_packet_count{(video_packets.size() - 1) / parity_group_size + 1};
+    const auto parity_packet_count{(video_packets.size() - 1) / KH_FEC_GROUP_SIZE + 1};
 
     std::vector<Packet> parity_packets;
     for (int parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
-        const int frame_packet_bytes_cursor{parity_packet_index * parity_group_size};
-        const size_t parity_frame_packet_count{std::min<size_t>(parity_group_size, video_packets.size()) - frame_packet_bytes_cursor};
-        parity_packets.push_back(create_parity_sender_packet(sender_id, frame_id, parity_packet_index, gsl::narrow<int>(parity_packet_count),
+        const int frame_packet_bytes_cursor{parity_packet_index * KH_FEC_GROUP_SIZE};
+        const size_t parity_frame_packet_count{std::min<size_t>(KH_FEC_GROUP_SIZE, video_packets.size() - frame_packet_bytes_cursor)};
+        parity_packets.push_back(create_parity_sender_packet(sender_id, frame_id, parity_packet_index, gsl::narrow<int>(video_packets.size()),
                                                              gsl::span<const Packet>(&video_packets[frame_packet_bytes_cursor], parity_frame_packet_count)));
     }
     return parity_packets;
 }
 
-Packet create_parity_sender_packet(int sender_id, int frame_id, int packet_index, int packet_count, gsl::span<const Packet> video_packets)
+Packet create_parity_sender_packet(int sender_id, int frame_id, int packet_index, int video_packet_count, gsl::span<const Packet> video_packets)
 {
     // Copy packets[begin_index] instead of filling in everything zero
     // to reduce an XOR operation for contents once.
@@ -268,7 +268,7 @@ Packet create_parity_sender_packet(int sender_id, int frame_id, int packet_index
     copy_to_packet(SenderPacketType::Parity, packet, cursor);
     copy_to_packet(frame_id, packet, cursor);
     copy_to_packet(packet_index, packet, cursor);
-    copy_to_packet(packet_count, packet, cursor);
+    copy_to_packet(video_packet_count, packet, cursor);
 
     for (auto i{1}; i < video_packets.size(); ++i) {
         for (gsl::index j{KH_VIDEO_PACKET_HEADER_SIZE}; j < KH_PACKET_SIZE; ++j) {
@@ -287,7 +287,7 @@ ParitySenderPacket read_parity_sender_packet(gsl::span<const std::byte> packet_b
     copy_from_bytes(parity_sender_packet.type, packet_bytes, cursor);
     copy_from_bytes(parity_sender_packet.frame_id, packet_bytes, cursor);
     copy_from_bytes(parity_sender_packet.packet_index, packet_bytes, cursor);
-    copy_from_bytes(parity_sender_packet.packet_count, packet_bytes, cursor);
+    copy_from_bytes(parity_sender_packet.video_packet_count, packet_bytes, cursor);
 
     parity_sender_packet.bytes.resize(packet_bytes.size() - cursor.position);
     memcpy(parity_sender_packet.bytes.data(),

@@ -40,9 +40,11 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             continue;
 
         auto parity_packet_iter{parity_packet_collections_.find(parity_sender_packet_data.frame_id)};
-        if (parity_packet_iter == parity_packet_collections_.end())
+        if (parity_packet_iter == parity_packet_collections_.end()) {
+            const auto parity_packet_count{(parity_sender_packet_data.video_packet_count - 1) / KH_FEC_GROUP_SIZE + 1};
             std::tie(parity_packet_iter, std::ignore) = parity_packet_collections_.insert({parity_sender_packet_data.frame_id,
-                                                                                           std::vector<std::optional<ParitySenderPacket>>(parity_sender_packet_data.packet_count)});
+                                                                                           std::vector<std::optional<ParitySenderPacket>>(parity_packet_count)});
+        }
 
         parity_packet_iter->second[parity_sender_packet_data.packet_index] = std::move(parity_sender_packet_data);
         //std::cout << "parity packet " << parity_sender_packet_data.frame_id << ":" << parity_sender_packet_data.packet_index << "\n";
@@ -76,9 +78,9 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             //for (auto& parity_packet : parity_packet_collections_ref->second) {
             for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packets_ptr->size(); ++parity_packet_index) {
                 // Range of the video packets that correspond to the parity packet.
-                gsl::index video_packet_start_index{parity_packet_index * KH_FEC_PARITY_GROUP_SIZE};
+                gsl::index video_packet_start_index{parity_packet_index * KH_FEC_GROUP_SIZE};
                 // Pick the end index with the end of video packet indices in mind (i.e., prevent overflow).
-                gsl::index video_packet_end_index{std::min<int>(video_packet_start_index + KH_FEC_PARITY_GROUP_SIZE,
+                gsl::index video_packet_end_index{std::min<int>(video_packet_start_index + KH_FEC_GROUP_SIZE,
                                                                 video_packets_ptr->size())};
 
                 // If the parity packet is missing, request all missing video packets and skip the FEC process.

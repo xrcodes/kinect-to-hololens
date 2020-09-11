@@ -195,7 +195,7 @@ public class ParitySenderPacketData
 {
     public int frameId;
     public int packetIndex;
-    public int packetCount;
+    public int videoPacketCount;
     public byte[] bytes;
 
     public static ParitySenderPacketData Parse(byte[] packetBytes)
@@ -206,7 +206,7 @@ public class ParitySenderPacketData
         var fecSenderPacketData = new ParitySenderPacketData();
         fecSenderPacketData.frameId = reader.ReadInt32();
         fecSenderPacketData.packetIndex = reader.ReadInt32();
-        fecSenderPacketData.packetCount = reader.ReadInt32();
+        fecSenderPacketData.videoPacketCount = reader.ReadInt32();
 
         fecSenderPacketData.bytes =  reader.ReadBytes(packetBytes.Length - (int) reader.BaseStream.Position);
 
