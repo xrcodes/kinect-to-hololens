@@ -10,10 +10,10 @@ class VideoMessageAssembler
 public:
     VideoMessageAssembler(const int session_id, const asio::ip::udp::endpoint remote_endpoint);
     void assemble(UdpSocket& udp_socket,
-                  std::vector<VideoSenderPacket>& video_packet_data_vector,
-                  std::vector<ParitySenderPacket>& parity_packet_data_vector,
+                  std::vector<VideoSenderPacket>& video_packets,
+                  std::vector<ParitySenderPacket>& parity_packets,
                   int last_frame_id,
-                  std::map<int, VideoSenderMessage>& video_frame_messages);
+                  std::map<int, VideoSenderMessage>& video_messages);
 
 private:
     const int session_id_;

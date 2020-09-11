@@ -10,14 +10,14 @@ VideoMessageAssembler::VideoMessageAssembler(const int session_id, const asio::i
 }
 
 void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
-                                     std::vector<VideoSenderPacket>& video_packet_data_vector,
-                                     std::vector<ParitySenderPacket>& parity_packet_data_vector,
+                                     std::vector<VideoSenderPacket>& video_packets,
+                                     std::vector<ParitySenderPacket>& parity_packets,
                                      int last_frame_id,
-                                     std::map<int, VideoSenderMessage>& video_frame_messages)
+                                     std::map<int, VideoSenderMessage>& video_messages)
 {
     std::optional<int> added_frame_id{std::nullopt};
     // Collect the received video packets.
-    for (auto& video_sender_packet_data : video_packet_data_vector) {
+    for (auto& video_sender_packet_data : video_packets) {
         if (video_sender_packet_data.frame_id <= last_frame_id)
             continue;
 
@@ -35,7 +35,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
     }
 
     // Collect the received parity packets.
-    for (auto& parity_sender_packet_data : parity_packet_data_vector) {
+    for (auto& parity_sender_packet_data : parity_packets) {
         if (parity_sender_packet_data.frame_id <= last_frame_id)
             continue;
 
@@ -179,7 +179,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             for (gsl::index i{0}; i < video_packet_ptrs.size(); ++i)
                 video_packet_ptrs[i] = &*(it->second[i]);
 
-            video_frame_messages.insert({it->first, read_video_sender_message(merge_video_sender_packets(video_packet_ptrs))});
+            video_messages.insert({it->first, read_video_sender_message(merge_video_sender_packets(video_packet_ptrs))});
             it = video_packet_collections_.erase(it);
         } else {
             ++it;

@@ -13,14 +13,14 @@ public:
 
     int last_frame_id() { return last_frame_id_; }
 
-    void render(UdpSocket& udp_socket, std::map<int, VideoSenderMessage>& video_frame_messages)
+    void render(UdpSocket& udp_socket, std::map<int, VideoSenderMessage>& video_messages)
     {
-        if (video_frame_messages.empty())
+        if (video_messages.empty())
             return;
 
         std::optional<int> begin_frame_id;
         // If there is a key frame, use the most recent one.
-        for (auto& frame_message_pair : video_frame_messages) {
+        for (auto& frame_message_pair : video_messages) {
             if (frame_message_pair.first <= last_frame_id_)
                 continue;
 
@@ -32,7 +32,7 @@ public:
         // if there is the one right after the previously rendered one.
         if (!begin_frame_id) {
             // If a frame message with frame_id == (last_frame_id + 1) is found
-            if (video_frame_messages.find(last_frame_id_ + 1) != video_frame_messages.end()) {
+            if (video_messages.find(last_frame_id_ + 1) != video_messages.end()) {
                 begin_frame_id = last_frame_id_ + 1;
             } else {
                 // Wait for more frames if there is way to render without glitches.
@@ -45,10 +45,10 @@ public:
         const auto decoder_start{tt::TimePoint::now()};
         for (int i = *begin_frame_id; ; ++i) {
             // break loop is there is no frame with frame_id i.
-            if (video_frame_messages.find(i) == video_frame_messages.end())
+            if (video_messages.find(i) == video_messages.end())
                 break;
 
-            const auto frame_message_pair_ptr{&video_frame_messages[i]};
+            const auto frame_message_pair_ptr{&video_messages[i]};
 
             last_frame_id_ = i;
 
@@ -74,9 +74,9 @@ public:
             return;
 
         // Remove frame messages before the rendered frame.
-        for (auto it = video_frame_messages.begin(); it != video_frame_messages.end();) {
+        for (auto it = video_messages.begin(); it != video_messages.end();) {
             if (it->first < last_frame_id_) {
-                it = video_frame_messages.erase(it);
+                it = video_messages.erase(it);
             } else {
                 ++it;
             }

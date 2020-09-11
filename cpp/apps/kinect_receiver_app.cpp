@@ -40,7 +40,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
     //VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     // TODO: Fix to use recieved width and height.
     VideoRenderer video_renderer{session_id, remote_endpoint, 640, 576};
-    std::map<int, VideoSenderMessage> video_frame_messages;
+    std::map<int, VideoSenderMessage> video_messages;
 
     for (;;) {
         try {
@@ -55,7 +55,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
                                                  sender_packet_set.video_packets,
                                                  sender_packet_set.parity_packets,
                                                  video_renderer.last_frame_id(),
-                                                 video_frame_messages);
+                                                 video_messages);
                 audio_packet_receiver.receive(sender_packet_set.audio_packets);
                 received_any_time = tt::TimePoint::now();
             } else {
@@ -68,7 +68,7 @@ void start_session(const std::string ip_address, const int port, const int sessi
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;
         }
-        video_renderer.render(udp_socket, video_frame_messages);
+        video_renderer.render(udp_socket, video_messages);
     }
 }
 
