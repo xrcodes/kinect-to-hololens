@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/remote_receiver.h"
+#include "sender/remote_receiver.h"
 #include "helper/soundio_helper.h"
 
 namespace kh

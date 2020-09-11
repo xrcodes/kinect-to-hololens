@@ -179,7 +179,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
             for (gsl::index i{0}; i < video_sender_message_data_set.size(); ++i)
                 video_sender_message_data_set[i] = gsl::span<std::byte>{it->second[i]->message_data};
 
-            video_frame_messages.insert({it->first, parse_video_sender_message_bytes(merge_video_sender_message_bytes(video_sender_message_data_set))});
+            video_frame_messages.insert({it->first, read_video_sender_message_data(merge_video_sender_message_bytes(video_sender_message_data_set))});
             it = video_packet_collections_.erase(it);
         } else {
             ++it;

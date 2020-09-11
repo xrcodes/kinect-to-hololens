@@ -1,10 +1,6 @@
 #pragma once
 
-#include <cstdint>
-#include <cstring>
-#include <optional>
-#include <vector>
-#include <gsl/gsl>
+#include "core/tt_core.h"
 #include <k4a/k4a.h>
 
 namespace k4a
@@ -102,7 +98,7 @@ T copy_from_bytes(gsl::span<const std::byte> bytes, int position)
     return t;
 }
 
-/**Sender Packets**/
+#pragma region SenderPackets
 int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
@@ -160,9 +156,9 @@ std::vector<std::byte> create_video_sender_message_bytes(float frame_time_stamp,
                                                          std::optional<std::array<float, 4>> floor);
 std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> video_message);
 Packet create_video_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content);
-VideoSenderPacket parse_video_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+VideoSenderPacket read_video_sender_packet(gsl::span<const std::byte> packet_bytes);
 std::vector<std::byte> merge_video_sender_message_bytes(gsl::span<gsl::span<std::byte>> video_sender_message_data_set);
-VideoSenderMessageData parse_video_sender_message_bytes(gsl::span<const std::byte> message_bytes);
+VideoSenderMessageData read_video_sender_message_data(gsl::span<const std::byte> message_bytes);
 
 struct ParitySenderPacket
 {
@@ -179,7 +175,7 @@ struct ParitySenderPacket
 // packets to restore the packet.
 std::vector<Packet> create_parity_sender_packets(int session_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets);
 Packet create_parity_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const Packet> video_packets);
-ParitySenderPacket parse_parity_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+ParitySenderPacket read_parity_sender_packet(gsl::span<const std::byte> packet_bytes);
 
 struct AudioSenderPacket
 {
@@ -190,9 +186,10 @@ struct AudioSenderPacket
 };
 
 Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame);
-AudioSenderPacket parse_audio_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+AudioSenderPacket read_audio_sender_packet(gsl::span<const std::byte> packet_bytes);
+#pragma endregion SenderPackets
 
-/**Receiver Packets**/
+#pragma region ReceiverPackets
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
@@ -207,7 +204,7 @@ struct ConnectReceiverPacket
 Packet create_connect_receiver_packet(int session_id,
                                       bool video_requested,
                                       bool audio_requested);
-ConnectReceiverPacket parse_connect_receiver_packet(gsl::span<const std::byte> packet_bytes);
+ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
 Packet create_heartbeat_receiver_packet(int session_id);
 
@@ -221,7 +218,7 @@ struct ReportReceiverPacket
 };
 
 Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
-ReportReceiverPacket parse_report_receiver_packet(gsl::span<const std::byte> packet_bytes);
+ReportReceiverPacket read_report_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
 struct RequestReceiverPacket
 {
@@ -235,5 +232,6 @@ struct RequestReceiverPacket
 Packet create_request_receiver_packet(int session_id, int frame_id,
                                       const std::vector<int>& video_packet_indices,
                                       const std::vector<int>& parity_packet_indices);
-RequestReceiverPacket parse_request_receiver_packet(gsl::span<const std::byte> packet_bytes);
+RequestReceiverPacket read_request_receiver_packet(gsl::span<const std::byte> packet_bytes);
+#pragma endregion ReceiverPackets
 }

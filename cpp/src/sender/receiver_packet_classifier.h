@@ -7,7 +7,6 @@ namespace kh
 struct ConnectPacketInfo
 {
     asio::ip::udp::endpoint receiver_endpoint;
-    int receiver_session_id;
     ConnectReceiverPacket connect_packet;
 };
 
@@ -42,8 +41,7 @@ public:
             // Collect attempts from recievers to connect.
             if (packet_type == ReceiverPacketType::Connect) {
                 receiver_packet_collection.connect_packet_infos.push_back({packet->endpoint,
-                                                                           receiver_session_id,
-                                                                           parse_connect_receiver_packet(packet->bytes)});
+                                                                           read_connect_receiver_packet(packet->bytes)});
                 continue;
             }
 
@@ -57,10 +55,10 @@ public:
             case ReceiverPacketType::Heartbeat:
                 break;
             case ReceiverPacketType::Report:
-                receiver_packet_set_ref->second.report_packets.push_back(parse_report_receiver_packet(packet->bytes));
+                receiver_packet_set_ref->second.report_packets.push_back(read_report_receiver_packet(packet->bytes));
                 break;
             case ReceiverPacketType::Request:
-                receiver_packet_set_ref->second.request_packets.push_back(parse_request_receiver_packet(packet->bytes));
+                receiver_packet_set_ref->second.request_packets.push_back(read_request_receiver_packet(packet->bytes));
                 break;
             }
         }

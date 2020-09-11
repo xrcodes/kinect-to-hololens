@@ -3,9 +3,9 @@
 #include <tuple>
 #include "native/kh_native.h"
 #include "sender/kinect_audio_sender.h"
-#include "modules/video_pipeline.h"
-#include "modules/video_packet_storage.h"
-#include "modules/receiver_packet_classifier.h"
+#include "sender/video_pipeline.h"
+#include "sender/video_packet_storage.h"
+#include "sender/receiver_packet_classifier.h"
 #include "native/imgui_wrapper.h"
 #include "helper/filesystem_helper.h"
 #include "native/profiler.h"
@@ -288,18 +288,18 @@ void start(KinectInterface& kinect_interface)
             // Then, create ReceiverState with it.
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
                 // Send packet confirming the receiver that the connect packet got received.
-                udp_socket.send(create_confirm_sender_packet(session_id, connect_packet_info.receiver_session_id).bytes, connect_packet_info.receiver_endpoint);
+                udp_socket.send(create_confirm_sender_packet(session_id, connect_packet_info.connect_packet.session_id).bytes, connect_packet_info.receiver_endpoint);
 
                 // Skip already existing receivers.
-                if (remote_receivers.find(connect_packet_info.receiver_session_id) != remote_receivers.end())
+                if (remote_receivers.find(connect_packet_info.connect_packet.session_id) != remote_receivers.end())
                     continue;
 
                 std::cout << "connect_packet_info.connect_packet_data.video_requested: " << connect_packet_info.connect_packet.video_requested << "\n";
 
-                std::cout << "Receiver " << connect_packet_info.receiver_session_id << " connected.\n";
-                remote_receivers.insert({connect_packet_info.receiver_session_id,
+                std::cout << "Receiver " << connect_packet_info.connect_packet.session_id << " connected.\n";
+                remote_receivers.insert({connect_packet_info.connect_packet.session_id,
                                          RemoteReceiver{connect_packet_info.receiver_endpoint,
-                                                        connect_packet_info.receiver_session_id,
+                                                        connect_packet_info.connect_packet.session_id,
                                                         connect_packet_info.connect_packet.video_requested,
                                                         connect_packet_info.connect_packet.audio_requested}});
             }

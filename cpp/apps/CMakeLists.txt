@@ -7,7 +7,7 @@ target_include_directories(KinectReaderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectReaderApp
-  KinectToHololensModules
+  KinectToHololensSenderModules
   ${OpenCV_LIBS}
 )
 set_target_properties(KinectReaderApp PROPERTIES
@@ -38,7 +38,7 @@ target_include_directories(KinectSenderApp PRIVATE
   ${IMGUI_EXAMPLES_DIR}
 )
 target_link_libraries(KinectSenderApp
-  KinectToHololensModules
+  KinectToHololensSenderModules
   ${Libvpx_LIB}
   ImguiExamples
   imgui::imgui
