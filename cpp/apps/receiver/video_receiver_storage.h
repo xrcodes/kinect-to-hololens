@@ -219,20 +219,49 @@ struct FrameParitySet
         return std::make_unique<VideoSenderMessage>(read_video_sender_message(merge_video_sender_packets(video_packet_ptrs)));
     }
 
+    // Assumes
+    // (1) There is a non-empty group.
+    // (2) The non-empty group has at least one packet.
+    int getVideoPacketCount()
+    {
+        for (auto& group : packet_parity_groups) {
+            if (group) {
+                for (auto& video_packet : group->video_packets) {
+                    if (video_packet)
+                        return video_packet->packet_count;
+                }
+
+                return group->parity_packet->video_packet_count;
+            }
+        }
+    }
+
     // Report indices of missing packets from the Incorrect groups.
-    std::pair<std::vector<int>, std::vector<int>> getMissingPackets()
+    std::pair<std::vector<int>, std::vector<int>> getMissingIndices()
     {
         std::vector<int> video_packet_indices;
         std::vector<int> parity_packet_indices;
 
-        for (auto& group : packet_parity_groups) {
-            if (group && group->getState() == PacketParityGroup::State::Incorrect) {
-                for (int i{0}; i < group->video_packets.size(); ++i) {
-                    if (!group->video_packets[i])
-                        video_packet_indices.push_back(group->min_video_packet_index + i);
+        int video_packet_count{getVideoPacketCount()};
+        for (gsl::index i{0}; i < packet_parity_groups.size(); ++i) {
+            if (!packet_parity_groups[i]) {
+                // Add indices for the null group.
+                for (int ii = 0; ii < KH_FEC_GROUP_SIZE; ++ii) {
+                    int video_packet_index = i * KH_FEC_GROUP_SIZE + ii;
+                    if(video_packet_index < video_packet_count)
+                        video_packet_indices.push_back(i);
+                }
+                parity_packet_indices.push_back(i);
+            }
+            
+            auto group_ptr{&*packet_parity_groups[i]};
+            if (group_ptr->getState() == PacketParityGroup::State::Incorrect) {
+                for (int i{0}; i < group_ptr->video_packets.size(); ++i) {
+                    if (!group_ptr->video_packets[i])
+                        video_packet_indices.push_back(group_ptr->min_video_packet_index + i);
 
-                    if (!group->parity_packet)
-                        parity_packet_indices.push_back(group->min_video_packet_index / KH_FEC_GROUP_SIZE);
+                    if (!group_ptr->parity_packet)
+                        parity_packet_indices.push_back(group_ptr->min_video_packet_index / KH_FEC_GROUP_SIZE);
                 }
             }
 
@@ -345,7 +374,7 @@ public:
         for (auto& [frame_id, frame_parity_set]: frame_parity_sets_) {
             if (frame_id < max_frame_id) {
                 if (frame_parity_set.getState() == FrameParitySet::State::Incorrect) {
-                    auto [video_packet_indices, parity_packet_indices] {frame_parity_set.getMissingPackets()};
+                    auto [video_packet_indices, parity_packet_indices] {frame_parity_set.getMissingIndices()};
 
                     missing_packets_vector.push_back(VideoFrameIndices{frame_id, video_packet_indices, parity_packet_indices});
                 }

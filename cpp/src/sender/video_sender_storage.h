@@ -6,13 +6,11 @@ namespace kh
 {
 struct VideoFramePackets
 {
-    const int frame_id;
-    const tt::TimePoint creation_time_point;
     std::vector<Packet> video_packets;
     std::vector<Packet> parity_packets;
 
-    VideoFramePackets(int frame_id, std::vector<Packet>&& video_packets, std::vector<Packet>&& parity_packets)
-        : frame_id{frame_id}, creation_time_point{tt::TimePoint::now()}, video_packets{video_packets}, parity_packets{parity_packets}
+    VideoFramePackets(std::vector<Packet>&& video_packets, std::vector<Packet>&& parity_packets)
+        : video_packets{video_packets}, parity_packets{parity_packets}
     {
     }
 };
@@ -27,7 +25,7 @@ public:
 
     void add(int frame_id, std::vector<Packet>&& video_packets, std::vector<Packet>&& parity_packets)
     {
-        video_frame_packets_.insert({frame_id, VideoFramePackets(frame_id, std::move(video_packets), std::move(parity_packets))});
+        video_frame_packets_.insert({frame_id, VideoFramePackets(std::move(video_packets), std::move(parity_packets))});
     }
 
     auto find(int frame_id)
@@ -40,11 +38,10 @@ public:
         return video_frame_packets_.end();
     }
 
-    // For removing packets from their container after some time.
-    void cleanup(float timeout_sec)
+    void cleanup(int min_receiver_frame_id)
     {
         for (auto it{video_frame_packets_.begin()}; it != video_frame_packets_.end();) {
-            if (it->second.creation_time_point.elapsed_time().sec() > timeout_sec) {
+            if (it->first <= min_receiver_frame_id) {
                 it = video_frame_packets_.erase(it);
             } else {
                 ++it;

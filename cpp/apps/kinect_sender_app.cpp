@@ -55,7 +55,7 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
     if (!video_required_by_any)
         return {false, false};
 
-    int minimum_receiver_frame_id{INT_MAX};
+    int min_receiver_frame_id{INT_MAX};
     for (auto& [_, remote_receiver] : remote_receivers) {
         // Receivers that did not request video are irrelevant.
         if (!remote_receiver.video_requested)
@@ -65,14 +65,14 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
         if (!remote_receiver.video_frame_id)
             return {true, true};
 
-        if (*remote_receiver.video_frame_id < minimum_receiver_frame_id)
-            minimum_receiver_frame_id = *remote_receiver.video_frame_id;
+        if (*remote_receiver.video_frame_id < min_receiver_frame_id)
+            min_receiver_frame_id = *remote_receiver.video_frame_id;
     }
 
     constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
     const auto frame_time_point{tt::TimePoint::now()};
     const auto frame_time_diff{frame_time_point - last_frame_time};
-    const int frame_id_diff{last_frame_id - minimum_receiver_frame_id};
+    const int frame_id_diff{last_frame_id - min_receiver_frame_id};
 
     // Skip a frame if there is no new receiver that requires a frame to start
     // and the sender is too much ahead of the receivers.
@@ -153,8 +153,10 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
         const int frame_id{request_packet.frame_id};
 
         auto find_result{video_sender_storage.find(frame_id)};
-        if (find_result == video_sender_storage.end())
-            continue;
+        if (find_result == video_sender_storage.end()) {
+            //continue;
+            throw std::runtime_error("Could not find frame from VideoSenderStorage.");
+        }
 
         for (int packet_index : request_packet.video_packet_indices)
             udp_socket.send(find_result->second.video_packets[packet_index].bytes, remote_endpoint);
@@ -356,7 +358,15 @@ void start(KinectInterface& kinect_interface)
                 }
             }
 
-            video_packet_storage.cleanup(VIDEO_PARITY_PACKET_STORAGE_TIME_OUT_SEC);
+            int min_receiver_frame_id{INT_MAX};
+            for (auto& [_, remote_receiver] : remote_receivers) {
+                if (remote_receiver.video_frame_id && *remote_receiver.video_frame_id < min_receiver_frame_id)
+                    min_receiver_frame_id = *remote_receiver.video_frame_id;
+            }
+
+            if(min_receiver_frame_id != INT_MAX)
+                video_packet_storage.cleanup(min_receiver_frame_id);
+
         } catch (UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError\n  message: " << e.what() << "\n  endpoint: " << e.endpoint() << "\n";
             std::cout << "remote_receivers.size(): " << remote_receivers.size() << "\n";
