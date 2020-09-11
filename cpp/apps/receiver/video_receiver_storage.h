@@ -234,10 +234,10 @@ struct FrameParitySet
                 for (int i{0}; i < group.video_packets.size(); ++i) {
                     if (!group.video_packets[i])
                         video_packet_indices.push_back(group.min_video_packet_index + i);
-
-                    if (!group.parity_packet)
-                        parity_packet_indices.push_back(group.min_video_packet_index / KH_FEC_GROUP_SIZE);
                 }
+
+                if (!group.parity_packet)
+                    parity_packet_indices.push_back(group.min_video_packet_index / KH_FEC_GROUP_SIZE);
             }
         }
 

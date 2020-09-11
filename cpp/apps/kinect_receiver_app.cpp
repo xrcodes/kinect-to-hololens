@@ -35,7 +35,6 @@ void start_session(const std::string ip_address, const int port, const int recei
     bool stopped{false};
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint last_received_any_time{tt::TimePoint::now()};
-    tt::TimePoint last_request_time{tt::TimePoint::now()};
 
     //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
@@ -65,8 +64,8 @@ void start_session(const std::string ip_address, const int port, const int recei
 
                 //int after_packet_count = video_receiver_storage.getPacketCount();
                 //std::cout << "before_packet_count: " << before_packet_count << std::endl;
-                //std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
-                //std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
+                std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
+                std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
                 //std::cout << "after_packet_count : " << after_packet_count << std::endl << std::endl;
 
                 bool packet_for_new_frame_exists{false};
@@ -81,8 +80,7 @@ void start_session(const std::string ip_address, const int port, const int recei
                 //    std::cout << "video message built: " << frame_id << std::endl;
                 //}
 
-                if (packet_for_new_frame_exists || last_request_time.elapsed_time().sec() > 1.0f) {
-                    int request_count{0};
+                if (packet_for_new_frame_exists) {
                     auto missing_indices{video_receiver_storage.getMissingIndices()};
                     std::map<int, Packet> request_packets;
                     for (auto& indices : missing_indices) {
@@ -92,16 +90,19 @@ void start_session(const std::string ip_address, const int port, const int recei
 
                         std::cout << "request packets" << std::endl
                                   << "  frame_id: " << indices.frame_id << std::endl
-                                  << "  packet count: " << (indices.video_packet_indices.size() + indices.parity_packet_indices.size()) << std::endl;
+                                  << "  #video packet: " << indices.video_packet_indices.size() << std::endl
+                                  << "  #parity packet: " << indices.parity_packet_indices.size() << std::endl;
                     }
 
-                    for (int frame_id = video_renderer.last_frame_id() + 1; frame_id < max_storage_frame_id; ++frame_id) {
-                        auto request_packet_it{request_packets.find(frame_id)};
-                        if (request_packet_it == request_packets.end()) {
-                            request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true,
-                                                                                             std::vector<int>(), std::vector<int>())});
-                            std::cout << "request whole frame" << std::endl
-                                      << "  frame_id: " << frame_id << std::endl;
+                    if (video_renderer.last_frame_id()) {
+                        for (int frame_id = *video_renderer.last_frame_id() + 1; frame_id < max_storage_frame_id; ++frame_id) {
+                            auto request_packet_it{request_packets.find(frame_id)};
+                            if (request_packet_it == request_packets.end()) {
+                                request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true,
+                                                                                                 std::vector<int>(), std::vector<int>())});
+                                std::cout << "request whole frame" << std::endl
+                                          << "  frame_id: " << frame_id << std::endl;
+                            }
                         }
                     }
                     for (auto& [_, request_packet] : request_packets) {
@@ -116,9 +117,7 @@ void start_session(const std::string ip_address, const int port, const int recei
                                   << "  #correctable groups: " << set.getCorrectableGroupCount() << std::endl
                                   << "  #correct groups: " << set.getCorrectGroupCount() << std::endl;
                     }
-                    std::cout << "last_frame_id: " << video_renderer.last_frame_id() << std::endl;
-
-                    last_request_time = tt::TimePoint::now();
+                    std::cout << "last_frame_id: " << video_renderer.last_frame_id().value_or(-1) << std::endl;
                 }
 
                 audio_packet_receiver.receive(sender_packet_info.audio_packets);
@@ -135,9 +134,11 @@ void start_session(const std::string ip_address, const int port, const int recei
         }
 
         video_renderer.render(udp_socket, video_messages);
-        udp_socket.send(create_report_receiver_packet(receiver_id, video_renderer.last_frame_id()).bytes, sender_endpoint);
-        //std::cout << "send report: " << video_renderer.last_frame_id() << std::endl;
-        video_receiver_storage.removeObsolete(video_renderer.last_frame_id());
+        if (video_renderer.last_frame_id()) {
+            udp_socket.send(create_report_receiver_packet(receiver_id, *video_renderer.last_frame_id()).bytes, sender_endpoint);
+            //std::cout << "send report: " << video_renderer.last_frame_id() << std::endl;
+            video_receiver_storage.removeObsolete(*video_renderer.last_frame_id());
+        }
     }
 }
 

@@ -157,17 +157,26 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
     for (auto& request_packet : request_packets) {
         const int frame_id{request_packet.frame_id};
 
-        auto find_result{video_sender_storage.find(frame_id)};
-        if (find_result == video_sender_storage.end()) {
+        auto video_frame_packets_it{video_sender_storage.find(frame_id)};
+        if (video_frame_packets_it == video_sender_storage.end()) {
             //continue;
             throw std::runtime_error("Could not find frame from VideoSenderStorage.");
         }
 
-        for (int packet_index : request_packet.video_packet_indices)
-            udp_socket.send(find_result->second.video_packets[packet_index].bytes, remote_endpoint);
+        std::cout << "retransmit packets of " << request_packet.frame_id << std::endl;
+        if (request_packet.all_packets) {
+            for (auto& video_packet : video_frame_packets_it->second.video_packets)
+                udp_socket.send(video_packet.bytes, remote_endpoint);
 
-        for (int packet_index : request_packet.parity_packet_indices)
-            udp_socket.send(find_result->second.parity_packets[packet_index].bytes, remote_endpoint);
+            for (auto& parity_packet : video_frame_packets_it->second.parity_packets)
+                udp_socket.send(parity_packet.bytes, remote_endpoint);
+        } else {
+            for (int packet_index : request_packet.video_packet_indices)
+                udp_socket.send(video_frame_packets_it->second.video_packets[packet_index].bytes, remote_endpoint);
+
+            for (int packet_index : request_packet.parity_packet_indices)
+                udp_socket.send(video_frame_packets_it->second.parity_packets[packet_index].bytes, remote_endpoint);
+        }
     }
 }
 
