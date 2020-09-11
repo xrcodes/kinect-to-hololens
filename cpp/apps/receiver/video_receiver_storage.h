@@ -1,7 +1,6 @@
 #pragma once
 
 #include "native/kh_native.h"
-#include "video_message_queue.h"
 
 namespace kh
 {
@@ -12,8 +11,10 @@ std::vector<std::byte> xor(gsl::span<std::vector<std::byte>*> bytes_ptrs)
     std::vector<std::byte> result(*bytes_ptrs[0]);
     for (gsl::index i{1}; i < bytes_ptrs.size(); ++i) {
         auto bytes_ptr{bytes_ptrs[i]};
+
         if (result.size() != bytes_ptr->size())
             throw std::runtime_error("Size mismatch between result and bytes_ptr in xor().");
+        
         for (gsl::index j{0}; j < result.size(); ++j)
             result[j] ^= bytes_ptr->at(j);
     }
@@ -21,7 +22,7 @@ std::vector<std::byte> xor(gsl::span<std::vector<std::byte>*> bytes_ptrs)
 }
 }
 
-struct MissingPackets
+struct VideoFrameIndices
 {
     int frame_id;
     std::vector<int> video_packet_indices;
@@ -65,6 +66,7 @@ struct PacketParityGroup
             if (video_packet)
                 ++packet_count;
         }
+
         if (packet_count == group_size)
             return State::Correct;
 
@@ -82,7 +84,7 @@ struct PacketParityGroup
         if (getState() != State::Correctable)
             throw std::runtime_error("PacketParityGroup::correct() called while group's state is not Correctable.");
 
-        gsl::index incorrect_vector_index;
+        int incorrect_vector_index;
         std::vector<std::shared_ptr<VideoSenderPacket>> correct_video_packets;
         for (gsl::index i{0}; i < video_packets.size(); ++i) {
             if (!video_packets[i]) {
@@ -93,7 +95,7 @@ struct PacketParityGroup
         }
 
         // video_packets.size() == group_size
-        std::vector<std::vector<std::byte>*> bytes_ptrs{video_packets.size()};
+        std::vector<std::vector<std::byte>*> bytes_ptrs;
         for (auto& correct_video_packet : correct_video_packets) {
             bytes_ptrs.push_back(&correct_video_packet->message_data);
         }
@@ -135,7 +137,7 @@ struct FrameParitySet
         if (!packet_parity_groups[parity_index]) {
             int min_video_packet_index{parity_index * KH_FEC_GROUP_SIZE};
             // The last group can have a group size smaller than KH_FEC_GROUP_SIZE.
-            int group_size{std::min<int>(KH_FEC_GROUP_SIZE, video_packet->packet_count - min_video_packet_index)};
+            const size_t group_size{std::min<size_t>(KH_FEC_GROUP_SIZE, video_packet->packet_count - min_video_packet_index)};
             packet_parity_groups[parity_index] = PacketParityGroup{min_video_packet_index, group_size};
         }
 
@@ -147,7 +149,7 @@ struct FrameParitySet
         if (!packet_parity_groups[parity_packet->packet_index]) {
             int min_video_packet_index{parity_packet->packet_index * KH_FEC_GROUP_SIZE};
             // The last group can have a group size smaller than KH_FEC_GROUP_SIZE.
-            int group_size{std::min<int>(KH_FEC_GROUP_SIZE, parity_packet->video_packet_count - min_video_packet_index)};
+            const size_t group_size{std::min<size_t>(KH_FEC_GROUP_SIZE, parity_packet->video_packet_count - min_video_packet_index)};
             packet_parity_groups[parity_packet->packet_index] = PacketParityGroup{min_video_packet_index, group_size};
         }
         
@@ -156,26 +158,22 @@ struct FrameParitySet
 
     State getState()
     {
-        int incorrect_count{0};
-        int correct_count{0};
+        bool has_correctable{false};
+
         for (auto& group : packet_parity_groups) {
-            switch (group->getState()) {
-            case PacketParityGroup::State::Incorrect:
-                ++incorrect_count;
-                break;
-            case PacketParityGroup::State::Correct:
-                ++correct_count;
-                break;
+            if (!group)
+                return State::Incorrect;
+
+            auto state{group->getState()};
+            if (state == PacketParityGroup::State::Incorrect)
+                return State::Incorrect;
+
+            if (state == PacketParityGroup::State::Correctable) {
+                has_correctable = true;
             }
         }
 
-        if (correct_count == packet_parity_groups.size())
-            return State::Correct;
-
-        if (incorrect_count == 0)
-            return State::Correctable;
-
-        return State::Incorrect;
+        return has_correctable ? State::Correctable : State::Correct;
     }
 
     // Correct a Correctable set into a Correct set.
@@ -209,14 +207,11 @@ struct FrameParitySet
     // Report indices of missing packets from the Incorrect groups.
     std::pair<std::vector<int>, std::vector<int>> getMissingPackets()
     {
-        if (getState() != State::Correct)
-            throw std::runtime_error("FrameParitySet::getMissingPackets() called while set's state is not Incorrect.");
-
         std::vector<int> video_packet_indices;
         std::vector<int> parity_packet_indices;
 
         for (auto& group : packet_parity_groups) {
-            if (group->getState() == PacketParityGroup::State::Incorrect) {
+            if (group && group->getState() == PacketParityGroup::State::Incorrect) {
                 for (int i{0}; i < group->video_packets.size(); ++i) {
                     if (!group->video_packets[i])
                         video_packet_indices.push_back(group->min_video_packet_index + i);
@@ -244,7 +239,7 @@ public:
     {
         auto frame_parity_set_it{frame_parity_sets_.find(video_packet->frame_id)};
         if (frame_parity_set_it == frame_parity_sets_.end()) {
-            const auto parity_packet_count{(video_packet->packet_count - 1) / KH_FEC_GROUP_SIZE + 1};
+            const size_t parity_packet_count{gsl::narrow<size_t>((video_packet->packet_count - 1) / KH_FEC_GROUP_SIZE + 1)};
             std::tie(frame_parity_set_it, std::ignore) = frame_parity_sets_.insert({video_packet->frame_id, FrameParitySet{parity_packet_count}});
         }
         
@@ -255,7 +250,7 @@ public:
     {
         auto frame_parity_set_it{frame_parity_sets_.find(parity_packet->frame_id)};
         if (frame_parity_set_it == frame_parity_sets_.end()) {
-            const auto parity_packet_count{(parity_packet->video_packet_count - 1) / KH_FEC_GROUP_SIZE + 1};
+            const size_t parity_packet_count{gsl::narrow<size_t>((parity_packet->video_packet_count - 1) / KH_FEC_GROUP_SIZE + 1)};
             std::tie(frame_parity_set_it, std::ignore) = frame_parity_sets_.insert({parity_packet->frame_id, FrameParitySet{parity_packet_count}});
         }
         
@@ -263,7 +258,7 @@ public:
     }
 
     // Add video messages as much as possible to the queue.
-    void build(VideoMessageQueue& message_queue)
+    void build(std::map<int, std::shared_ptr<VideoSenderMessage>>& video_messages)
     {
         for (auto& set_pair : frame_parity_sets_) {
             auto set_state{set_pair.second.getState()};
@@ -271,7 +266,7 @@ public:
                 set_pair.second.correct();
 
             if (set_pair.second.getState() != FrameParitySet::State::Incorrect)
-                message_queue.messages.push_back({set_pair.first, set_pair.second.build()});
+                video_messages.insert({set_pair.first, set_pair.second.build()});
         }
     }
 
@@ -286,17 +281,17 @@ public:
         return max_frame_id;
     }
 
-    // Should not request retransmission for the frame of the new packet, since other packets are already comming.
-    // Set max_frame_id lower than the newest frame that triggered this call of getMissingPackets().
-    std::vector<MissingPackets> getMissingPackets(int max_frame_id)
+    // Should not request retransmission for the frame of the new packet, since other packets of the frame are already comming.
+    std::vector<VideoFrameIndices> getMissingIndices()
     {
-        std::vector<MissingPackets> missing_packets_vector;
+        int max_frame_id{getMaxFrameId()};
+        std::vector<VideoFrameIndices> missing_packets_vector;
         for (auto& [frame_id, frame_parity_sets]: frame_parity_sets_) {
-            if (frame_id <= max_frame_id) {
+            if (frame_id < max_frame_id) {
                 if (frame_parity_sets.getState() == FrameParitySet::State::Incorrect) {
                     auto [video_packet_indices, parity_packet_indices] {frame_parity_sets.getMissingPackets()};
 
-                    missing_packets_vector.emplace_back(frame_id, video_packet_indices, parity_packet_indices);
+                    missing_packets_vector.push_back(VideoFrameIndices{frame_id, video_packet_indices, parity_packet_indices});
                 }
             }
         }

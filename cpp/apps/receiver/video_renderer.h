@@ -13,7 +13,7 @@ public:
 
     int last_frame_id() { return last_frame_id_; }
 
-    void render(UdpSocket& udp_socket, std::map<int, VideoSenderMessage>& video_messages)
+    void render(UdpSocket& udp_socket, std::map<int, std::shared_ptr<VideoSenderMessage>>& video_messages)
     {
         if (video_messages.empty())
             return;
@@ -24,7 +24,7 @@ public:
             if (frame_message_pair.first <= last_frame_id_)
                 continue;
 
-            if (frame_message_pair.second.keyframe)
+            if (frame_message_pair.second->keyframe)
                 begin_frame_id = frame_message_pair.first;
         }
 
@@ -48,7 +48,7 @@ public:
             if (video_messages.find(i) == video_messages.end())
                 break;
 
-            const auto frame_message_pair_ptr{&video_messages[i]};
+            const auto frame_message_pair_ptr{video_messages[i].get()};
 
             last_frame_id_ = i;
 

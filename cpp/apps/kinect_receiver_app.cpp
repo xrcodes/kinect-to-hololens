@@ -7,6 +7,7 @@
 #include "receiver/sender_packet_classifier.h"
 #include "receiver/video_message_assembler.h"
 #include "receiver/audio_packet_receiver.h"
+#include "receiver/video_receiver_storage.h"
 
 namespace kh
 {
@@ -35,12 +36,15 @@ void start_session(const std::string ip_address, const int port, const int recei
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint received_any_time{tt::TimePoint::now()};
 
-    VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
+    //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
     //VideoRenderer video_renderer{receiver_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     // TODO: Fix to use recieved width and height.
     VideoRenderer video_renderer{receiver_id, remote_endpoint, 640, 576};
-    std::map<int, VideoSenderMessage> video_messages;
+
+    VideoReceiverStorage video_receiver_storage;
+    std::map<int, std::shared_ptr<VideoSenderMessage>> video_messages;
+    int last_max_storage_frame_id{0};
 
     for (;;) {
         try {
@@ -51,11 +55,38 @@ void start_session(const std::string ip_address, const int port, const int recei
 
             auto sender_packet_info{SenderPacketClassifier::classify(udp_socket)};
             if (sender_packet_info.received_any) {
-                video_message_assembler.assemble(udp_socket,
-                                                 sender_packet_info.video_packets,
-                                                 sender_packet_info.parity_packets,
-                                                 video_renderer.last_frame_id(),
-                                                 video_messages);
+                //video_message_assembler.assemble(udp_socket,
+                //                                 sender_packet_info.video_packets,
+                //                                 sender_packet_info.parity_packets,
+                //                                 video_renderer.last_frame_id(),
+                //                                 video_messages);
+
+                for (auto& video_packet : sender_packet_info.video_packets)
+                    video_receiver_storage.addVideoPacket(std::make_unique<VideoSenderPacket>(video_packet));
+
+                for (auto& parity_packet : sender_packet_info.parity_packets)
+                    video_receiver_storage.addParityPacket(std::make_unique<ParitySenderPacket>(parity_packet));
+
+                bool packet_for_new_frame_exists{false};
+                int max_storage_frame_id{video_receiver_storage.getMaxFrameId()};
+                if (max_storage_frame_id > last_max_storage_frame_id) {
+                    packet_for_new_frame_exists = true;
+                    last_max_storage_frame_id = max_storage_frame_id;
+                }
+                
+                video_receiver_storage.build(video_messages);
+
+                if (packet_for_new_frame_exists) {
+                    auto missing_indices{video_receiver_storage.getMissingIndices()};
+                    // Sending a packet per frame ID.
+                    for (auto& indices : missing_indices) {
+                        udp_socket.send(create_request_receiver_packet(receiver_id, indices.frame_id,
+                                                                       indices.video_packet_indices,
+                                                                       indices.parity_packet_indices).bytes,
+                                        remote_endpoint);
+                    }
+                }
+
                 audio_packet_receiver.receive(sender_packet_info.audio_packets);
                 received_any_time = tt::TimePoint::now();
             } else {

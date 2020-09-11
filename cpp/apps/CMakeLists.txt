@@ -65,7 +65,6 @@ add_executable(KinectReceiverApp
   receiver/video_message_assembler.cpp
   receiver/video_renderer.h
   receiver/video_receiver_storage.h
-  receiver/video_message_queue.h
 )
 target_include_directories(KinectReceiverApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
