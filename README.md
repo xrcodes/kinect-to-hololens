@@ -36,13 +36,7 @@ Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/h
 ## Check firewall when connections don't work.
 Since the sender/controller often gets turned on in a machine that is not built to function as a server, incoming connections to the sender/controller often gets blocked. Actually, they get blocked by default when the firewall is on. If a connection does not work, first turn off the whole firewall and try it again. If this makes the connection to happen, it means the firewall was blocking the connection. Now, turn on the firewall again, as turning off the firewall is terrible for your security, and add inbound firewall rules for both sender and controller (this would mean Unity3D if you are running it as a Unity3D project) allowing domain/private/public (choose the ones that belong to your environment; pick all if you are not sure) connections. (For adding inbound firewall rules, see https://www.howtogeek.com/112564/how-to-create-advanced-firewall-rules-in-the-windows-firewall/)
 
-# Additional Notes
-
-## Floor Detection
-Files for floor detection in /cpp/azure-kinect-samples comes from https://github.com/microsoft/Azure-Kinect-Samples/tree/master/body-tracking-samples/floor_detector_sample.
-
-## Imgui
-Usage of imgui requires imgui_impl files in /cpp/imgui-1.73-examples.
+# Additional Note
 
 ## Spamming Messages from Kinect Viewer to Visual Studio
 The current implementation of .Net handles socket errors using exceptions that can be caught in C#. However, Visual Studio prints a message to the output window whenever there is an exception by default. This leaves a lot of scary messages in the Visual Studio console when testing Kinect Viewer and prevents from seeing other exception messages. While this is not the best solution, it is possible to turn off exception messages using output's settings. Unfortunately, this turns off all exceptions.
