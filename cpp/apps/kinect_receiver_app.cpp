@@ -56,18 +56,18 @@ void start_session(const std::string ip_address, const int port, const int recei
 
             auto sender_packet_info{SenderPacketClassifier::classify(udp_socket)};
             if (sender_packet_info.received_any) {
-                int before_packet_count = video_receiver_storage.getPacketCount();
+                //int before_packet_count = video_receiver_storage.getPacketCount();
                 for (auto& video_packet : sender_packet_info.video_packets)
                     video_receiver_storage.addVideoPacket(std::make_unique<VideoSenderPacket>(video_packet));
 
                 for (auto& parity_packet : sender_packet_info.parity_packets)
                     video_receiver_storage.addParityPacket(std::make_unique<ParitySenderPacket>(parity_packet));
 
-                int after_packet_count = video_receiver_storage.getPacketCount();
-                std::cout << "before_packet_count: " << before_packet_count << std::endl;
-                std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
-                std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
-                std::cout << "after_packet_count : " << after_packet_count << std::endl << std::endl;
+                //int after_packet_count = video_receiver_storage.getPacketCount();
+                //std::cout << "before_packet_count: " << before_packet_count << std::endl;
+                //std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
+                //std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
+                //std::cout << "after_packet_count : " << after_packet_count << std::endl << std::endl;
 
                 bool packet_for_new_frame_exists{false};
                 int max_storage_frame_id{video_receiver_storage.getMaxFrameId()};
@@ -77,9 +77,9 @@ void start_session(const std::string ip_address, const int port, const int recei
                 }
                 
                 video_receiver_storage.build(video_messages);
-                for (auto& [frame_id, _] : video_messages) {
-                    std::cout << "video message built: " << frame_id << std::endl;
-                }
+                //for (auto& [frame_id, _] : video_messages) {
+                //    std::cout << "video message built: " << frame_id << std::endl;
+                //}
 
                 if (packet_for_new_frame_exists || last_request_time.elapsed_time().sec() > 1.0f) {
                     int request_count{0};
@@ -133,8 +133,10 @@ void start_session(const std::string ip_address, const int port, const int recei
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;
         }
+
         video_renderer.render(udp_socket, video_messages);
         udp_socket.send(create_report_receiver_packet(receiver_id, video_renderer.last_frame_id()).bytes, sender_endpoint);
+        //std::cout << "send report: " << video_renderer.last_frame_id() << std::endl;
         video_receiver_storage.removeObsolete(video_renderer.last_frame_id());
     }
 }

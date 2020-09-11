@@ -134,10 +134,15 @@ void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
 {
     // Update receiver_state and summary with Report packets.
     for (auto& report_packet : report_packets) {
-        // Ignore if network is somehow out of order and a report comes in out of order.
-        if (remote_receiver.video_frame_id || report_packet.frame_id <= remote_receiver.video_frame_id)
+        if (!remote_receiver.video_frame_id) {
+            remote_receiver.video_frame_id = report_packet.frame_id;
             continue;
+        }
 
+        // Ignore if network is somehow out of order and a report comes in out of order.
+        if (report_packet.frame_id <= *remote_receiver.video_frame_id)
+            continue;
+        
         remote_receiver.video_frame_id = report_packet.frame_id;
         profiler.addNumber("report-count", 1);
     }
