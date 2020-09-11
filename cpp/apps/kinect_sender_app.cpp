@@ -130,9 +130,6 @@ void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
             continue;
 
         remote_receiver.video_frame_id = report_packet.frame_id;
-
-        profiler.addNumber("report-decode", report_packet.decoder_time_ms);
-        profiler.addNumber("report-interval", report_packet.frame_time_ms);
         profiler.addNumber("report-count", 1);
     }
 }
@@ -160,9 +157,7 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
 
 void log_receiver_report_summary(ExampleAppLog& log, Profiler& profiler)
 {
-    log.AddLog("Receiver Reported in %f Hz\n", profiler.getNumber("report-count") / profiler.getElapsedTime().sec());
-    log.AddLog("  Decoder Time Average: %f ms\n", profiler.getNumber("report-decode") / profiler.getNumber("report-count"));
-    log.AddLog("  Frame Interval Time Average: %f ms\n", profiler.getNumber("report-interval") / profiler.getNumber("report-count"));
+    log.AddLog("Receiver FPS %f\n", profiler.getNumber("report-count") / profiler.getElapsedTime().sec());
 }
 
 void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, Profiler& profiler)

@@ -6,8 +6,7 @@ class VideoRenderer
 {
 public:
     VideoRenderer(const int receiver_id, const asio::ip::udp::endpoint remote_endpoint, int width, int height)
-        : receiver_id_{receiver_id}, remote_endpoint_{remote_endpoint}, width_{width}, height_{height},
-        color_decoder_{}, depth_decoder_{width * height}, last_frame_id_{-1}, last_frame_time_{tt::TimePoint::now()}
+        : width_{width}, height_{height}, color_decoder_{}, depth_decoder_{width * height}, last_frame_id_{-1}, last_frame_time_{tt::TimePoint::now()}
     {
     }
 
@@ -42,7 +41,6 @@ public:
 
         std::optional<tt::FFmpegFrame> ffmpeg_frame;
         std::vector<int16_t> depth_image;
-        const auto decoder_start{tt::TimePoint::now()};
         for (int i = *begin_frame_id; ; ++i) {
             // break loop is there is no frame with frame_id i.
             if (video_messages.find(i) == video_messages.end())
@@ -58,10 +56,6 @@ public:
             depth_image = depth_decoder_.decode(frame_message_pair_ptr->depth_encoder_frame, frame_message_pair_ptr->keyframe);
         }
 
-        udp_socket.send(create_report_receiver_packet(receiver_id_,
-                                                      last_frame_id_,
-                                                      decoder_start.elapsed_time().ms(),
-                                                      last_frame_time_.elapsed_time().ms()).bytes, remote_endpoint_);
         last_frame_time_ = tt::TimePoint::now();
 
         auto color_mat{create_cv_mat_from_yuv_image(tt::YuvFrame::create(*ffmpeg_frame))};
@@ -84,8 +78,6 @@ public:
     }
 
 private:
-    const int receiver_id_;
-    const asio::ip::udp::endpoint remote_endpoint_;
     int width_;
     int height_;
     tt::Vp8Decoder color_decoder_;

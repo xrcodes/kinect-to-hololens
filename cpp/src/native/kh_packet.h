@@ -256,11 +256,9 @@ struct ReportReceiverPacket
     int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Report};
     int frame_id{0};
-    float decoder_time_ms{0.0f};
-    float frame_time_ms{0.0f};
 };
 
-Packet create_report_receiver_packet(int receiver_id, int frame_id, float decoder_time_ms, float frame_time_ms);
+Packet create_report_receiver_packet(int receiver_id, int frame_id);
 ReportReceiverPacket read_report_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
 struct RequestReceiverPacket

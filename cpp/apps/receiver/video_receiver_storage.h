@@ -310,7 +310,7 @@ public:
         }
     }
 
-private:
+//private:
     // Key is frame ID.
     std::map<int, FrameParitySet> frame_parity_sets_;
 };

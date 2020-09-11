@@ -385,21 +385,17 @@ Packet create_heartbeat_receiver_packet(int receiver_id)
     return packet;
 }
 
-Packet create_report_receiver_packet(int receiver_id, int frame_id, float decoder_time_ms, float frame_time_ms)
+Packet create_report_receiver_packet(int receiver_id, int frame_id)
 {
     constexpr auto packet_size{sizeof(receiver_id) +
                                sizeof(ReceiverPacketType) +
-                               sizeof(frame_id) +
-                               sizeof(decoder_time_ms) +
-                               sizeof(frame_time_ms)};
+                               sizeof(frame_id)};
 
     Packet packet{packet_size};
     PacketCursor cursor;
     copy_to_packet(receiver_id, packet, cursor);
     copy_to_packet(ReceiverPacketType::Report, packet, cursor);
     copy_to_packet(frame_id, packet, cursor);
-    copy_to_packet(decoder_time_ms, packet, cursor);
-    copy_to_packet(frame_time_ms, packet, cursor);
 
     return packet;
 }
@@ -411,8 +407,6 @@ ReportReceiverPacket read_report_receiver_packet(gsl::span<const std::byte> pack
     copy_from_bytes(report_receiver_packet.receiver_id, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet.type, packet_bytes, cursor);
     copy_from_bytes(report_receiver_packet.frame_id, packet_bytes, cursor);
-    copy_from_bytes(report_receiver_packet.decoder_time_ms, packet_bytes, cursor);
-    copy_from_bytes(report_receiver_packet.frame_time_ms, packet_bytes, cursor);
 
     return report_receiver_packet;
 }

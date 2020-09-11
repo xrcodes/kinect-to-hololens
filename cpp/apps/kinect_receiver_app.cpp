@@ -34,7 +34,8 @@ void start_session(const std::string ip_address, const int port, const int recei
     udp_socket.send(create_connect_receiver_packet(receiver_id, true, true).bytes, remote_endpoint);
     bool stopped{false};
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
-    tt::TimePoint received_any_time{tt::TimePoint::now()};
+    tt::TimePoint last_received_any_time{tt::TimePoint::now()};
+    tt::TimePoint last_request_time{tt::TimePoint::now()};
 
     //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
@@ -76,7 +77,8 @@ void start_session(const std::string ip_address, const int port, const int recei
                 
                 video_receiver_storage.build(video_messages);
 
-                if (packet_for_new_frame_exists) {
+                if (packet_for_new_frame_exists || last_request_time.elapsed_time().sec() > 1.0f) {
+                    int request_count{0};
                     auto missing_indices{video_receiver_storage.getMissingIndices()};
                     // Sending a packet per frame ID.
                     for (auto& indices : missing_indices) {
@@ -84,13 +86,23 @@ void start_session(const std::string ip_address, const int port, const int recei
                                                                        indices.video_packet_indices,
                                                                        indices.parity_packet_indices).bytes,
                                         remote_endpoint);
+
+                        request_count += indices.video_packet_indices.size();
+                        request_count += indices.parity_packet_indices.size();
                     }
+
+                    std::cout << "request_count: " << request_count << std::endl;
+                    std::cout << "last_frame_id: " << video_renderer.last_frame_id() << std::endl;
+                    for (auto& [frame_id, set] : video_receiver_storage.frame_parity_sets_)
+                        std::cout << "  storage set frame_id: " << frame_id << ", state: " << (int) set.getState() << std::endl;
+
+                    last_request_time = tt::TimePoint::now();
                 }
 
                 audio_packet_receiver.receive(sender_packet_info.audio_packets);
-                received_any_time = tt::TimePoint::now();
+                last_received_any_time = tt::TimePoint::now();
             } else {
-                if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
+                if (last_received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
                     std::cout << "Timed out after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
                     break;
                 }
@@ -100,6 +112,8 @@ void start_session(const std::string ip_address, const int port, const int recei
             break;
         }
         video_renderer.render(udp_socket, video_messages);
+        udp_socket.send(create_report_receiver_packet(receiver_id, video_renderer.last_frame_id()).bytes, remote_endpoint);
+        video_receiver_storage.removeObsolete(video_renderer.last_frame_id());
     }
 }
 
