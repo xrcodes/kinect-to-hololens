@@ -119,41 +119,41 @@ void send_video_message(VideoPipelineFrame& video_frame,
 }
 
 // Update receiver_state and summary with Report packets.
-void apply_report_packets(std::vector<ReportReceiverPacketData>& report_packet_data_vector,
+void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
                           RemoteReceiver& remote_receiver,
                           Profiler& profiler)
 {
     // Update receiver_state and summary with Report packets.
-    for (auto& report_receiver_packet_data : report_packet_data_vector) {
+    for (auto& report_packet : report_packets) {
         // Ignore if network is somehow out of order and a report comes in out of order.
-        if (report_receiver_packet_data.frame_id <= remote_receiver.video_frame_id)
+        if (report_packet.frame_id <= remote_receiver.video_frame_id)
             continue;
 
-        remote_receiver.video_frame_id = report_receiver_packet_data.frame_id;
+        remote_receiver.video_frame_id = report_packet.frame_id;
 
-        profiler.addNumber("report-decode", report_receiver_packet_data.decoder_time_ms);
-        profiler.addNumber("report-interval", report_receiver_packet_data.frame_time_ms);
+        profiler.addNumber("report-decode", report_packet.decoder_time_ms);
+        profiler.addNumber("report-interval", report_packet.frame_time_ms);
         profiler.addNumber("report-count", 1);
     }
 }
 
 void retransmit_requested_packets(UdpSocket& udp_socket,
-                                  std::vector<RequestReceiverPacketData>& request_packet_data_vector,
+                                  std::vector<RequestReceiverPacket>& request_packets,
                                   VideoPacketStorage& video_packet_storage,
                                   const asio::ip::udp::endpoint remote_endpoint)
 {
     // Retransmit the requested video packets.
-    for (auto& request_receiver_packet_data : request_packet_data_vector) {
-        const int frame_id{request_receiver_packet_data.frame_id};
+    for (auto& request_packet : request_packets) {
+        const int frame_id{request_packet.frame_id};
 
         auto find_result{video_packet_storage.find(frame_id)};
         if (find_result == video_packet_storage.end())
             continue;
 
-        for (int packet_index : request_receiver_packet_data.video_packet_indices)
+        for (int packet_index : request_packet.video_packet_indices)
             udp_socket.send(find_result->second.video_packets[packet_index].bytes, remote_endpoint);
 
-        for (int packet_index : request_receiver_packet_data.parity_packet_indices)
+        for (int packet_index : request_packet.parity_packet_indices)
             udp_socket.send(find_result->second.parity_packets[packet_index].bytes, remote_endpoint);
     }
 }
@@ -294,14 +294,14 @@ void start(KinectInterface& kinect_interface)
                 if (remote_receivers.find(connect_packet_info.receiver_session_id) != remote_receivers.end())
                     continue;
 
-                std::cout << "connect_packet_info.connect_packet_data.video_requested: " << connect_packet_info.connect_packet_data.video_requested << "\n";
+                std::cout << "connect_packet_info.connect_packet_data.video_requested: " << connect_packet_info.connect_packet.video_requested << "\n";
 
                 std::cout << "Receiver " << connect_packet_info.receiver_session_id << " connected.\n";
                 remote_receivers.insert({connect_packet_info.receiver_session_id,
                                          RemoteReceiver{connect_packet_info.receiver_endpoint,
                                                         connect_packet_info.receiver_session_id,
-                                                        connect_packet_info.connect_packet_data.video_requested,
-                                                        connect_packet_info.connect_packet_data.audio_requested}});
+                                                        connect_packet_info.connect_packet.video_requested,
+                                                        connect_packet_info.connect_packet.audio_requested}});
             }
 
             // Skip the main part of the loop if there is no receiver connected.
@@ -332,11 +332,11 @@ void start(KinectInterface& kinect_interface)
                 for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_infos) {
                     auto remote_receiver_ptr{&remote_receivers.at(receiver_session_id)};
                     if (receiver_packet_set.received_any) {
-                        apply_report_packets(receiver_packet_set.report_packet_data_vector,
+                        apply_report_packets(receiver_packet_set.report_packets,
                                              *remote_receiver_ptr,
                                              profiler);
                         retransmit_requested_packets(udp_socket,
-                                                     receiver_packet_set.request_packet_data_vector,
+                                                     receiver_packet_set.request_packets,
                                                      video_packet_storage,
                                                      remote_receiver_ptr->endpoint);
                         remote_receiver_ptr->last_packet_time = tt::TimePoint::now();

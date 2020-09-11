@@ -196,8 +196,10 @@ AudioSenderPacket parse_audio_sender_packet_bytes(gsl::span<const std::byte> pac
 int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
-struct ConnectReceiverPacketData
+struct ConnectReceiverPacket
 {
+    int session_id{0};
+    ReceiverPacketType type{ReceiverPacketType::Connect};
     bool video_requested{false};
     bool audio_requested{false};
 };
@@ -205,22 +207,26 @@ struct ConnectReceiverPacketData
 Packet create_connect_receiver_packet(int session_id,
                                       bool video_requested,
                                       bool audio_requested);
-ConnectReceiverPacketData parse_connect_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+ConnectReceiverPacket parse_connect_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
 Packet create_heartbeat_receiver_packet(int session_id);
 
-struct ReportReceiverPacketData
+struct ReportReceiverPacket
 {
+    int session_id{0};
+    ReceiverPacketType type{ReceiverPacketType::Report};
     int frame_id{0};
     float decoder_time_ms{0.0f};
     float frame_time_ms{0.0f};
 };
 
 Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
-ReportReceiverPacketData parse_report_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+ReportReceiverPacket parse_report_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
-struct RequestReceiverPacketData
+struct RequestReceiverPacket
 {
+    int session_id{0};
+    ReceiverPacketType type{ReceiverPacketType::Request};
     int frame_id{0};
     std::vector<int> video_packet_indices;
     std::vector<int> parity_packet_indices;
@@ -229,5 +235,5 @@ struct RequestReceiverPacketData
 Packet create_request_receiver_packet(int session_id, int frame_id,
                                       const std::vector<int>& video_packet_indices,
                                       const std::vector<int>& parity_packet_indices);
-RequestReceiverPacketData parse_request_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+RequestReceiverPacket parse_request_receiver_packet(gsl::span<const std::byte> packet_bytes);
 }

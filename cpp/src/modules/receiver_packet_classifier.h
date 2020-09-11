@@ -8,14 +8,14 @@ struct ConnectPacketInfo
 {
     asio::ip::udp::endpoint receiver_endpoint;
     int receiver_session_id;
-    ConnectReceiverPacketData connect_packet_data;
+    ConnectReceiverPacket connect_packet;
 };
 
 struct ReceiverPacketInfo
 {
     bool received_any{false};
-    std::vector<ReportReceiverPacketData> report_packet_data_vector;
-    std::vector<RequestReceiverPacketData> request_packet_data_vector;
+    std::vector<ReportReceiverPacket> report_packets;
+    std::vector<RequestReceiverPacket> request_packets;
 };
 
 struct ReceiverPacketCollection
@@ -43,7 +43,7 @@ public:
             if (packet_type == ReceiverPacketType::Connect) {
                 receiver_packet_collection.connect_packet_infos.push_back({packet->endpoint,
                                                                            receiver_session_id,
-                                                                           parse_connect_receiver_packet_bytes(packet->bytes)});
+                                                                           parse_connect_receiver_packet(packet->bytes)});
                 continue;
             }
 
@@ -57,10 +57,10 @@ public:
             case ReceiverPacketType::Heartbeat:
                 break;
             case ReceiverPacketType::Report:
-                receiver_packet_set_ref->second.report_packet_data_vector.push_back(parse_report_receiver_packet_bytes(packet->bytes));
+                receiver_packet_set_ref->second.report_packets.push_back(parse_report_receiver_packet(packet->bytes));
                 break;
             case ReceiverPacketType::Request:
-                receiver_packet_set_ref->second.request_packet_data_vector.push_back(parse_request_receiver_packet_bytes(packet->bytes));
+                receiver_packet_set_ref->second.request_packets.push_back(parse_request_receiver_packet(packet->bytes));
                 break;
             }
         }
