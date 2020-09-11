@@ -252,22 +252,29 @@ void start(KinectInterface& kinect_interface)
     imgui_loop([&] {
         begin_imgui_frame();
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.2f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Local IP Addresses");
         for (auto& address : local_addresses)
             ImGui::BulletText(address.c_str());
+        ImGui::End();
+
+        ImGui::SetNextWindowPos(ImVec2(0.0f, IMGUI_HEIGHT * 0.2f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.2f), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Sender State");
+        ImGui::BulletText("Frame ID: %d", video_pipeline.last_frame_id());
         ImGui::End();
 
         ImGui::SetNextWindowPos(ImVec2(0.0f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.6f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Remote Receivers");
         for (auto& [_, remote_receiver] : remote_receivers)
-            ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s",
+            ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nVideo Frame ID: %d",
                               remote_receiver.endpoint.address().to_string(),
                               remote_receiver.endpoint.port(),
                               remote_receiver.session_id,
                               remote_receiver.video_requested ? "Requested" : "Not Requested",
-                              remote_receiver.audio_requested ? "Requested" : "Not Requested");
+                              remote_receiver.audio_requested ? "Requested" : "Not Requested",
+                              remote_receiver.video_frame_id);
         ImGui::End();
 
         // For the demo: add a debug button _BEFORE_ the normal log window contents

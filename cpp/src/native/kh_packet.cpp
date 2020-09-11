@@ -364,8 +364,10 @@ ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> pa
 {
     PacketCursor cursor;
     ConnectReceiverPacket connect_receiver_packet;
-    copy_from_bytes(connect_receiver_packet, packet_bytes, cursor);
-    std::cout << "connect_receiver_packet.session_id" << connect_receiver_packet.session_id << std::endl;
+    copy_from_bytes(connect_receiver_packet.session_id, packet_bytes, cursor);
+    copy_from_bytes(connect_receiver_packet.type, packet_bytes, cursor);
+    copy_from_bytes(connect_receiver_packet.video_requested, packet_bytes, cursor);
+    copy_from_bytes(connect_receiver_packet.audio_requested, packet_bytes, cursor);
 
     return connect_receiver_packet;
 }
@@ -406,7 +408,11 @@ ReportReceiverPacket read_report_receiver_packet(gsl::span<const std::byte> pack
 {
     PacketCursor cursor;
     ReportReceiverPacket report_receiver_packet;
-    copy_from_bytes(report_receiver_packet, packet_bytes, cursor);
+    copy_from_bytes(report_receiver_packet.session_id, packet_bytes, cursor);
+    copy_from_bytes(report_receiver_packet.type, packet_bytes, cursor);
+    copy_from_bytes(report_receiver_packet.frame_id, packet_bytes, cursor);
+    copy_from_bytes(report_receiver_packet.decoder_time_ms, packet_bytes, cursor);
+    copy_from_bytes(report_receiver_packet.frame_time_ms, packet_bytes, cursor);
 
     return report_receiver_packet;
 }
