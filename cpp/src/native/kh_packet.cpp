@@ -243,17 +243,16 @@ VideoSenderMessage read_video_sender_message(gsl::span<const std::byte> message_
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, int parity_group_size,
-                                                                          gsl::span<const Packet> video_packets)
+std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets)
 {
     // For example, when max_group_size = 10, 4 -> 1, 10 -> 1, 11 -> 2.
-    const int parity_packet_count{gsl::narrow<int>(video_packets.size() - 1) / parity_group_size + 1};
+    const auto parity_packet_count{(video_packets.size() - 1) / parity_group_size + 1};
 
     std::vector<Packet> parity_packets;
-    for (gsl::index parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
-        const int frame_packet_bytes_cursor{gsl::narrow<int>(parity_packet_index * parity_group_size)};
-        const int parity_frame_packet_count{std::min<int>(parity_group_size, gsl::narrow<int>(video_packets.size()) - frame_packet_bytes_cursor)};
-        parity_packets.push_back(create_parity_sender_packet(sender_id, frame_id, gsl::narrow<int>(parity_packet_index), parity_packet_count,
+    for (int parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
+        const int frame_packet_bytes_cursor{parity_packet_index * parity_group_size};
+        const size_t parity_frame_packet_count{std::min<size_t>(parity_group_size, video_packets.size()) - frame_packet_bytes_cursor};
+        parity_packets.push_back(create_parity_sender_packet(sender_id, frame_id, parity_packet_index, gsl::narrow<int>(parity_packet_count),
                                                              gsl::span<const Packet>(&video_packets[frame_packet_bytes_cursor], parity_frame_packet_count)));
     }
     return parity_packets;
@@ -300,10 +299,10 @@ ParitySenderPacket read_parity_sender_packet(gsl::span<const std::byte> packet_b
 
 Packet create_audio_sender_packet(int sender_id, int frame_id, gsl::span<const std::byte> opus_frame)
 {
-    const int packet_size{gsl::narrow<int>(sizeof(sender_id) +
-                                           sizeof(SenderPacketType) +
-                                           sizeof(frame_id) +
-                                           opus_frame.size())};
+    const auto packet_size{sizeof(sender_id) +
+                           sizeof(SenderPacketType) +
+                           sizeof(frame_id) +
+                           opus_frame.size()};
 
     Packet packet(packet_size);
     PacketCursor cursor;
@@ -373,8 +372,8 @@ ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> pa
 
 Packet create_heartbeat_receiver_packet(int receiver_id)
 {
-    constexpr int packet_size{gsl::narrow<int>(sizeof(receiver_id) +
-                                               sizeof(ReceiverPacketType))};
+    constexpr auto packet_size{sizeof(receiver_id) +
+                               sizeof(ReceiverPacketType)};
 
     Packet packet{packet_size};
     PacketCursor cursor;
@@ -420,15 +419,15 @@ Packet create_request_receiver_packet(int receiver_id, int frame_id,
                                       const std::vector<int>& video_packet_indices,
                                       const std::vector<int>& parity_packet_indices)
 {
-    const int packet_size(sizeof(receiver_id) +
-                          sizeof(ReceiverPacketType) +
-                          sizeof(frame_id) +
-                          sizeof(int) +
-                          sizeof(int) +
-                          sizeof(int) * gsl::narrow<int>(video_packet_indices.size()) +
-                          sizeof(int) * gsl::narrow<int>(parity_packet_indices.size()));
+    const auto packet_size(sizeof(receiver_id) +
+                           sizeof(ReceiverPacketType) +
+                           sizeof(frame_id) +
+                           sizeof(int) +
+                           sizeof(int) +
+                           sizeof(int) * video_packet_indices.size() +
+                           sizeof(int) * parity_packet_indices.size());
 
-    Packet packet{gsl::narrow<std::vector<std::byte>::size_type>(packet_size)};
+    Packet packet{packet_size};
     PacketCursor cursor;
     copy_to_packet(receiver_id, packet, cursor);
     copy_to_packet(ReceiverPacketType::Request, packet, cursor);

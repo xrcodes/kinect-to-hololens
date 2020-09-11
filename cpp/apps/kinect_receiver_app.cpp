@@ -32,7 +32,7 @@ void start_session(const std::string ip_address, const int port, const int recei
 
     udp_socket.send(create_connect_receiver_packet(receiver_id, true, true).bytes, remote_endpoint);
     bool stopped{false};
-    tt::TimePoint heartbeat_time{tt::TimePoint::now()};
+    tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint received_any_time{tt::TimePoint::now()};
 
     VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
@@ -44,19 +44,19 @@ void start_session(const std::string ip_address, const int port, const int recei
 
     for (;;) {
         try {
-            if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
+            if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                 udp_socket.send(create_heartbeat_receiver_packet(receiver_id).bytes, remote_endpoint);
-                heartbeat_time = tt::TimePoint::now();
+                last_heartbeat_time = tt::TimePoint::now();
             }
 
-            auto sender_packet_set{SenderPacketClassifier::classify(udp_socket)};
-            if (sender_packet_set.received_any) {
+            auto sender_packet_info{SenderPacketClassifier::classify(udp_socket)};
+            if (sender_packet_info.received_any) {
                 video_message_assembler.assemble(udp_socket,
-                                                 sender_packet_set.video_packets,
-                                                 sender_packet_set.parity_packets,
+                                                 sender_packet_info.video_packets,
+                                                 sender_packet_info.parity_packets,
                                                  video_renderer.last_frame_id(),
                                                  video_messages);
-                audio_packet_receiver.receive(sender_packet_set.audio_packets);
+                audio_packet_receiver.receive(sender_packet_info.audio_packets);
                 received_any_time = tt::TimePoint::now();
             } else {
                 if (received_any_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {

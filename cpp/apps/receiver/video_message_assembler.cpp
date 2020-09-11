@@ -42,7 +42,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
         auto parity_packet_iter{parity_packet_collections_.find(parity_sender_packet_data.frame_id)};
         if (parity_packet_iter == parity_packet_collections_.end())
             std::tie(parity_packet_iter, std::ignore) = parity_packet_collections_.insert({parity_sender_packet_data.frame_id,
-                                                                                            std::vector<std::optional<ParitySenderPacket>>(parity_sender_packet_data.packet_count)});
+                                                                                           std::vector<std::optional<ParitySenderPacket>>(parity_sender_packet_data.packet_count)});
 
         parity_packet_iter->second[parity_sender_packet_data.packet_index] = std::move(parity_sender_packet_data);
         //std::cout << "parity packet " << parity_sender_packet_data.frame_id << ":" << parity_sender_packet_data.packet_index << "\n";
