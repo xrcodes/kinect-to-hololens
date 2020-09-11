@@ -251,6 +251,36 @@ struct FrameParitySet
         }
         return packet_count;
     }
+
+    int getIncorrectGroupCount()
+    {
+        int incorrect_group_count{0};
+        for (auto& group : packet_parity_groups) {
+            if (!group || group->getState() == PacketParityGroup::State::Incorrect)
+                ++incorrect_group_count;
+        }
+        return incorrect_group_count;
+    }
+
+    int getCorrectableGroupCount()
+    {
+        int correctable_group_count{0};
+        for (auto& group : packet_parity_groups) {
+            if (group && group->getState() == PacketParityGroup::State::Correctable)
+                ++correctable_group_count;
+        }
+        return correctable_group_count;
+    }
+
+    int getCorrectGroupCount()
+    {
+        int correct_group_count{0};
+        for (auto& group : packet_parity_groups) {
+            if (group && group->getState() == PacketParityGroup::State::Correct)
+                ++correct_group_count;
+        }
+        return correct_group_count;
+    }
 };
 
 class VideoReceiverStorage

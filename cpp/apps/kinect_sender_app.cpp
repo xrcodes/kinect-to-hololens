@@ -57,13 +57,17 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
 
     int minimum_receiver_frame_id{INT_MAX};
     for (auto& [_, remote_receiver] : remote_receivers) {
-        if (remote_receiver.video_frame_id < minimum_receiver_frame_id)
-            minimum_receiver_frame_id = remote_receiver.video_frame_id;
-    }
+        // Receivers that did not request video are irrelevant.
+        if (!remote_receiver.video_requested)
+            continue;
 
-    // Send out a keyframe if there is a new receiver.
-    if (minimum_receiver_frame_id == RemoteReceiver::INITIAL_VIDEO_FRAME_ID)
-        return {true, true};
+        // Send out a keyframe if there is a new receiver.
+        if (!remote_receiver.video_frame_id)
+            return {true, true};
+
+        if (*remote_receiver.video_frame_id < minimum_receiver_frame_id)
+            minimum_receiver_frame_id = *remote_receiver.video_frame_id;
+    }
 
     constexpr float AZURE_KINECT_FRAME_RATE{30.0f};
     const auto frame_time_point{tt::TimePoint::now()};
@@ -112,6 +116,11 @@ void send_video_message(VideoPipelineFrame& video_frame,
         for (auto& packet_bytes_ptr : packet_ptrs) {
             udp_socket.send(packet_bytes_ptr->bytes, remote_receiver.endpoint);
         }
+
+        // Make video_frame_id no longer a std::nullopt so it won't get the
+        // intialization privilege again.
+        if (!remote_receiver.video_frame_id)
+            remote_receiver.video_frame_id = video_frame.frame_id - 1;
     }
 
     // Save video/parity packet bytes for retransmission. 
@@ -126,7 +135,7 @@ void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
     // Update receiver_state and summary with Report packets.
     for (auto& report_packet : report_packets) {
         // Ignore if network is somehow out of order and a report comes in out of order.
-        if (report_packet.frame_id <= remote_receiver.video_frame_id)
+        if (remote_receiver.video_frame_id || report_packet.frame_id <= remote_receiver.video_frame_id)
             continue;
 
         remote_receiver.video_frame_id = report_packet.frame_id;
@@ -251,7 +260,7 @@ void start(KinectInterface& kinect_interface)
         ImGui::Begin("Sender Information");
         ImGui::Text("Sender ID: %d", sender_id);
         ImGui::Text("Frame ID: %d", video_pipeline.last_frame_id());
-        ImGui::Text("IP End Points: %d", video_pipeline.last_frame_id());
+        ImGui::Text("IP End Points:");
         for (auto& address : local_addresses)
             ImGui::BulletText(address.c_str());
         ImGui::End();
@@ -264,7 +273,7 @@ void start(KinectInterface& kinect_interface)
             ImGui::BulletText("Receiver ID: %d", remote_receiver.receiver_id);
             ImGui::BulletText("Video: %s", remote_receiver.video_requested ? "Requested" : "Not Requested");
             ImGui::BulletText("Audio: %s", remote_receiver.audio_requested ? "Requested" : "Not Requested");
-            ImGui::BulletText("Frame ID: %d", remote_receiver.video_frame_id);
+            ImGui::BulletText("Frame ID: %d", remote_receiver.video_frame_id.value_or(-1));
         }
         ImGui::End();
 
