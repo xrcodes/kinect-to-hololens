@@ -139,36 +139,29 @@ struct FrameParitySet
     };
 
     // Index is the index of the parity packet of the group.
-    std::vector<std::optional<PacketParityGroup>> packet_parity_groups;
+    std::vector<PacketParityGroup> packet_parity_groups;
 
-    FrameParitySet(std::vector<std::optional<PacketParityGroup>>::size_type packet_parity_set_count)
-        : packet_parity_groups(packet_parity_set_count, std::nullopt)
+    FrameParitySet(int video_packet_count)
+        : packet_parity_groups()
     {
+        int parity_packet_count{(video_packet_count - 1) / KH_FEC_GROUP_SIZE + 1};
+
+        for (int parity_index = 0; parity_index < parity_packet_count; ++parity_index) {
+            int min_video_packet_index{parity_index * KH_FEC_GROUP_SIZE};
+            const size_t group_size{std::min<size_t>(KH_FEC_GROUP_SIZE, video_packet_count - min_video_packet_index)};
+            packet_parity_groups.emplace_back(min_video_packet_index, group_size);
+        }
     }
 
     void addVideoPacket(std::shared_ptr<VideoSenderPacket> video_packet)
     {
         int parity_index{video_packet->packet_index / KH_FEC_GROUP_SIZE};
-        if (!packet_parity_groups[parity_index]) {
-            int min_video_packet_index{parity_index * KH_FEC_GROUP_SIZE};
-            // The last group can have a group size smaller than KH_FEC_GROUP_SIZE.
-            const size_t group_size{std::min<size_t>(KH_FEC_GROUP_SIZE, video_packet->packet_count - min_video_packet_index)};
-            packet_parity_groups[parity_index] = PacketParityGroup{min_video_packet_index, group_size};
-        }
-
-        packet_parity_groups[parity_index]->addVideoPacket(video_packet);
+        packet_parity_groups[parity_index].addVideoPacket(video_packet);
     }
 
     void addParityPacket(std::shared_ptr<ParitySenderPacket> parity_packet)
     {
-        if (!packet_parity_groups[parity_packet->packet_index]) {
-            int min_video_packet_index{parity_packet->packet_index * KH_FEC_GROUP_SIZE};
-            // The last group can have a group size smaller than KH_FEC_GROUP_SIZE.
-            const size_t group_size{std::min<size_t>(KH_FEC_GROUP_SIZE, parity_packet->video_packet_count - min_video_packet_index)};
-            packet_parity_groups[parity_packet->packet_index] = PacketParityGroup{min_video_packet_index, group_size};
-        }
-        
-        packet_parity_groups[parity_packet->packet_index]->setParityPacket(parity_packet);
+        packet_parity_groups[parity_packet->packet_index].setParityPacket(parity_packet);
     }
 
     State getState()
@@ -176,10 +169,7 @@ struct FrameParitySet
         bool has_correctable{false};
 
         for (auto& group : packet_parity_groups) {
-            if (!group)
-                return State::Incorrect;
-
-            auto state{group->getState()};
+            auto state{group.getState()};
             if (state == PacketParityGroup::State::Incorrect)
                 return State::Incorrect;
 
@@ -198,8 +188,8 @@ struct FrameParitySet
             throw std::runtime_error("FrameParitySet::correct() called while set's state is not Correctable.");
 
         for (auto& group : packet_parity_groups) {
-            if (group->getState() == PacketParityGroup::State::Correctable)
-                group->correct();
+            if (group.getState() == PacketParityGroup::State::Correctable)
+                group.correct();
         }
     }
 
@@ -211,7 +201,7 @@ struct FrameParitySet
 
         std::vector<VideoSenderPacket*> video_packet_ptrs;
         for (auto& group : packet_parity_groups) {
-            for (auto& packet : group->video_packets) {
+            for (auto& packet : group.video_packets) {
                 video_packet_ptrs.push_back(packet.get());
             }
         }
@@ -219,20 +209,17 @@ struct FrameParitySet
         return std::make_unique<VideoSenderMessage>(read_video_sender_message(merge_video_sender_packets(video_packet_ptrs)));
     }
 
-    // Assumes
-    // (1) There is a non-empty group.
-    // (2) The non-empty group has at least one packet.
+    // Assumes there is at least one packet.
     int getVideoPacketCount()
     {
         for (auto& group : packet_parity_groups) {
-            if (group) {
-                for (auto& video_packet : group->video_packets) {
-                    if (video_packet)
-                        return video_packet->packet_count;
-                }
-
-                return group->parity_packet->video_packet_count;
+            for (auto& video_packet : group.video_packets) {
+                if (video_packet)
+                    return video_packet->packet_count;
             }
+
+            if (group.parity_packet)
+                return group.parity_packet->video_packet_count;
         }
     }
 
@@ -242,29 +229,16 @@ struct FrameParitySet
         std::vector<int> video_packet_indices;
         std::vector<int> parity_packet_indices;
 
-        int video_packet_count{getVideoPacketCount()};
-        for (gsl::index i{0}; i < packet_parity_groups.size(); ++i) {
-            if (!packet_parity_groups[i]) {
-                // Add indices for the null group.
-                for (int ii = 0; ii < KH_FEC_GROUP_SIZE; ++ii) {
-                    int video_packet_index = i * KH_FEC_GROUP_SIZE + ii;
-                    if(video_packet_index < video_packet_count)
-                        video_packet_indices.push_back(i);
-                }
-                parity_packet_indices.push_back(i);
-            }
-            
-            auto group_ptr{&*packet_parity_groups[i]};
-            if (group_ptr->getState() == PacketParityGroup::State::Incorrect) {
-                for (int i{0}; i < group_ptr->video_packets.size(); ++i) {
-                    if (!group_ptr->video_packets[i])
-                        video_packet_indices.push_back(group_ptr->min_video_packet_index + i);
+        for (auto& group : packet_parity_groups) {
+            if (group.getState() == PacketParityGroup::State::Incorrect) {
+                for (int i{0}; i < group.video_packets.size(); ++i) {
+                    if (!group.video_packets[i])
+                        video_packet_indices.push_back(group.min_video_packet_index + i);
 
-                    if (!group_ptr->parity_packet)
-                        parity_packet_indices.push_back(group_ptr->min_video_packet_index / KH_FEC_GROUP_SIZE);
+                    if (!group.parity_packet)
+                        parity_packet_indices.push_back(group.min_video_packet_index / KH_FEC_GROUP_SIZE);
                 }
             }
-
         }
 
         return {video_packet_indices, parity_packet_indices};
@@ -275,8 +249,7 @@ struct FrameParitySet
     {
         int packet_count{0};
         for (auto& group : packet_parity_groups) {
-            if (group)
-                packet_count += group->getPacketCount();
+             packet_count += group.getPacketCount();
         }
         return packet_count;
     }
@@ -285,7 +258,7 @@ struct FrameParitySet
     {
         int incorrect_group_count{0};
         for (auto& group : packet_parity_groups) {
-            if (!group || group->getState() == PacketParityGroup::State::Incorrect)
+            if (group.getState() == PacketParityGroup::State::Incorrect)
                 ++incorrect_group_count;
         }
         return incorrect_group_count;
@@ -295,7 +268,7 @@ struct FrameParitySet
     {
         int correctable_group_count{0};
         for (auto& group : packet_parity_groups) {
-            if (group && group->getState() == PacketParityGroup::State::Correctable)
+            if (group.getState() == PacketParityGroup::State::Correctable)
                 ++correctable_group_count;
         }
         return correctable_group_count;
@@ -305,7 +278,7 @@ struct FrameParitySet
     {
         int correct_group_count{0};
         for (auto& group : packet_parity_groups) {
-            if (group && group->getState() == PacketParityGroup::State::Correct)
+            if (group.getState() == PacketParityGroup::State::Correct)
                 ++correct_group_count;
         }
         return correct_group_count;
@@ -324,8 +297,7 @@ public:
     {
         auto frame_parity_set_it{frame_parity_sets_.find(video_packet->frame_id)};
         if (frame_parity_set_it == frame_parity_sets_.end()) {
-            const size_t parity_packet_count{gsl::narrow<size_t>((video_packet->packet_count - 1) / KH_FEC_GROUP_SIZE + 1)};
-            std::tie(frame_parity_set_it, std::ignore) = frame_parity_sets_.insert({video_packet->frame_id, FrameParitySet{parity_packet_count}});
+            std::tie(frame_parity_set_it, std::ignore) = frame_parity_sets_.insert({video_packet->frame_id, FrameParitySet{video_packet->packet_count}});
         }
         
         frame_parity_set_it->second.addVideoPacket(video_packet);
@@ -335,8 +307,7 @@ public:
     {
         auto frame_parity_set_it{frame_parity_sets_.find(parity_packet->frame_id)};
         if (frame_parity_set_it == frame_parity_sets_.end()) {
-            const size_t parity_packet_count{gsl::narrow<size_t>((parity_packet->video_packet_count - 1) / KH_FEC_GROUP_SIZE + 1)};
-            std::tie(frame_parity_set_it, std::ignore) = frame_parity_sets_.insert({parity_packet->frame_id, FrameParitySet{parity_packet_count}});
+            std::tie(frame_parity_set_it, std::ignore) = frame_parity_sets_.insert({parity_packet->frame_id, FrameParitySet{parity_packet->video_packet_count}});
         }
         
         frame_parity_set_it->second.addParityPacket(parity_packet);
