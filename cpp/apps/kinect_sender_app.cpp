@@ -192,10 +192,10 @@ void start(KinectInterface& kinect_interface)
     constexpr float SUMMARY_INTERVAL_SEC{10.0f};
 
     // The default port (the port when nothing is entered) is 7777.
-    const int session_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
+    const int sender_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
     const k4a::calibration calibration{kinect_interface.getCalibration()};
 
-    std::cout << "Start kinect_sender (session_id: " << session_id << ").\n";
+    std::cout << "Start kinect_sender (sender_id: " << sender_id << ").\n";
 
     // Create UdpSocket.
     asio::io_context io_context;
@@ -235,7 +235,7 @@ void start(KinectInterface& kinect_interface)
     
     std::unique_ptr<KinectAudioSender> kinect_audio_sender{nullptr};
     if (kinect_interface.isDevice())
-        kinect_audio_sender.reset(new KinectAudioSender(session_id));
+        kinect_audio_sender.reset(new KinectAudioSender(sender_id));
     
     VideoPacketStorage video_packet_storage;
 
@@ -252,16 +252,13 @@ void start(KinectInterface& kinect_interface)
     imgui_loop([&] {
         begin_imgui_frame();
         ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.2f), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Local IP Addresses");
+        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Sender Information");
+        ImGui::Text("Sender ID: %d", sender_id);
+        ImGui::Text("Frame ID: %d", video_pipeline.last_frame_id());
+        ImGui::Text("IP End Points: %d", video_pipeline.last_frame_id());
         for (auto& address : local_addresses)
             ImGui::BulletText(address.c_str());
-        ImGui::End();
-
-        ImGui::SetNextWindowPos(ImVec2(0.0f, IMGUI_HEIGHT * 0.2f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(IMGUI_WIDTH * 0.4f, IMGUI_HEIGHT * 0.2f), ImGuiCond_FirstUseEver);
-        ImGui::Begin("Sender State");
-        ImGui::BulletText("Frame ID: %d", video_pipeline.last_frame_id());
         ImGui::End();
 
         ImGui::SetNextWindowPos(ImVec2(0.0f, IMGUI_HEIGHT * 0.4f), ImGuiCond_FirstUseEver);
@@ -296,7 +293,7 @@ void start(KinectInterface& kinect_interface)
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
                 std::cout << "connect_packet_info.connect_packet.session_id: " << connect_packet_info.connect_packet.session_id << std::endl;
                 // Send packet confirming the receiver that the connect packet got received.
-                udp_socket.send(create_confirm_sender_packet(session_id, connect_packet_info.connect_packet.session_id).bytes, connect_packet_info.receiver_endpoint);
+                udp_socket.send(create_confirm_sender_packet(sender_id, connect_packet_info.connect_packet.session_id).bytes, connect_packet_info.receiver_endpoint);
 
                 // Skip already existing receivers.
                 if (remote_receivers.find(connect_packet_info.connect_packet.session_id) != remote_receivers.end())
@@ -317,7 +314,7 @@ void start(KinectInterface& kinect_interface)
                 // Send heartbeat packets to receivers.
                 if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& [_, remote_receiver] : remote_receivers)
-                        udp_socket.send(create_heartbeat_sender_packet(session_id).bytes, remote_receiver.endpoint);
+                        udp_socket.send(create_heartbeat_sender_packet(sender_id).bytes, remote_receiver.endpoint);
                     last_heartbeat_time = tt::TimePoint::now();
                 }
 
@@ -328,7 +325,7 @@ void start(KinectInterface& kinect_interface)
                     auto kinect_frame{kinect_interface.getFrame()};
                     if (kinect_frame) {
                         auto video_frame{video_pipeline.process(*kinect_frame, keyframe, profiler)};
-                        send_video_message(video_frame, session_id, session_start_time, calibration,
+                        send_video_message(video_frame, sender_id, session_start_time, calibration,
                                            udp_socket, video_packet_storage, remote_receivers, rng);
                     }
                 }
