@@ -1,7 +1,6 @@
 #include <iostream>
 #include "native/kh_native.h"
 #include "sender/video_pipeline.h"
-#include "helper/opencv_helper.h"
 #include "helper/filesystem_helper.h"
 
 namespace kh

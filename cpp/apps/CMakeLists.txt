@@ -1,6 +1,5 @@
 add_executable(KinectReaderApp
   kinect_reader_app.cpp
-  helper/opencv_helper.h
   helper/filesystem_helper.h
 )
 target_include_directories(KinectReaderApp PRIVATE
@@ -8,7 +7,6 @@ target_include_directories(KinectReaderApp PRIVATE
 )
 target_link_libraries(KinectReaderApp
   KinectToHololensSenderModules
-  ${OpenCV_LIBS}
 )
 set_target_properties(KinectReaderApp PROPERTIES
   CXX_STANDARD 17
@@ -61,7 +59,6 @@ add_custom_command(TARGET KinectSenderApp POST_BUILD
 
 add_executable(KinectReceiverApp
   kinect_receiver_app.cpp
-  helper/opencv_helper.h
   helper/soundio_helper.h
   receiver/audio_packet_receiver.h
   receiver/video_message_assembler.h
@@ -72,7 +69,6 @@ target_include_directories(KinectReceiverApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectReceiverApp
-  ${OpenCV_LIBS}
   KinectToHololensNative
 )
 set_target_properties(KinectReceiverApp PROPERTIES

@@ -2,7 +2,6 @@
 #include <random>
 #include <thread>
 #include "native/kh_native.h"
-#include "helper/opencv_helper.h"
 #include "helper/soundio_helper.h"
 #include "receiver/video_renderer.h"
 #include "receiver/sender_packet_classifier.h"

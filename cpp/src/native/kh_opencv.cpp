@@ -1,7 +1,4 @@
-#pragma once
-
-#include <opencv2/opencv.hpp>
-#include "native/kh_native.h"
+#include "kh_opencv.h"
 
 namespace kh
 {
@@ -36,8 +33,8 @@ cv::Mat create_cv_mat_from_yuv_image(const tt::YuvFrame& yuv_image)
 
 cv::Mat create_cv_mat_from_kinect_depth_image(const int16_t* depth_buffer, int width, int height)
 {
-    std::vector<uint8_t> depth_frame(width * height);
-    std::vector<uint8_t> half(width * height);
+    std::vector<uint8_t> depth_frame(static_cast<long long>(width) * height);
+    std::vector<uint8_t> half(static_cast<long long>(width) * height);
 
     for (int i = 0; i < width * height; ++i) {
         depth_frame[i] = depth_buffer[i] / 32;
