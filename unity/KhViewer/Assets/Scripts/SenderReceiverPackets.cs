@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 
-public enum SenderPacketType : byte
+public enum SenderPacketType : int
 {
     Confirm = 0,
     Heartbeat = 1,
@@ -11,7 +11,7 @@ public enum SenderPacketType : byte
     Audio = 4,
 }
 
-public enum ReceiverPacketType : byte
+public enum ReceiverPacketType : int
 {
     Connect = 0,
     Heartbeat = 1,
@@ -22,8 +22,6 @@ public enum ReceiverPacketType : byte
 public static class PacketHelper
 {
     public const int PACKET_SIZE = 1472;
-    public const int PACKET_HEADER_SIZE = 17;
-    public const int MAX_PACKET_CONTENT_SIZE = PACKET_SIZE - PACKET_HEADER_SIZE;
 
     public static int getSessionIdFromSenderPacketBytes(byte[] packetBytes)
     {
@@ -32,7 +30,7 @@ public static class PacketHelper
 
     public static SenderPacketType getPacketTypeFromSenderPacketBytes(byte[] packetBytes)
     {
-        return (SenderPacketType) packetBytes[4];
+        return (SenderPacketType)BitConverter.ToInt32(packetBytes, 4);
     }
 
     public static byte[] createConnectReceiverPacketBytes(int sessionId,
@@ -41,7 +39,7 @@ public static class PacketHelper
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
-        ms.WriteByte((byte)ReceiverPacketType.Connect);
+        ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Connect), 0, 4);
         // bools need to be converted to bytes since C# bools are 4 bytes each, different from the 1-byte C++ bools.
         ms.WriteByte(Convert.ToByte(videoRequested));
         ms.WriteByte(Convert.ToByte(audioRequested));
@@ -52,7 +50,7 @@ public static class PacketHelper
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
-        ms.WriteByte((byte)ReceiverPacketType.Heartbeat);
+        ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Heartbeat), 0, 4);
         return ms.ToArray();
     }
 
@@ -60,7 +58,7 @@ public static class PacketHelper
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
-        ms.WriteByte((byte)ReceiverPacketType.Report);
+        ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Report), 0, 4);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         ms.Write(BitConverter.GetBytes(decoderMs), 0, 4);
         ms.Write(BitConverter.GetBytes(frameMs), 0, 4);
@@ -71,7 +69,7 @@ public static class PacketHelper
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
-        ms.WriteByte((byte)ReceiverPacketType.Request);
+        ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Request), 0, 4);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
         ms.Write(BitConverter.GetBytes(videoPacketIndices.Count), 0, 4);
         ms.Write(BitConverter.GetBytes(parityPacketIndices.Count), 0, 4);
@@ -94,7 +92,7 @@ public class ConfirmSenderPacketData
     public static ConfirmSenderPacketData Parse(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
-        reader.BaseStream.Position = 5;
+        reader.BaseStream.Position = 8;
 
         var confirmSenderPacketData = new ConfirmSenderPacketData();
         confirmSenderPacketData.receiverSessionId = reader.ReadInt32();
@@ -180,7 +178,7 @@ public class VideoSenderPacketData
     public static VideoSenderPacketData Parse(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
-        reader.BaseStream.Position = 5;
+        reader.BaseStream.Position = 8;
 
         var videoSenderPacketData = new VideoSenderPacketData();
         videoSenderPacketData.frameId = reader.ReadInt32();
@@ -203,7 +201,7 @@ public class ParitySenderPacketData
     public static ParitySenderPacketData Parse(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
-        reader.BaseStream.Position = 5;
+        reader.BaseStream.Position = 8;
 
         var fecSenderPacketData = new ParitySenderPacketData();
         fecSenderPacketData.frameId = reader.ReadInt32();
@@ -224,7 +222,7 @@ public class AudioSenderPacketData
     public static AudioSenderPacketData Parse(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
-        reader.BaseStream.Position = 5;
+        reader.BaseStream.Position = 8;
 
         var audioSenderPacketData = new AudioSenderPacketData();
         audioSenderPacketData.frameId = reader.ReadInt32();
