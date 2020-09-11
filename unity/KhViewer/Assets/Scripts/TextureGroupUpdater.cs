@@ -21,7 +21,6 @@ public class TextureGroupUpdater
     private TrvlDecoder depthDecoder;
 
     private Dictionary<int, VideoSenderMessageData> videoMessages;
-    private Stopwatch frameStopWatch;
 
     public PrepareState State => state;
 
@@ -37,7 +36,6 @@ public class TextureGroupUpdater
         lastVideoFrameId = -1;
 
         videoMessages = new Dictionary<int, VideoSenderMessageData>();
-        frameStopWatch = Stopwatch.StartNew();
 
         //textureGroup.SetWidth(initPacketData.depthWidth);
         //textureGroup.SetHeight(initPacketData.depthHeight);
@@ -135,7 +133,6 @@ public class TextureGroupUpdater
         FFmpegFrame ffmpegFrame = null;
         TrvlFrame trvlFrame = null;
 
-        var decoderStopWatch = Stopwatch.StartNew();
         for (int i = beginFrameId.Value; ; ++i)
         {
             if (!videoMessages.ContainsKey(i))
@@ -151,16 +148,7 @@ public class TextureGroupUpdater
             trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.keyframe);
         }
 
-        decoderStopWatch.Stop();
-        var decoderTime = decoderStopWatch.Elapsed;
-        frameStopWatch.Stop();
-        var frameTime = frameStopWatch.Elapsed;
-        frameStopWatch = Stopwatch.StartNew();
-
-        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId,
-                                                                    lastVideoFrameId,
-                                                                    (float)decoderTime.TotalMilliseconds,
-                                                                    (float)frameTime.TotalMilliseconds), endPoint);
+        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId, lastVideoFrameId), endPoint);
 
         //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
         textureGroup.SetFFmpegFrame(ffmpegFrame);
