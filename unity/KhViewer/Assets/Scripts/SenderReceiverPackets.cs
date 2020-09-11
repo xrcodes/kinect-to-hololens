@@ -63,12 +63,13 @@ public static class PacketHelper
         return ms.ToArray();
     }
 
-    public static byte[] createRequestReceiverPacketBytes(int sessionId, int frameId, List<int> videoPacketIndices, List<int> parityPacketIndices)
+    public static byte[] createRequestReceiverPacketBytes(int sessionId, int frameId, bool allPackets, List<int> videoPacketIndices, List<int> parityPacketIndices)
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(sessionId), 0, 4);
         ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Request), 0, 4);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
+        ms.WriteByte(Convert.ToByte(allPackets));
         ms.Write(BitConverter.GetBytes(videoPacketIndices.Count), 0, 4);
         ms.Write(BitConverter.GetBytes(parityPacketIndices.Count), 0, 4);
         foreach (int index in videoPacketIndices)

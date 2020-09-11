@@ -114,6 +114,21 @@ struct PacketParityGroup
                                                                           corrected_packet_count,
                                                                           xor (bytes_ptrs)});
     }
+
+    // For debug purposes
+    int getPacketCount()
+    {
+        int packet_count{0};
+        for (auto& video_packet : video_packets) {
+            if (video_packet)
+                ++packet_count;
+        }
+
+        if (parity_packet)
+            ++packet_count;
+
+        return packet_count;
+    }
 };
 
 struct FrameParitySet
@@ -225,6 +240,17 @@ struct FrameParitySet
 
         return {video_packet_indices, parity_packet_indices};
     }
+
+    // For debug purposes
+    int getPacketCount()
+    {
+        int packet_count{0};
+        for (auto& group : packet_parity_groups) {
+            if (group)
+                packet_count += group->getPacketCount();
+        }
+        return packet_count;
+    }
 };
 
 class VideoReceiverStorage
@@ -260,13 +286,13 @@ public:
     // Add video messages as much as possible to the queue.
     void build(std::map<int, std::shared_ptr<VideoSenderMessage>>& video_messages)
     {
-        for (auto& set_pair : frame_parity_sets_) {
-            auto set_state{set_pair.second.getState()};
+        for (auto& [frame_id, frame_parity_set] : frame_parity_sets_) {
+            auto set_state{frame_parity_set.getState()};
             if (set_state == FrameParitySet::State::Correctable)
-                set_pair.second.correct();
+                frame_parity_set.correct();
 
-            if (set_pair.second.getState() != FrameParitySet::State::Incorrect)
-                video_messages.insert({set_pair.first, set_pair.second.build()});
+            if (frame_parity_set.getState() != FrameParitySet::State::Incorrect)
+                video_messages.insert({frame_id, frame_parity_set.build()});
         }
     }
 
@@ -274,9 +300,9 @@ public:
     int getMaxFrameId()
     {
         int max_frame_id{INT_MIN};
-        for (auto& set_pair : frame_parity_sets_) {
-            if (set_pair.first > max_frame_id)
-                max_frame_id = set_pair.first;
+        for (auto& [frame_id, _] : frame_parity_sets_) {
+            if (frame_id > max_frame_id)
+                max_frame_id = frame_id;
         }
         return max_frame_id;
     }
@@ -286,10 +312,10 @@ public:
     {
         int max_frame_id{getMaxFrameId()};
         std::vector<VideoFrameIndices> missing_packets_vector;
-        for (auto& [frame_id, frame_parity_sets]: frame_parity_sets_) {
+        for (auto& [frame_id, frame_parity_set]: frame_parity_sets_) {
             if (frame_id < max_frame_id) {
-                if (frame_parity_sets.getState() == FrameParitySet::State::Incorrect) {
-                    auto [video_packet_indices, parity_packet_indices] {frame_parity_sets.getMissingPackets()};
+                if (frame_parity_set.getState() == FrameParitySet::State::Incorrect) {
+                    auto [video_packet_indices, parity_packet_indices] {frame_parity_set.getMissingPackets()};
 
                     missing_packets_vector.push_back(VideoFrameIndices{frame_id, video_packet_indices, parity_packet_indices});
                 }
@@ -310,6 +336,17 @@ public:
         }
     }
 
+    // For debug purposes
+    int getPacketCount()
+    {
+        int packet_count{0};
+        for (auto& [_, frame_parity_set] : frame_parity_sets_)
+            packet_count += frame_parity_set.getPacketCount();
+
+        return packet_count;
+    }
+
+// Uncommented for debug purposes
 //private:
     // Key is frame ID.
     std::map<int, FrameParitySet> frame_parity_sets_;

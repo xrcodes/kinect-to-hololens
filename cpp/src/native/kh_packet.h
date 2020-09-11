@@ -266,11 +266,12 @@ struct RequestReceiverPacket
     int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Request};
     int frame_id{0};
+    bool all_packets;
     std::vector<int> video_packet_indices;
     std::vector<int> parity_packet_indices;
 };
 
-Packet create_request_receiver_packet(int receiver_id, int frame_id,
+Packet create_request_receiver_packet(int receiver_id, int frame_id, bool all_packets,
                                       const std::vector<int>& video_packet_indices,
                                       const std::vector<int>& parity_packet_indices);
 RequestReceiverPacket read_request_receiver_packet(gsl::span<const std::byte> packet_bytes);

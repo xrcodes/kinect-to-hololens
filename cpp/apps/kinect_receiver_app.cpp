@@ -56,17 +56,18 @@ void start_session(const std::string ip_address, const int port, const int recei
 
             auto sender_packet_info{SenderPacketClassifier::classify(udp_socket)};
             if (sender_packet_info.received_any) {
-                //video_message_assembler.assemble(udp_socket,
-                //                                 sender_packet_info.video_packets,
-                //                                 sender_packet_info.parity_packets,
-                //                                 video_renderer.last_frame_id(),
-                //                                 video_messages);
-
+                int before_packet_count = video_receiver_storage.getPacketCount();
                 for (auto& video_packet : sender_packet_info.video_packets)
                     video_receiver_storage.addVideoPacket(std::make_unique<VideoSenderPacket>(video_packet));
 
                 for (auto& parity_packet : sender_packet_info.parity_packets)
                     video_receiver_storage.addParityPacket(std::make_unique<ParitySenderPacket>(parity_packet));
+
+                int after_packet_count = video_receiver_storage.getPacketCount();
+                std::cout << "before_packet_count: " << before_packet_count << std::endl;
+                std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
+                std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
+                std::cout << "after_packet_count : " << after_packet_count << std::endl << std::endl;
 
                 bool packet_for_new_frame_exists{false};
                 int max_storage_frame_id{video_receiver_storage.getMaxFrameId()};
@@ -80,9 +81,10 @@ void start_session(const std::string ip_address, const int port, const int recei
                 if (packet_for_new_frame_exists || last_request_time.elapsed_time().sec() > 1.0f) {
                     int request_count{0};
                     auto missing_indices{video_receiver_storage.getMissingIndices()};
+                    std::map<int, RequestReceiverPacket> request_packets;
                     // Sending a packet per frame ID.
                     for (auto& indices : missing_indices) {
-                        udp_socket.send(create_request_receiver_packet(receiver_id, indices.frame_id,
+                        udp_socket.send(create_request_receiver_packet(receiver_id, indices.frame_id, false,
                                                                        indices.video_packet_indices,
                                                                        indices.parity_packet_indices).bytes,
                                         remote_endpoint);
@@ -93,8 +95,9 @@ void start_session(const std::string ip_address, const int port, const int recei
 
                     std::cout << "request_count: " << request_count << std::endl;
                     std::cout << "last_frame_id: " << video_renderer.last_frame_id() << std::endl;
-                    for (auto& [frame_id, set] : video_receiver_storage.frame_parity_sets_)
-                        std::cout << "  storage set frame_id: " << frame_id << ", state: " << (int) set.getState() << std::endl;
+                    for (auto& [frame_id, set] : video_receiver_storage.frame_parity_sets_) {
+                        std::cout << "  storage set frame_id: " << frame_id << ", state: " << (int)set.getState() << ", #packet: " << set.getPacketCount() << std::endl;
+                    }
 
                     last_request_time = tt::TimePoint::now();
                 }

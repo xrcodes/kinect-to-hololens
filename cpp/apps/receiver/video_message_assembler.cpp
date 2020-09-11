@@ -147,7 +147,7 @@ void VideoMessageAssembler::assemble(UdpSocket& udp_socket,
                 video_packet_collections_.at(frame_id)[missing_video_packet_index] = std::move(fec_video_packet);
             }
             // Request the video packets that FEC was not enough to fix.
-            udp_socket.send(create_request_receiver_packet(receiver_id_, frame_id, video_packet_indiecs_to_request, parity_packet_indiecs_to_request).bytes, remote_endpoint_);
+            udp_socket.send(create_request_receiver_packet(receiver_id_, frame_id, false, video_packet_indiecs_to_request, parity_packet_indiecs_to_request).bytes, remote_endpoint_);
             //std::cout << "  video_packet_indiecs_to_request.size(): " << video_packet_indiecs_to_request.size() << "\n"
             //          << "  parity_packet_indiecs_to_request.size(): " << parity_packet_indiecs_to_request.size() << "\n"
             //          << "  fec_count: " << fec_count << "\n";
