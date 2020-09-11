@@ -81,7 +81,7 @@ std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteR
 }
 
 void send_video_message(VideoPipelineFrame& video_frame,
-                        int session_id,
+                        int sender_id,
                         tt::TimePoint session_start_time,
                         k4a::calibration calibration,
                         UdpSocket& udp_socket,
@@ -92,8 +92,8 @@ void send_video_message(VideoPipelineFrame& video_frame,
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
     const auto message{create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
-    auto video_packets{split_video_sender_message_bytes(session_id, video_frame.frame_id, message.bytes)};
-    auto parity_packets{create_parity_sender_packets(session_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packets)};
+    auto video_packets{split_video_sender_message_bytes(sender_id, video_frame.frame_id, message.bytes)};
+    auto parity_packets{create_parity_sender_packets(sender_id, video_frame.frame_id, KH_FEC_PARITY_GROUP_SIZE, video_packets)};
 
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
@@ -268,7 +268,7 @@ void start(KinectInterface& kinect_interface)
             ImGui::BulletText("Endpoint: %s:%d\nSession ID: %d\nVideo: %s\nAudio: %s\nVideo Frame ID: %d",
                               remote_receiver.endpoint.address().to_string(),
                               remote_receiver.endpoint.port(),
-                              remote_receiver.session_id,
+                              remote_receiver.receiver_id,
                               remote_receiver.video_requested ? "Requested" : "Not Requested",
                               remote_receiver.audio_requested ? "Requested" : "Not Requested",
                               remote_receiver.video_frame_id);
@@ -291,20 +291,19 @@ void start(KinectInterface& kinect_interface)
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
-                std::cout << "connect_packet_info.connect_packet.session_id: " << connect_packet_info.connect_packet.session_id << std::endl;
                 // Send packet confirming the receiver that the connect packet got received.
-                udp_socket.send(create_confirm_sender_packet(sender_id, connect_packet_info.connect_packet.session_id).bytes, connect_packet_info.receiver_endpoint);
+                udp_socket.send(create_confirm_sender_packet(sender_id, connect_packet_info.connect_packet.receiver_id).bytes, connect_packet_info.receiver_endpoint);
 
                 // Skip already existing receivers.
-                if (remote_receivers.find(connect_packet_info.connect_packet.session_id) != remote_receivers.end())
+                if (remote_receivers.find(connect_packet_info.connect_packet.receiver_id) != remote_receivers.end())
                     continue;
 
                 std::cout << "connect_packet_info.connect_packet_data.video_requested: " << connect_packet_info.connect_packet.video_requested << "\n";
 
-                std::cout << "Receiver " << connect_packet_info.connect_packet.session_id << " connected.\n";
-                remote_receivers.insert({connect_packet_info.connect_packet.session_id,
+                std::cout << "Receiver " << connect_packet_info.connect_packet.receiver_id << " connected.\n";
+                remote_receivers.insert({connect_packet_info.connect_packet.receiver_id,
                                          RemoteReceiver{connect_packet_info.receiver_endpoint,
-                                                        connect_packet_info.connect_packet.session_id,
+                                                        connect_packet_info.connect_packet.receiver_id,
                                                         connect_packet_info.connect_packet.video_requested,
                                                         connect_packet_info.connect_packet.audio_requested}});
             }
@@ -334,8 +333,8 @@ void start(KinectInterface& kinect_interface)
                 if (kinect_audio_sender)
                     kinect_audio_sender->send(udp_socket, remote_receivers);
 
-                for (auto& [receiver_session_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_infos) {
-                    auto remote_receiver_ptr{&remote_receivers.at(receiver_session_id)};
+                for (auto& [receiver_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_infos) {
+                    auto remote_receiver_ptr{&remote_receivers.at(receiver_id)};
                     if (receiver_packet_set.received_any) {
                         apply_report_packets(receiver_packet_set.report_packets,
                                              *remote_receiver_ptr,
@@ -347,8 +346,8 @@ void start(KinectInterface& kinect_interface)
                         remote_receiver_ptr->last_packet_time = tt::TimePoint::now();
                     } else {
                         if (remote_receiver_ptr->last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
-                            std::cout << "Timed out receiver " << receiver_session_id << " after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
-                            remote_receivers.erase(receiver_session_id);
+                            std::cout << "Timed out receiver " << receiver_id << " after waiting for " << HEARTBEAT_TIME_OUT_SEC << " seconds without a received packet.\n";
+                            remote_receivers.erase(receiver_id);
                         }
                     }
                 }

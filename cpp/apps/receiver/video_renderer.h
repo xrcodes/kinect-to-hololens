@@ -5,8 +5,8 @@ namespace kh
 class VideoRenderer
 {
 public:
-    VideoRenderer(const int session_id, const asio::ip::udp::endpoint remote_endpoint, int width, int height)
-        : session_id_{session_id}, remote_endpoint_{remote_endpoint}, width_{width}, height_{height},
+    VideoRenderer(const int receiver_id, const asio::ip::udp::endpoint remote_endpoint, int width, int height)
+        : receiver_id_{receiver_id}, remote_endpoint_{remote_endpoint}, width_{width}, height_{height},
         color_decoder_{}, depth_decoder_{width * height}, last_frame_id_{-1}, last_frame_time_{tt::TimePoint::now()}
     {
     }
@@ -58,7 +58,7 @@ public:
             depth_image = depth_decoder_.decode(frame_message_pair_ptr->depth_encoder_frame, frame_message_pair_ptr->keyframe);
         }
 
-        udp_socket.send(create_report_receiver_packet(session_id_,
+        udp_socket.send(create_report_receiver_packet(receiver_id_,
                                                       last_frame_id_,
                                                       decoder_start.elapsed_time().ms(),
                                                       last_frame_time_.elapsed_time().ms()).bytes, remote_endpoint_);
@@ -84,7 +84,7 @@ public:
     }
 
 private:
-    const int session_id_;
+    const int receiver_id_;
     const asio::ip::udp::endpoint remote_endpoint_;
     int width_;
     int height_;

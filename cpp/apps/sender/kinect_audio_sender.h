@@ -12,8 +12,8 @@ namespace kh
 class KinectAudioSender
 {
 public:
-    KinectAudioSender(const int session_id)
-        : session_id_{session_id}
+    KinectAudioSender(const int sender_id)
+        : sender_id_{sender_id}
         , audio_{}
         , kinect_microphone_stream_{create_kinect_microphone_stream(audio_)}
         , audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false}
@@ -47,7 +47,7 @@ public:
             opus_frame.resize(opus_frame_size);
             for (auto& [_, remote_receiver] : remote_receivers) {
                 if(remote_receiver.audio_requested)
-                    udp_socket.send(create_audio_sender_packet(session_id_, audio_frame_id_++, opus_frame).bytes, remote_receiver.endpoint);
+                    udp_socket.send(create_audio_sender_packet(sender_id_, audio_frame_id_++, opus_frame).bytes, remote_receiver.endpoint);
             }
             cursor += BYTES_PER_FRAME;
         }
@@ -56,7 +56,7 @@ public:
     }
 
 private:
-    const int session_id_;
+    const int sender_id_;
 
     Audio audio_;
     AudioInStream kinect_microphone_stream_;

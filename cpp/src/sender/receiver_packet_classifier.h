@@ -30,12 +30,12 @@ public:
     {
         // Prepare ReceiverPacketCollection in regard with the list of RemoteReceivers.
         ReceiverPacketCollection receiver_packet_collection;
-        for (auto& [receiver_session_id, _] : remote_receivers)
-            receiver_packet_collection.receiver_packet_infos.insert({receiver_session_id, ReceiverPacketInfo{}});
+        for (auto& [receiver_id, _] : remote_receivers)
+            receiver_packet_collection.receiver_packet_infos.insert({receiver_id, ReceiverPacketInfo{}});
 
         // Iterate through all received UDP packets.
         while (auto packet{udp_socket.receive()}) {
-            int receiver_session_id{get_session_id_from_receiver_packet_bytes(packet->bytes)};
+            int receiver_id{get_receiver_id_from_receiver_packet_bytes(packet->bytes)};
             auto packet_type{get_packet_type_from_receiver_packet_bytes(packet->bytes)};
 
             // Collect attempts from recievers to connect.
@@ -46,7 +46,7 @@ public:
             }
 
             // Skip a packet, not for connection, is not from a reciever already connected.
-            auto receiver_packet_set_ref{receiver_packet_collection.receiver_packet_infos.find(receiver_session_id)};
+            auto receiver_packet_set_ref{receiver_packet_collection.receiver_packet_infos.find(receiver_id)};
             if (receiver_packet_set_ref == receiver_packet_collection.receiver_packet_infos.end())
                 continue;
 

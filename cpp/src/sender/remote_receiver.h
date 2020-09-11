@@ -10,15 +10,15 @@ struct RemoteReceiver
     static constexpr int INITIAL_VIDEO_FRAME_ID{-1};
 
     const asio::ip::udp::endpoint endpoint;
-    const int session_id;
+    const int receiver_id;
     bool video_requested;
     bool audio_requested;
     int video_frame_id;
     tt::TimePoint last_packet_time;
 
-    RemoteReceiver(asio::ip::udp::endpoint endpoint, int session_id, bool video_requested, bool audio_requested)
+    RemoteReceiver(asio::ip::udp::endpoint endpoint, int receiver_id, bool video_requested, bool audio_requested)
         : endpoint{endpoint}
-        , session_id{session_id}
+        , receiver_id{receiver_id}
         , video_requested{video_requested}
         , audio_requested{audio_requested}
         , video_frame_id{INITIAL_VIDEO_FRAME_ID}

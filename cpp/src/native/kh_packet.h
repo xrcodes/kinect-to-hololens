@@ -131,25 +131,25 @@ T copy_from_bytes(gsl::span<const std::byte> bytes, int position)
 }
 
 #pragma region SenderPackets
-int get_session_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
+int get_sender_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 SenderPacketType get_packet_type_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct ConfirmSenderPacket
 {
-    int session_id{0};
+    int sender_id{0};
     SenderPacketType type{SenderPacketType::Confirm};
-    int receiver_session_id{0};
+    int receiver_id{0};
 };
 
-Packet create_confirm_sender_packet(int session_id, int receiver_session_id);
+Packet create_confirm_sender_packet(int sender_id, int receiver_id);
 
 struct HeartbeatSenderPacket
 {
-    int session_id{0};
+    int sender_id{0};
     SenderPacketType type{SenderPacketType::Heartbeat};
 };
 
-Packet create_heartbeat_sender_packet(int session_id);
+Packet create_heartbeat_sender_packet(int sender_id);
 
 struct VideoSenderMessage
 {
@@ -179,7 +179,7 @@ struct VideoSenderMessage
 
 struct VideoSenderPacket
 {
-    int session_id{0};
+    int sender_id{0};
     SenderPacketType type{SenderPacketType::Video};
     int frame_id{0};
     int packet_index{0};
@@ -192,15 +192,15 @@ Message create_video_sender_message(float frame_time_stamp, bool keyframe,
                                     gsl::span<const std::byte> color_encoder_frame,
                                     gsl::span<const std::byte> depth_encoder_frame,
                                     std::optional<std::array<float, 4>> floor);
-std::vector<Packet> split_video_sender_message_bytes(int session_id, int frame_id, gsl::span<const std::byte> video_message);
-Packet create_video_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content);
+std::vector<Packet> split_video_sender_message_bytes(int sender_id, int frame_id, gsl::span<const std::byte> video_message);
+Packet create_video_sender_packet(int sender_id, int frame_id, int packet_index, int packet_count, gsl::span<const std::byte> packet_content);
 VideoSenderPacket read_video_sender_packet(gsl::span<const std::byte> packet_bytes);
 std::vector<std::byte> merge_video_sender_packets(gsl::span<VideoSenderPacket*> video_packet_ptrs);
 VideoSenderMessage read_video_sender_message(gsl::span<const std::byte> message_bytes);
 
 struct ParitySenderPacket
 {
-    int session_id{0};
+    int sender_id{0};
     SenderPacketType type{SenderPacketType::Parity};
     int frame_id{0};
     int packet_index{0};
@@ -211,69 +211,69 @@ struct ParitySenderPacket
 // This creates xor packets for forward error correction. In case max_group_size is 10, the first XOR FEC packet
 // is for packet 0~9. If one of them is missing, it uses XOR FEC packet, which has the XOR result of all those
 // packets to restore the packet.
-std::vector<Packet> create_parity_sender_packets(int session_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets);
-Packet create_parity_sender_packet(int session_id, int frame_id, int packet_index, int packet_count, gsl::span<const Packet> video_packets);
+std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, int parity_group_size, gsl::span<const Packet> video_packets);
+Packet create_parity_sender_packet(int sender_id, int frame_id, int packet_index, int packet_count, gsl::span<const Packet> video_packets);
 ParitySenderPacket read_parity_sender_packet(gsl::span<const std::byte> packet_bytes);
 
 struct AudioSenderPacket
 {
-    int session_id{0};
+    int sender_id{0};
     SenderPacketType type{SenderPacketType::Audio};
     int frame_id{0};
     std::vector<std::byte> opus_frame;
 };
 
-Packet create_audio_sender_packet(int session_id, int frame_id, gsl::span<const std::byte> opus_frame);
+Packet create_audio_sender_packet(int sender_id, int frame_id, gsl::span<const std::byte> opus_frame);
 AudioSenderPacket read_audio_sender_packet(gsl::span<const std::byte> packet_bytes);
 #pragma endregion SenderPackets
 
 #pragma region ReceiverPackets
-int get_session_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
+int get_receiver_id_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 ReceiverPacketType get_packet_type_from_receiver_packet_bytes(gsl::span<const std::byte> packet_bytes);
 
 struct ConnectReceiverPacket
 {
-    int session_id{0};
+    int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Connect};
     bool video_requested{false};
     bool audio_requested{false};
 };
 
-Packet create_connect_receiver_packet(int session_id,
+Packet create_connect_receiver_packet(int receiver_id,
                                       bool video_requested,
                                       bool audio_requested);
 ConnectReceiverPacket read_connect_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
 struct HeartbeatReceiverPacket
 {
-    int session_id{0};
+    int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Heartbeat};
 };
 
-Packet create_heartbeat_receiver_packet(int session_id);
+Packet create_heartbeat_receiver_packet(int receiver_id);
 
 struct ReportReceiverPacket
 {
-    int session_id{0};
+    int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Report};
     int frame_id{0};
     float decoder_time_ms{0.0f};
     float frame_time_ms{0.0f};
 };
 
-Packet create_report_receiver_packet(int session_id, int frame_id, float decoder_time_ms, float frame_time_ms);
+Packet create_report_receiver_packet(int receiver_id, int frame_id, float decoder_time_ms, float frame_time_ms);
 ReportReceiverPacket read_report_receiver_packet(gsl::span<const std::byte> packet_bytes);
 
 struct RequestReceiverPacket
 {
-    int session_id{0};
+    int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Request};
     int frame_id{0};
     std::vector<int> video_packet_indices;
     std::vector<int> parity_packet_indices;
 };
 
-Packet create_request_receiver_packet(int session_id, int frame_id,
+Packet create_request_receiver_packet(int receiver_id, int frame_id,
                                       const std::vector<int>& video_packet_indices,
                                       const std::vector<int>& parity_packet_indices);
 RequestReceiverPacket read_request_receiver_packet(gsl::span<const std::byte> packet_bytes);

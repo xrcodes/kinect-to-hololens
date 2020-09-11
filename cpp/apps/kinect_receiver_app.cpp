@@ -10,13 +10,13 @@
 
 namespace kh
 {
-void start_session(const std::string ip_address, const int port, const int session_id)
+void start_session(const std::string ip_address, const int port, const int receiver_id)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE{128 * 1024};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
     constexpr float HEARTBEAT_TIME_OUT_SEC{5.0f};
 
-    std::cout << "Start a kinect_receiver session (id: " << session_id << ")\n";
+    std::cout << "Start kinect_receiver (receiver_id: " << receiver_id << ").\n";
 
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::v4());
@@ -30,22 +30,22 @@ void start_session(const std::string ip_address, const int port, const int sessi
     // Repeat until it happens.
     int ping_count{0};
 
-    udp_socket.send(create_connect_receiver_packet(session_id, true, true).bytes, remote_endpoint);
+    udp_socket.send(create_connect_receiver_packet(receiver_id, true, true).bytes, remote_endpoint);
     bool stopped{false};
     tt::TimePoint heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint received_any_time{tt::TimePoint::now()};
 
-    VideoMessageAssembler video_message_assembler{session_id, remote_endpoint};
+    VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
-    //VideoRenderer video_renderer{session_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
+    //VideoRenderer video_renderer{receiver_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     // TODO: Fix to use recieved width and height.
-    VideoRenderer video_renderer{session_id, remote_endpoint, 640, 576};
+    VideoRenderer video_renderer{receiver_id, remote_endpoint, 640, 576};
     std::map<int, VideoSenderMessage> video_messages;
 
     for (;;) {
         try {
             if (heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
-                udp_socket.send(create_heartbeat_receiver_packet(session_id).bytes, remote_endpoint);
+                udp_socket.send(create_heartbeat_receiver_packet(receiver_id).bytes, remote_endpoint);
                 heartbeat_time = tt::TimePoint::now();
             }
 
@@ -85,9 +85,9 @@ void start()
         if (ip_address.empty())
             ip_address = "127.0.0.1";
 
-        const int session_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
+        const int receiver_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
 
-        start_session(ip_address, PORT, session_id);
+        start_session(ip_address, PORT, receiver_id);
     }
 }
 }
