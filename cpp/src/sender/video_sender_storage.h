@@ -17,10 +17,10 @@ struct VideoFramePackets
     }
 };
 
-class VideoPacketStorage
+class VideoSenderStorage
 {
 public:
-    VideoPacketStorage()
+    VideoSenderStorage()
         : video_frame_packets_{}
     {
     }

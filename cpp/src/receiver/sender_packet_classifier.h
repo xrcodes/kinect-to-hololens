@@ -13,7 +13,7 @@ struct SenderPacketInfo
 class SenderPacketClassifier
 {
 public:
-    static SenderPacketInfo categorizePackets(UdpSocket& udp_socket)
+    static SenderPacketInfo classify(UdpSocket& udp_socket)
     {
         SenderPacketInfo sender_packet_info;
         sender_packet_info.received_any = false;

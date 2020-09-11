@@ -49,7 +49,7 @@ void start_session(const std::string ip_address, const int port, const int recei
                 heartbeat_time = tt::TimePoint::now();
             }
 
-            auto sender_packet_set{SenderPacketClassifier::categorizePackets(udp_socket)};
+            auto sender_packet_set{SenderPacketClassifier::classify(udp_socket)};
             if (sender_packet_set.received_any) {
                 video_message_assembler.assemble(udp_socket,
                                                  sender_packet_set.video_packets,

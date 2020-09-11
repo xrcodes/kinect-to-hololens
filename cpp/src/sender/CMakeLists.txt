@@ -3,7 +3,7 @@ add_library(KinectToHololensSenderModules
   occlusion_remover.cpp
   receiver_packet_classifier.h
   remote_receiver.h
-  video_packet_storage.h
+  video_sender_storage.h
   video_pipeline.h
   video_pipeline.cpp
 )

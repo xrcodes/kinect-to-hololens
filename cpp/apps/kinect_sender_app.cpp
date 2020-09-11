@@ -4,7 +4,7 @@
 #include "native/kh_native.h"
 #include "sender/kinect_audio_sender.h"
 #include "sender/video_pipeline.h"
-#include "sender/video_packet_storage.h"
+#include "sender/video_sender_storage.h"
 #include "sender/receiver_packet_classifier.h"
 #include "native/imgui_wrapper.h"
 #include "helper/filesystem_helper.h"
@@ -85,7 +85,7 @@ void send_video_message(VideoPipelineFrame& video_frame,
                         tt::TimePoint session_start_time,
                         k4a::calibration calibration,
                         UdpSocket& udp_socket,
-                        VideoPacketStorage& video_parity_packet_storage,
+                        VideoSenderStorage& video_sender_storage,
                         std::unordered_map<int, RemoteReceiver>& remote_receivers,
                         std::mt19937& rng)
 {
@@ -115,7 +115,7 @@ void send_video_message(VideoPipelineFrame& video_frame,
     }
 
     // Save video/parity packet bytes for retransmission. 
-    video_parity_packet_storage.add(video_frame.frame_id, std::move(video_packets), std::move(parity_packets));
+    video_sender_storage.add(video_frame.frame_id, std::move(video_packets), std::move(parity_packets));
 }
 
 // Update receiver_state and summary with Report packets.
@@ -139,15 +139,15 @@ void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
 
 void retransmit_requested_packets(UdpSocket& udp_socket,
                                   std::vector<RequestReceiverPacket>& request_packets,
-                                  VideoPacketStorage& video_packet_storage,
+                                  VideoSenderStorage& video_sender_storage,
                                   const asio::ip::udp::endpoint remote_endpoint)
 {
     // Retransmit the requested video packets.
     for (auto& request_packet : request_packets) {
         const int frame_id{request_packet.frame_id};
 
-        auto find_result{video_packet_storage.find(frame_id)};
-        if (find_result == video_packet_storage.end())
+        auto find_result{video_sender_storage.find(frame_id)};
+        if (find_result == video_sender_storage.end())
             continue;
 
         for (int packet_index : request_packet.video_packet_indices)
@@ -237,7 +237,7 @@ void start(KinectInterface& kinect_interface)
     if (kinect_interface.isDevice())
         kinect_audio_sender.reset(new KinectAudioSender(sender_id));
     
-    VideoPacketStorage video_packet_storage;
+    VideoSenderStorage video_packet_storage;
 
     std::unordered_map<int, RemoteReceiver> remote_receivers;
 
@@ -286,7 +286,7 @@ void start(KinectInterface& kinect_interface)
         end_imgui_frame(clear_color);
 
         try {
-            auto receiver_packet_collection{ReceiverPacketClassifier::categorizePackets(udp_socket, remote_receivers)};
+            auto receiver_packet_collection{ReceiverPacketClassifier::classify(udp_socket, remote_receivers)};
 
             // Receive a connect packet from a receiver and capture the receiver's endpoint.
             // Then, create ReceiverState with it.
