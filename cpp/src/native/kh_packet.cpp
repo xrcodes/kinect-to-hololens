@@ -250,10 +250,12 @@ std::vector<Packet> create_parity_sender_packets(int sender_id, int frame_id, gs
 
     std::vector<Packet> parity_packets;
     for (int parity_packet_index{0}; parity_packet_index < parity_packet_count; ++parity_packet_index) {
-        const int frame_packet_bytes_cursor{parity_packet_index * KH_FEC_GROUP_SIZE};
-        const size_t parity_frame_packet_count{std::min<size_t>(KH_FEC_GROUP_SIZE, video_packets.size() - frame_packet_bytes_cursor)};
-        parity_packets.push_back(create_parity_sender_packet(sender_id, frame_id, parity_packet_index, gsl::narrow<int>(video_packets.size()),
-                                                             gsl::span<const Packet>(&video_packets[frame_packet_bytes_cursor], parity_frame_packet_count)));
+        // Creation of parity_video_packets, a span with all video packets needed to create a parity packet matching parity_packet_index.
+        const int min_video_packet_index{parity_packet_index * KH_FEC_GROUP_SIZE};
+        const size_t parity_video_packet_count{std::min<size_t>(KH_FEC_GROUP_SIZE, video_packets.size() - min_video_packet_index)};
+        gsl::span<const Packet> parity_video_packets{&video_packets[min_video_packet_index], parity_video_packet_count};
+
+        parity_packets.push_back(create_parity_sender_packet(sender_id, frame_id, parity_packet_index, gsl::narrow<int>(video_packets.size()), parity_video_packets));
     }
     return parity_packets;
 }
