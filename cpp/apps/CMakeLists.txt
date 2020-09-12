@@ -61,9 +61,6 @@ add_executable(KinectReceiverApp
   kinect_receiver_app.cpp
   helper/soundio_helper.h
   receiver/audio_packet_receiver.h
-  receiver/video_message_assembler.h
-  receiver/video_message_assembler.cpp
-  receiver/video_receiver_storage.h
 )
 target_include_directories(KinectReceiverApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

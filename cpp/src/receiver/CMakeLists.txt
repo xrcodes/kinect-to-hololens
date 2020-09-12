@@ -1,5 +1,6 @@
 add_library(KinectToHololensReceiverModules
   sender_packet_classifier.h
+  video_receiver_storage.h
   video_renderer.h
 )
 target_link_libraries(KinectToHololensReceiverModules
