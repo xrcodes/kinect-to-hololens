@@ -63,7 +63,6 @@ add_executable(KinectReceiverApp
   receiver/audio_packet_receiver.h
   receiver/video_message_assembler.h
   receiver/video_message_assembler.cpp
-  receiver/video_renderer.h
   receiver/video_receiver_storage.h
 )
 target_include_directories(KinectReceiverApp PRIVATE

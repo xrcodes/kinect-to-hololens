@@ -11,6 +11,50 @@
 
 namespace kh
 {
+namespace
+{
+std::optional<std::pair<int, std::shared_ptr<VideoSenderMessage>>> find_frame_to_render(std::map<int, std::shared_ptr<VideoSenderMessage>>& video_messages,
+                                                                                        std::optional<int> last_frame_id)
+{
+    if (video_messages.empty())
+        return std::nullopt;
+
+    std::optional<int> frame_id_to_render;
+    if (!last_frame_id) {
+        // For the first frame, find a keyframe.
+        for (auto& [frame_id, video_message] : video_messages) {
+            if (video_message->keyframe) {
+                frame_id_to_render = frame_id;
+                break;
+            }
+        }
+    } else {
+        // If there is a key frame, use the most recent one.
+        for (auto& [frame_id, video_message] : video_messages) {
+            if (frame_id <= *last_frame_id)
+                continue;
+
+            if (video_message->keyframe) {
+                frame_id_to_render = frame_id;
+            }
+        }
+
+        // Find if there is the next frame.
+        if (!frame_id_to_render) {
+            auto video_message_it{video_messages.find(*last_frame_id + 1)};
+            if (video_message_it != video_messages.end()) {
+                frame_id_to_render = *last_frame_id + 1;
+            }
+        }
+    }
+
+    if (!frame_id_to_render)
+        return std::nullopt;
+
+    return std::pair<int, std::shared_ptr<VideoSenderMessage>>(*frame_id_to_render, video_messages[*frame_id_to_render]);
+}
+}
+
 void start_session(const std::string ip_address, const int port, const int receiver_id)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE{128 * 1024};
@@ -42,7 +86,8 @@ void start_session(const std::string ip_address, const int port, const int recei
     AudioPacketReceiver audio_packet_receiver;
     //VideoRenderer video_renderer{receiver_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
     // TODO: Fix to use recieved width and height.
-    VideoRenderer video_renderer{receiver_id, sender_endpoint, 640, 576};
+    VideoRenderer video_renderer{640, 576};
+    std::optional<int> last_frame_id{std::nullopt};
 
     VideoReceiverStorage video_receiver_storage;
     std::map<int, std::shared_ptr<VideoSenderMessage>> video_messages;
@@ -90,9 +135,9 @@ void start_session(const std::string ip_address, const int port, const int recei
                                                                                             indices.parity_packet_indices)});
             }
 
-            if (video_renderer.last_frame_id()) {
+            if (last_frame_id) {
                 int max_storage_frame_id{video_receiver_storage.getMaxFrameId()};
-                for (int frame_id = *video_renderer.last_frame_id() + 1; frame_id < max_storage_frame_id; ++frame_id) {
+                for (int frame_id = *last_frame_id + 1; frame_id < max_storage_frame_id; ++frame_id) {
                     auto request_packet_it{request_packets.find(frame_id)};
                     if (request_packet_it == request_packets.end()) {
                         request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true,
@@ -111,15 +156,31 @@ void start_session(const std::string ip_address, const int port, const int recei
             last_request_time = tt::TimePoint::now();
         }
 
-        video_renderer.render(udp_socket, video_messages);
-        if (video_renderer.last_frame_id()) {
+        auto frame_with_index{find_frame_to_render(video_messages, last_frame_id)};
+        if (frame_with_index) {
+            video_renderer.render(frame_with_index->second->color_encoder_frame,
+                                  frame_with_index->second->depth_encoder_frame,
+                                  frame_with_index->second->keyframe);
+            last_frame_id = frame_with_index->first;
+
+            // Remove frame messages before and including the rendered frame.
+            for (auto it = video_messages.begin(); it != video_messages.end();) {
+                if (it->first <= *last_frame_id) {
+                    it = video_messages.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
+        if (last_frame_id) {
             // No more than once in 10 ms.
             if (last_report_time.elapsed_time().ms() > 10.0f) {
-                udp_socket.send(create_report_receiver_packet(receiver_id, *video_renderer.last_frame_id()).bytes, sender_endpoint);
+                udp_socket.send(create_report_receiver_packet(receiver_id, *last_frame_id).bytes, sender_endpoint);
                 last_report_time = tt::TimePoint::now();
             }
             //std::cout << "send report: " << video_renderer.last_frame_id() << std::endl;
-            video_receiver_storage.removeObsolete(*video_renderer.last_frame_id());
+            video_receiver_storage.removeObsolete(*last_frame_id);
         }
     }
 }

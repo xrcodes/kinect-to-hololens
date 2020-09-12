@@ -1,6 +1,7 @@
 #include <iostream>
 #include "native/kh_native.h"
 #include "sender/video_pipeline.h"
+#include "receiver/video_renderer.h"
 #include "helper/filesystem_helper.h"
 
 namespace kh
@@ -14,10 +15,9 @@ void read_frames(KinectInterface& kinect_interface)
     const k4a::transformation transformation{calibration};
 
     VideoPipeline video_pipeline{calibration};
-    tt::Vp8Decoder vp8_decoder;
     const int width{calibration.depth_camera_calibration.resolution_width};
     const int height{calibration.depth_camera_calibration.resolution_height};
-    tt::TrvlDecoder trvl_decoder{width * height};
+    VideoRenderer video_renderer{width, height};
 
     Profiler profiler;
     for (;;) {
@@ -26,16 +26,7 @@ void read_frames(KinectInterface& kinect_interface)
             continue;
 
         auto frame{video_pipeline.process(*kinect_frame, false, profiler)};
-        auto color_pixels{vp8_decoder.decode(frame.vp8_frame)};
-        cv::imshow("Color", create_cv_mat_from_yuv_image(tt::YuvFrame::create(color_pixels)));
-
-        // Decompresses the depth pixels to test the compression and decompression functions.
-        // Then, converts the pixels for OpenCV.
-        auto depth_pixels{trvl_decoder.decode(frame.trvl_frame, frame.keyframe)};
-        cv::imshow("Depth", create_cv_mat_from_kinect_depth_image(depth_pixels.data(), width, height));
-
-        if (cv::waitKey(1) >= 0)
-            break;
+        video_renderer.render(frame.vp8_frame, frame.trvl_frame, frame.keyframe);
     }
 }
 
