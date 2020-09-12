@@ -5,7 +5,6 @@
 #include "helper/soundio_helper.h"
 #include "receiver/video_renderer.h"
 #include "receiver/sender_packet_classifier.h"
-#include "receiver/video_message_assembler.h"
 #include "receiver/audio_packet_receiver.h"
 #include "receiver/video_receiver_storage.h"
 
@@ -84,9 +83,7 @@ void start_session(const std::string ip_address, const int port, const int recei
 
     //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
-    //VideoRenderer video_renderer{receiver_id, remote_endpoint, init_sender_packet_data.width, init_sender_packet_data.height};
-    // TODO: Fix to use recieved width and height.
-    VideoRenderer video_renderer{640, 576};
+    std::unique_ptr<VideoRenderer> video_renderer{nullptr};
     std::optional<int> last_frame_id{std::nullopt};
 
     VideoReceiverStorage video_receiver_storage;
@@ -101,15 +98,11 @@ void start_session(const std::string ip_address, const int port, const int recei
 
             auto sender_packet_info{SenderPacketClassifier::classify(udp_socket)};
             if (sender_packet_info.received_any) {
-                //int before_packet_count = video_receiver_storage.getPacketCount();
                 for (auto& video_packet : sender_packet_info.video_packets)
                     video_receiver_storage.addVideoPacket(std::make_unique<VideoSenderPacket>(video_packet));
 
                 for (auto& parity_packet : sender_packet_info.parity_packets)
                     video_receiver_storage.addParityPacket(std::make_unique<ParitySenderPacket>(parity_packet));
-
-                //std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
-                //std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
 
                 video_receiver_storage.build(video_messages);
 
@@ -158,9 +151,11 @@ void start_session(const std::string ip_address, const int port, const int recei
 
         auto frame_with_index{find_frame_to_render(video_messages, last_frame_id)};
         if (frame_with_index) {
-            video_renderer.render(frame_with_index->second->color_encoder_frame,
-                                  frame_with_index->second->depth_encoder_frame,
-                                  frame_with_index->second->keyframe);
+            if (!video_renderer)
+                video_renderer.reset(new VideoRenderer{frame_with_index->second->width, frame_with_index->second->height});
+            video_renderer->render(frame_with_index->second->color_encoder_frame,
+                                   frame_with_index->second->depth_encoder_frame,
+                                   frame_with_index->second->keyframe);
             last_frame_id = frame_with_index->first;
 
             // Remove frame messages before and including the rendered frame.
