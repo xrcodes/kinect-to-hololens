@@ -35,6 +35,8 @@ void start_session(const std::string ip_address, const int port, const int recei
     bool stopped{false};
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint last_received_any_time{tt::TimePoint::now()};
+    tt::TimePoint last_request_time{tt::TimePoint::now()};
+    tt::TimePoint last_report_time{tt::TimePoint::now()};
 
     //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioPacketReceiver audio_packet_receiver;
@@ -44,7 +46,6 @@ void start_session(const std::string ip_address, const int port, const int recei
 
     VideoReceiverStorage video_receiver_storage;
     std::map<int, std::shared_ptr<VideoSenderMessage>> video_messages;
-    int last_max_storage_frame_id{0};
 
     for (;;) {
         try {
@@ -62,63 +63,10 @@ void start_session(const std::string ip_address, const int port, const int recei
                 for (auto& parity_packet : sender_packet_info.parity_packets)
                     video_receiver_storage.addParityPacket(std::make_unique<ParitySenderPacket>(parity_packet));
 
-                //int after_packet_count = video_receiver_storage.getPacketCount();
-                //std::cout << "before_packet_count: " << before_packet_count << std::endl;
-                std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
-                std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
-                //std::cout << "after_packet_count : " << after_packet_count << std::endl << std::endl;
+                //std::cout << "video packet count : " << sender_packet_info.video_packets.size() << std::endl;
+                //std::cout << "parity packet count: " << sender_packet_info.parity_packets.size() << std::endl;
 
-                bool packet_for_new_frame_exists{false};
-                int max_storage_frame_id{video_receiver_storage.getMaxFrameId()};
-                if (max_storage_frame_id > last_max_storage_frame_id) {
-                    packet_for_new_frame_exists = true;
-                    last_max_storage_frame_id = max_storage_frame_id;
-                }
-                
                 video_receiver_storage.build(video_messages);
-                //for (auto& [frame_id, _] : video_messages) {
-                //    std::cout << "video message built: " << frame_id << std::endl;
-                //}
-
-                if (packet_for_new_frame_exists) {
-                    auto missing_indices{video_receiver_storage.getMissingIndices()};
-                    std::map<int, Packet> request_packets;
-                    for (auto& indices : missing_indices) {
-                        request_packets.insert({indices.frame_id, create_request_receiver_packet(receiver_id, indices.frame_id, false,
-                                                                                                 indices.video_packet_indices,
-                                                                                                 indices.parity_packet_indices)});
-
-                        std::cout << "request packets" << std::endl
-                                  << "  frame_id: " << indices.frame_id << std::endl
-                                  << "  #video packet: " << indices.video_packet_indices.size() << std::endl
-                                  << "  #parity packet: " << indices.parity_packet_indices.size() << std::endl;
-                    }
-
-                    if (video_renderer.last_frame_id()) {
-                        for (int frame_id = *video_renderer.last_frame_id() + 1; frame_id < max_storage_frame_id; ++frame_id) {
-                            auto request_packet_it{request_packets.find(frame_id)};
-                            if (request_packet_it == request_packets.end()) {
-                                request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true,
-                                                                                                 std::vector<int>(), std::vector<int>())});
-                                std::cout << "request whole frame" << std::endl
-                                          << "  frame_id: " << frame_id << std::endl;
-                            }
-                        }
-                    }
-                    for (auto& [_, request_packet] : request_packets) {
-                        udp_socket.send(request_packet.bytes, sender_endpoint);
-                    }
-
-                    for (auto& [frame_id, set] : video_receiver_storage.frame_parity_sets_) {
-                        std::cout << "storage set frame_id: " << frame_id << std::endl
-                                  << "  state: " << (int)set.getState() << std::endl
-                                  << "  #packets: " << set.getPacketCount() << std::endl
-                                  << "  #incorrect groups: " << set.getIncorrectGroupCount() << std::endl
-                                  << "  #correctable groups: " << set.getCorrectableGroupCount() << std::endl
-                                  << "  #correct groups: " << set.getCorrectGroupCount() << std::endl;
-                    }
-                    std::cout << "last_frame_id: " << video_renderer.last_frame_id().value_or(-1) << std::endl;
-                }
 
                 audio_packet_receiver.receive(sender_packet_info.audio_packets);
                 last_received_any_time = tt::TimePoint::now();
@@ -133,9 +81,43 @@ void start_session(const std::string ip_address, const int port, const int recei
             break;
         }
 
+        if (last_request_time.elapsed_time().sec() > 0.1f) {
+            auto missing_indices{video_receiver_storage.getMissingIndices()};
+            std::map<int, Packet> request_packets;
+            for (auto& indices : missing_indices) {
+                request_packets.insert({indices.frame_id, create_request_receiver_packet(receiver_id, indices.frame_id, false,
+                                                                                            indices.video_packet_indices,
+                                                                                            indices.parity_packet_indices)});
+            }
+
+            if (video_renderer.last_frame_id()) {
+                int max_storage_frame_id{video_receiver_storage.getMaxFrameId()};
+                for (int frame_id = *video_renderer.last_frame_id() + 1; frame_id < max_storage_frame_id; ++frame_id) {
+                    auto request_packet_it{request_packets.find(frame_id)};
+                    if (request_packet_it == request_packets.end()) {
+                        request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true,
+                                                                                            std::vector<int>(), std::vector<int>())});
+                    }
+                }
+            }
+
+
+            std::cout << "request_packets.size(): " << request_packets.size() << std::endl;
+            for (auto& [frame_id, request_packet] : request_packets) {
+                udp_socket.send(request_packet.bytes, sender_endpoint);
+                //std::cout << "sent a request packet: " << frame_id << std::endl;
+            }
+
+            last_request_time = tt::TimePoint::now();
+        }
+
         video_renderer.render(udp_socket, video_messages);
         if (video_renderer.last_frame_id()) {
-            udp_socket.send(create_report_receiver_packet(receiver_id, *video_renderer.last_frame_id()).bytes, sender_endpoint);
+            // No more than once in 10 ms.
+            if (last_report_time.elapsed_time().ms() > 10.0f) {
+                udp_socket.send(create_report_receiver_packet(receiver_id, *video_renderer.last_frame_id()).bytes, sender_endpoint);
+                last_report_time = tt::TimePoint::now();
+            }
             //std::cout << "send report: " << video_renderer.last_frame_id() << std::endl;
             video_receiver_storage.removeObsolete(*video_renderer.last_frame_id());
         }
@@ -164,7 +146,7 @@ void start()
 
 int main()
 {
-    std::ios_base::sync_with_stdio(false);
+    //std::ios_base::sync_with_stdio(false);
     kh::start();
     return 0;
 }

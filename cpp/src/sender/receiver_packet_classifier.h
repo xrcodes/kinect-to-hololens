@@ -46,19 +46,19 @@ public:
             }
 
             // Skip a packet, not for connection, is not from a reciever already connected.
-            auto receiver_packet_set_ref{receiver_packet_collection.receiver_packet_infos.find(receiver_id)};
-            if (receiver_packet_set_ref == receiver_packet_collection.receiver_packet_infos.end())
+            auto receiver_packet_set_it{receiver_packet_collection.receiver_packet_infos.find(receiver_id)};
+            if (receiver_packet_set_it == receiver_packet_collection.receiver_packet_infos.end())
                 continue;
 
-            receiver_packet_set_ref->second.received_any = true;
+            receiver_packet_set_it->second.received_any = true;
             switch (packet_type) {
             case ReceiverPacketType::Heartbeat:
                 break;
             case ReceiverPacketType::Report:
-                receiver_packet_set_ref->second.report_packets.push_back(read_report_receiver_packet(packet->bytes));
+                receiver_packet_set_it->second.report_packets.push_back(read_report_receiver_packet(packet->bytes));
                 break;
             case ReceiverPacketType::Request:
-                receiver_packet_set_ref->second.request_packets.push_back(read_request_receiver_packet(packet->bytes));
+                receiver_packet_set_it->second.request_packets.push_back(read_request_receiver_packet(packet->bytes));
                 break;
             }
         }

@@ -151,31 +151,52 @@ void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
 void retransmit_requested_packets(UdpSocket& udp_socket,
                                   std::vector<RequestReceiverPacket>& request_packets,
                                   VideoSenderStorage& video_sender_storage,
-                                  const asio::ip::udp::endpoint remote_endpoint)
+                                  const asio::ip::udp::endpoint remote_endpoint,
+                                  Profiler& profiler)
 {
+    if (request_packets.size() > 0)
+        std::cout << "request_packets.size(): " << request_packets.size() << std::endl;
+
     // Retransmit the requested video packets.
     for (auto& request_packet : request_packets) {
+        //std::cout << "received a request packet: " << request_packet.frame_id << std::endl;
         const int frame_id{request_packet.frame_id};
 
         auto video_frame_packets_it{video_sender_storage.find(frame_id)};
         if (video_frame_packets_it == video_sender_storage.end()) {
-            //continue;
-            throw std::runtime_error("Could not find frame from VideoSenderStorage.");
+            //throw std::runtime_error("Could not find frame from VideoSenderStorage.");
+            // A request packet can arrive after a report packet with a later frame_id.
+            continue;
         }
 
-        std::cout << "retransmit packets of " << request_packet.frame_id << std::endl;
+        profiler.addNumber("retransmit-frame", 1);
+
         if (request_packet.all_packets) {
-            for (auto& video_packet : video_frame_packets_it->second.video_packets)
+            for (auto& video_packet : video_frame_packets_it->second.video_packets) {
                 udp_socket.send(video_packet.bytes, remote_endpoint);
+                profiler.addNumber("retransmit-byte", video_packet.bytes.size());
+            }
 
-            for (auto& parity_packet : video_frame_packets_it->second.parity_packets)
+            for (auto& parity_packet : video_frame_packets_it->second.parity_packets) {
                 udp_socket.send(parity_packet.bytes, remote_endpoint);
-        } else {
-            for (int packet_index : request_packet.video_packet_indices)
-                udp_socket.send(video_frame_packets_it->second.video_packets[packet_index].bytes, remote_endpoint);
+                profiler.addNumber("retransmit-byte", parity_packet.bytes.size());
+            }
 
-            for (int packet_index : request_packet.parity_packet_indices)
+            profiler.addNumber("retransmit-video", video_frame_packets_it->second.video_packets.size());
+            profiler.addNumber("retransmit-parity", video_frame_packets_it->second.parity_packets.size());
+        } else {
+            for (int packet_index : request_packet.video_packet_indices) {
+                udp_socket.send(video_frame_packets_it->second.video_packets[packet_index].bytes, remote_endpoint);
+                profiler.addNumber("retransmit-byte", video_frame_packets_it->second.video_packets[packet_index].bytes.size());
+            }
+
+            for (int packet_index : request_packet.parity_packet_indices) {
                 udp_socket.send(video_frame_packets_it->second.parity_packets[packet_index].bytes, remote_endpoint);
+                profiler.addNumber("retransmit-byte", video_frame_packets_it->second.parity_packets[packet_index].bytes.size());
+            }
+
+            profiler.addNumber("retransmit-video", request_packet.video_packet_indices.size());
+            profiler.addNumber("retransmit-parity", request_packet.parity_packet_indices.size());
         }
     }
 }
@@ -200,6 +221,16 @@ void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, Profiler&
     log.AddLog("  Color Encoder Time Average: %f\n", profiler.getNumber("pipeline-vp8") / profiler.getNumber("pipeline-frame"));
     log.AddLog("  Depth Encoder Time Average: %f\n", profiler.getNumber("pipeline-trvl") / profiler.getNumber("pipeline-frame"));
     log.AddLog("  Floor Detection Time Average: %f\n", profiler.getNumber("pipeline-floor") / profiler.getNumber("pipeline-frame"));
+}
+
+void log_retransmission_summary(ExampleAppLog& log, Profiler& profiler)
+{
+    auto elapsed_time{profiler.getElapsedTime()};
+    log.AddLog("Retransmission Summary:\n");
+    log.AddLog("  Frame Per Second: %f\n", profiler.getNumber("retransmit-frame") / elapsed_time.sec());
+    log.AddLog("  Video Packet Per Second: %f\n", profiler.getNumber("retransmit-video") / elapsed_time.sec());
+    log.AddLog("  Parity Packet Per Second: %f\n", profiler.getNumber("retransmit-parity") / elapsed_time.sec());
+    log.AddLog("  Bandwidth: %f Mbps\n", profiler.getNumber("retransmit-byte") / elapsed_time.sec() / (1024.0f * 1024.0f / 8.0f));
 }
 
 void start(KinectInterface& kinect_interface)
@@ -361,7 +392,8 @@ void start(KinectInterface& kinect_interface)
                         retransmit_requested_packets(udp_socket,
                                                      receiver_packet_set.request_packets,
                                                      video_packet_storage,
-                                                     remote_receiver_ptr->endpoint);
+                                                     remote_receiver_ptr->endpoint,
+                                                     profiler);
                         remote_receiver_ptr->last_packet_time = tt::TimePoint::now();
                     } else {
                         if (remote_receiver_ptr->last_packet_time.elapsed_time().sec() > HEARTBEAT_TIME_OUT_SEC) {
@@ -396,6 +428,7 @@ void start(KinectInterface& kinect_interface)
         if (profiler.getElapsedTime().sec() > SUMMARY_INTERVAL_SEC) {
             log_receiver_report_summary(log, profiler);
             log_video_pipeline_summary(log, video_pipeline.last_frame_id(), profiler);
+            log_retransmission_summary(log, profiler);
             profiler.reset();
         }
     });
