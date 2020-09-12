@@ -1,6 +1,5 @@
 add_executable(KinectReaderApp
   kinect_reader_app.cpp
-  helper/filesystem_helper.h
 )
 target_include_directories(KinectReaderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -26,8 +25,6 @@ add_custom_command(TARGET KinectReaderApp POST_BUILD
 
 add_executable(KinectSenderApp
   kinect_sender_app.cpp
-  helper/soundio_helper.h
-  sender/kinect_audio_sender.h
   resources/KinectSenderApp.rc
 )
 target_include_directories(KinectSenderApp PRIVATE
@@ -59,8 +56,6 @@ add_custom_command(TARGET KinectSenderApp POST_BUILD
 
 add_executable(KinectReceiverApp
   kinect_receiver_app.cpp
-  helper/soundio_helper.h
-  receiver/audio_packet_receiver.h
 )
 target_include_directories(KinectReceiverApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
@@ -74,7 +69,6 @@ set_target_properties(KinectReceiverApp PROPERTIES
 
 add_executable(KinectListenerApp
   kinect_listener_app.cpp
-  helper/soundio_helper.h
 )
 target_include_directories(KinectListenerApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

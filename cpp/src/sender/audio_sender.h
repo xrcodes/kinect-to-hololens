@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sender/remote_receiver.h"
-#include "helper/soundio_helper.h"
+#include "utils/soundio_utils.h"
 
 namespace kh
 {
@@ -9,10 +9,10 @@ namespace kh
 // Code below looks ugly because soundio requires its callback functions to be
 // c-style functions, not a member function, and this class is trying to
 // cover the discrepancy inside here.
-class KinectAudioSender
+class AudioSender
 {
 public:
-    KinectAudioSender(const int sender_id)
+    AudioSender(const int sender_id)
         : sender_id_{sender_id}
         , audio_{}
         , kinect_microphone_stream_{create_kinect_microphone_stream(audio_)}

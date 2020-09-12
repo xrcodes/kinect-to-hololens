@@ -2,10 +2,10 @@
 #include <random>
 #include <thread>
 #include "native/kh_native.h"
-#include "helper/soundio_helper.h"
+#include "utils/soundio_utils.h"
 #include "receiver/video_renderer.h"
 #include "receiver/sender_packet_classifier.h"
-#include "receiver/audio_packet_receiver.h"
+#include "receiver/audio_receiver.h"
 #include "receiver/video_receiver_storage.h"
 
 namespace kh
@@ -82,7 +82,7 @@ void start_session(const std::string ip_address, const int port, const int recei
     tt::TimePoint last_report_time{tt::TimePoint::now()};
 
     //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
-    AudioPacketReceiver audio_packet_receiver;
+    AudioReceiver audio_packet_receiver;
     std::unique_ptr<VideoRenderer> video_renderer{nullptr};
     std::optional<int> last_frame_id{std::nullopt};
 

@@ -2,12 +2,12 @@
 #include <random>
 #include <tuple>
 #include "native/kh_native.h"
-#include "sender/kinect_audio_sender.h"
+#include "sender/audio_sender.h"
 #include "sender/video_pipeline.h"
 #include "sender/video_sender_storage.h"
 #include "sender/receiver_packet_classifier.h"
 #include "native/imgui_wrapper.h"
-#include "helper/filesystem_helper.h"
+#include "utils/filesystem_utils.h"
 #include "native/profiler.h"
 
 namespace kh
@@ -284,9 +284,9 @@ void start(KinectInterface& kinect_interface)
 
     VideoPipeline video_pipeline{calibration};
     
-    std::unique_ptr<KinectAudioSender> kinect_audio_sender{nullptr};
+    std::unique_ptr<AudioSender> audio_sender{nullptr};
     if (kinect_interface.isDevice())
-        kinect_audio_sender.reset(new KinectAudioSender(sender_id));
+        audio_sender.reset(new AudioSender(sender_id));
     
     VideoSenderStorage video_packet_storage;
 
@@ -380,8 +380,8 @@ void start(KinectInterface& kinect_interface)
                 }
 
                 // Send audio packets to the receivers.
-                if (kinect_audio_sender)
-                    kinect_audio_sender->send(udp_socket, remote_receivers);
+                if (audio_sender)
+                    audio_sender->send(udp_socket, remote_receivers);
 
                 for (auto& [receiver_id, receiver_packet_set] : receiver_packet_collection.receiver_packet_infos) {
                     auto remote_receiver_ptr{&remote_receivers.at(receiver_id)};

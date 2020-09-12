@@ -2,7 +2,7 @@
 #include "native/kh_native.h"
 #include "sender/video_pipeline.h"
 #include "receiver/video_renderer.h"
-#include "helper/filesystem_helper.h"
+#include "utils/filesystem_utils.h"
 
 namespace kh
 {

@@ -4,7 +4,7 @@
 #include <windows.h>
 #undef NOMINMAX
 #include <gsl/gsl>
-#include "helper/soundio_helper.h"
+#include "utils/soundio_utils.h"
 
 namespace kh
 {

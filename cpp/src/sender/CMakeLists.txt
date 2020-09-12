@@ -1,4 +1,5 @@
 add_library(KinectToHololensSenderModules
+  audio_sender.h
   occlusion_remover.h
   occlusion_remover.cpp
   receiver_packet_classifier.h

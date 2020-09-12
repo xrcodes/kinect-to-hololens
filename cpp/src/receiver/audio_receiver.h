@@ -5,10 +5,10 @@ namespace kh
 // AudioPacketPlayer better suits what this class does.
 // However, this is named receiver to match the corresponding c# class,
 // which only receives packets and enqueues them to a ring buffer.
-class AudioPacketReceiver
+class AudioReceiver
 {
 public:
-    AudioPacketReceiver()
+    AudioReceiver()
         : audio_{}, default_speaker_stream_{create_default_speaker_stream(audio_)},
         audio_decoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT},
         pcm_{}, last_audio_frame_id_{-1}
@@ -22,17 +22,17 @@ public:
         default_speaker_stream_.start();
     }
 
-    void receive(std::vector<AudioSenderPacket>& audio_packet_data_vector)
+    void receive(std::vector<AudioSenderPacket>& audio_packets)
     {
         constexpr float AMPLIFIER{8.0f};
 
         soundio_flush_events(audio_.get());
 
-        if (audio_packet_data_vector.empty())
+        if (audio_packets.empty())
             return;
 
-        std::sort(audio_packet_data_vector.begin(),
-                  audio_packet_data_vector.end(),
+        std::sort(audio_packets.begin(),
+                  audio_packets.end(),
                   [](AudioSenderPacket& a, AudioSenderPacket& b) { return a.frame_id < b.frame_id; });
 
         char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer)};
@@ -41,9 +41,9 @@ public:
         const int FRAME_BYTE_SIZE{gsl::narrow<int>(sizeof(float) * pcm_.size())};
 
         int write_cursor{0};
-        auto packet_it = audio_packet_data_vector.begin();
+        auto packet_it = audio_packets.begin();
         while ((free_bytes - write_cursor) >= FRAME_BYTE_SIZE) {
-            if (packet_it == audio_packet_data_vector.end())
+            if (packet_it == audio_packets.end())
                 break;
 
             int frame_size;
