@@ -2,150 +2,65 @@
 
 namespace kh
 {
-Audio::Audio()
-    : ptr_(soundio_create())
+SoundIoHandle create_sound_io_handle()
 {
-    if (!ptr_)
-        throw std::runtime_error("Failed to construct Audio...");
+    auto sound_io{soundio_create()};
+    if (!sound_io)
+        throw std::runtime_error("Null sound_io in create_sound_io_handle().");
 
-    int err = soundio_connect(ptr_);
+    int err = soundio_connect(sound_io);
     if (err) {
-        throw std::runtime_error("Failed to connect Audio...");
+        throw std::runtime_error("soundio_connect failed in create_sound_io_handle().");
     }
 
-    soundio_flush_events(ptr_);
+    soundio_flush_events(sound_io);
+
+    return {sound_io, &soundio_destroy};
 }
 
-Audio::Audio(Audio&& other) noexcept
+std::vector<SoundIoDeviceHandle> get_sound_io_input_devices(const SoundIoHandle& sound_io)
 {
-    ptr_ = other.ptr_;
-    other.ptr_ = nullptr;
-}
-
-Audio::~Audio()
-{
-    if (ptr_)
-        soundio_destroy(ptr_);
-}
-
-std::vector<AudioDevice> Audio::getInputDevices() const
-{
-    int input_device_count{soundio_input_device_count(ptr_)};
-    std::vector<AudioDevice> input_devices;
+    int input_device_count{soundio_input_device_count(sound_io.get())};
+    std::vector<SoundIoDeviceHandle> input_devices;
     for (int i = 0; i < input_device_count; ++i)
     {
-        auto device_ptr{soundio_get_input_device(ptr_, i)};
+        auto device_ptr{soundio_get_input_device(sound_io.get(), i)};
         if (!device_ptr)
             printf("Failed to get Input Devices...");
 
-        input_devices.emplace_back(device_ptr);
+        input_devices.push_back({device_ptr, &soundio_device_unref});
     }
 
     return input_devices;
 }
 
-AudioDevice Audio::getDefaultOutputDevice() const
+SoundIoDeviceHandle get_sound_io_default_output_device(const SoundIoHandle& sound_io)
 {
-    auto device_ptr{soundio_get_output_device(ptr_, soundio_default_output_device_index(ptr_))};
+    auto device_ptr{soundio_get_output_device(sound_io.get(), soundio_default_output_device_index(sound_io.get()))};
     if (!device_ptr)
         printf("Failed to get the Default Output Device...");
 
-    return AudioDevice(device_ptr);
+    return SoundIoDeviceHandle(device_ptr, &soundio_device_unref);
 }
 
-AudioDevice::AudioDevice(SoundIoDevice* ptr)
-    : ptr_(ptr)
+SoundIoInStreamHandle create_sound_io_instream(const SoundIoDeviceHandle& device)
 {
+    return {soundio_instream_create(device.get()), &soundio_instream_destroy};
 }
 
-AudioDevice::AudioDevice(const AudioDevice& other)
-    : ptr_(other.ptr_)
+SoundIoOutStreamHandle create_sound_io_outstream(const SoundIoDeviceHandle& device)
 {
-    soundio_device_ref(ptr_);
+    return {soundio_outstream_create(device.get()), &soundio_outstream_destroy};
 }
 
-AudioDevice::AudioDevice(AudioDevice&& other) noexcept
+SoundIoDeviceHandle find_kinect_microphone(const SoundIoHandle& sound_io)
 {
-    ptr_ = other.ptr_;
-    other.ptr_ = nullptr;
-}
-
-AudioDevice::~AudioDevice()
-{
-    if (ptr_)
-        soundio_device_unref(ptr_);
-}
-
-AudioInStream::AudioInStream(AudioDevice& device)
-    : ptr_(soundio_instream_create(device.get()))
-{
-    if (!ptr_)
-        throw std::runtime_error("Failed to construct AudioInStream...");
-}
-
-AudioInStream::AudioInStream(AudioInStream&& other) noexcept
-{
-    ptr_ = other.ptr_;
-    other.ptr_ = nullptr;
-}
-
-AudioInStream::~AudioInStream()
-{
-    if (ptr_)
-        soundio_instream_destroy(ptr_);
-}
-
-void AudioInStream::open()
-{
-    if (int error = soundio_instream_open(ptr_))
-        throw std::runtime_error(std::string("Failed to open AudioInStream: ") + std::to_string(error));
-}
-
-void AudioInStream::start()
-{
-    if (int error = soundio_instream_start(ptr_))
-        throw std::runtime_error(std::string("Failed to start AudioInStream: ") + std::to_string(error));
-}
-
-AudioOutStream::AudioOutStream(AudioDevice& device)
-    : ptr_(soundio_outstream_create(device.get()))
-{
-    if (!ptr_)
-        throw std::runtime_error("Failed to construct AudioOutStream...");
-}
-
-AudioOutStream::AudioOutStream(AudioOutStream&& other) noexcept
-{
-    ptr_ = other.ptr_;
-    other.ptr_ = nullptr;
-}
-
-AudioOutStream::~AudioOutStream()
-{
-    if (ptr_)
-        soundio_outstream_destroy(ptr_);
-}
-
-void AudioOutStream::open()
-{
-    if (int error = soundio_outstream_open(ptr_))
-        throw std::runtime_error(std::string("Failed to open AudioOutStream: ") + std::to_string(error));
-}
-
-void AudioOutStream::start()
-{
-    if (int error = soundio_outstream_start(ptr_))
-        throw std::runtime_error(std::string("Failed to start AudioOutStream: ") + std::to_string(error));
-}
-
-AudioDevice find_kinect_microphone(const Audio& audio)
-{
-    auto input_devices{audio.getInputDevices()};
+    auto input_devices{get_sound_io_input_devices(sound_io)};
     for (auto& input_device : input_devices) {
         if (!input_device.get()->is_raw) {
             std::string device_name{input_device.get()->name};
             if (device_name.find("Azure Kinect Microphone Array") != device_name.npos)
-                return input_device;
+                return std::move(input_device);
         }
     }
 

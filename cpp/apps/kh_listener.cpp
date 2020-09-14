@@ -10,16 +10,16 @@ namespace kh
 {
 int start()
 {
-    Audio audio;
-    auto kinect_microphone{find_kinect_microphone(audio)};
-    auto default_speaker{audio.getDefaultOutputDevice()};
+    auto sound_io{create_sound_io_handle()};
+    auto kinect_microphone{find_kinect_microphone(sound_io)};
+    auto default_speaker{get_sound_io_default_output_device(sound_io)};
 
-    AudioInStream kinect_microphone_stream{create_kinect_microphone_stream(audio)};
-    AudioOutStream default_speaker_stream{create_default_speaker_stream(audio)};
+    auto kinect_microphone_stream{create_kinect_microphone_stream(sound_io)};
+    auto default_speaker_stream{create_default_speaker_stream(sound_io)};
 
     constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 
-    soundio_callback::ring_buffer = soundio_ring_buffer_create(audio.get(), capacity);
+    soundio_callback::ring_buffer = soundio_ring_buffer_create(sound_io.get(), capacity);
     if (!soundio_callback::ring_buffer)
         throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
     
@@ -28,12 +28,15 @@ int start()
     memset(write_ptr, 0, fill_count);
     soundio_ring_buffer_advance_write_ptr(soundio_callback::ring_buffer, fill_count);
 
-    kinect_microphone_stream.start();
-    default_speaker_stream.start();
+    if (int error = soundio_instream_start(kinect_microphone_stream.get()))
+        throw std::runtime_error(std::string("Failed to start AudioInStream: ") + std::to_string(error));
+
+    if (int error = soundio_outstream_start(default_speaker_stream.get()))
+        throw std::runtime_error(std::string("Failed to start AudioOutStream: ") + std::to_string(error));
 
     printf("start for loop\n");
     for (;;) {
-        soundio_flush_events(audio.get());
+        soundio_flush_events(sound_io.get());
         Sleep(1);
     }
     return 0;

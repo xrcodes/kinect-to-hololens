@@ -25,63 +25,17 @@ constexpr double KH_LATENCY_SECONDS{0.2};
 constexpr int KH_SAMPLES_PER_FRAME{960};
 constexpr int KH_BYTES_PER_SECOND{KH_SAMPLE_RATE * KH_CHANNEL_COUNT * sizeof(float)};
 
-class AudioDevice;
+typedef std::unique_ptr<SoundIo, std::function<void(SoundIo*)>> SoundIoHandle;
+typedef std::unique_ptr<SoundIoDevice, std::function<void(SoundIoDevice*)>> SoundIoDeviceHandle;
+typedef std::unique_ptr<SoundIoInStream, std::function<void(SoundIoInStream*)>> SoundIoInStreamHandle;
+typedef std::unique_ptr<SoundIoOutStream, std::function<void(SoundIoOutStream*)>> SoundIoOutStreamHandle;
 
-class Audio
-{
-public:
-    Audio();
-    Audio(Audio&& other) noexcept;
-    ~Audio();
-    std::vector<AudioDevice> getInputDevices() const;
-    AudioDevice getDefaultOutputDevice() const;
-    SoundIo* get() { return ptr_; }
+SoundIoHandle create_sound_io_handle();
+std::vector<SoundIoDeviceHandle> get_sound_io_input_devices(const SoundIoHandle& sound_io);
+SoundIoDeviceHandle get_sound_io_default_output_device(const SoundIoHandle& sound_io);
+SoundIoInStreamHandle create_sound_io_instream(const SoundIoDeviceHandle& device);
+SoundIoOutStreamHandle create_sound_io_outstream(const SoundIoDeviceHandle& device);
 
-private:
-    SoundIo* ptr_;
-};
-
-class AudioDevice
-{
-public:
-    AudioDevice(SoundIoDevice* ptr);
-    AudioDevice(const AudioDevice& other);
-    AudioDevice(AudioDevice&& other) noexcept;
-    ~AudioDevice();
-    SoundIoDevice* get() { return ptr_; }
-
-private:
-    SoundIoDevice* ptr_;
-};
-
-class AudioInStream
-{
-public:
-    AudioInStream(AudioDevice& device);
-    AudioInStream(AudioInStream&& other) noexcept;
-    ~AudioInStream();
-    void open();
-    void start();
-    SoundIoInStream* get() { return ptr_; }
-
-private:
-    SoundIoInStream* ptr_;
-};
-
-class AudioOutStream
-{
-public:
-    AudioOutStream(AudioDevice& device);
-    AudioOutStream(AudioOutStream&& other) noexcept;
-    ~AudioOutStream();
-    void open();
-    void start();
-    SoundIoOutStream* get() { return ptr_; }
-
-private:
-    SoundIoOutStream* ptr_;
-};
-
-// A utility function exists here.
-AudioDevice find_kinect_microphone(const Audio& audio);
+// A utility function for using Azure Kinect.
+SoundIoDeviceHandle find_kinect_microphone(const SoundIoHandle& sound_io);
 }

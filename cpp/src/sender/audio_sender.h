@@ -14,23 +14,24 @@ class AudioSender
 public:
     AudioSender(const int sender_id)
         : sender_id_{sender_id}
-        , audio_{}
-        , kinect_microphone_stream_{create_kinect_microphone_stream(audio_)}
+        , sound_io_{create_sound_io_handle()}
+        , kinect_microphone_stream_{create_kinect_microphone_stream(sound_io_)}
         , opus_encoder_{tt::create_opus_encoder_handle(KH_SAMPLE_RATE, KH_CHANNEL_COUNT)}
         , pcm_{}
         , audio_frame_id_{0}
     {
         constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-        soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
+        soundio_callback::ring_buffer = soundio_ring_buffer_create(sound_io_.get(), capacity);
         if (!soundio_callback::ring_buffer)
             throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
 
-        kinect_microphone_stream_.start();
+        if (int error = soundio_instream_start(kinect_microphone_stream_.get()))
+            throw std::runtime_error(std::string("Failed to start AudioInStream: ") + std::to_string(error));
     }
 
     void send(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
     {
-        soundio_flush_events(audio_.get());
+        soundio_flush_events(sound_io_.get());
         const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
         const int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer)};
 
@@ -59,8 +60,8 @@ public:
 private:
     const int sender_id_;
 
-    Audio audio_;
-    AudioInStream kinect_microphone_stream_;
+    SoundIoHandle sound_io_;
+    SoundIoInStreamHandle kinect_microphone_stream_;
     tt::OpusEncoderHandle opus_encoder_;
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm_;

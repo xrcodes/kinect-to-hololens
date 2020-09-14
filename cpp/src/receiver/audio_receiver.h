@@ -9,24 +9,25 @@ class AudioReceiver
 {
 public:
     AudioReceiver()
-        : audio_{}, default_speaker_stream_{create_default_speaker_stream(audio_)},
+        : sound_io_{create_sound_io_handle()}, default_speaker_stream_{create_default_speaker_stream(sound_io_)},
         opus_decoder_{tt::create_opus_decoder_handle(KH_SAMPLE_RATE, KH_CHANNEL_COUNT)},
         pcm_{}, last_audio_frame_id_{-1}
     {
         constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 
-        soundio_callback::ring_buffer = soundio_ring_buffer_create(audio_.get(), capacity);
+        soundio_callback::ring_buffer = soundio_ring_buffer_create(sound_io_.get(), capacity);
         if (!soundio_callback::ring_buffer)
             throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
 
-        default_speaker_stream_.start();
+        if (int error = soundio_outstream_start(default_speaker_stream_.get()))
+            throw std::runtime_error(std::string("Failed to start AudioOutStream: ") + std::to_string(error));
     }
 
     void receive(std::vector<AudioSenderPacket>& audio_packets)
     {
         constexpr float AMPLIFIER{8.0f};
 
-        soundio_flush_events(audio_.get());
+        soundio_flush_events(sound_io_.get());
 
         if (audio_packets.empty())
             return;
@@ -73,8 +74,8 @@ public:
     }
 
 private:
-    Audio audio_;
-    AudioOutStream default_speaker_stream_;
+    SoundIoHandle sound_io_;
+    SoundIoOutStreamHandle default_speaker_stream_;
 
     tt::OpusDecoderHandle opus_decoder_;
     std::array<float, KH_SAMPLES_PER_FRAME* KH_CHANNEL_COUNT> pcm_;
