@@ -16,17 +16,17 @@ extern "C"
         delete ptr;
     }
 
-    UNITY_INTERFACE_EXPORT tt::FFmpegFrame* UNITY_INTERFACE_API vp8_decoder_decode
+    UNITY_INTERFACE_EXPORT tt::AVFrameHandle* UNITY_INTERFACE_API vp8_decoder_decode
     (
         tt::Vp8Decoder* decoder,
         std::byte* frame_data,
         int frame_size
     )
     {
-        return new tt::FFmpegFrame(std::move(decoder->decode({frame_data, gsl::narrow<size_t>(frame_size)})));
+        return new tt::AVFrameHandle(std::move(decoder->decode({frame_data, gsl::narrow<size_t>(frame_size)})));
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_ffmpeg_frame(tt::FFmpegFrame* ptr)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_ffmpeg_frame(tt::AVFrameHandle* ptr)
     {
         delete ptr;
     }

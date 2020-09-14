@@ -16,9 +16,8 @@ std::vector<uint8_t> convertChannelPlaneToBytes(uint8_t* data, int line_size, in
 }
 
 // Converts an outcome of Vp8Deocder into YuvImage so it can be converted for OpenCV with createCvMatFromYuvImage().
-YuvFrame YuvFrame::create(FFmpegFrame& ffmpeg_frame)
+YuvFrame YuvFrame::create(AVFrameHandle& av_frame)
 {
-    AVFrame* av_frame{ffmpeg_frame.av_frame()};
     return YuvFrame(
         std::move(convertChannelPlaneToBytes(av_frame->data[0], av_frame->linesize[0], av_frame->width, av_frame->height)),
         std::move(convertChannelPlaneToBytes(av_frame->data[1], av_frame->linesize[1], av_frame->width / 2, av_frame->height / 2)),

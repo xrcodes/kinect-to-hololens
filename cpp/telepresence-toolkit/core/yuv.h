@@ -38,7 +38,7 @@ public:
         height_ = other.height_;
         return *this;
     }
-    static YuvFrame create(FFmpegFrame& ffmpeg_frame);
+    static YuvFrame create(AVFrameHandle& av_frame);
     // Use createFromAzureKinectYuy2Buffer when mapping with YUY2 gets supported in the Azure Kinect SDK.
     static YuvFrame createFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride);
     static YuvFrame createFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride);

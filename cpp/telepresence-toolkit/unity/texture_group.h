@@ -29,7 +29,7 @@ public:
     ID3D11ShaderResourceView* depth_texture_view{nullptr};
 
     // These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
-    tt::FFmpegFrame ffmpeg_frame{nullptr};
+    tt::AVFrameHandle ffmpeg_frame{nullptr};
     std::unique_ptr<tt::TrvlDecoder> depth_decoder;
     std::vector<short> depth_pixels;
 
