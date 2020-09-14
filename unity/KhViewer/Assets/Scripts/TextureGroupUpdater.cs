@@ -130,7 +130,7 @@ public class TextureGroupUpdater
 
         // ffmpegFrame and trvlFrame are guaranteed to be non-null
         // since the existence of beginIndex's value.
-        FFmpegFrame ffmpegFrame = null;
+        AVFrame avFrame = null;
         TrvlFrame trvlFrame = null;
 
         for (int i = beginFrameId.Value; ; ++i)
@@ -144,14 +144,14 @@ public class TextureGroupUpdater
             var colorEncoderFrame = frameMessage.colorEncoderFrame;
             var depthEncoderFrame = frameMessage.depthEncoderFrame;
 
-            ffmpegFrame = colorDecoder.Decode(colorEncoderFrame);
+            avFrame = colorDecoder.Decode(colorEncoderFrame);
             trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.keyframe);
         }
 
         udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId, lastVideoFrameId), endPoint);
 
         //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
-        textureGroup.SetFFmpegFrame(ffmpegFrame);
+        textureGroup.SetAvFrame(avFrame);
         //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
         textureGroup.SetTrvlFrame(trvlFrame);
         PluginHelper.UpdateTextureGroup(textureGroup.GetId());

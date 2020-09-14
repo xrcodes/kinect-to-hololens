@@ -26,7 +26,7 @@ extern "C"
         return new tt::AVFrameHandle(std::move(decoder->decode({frame_data, gsl::narrow<size_t>(frame_size)})));
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_ffmpeg_frame(tt::AVFrameHandle* ptr)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_av_frame(tt::AVFrameHandle* ptr)
     {
         delete ptr;
     }

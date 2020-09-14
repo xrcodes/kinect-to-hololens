@@ -1,12 +1,5 @@
 #include "vp8_decoder.h"
 
-#include <iostream>
-
-extern "C"
-{
-#include <libavformat/avformat.h>
-}
-
 namespace tt
 {
 Vp8Decoder::Vp8Decoder()

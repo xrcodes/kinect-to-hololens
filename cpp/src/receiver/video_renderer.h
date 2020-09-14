@@ -16,10 +16,10 @@ public:
 
     void render(std::vector<std::byte>& color_encoder_frame, std::vector<std::byte>& depth_encoder_frame, bool keyframe)
     {
-        std::optional<tt::AVFrameHandle> ffmpeg_frame{color_decoder_.decode(color_encoder_frame)};
+        tt::AVFrameHandle av_frame{color_decoder_.decode(color_encoder_frame)};
         std::vector<int16_t> trvl_frame{depth_decoder_.decode(depth_encoder_frame, keyframe)};
 
-        auto color_mat{create_cv_mat_from_yuv_image(tt::YuvFrame::create(*ffmpeg_frame))};
+        auto color_mat{create_cv_mat_from_yuv_image(tt::YuvFrame::create(av_frame))};
         auto depth_mat{create_cv_mat_from_kinect_depth_image(trvl_frame.data(), width_, height_)};
 
         // Rendering the depth pixels.

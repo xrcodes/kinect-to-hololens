@@ -1,17 +1,17 @@
 ﻿using System;
 
 // A class that contains a pointer to a FFmpegFrame in KinectToHololensPlugin.dll.
-public class FFmpegFrame
+public class AVFrame
 {
     public IntPtr Ptr { get; private set; }
 
-    public FFmpegFrame(IntPtr ptr)
+    public AVFrame(IntPtr ptr)
     {
         Ptr = ptr;
     }
 
-    ~FFmpegFrame()
+    ~AVFrame()
     {
-        Plugin.delete_ffmpeg_frame(Ptr);
+        Plugin.delete_av_frame(Ptr);
     }
 }

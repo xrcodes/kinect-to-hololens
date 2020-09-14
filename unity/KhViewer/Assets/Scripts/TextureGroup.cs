@@ -40,9 +40,9 @@ public class TextureGroup
         Plugin.texture_group_set_height(ptr, height);
     }
 
-    public void SetFFmpegFrame(FFmpegFrame ffmpegFrame)
+    public void SetAvFrame(AVFrame avFrame)
     {
-        Plugin.texture_group_set_ffmpeg_frame(ptr, ffmpegFrame.Ptr);
+        Plugin.texture_group_set_av_frame(ptr, avFrame.Ptr);
     }
 
     public void SetTrvlFrame(TrvlFrame trvlFrame)

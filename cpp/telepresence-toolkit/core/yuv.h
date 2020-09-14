@@ -39,8 +39,8 @@ public:
         return *this;
     }
     static YuvFrame create(AVFrameHandle& av_frame);
-    // Use createFromAzureKinectYuy2Buffer when mapping with YUY2 gets supported in the Azure Kinect SDK.
-    static YuvFrame createFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride);
+    // Implement and use createFromAzureKinectYuy2Buffer instead of createFromAzureKinectBgraBuffer
+    // when mapping with YUY2 gets supported in the Azure Kinect SDK.
     static YuvFrame createFromAzureKinectBgraBuffer(const uint8_t* buffer, int width, int height, int stride);
     const std::vector<uint8_t>& y_channel() const { return y_channel_; }
     const std::vector<uint8_t>& u_channel() const { return u_channel_; }

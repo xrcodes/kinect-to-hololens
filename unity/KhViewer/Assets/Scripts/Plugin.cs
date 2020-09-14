@@ -70,7 +70,7 @@ public static class Plugin
     public static extern void texture_group_set_height(IntPtr textureGroup, int height);
 
     [DllImport(DllName)]
-    public static extern void texture_group_set_ffmpeg_frame(IntPtr textureGroup, IntPtr ffmpeg_frame_ptr);
+    public static extern void texture_group_set_av_frame(IntPtr textureGroup, IntPtr av_frame_ptr);
 
     [DllImport(DllName)]
     public static extern void texture_group_set_depth_pixels(IntPtr textureGroup, IntPtr depth_pixels_ptr);
@@ -85,7 +85,7 @@ public static class Plugin
     public static extern IntPtr vp8_decoder_decode(IntPtr decoder_ptr, IntPtr frame_ptr, int frame_size);
 
     [DllImport(DllName)]
-    public static extern void delete_ffmpeg_frame(IntPtr ptr);
+    public static extern void delete_av_frame(IntPtr ptr);
 
     [DllImport(DllName)]
     public static extern IntPtr create_trvl_decoder(int frame_size);

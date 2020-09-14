@@ -16,11 +16,11 @@ public class Vp8Decoder
         Plugin.delete_vp8_decoder(ptr);
     }
 
-    public FFmpegFrame Decode(byte[] frame)
+    public AVFrame Decode(byte[] frame)
     {
         IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
         Marshal.Copy(frame, 0, bytes, frame.Length);
-        var ffmpegFrame =  new FFmpegFrame(Plugin.vp8_decoder_decode(ptr, bytes, frame.Length));
+        var ffmpegFrame =  new AVFrame(Plugin.vp8_decoder_decode(ptr, bytes, frame.Length));
         Marshal.FreeHGlobal(bytes);
 
         return ffmpegFrame;

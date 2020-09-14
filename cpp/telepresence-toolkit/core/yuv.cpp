@@ -4,7 +4,7 @@ namespace tt
 {
 namespace
 {
-// A helper function for createYuvImageFromFFmpegFrame that converts a AVFrame into a std::vector.
+// A helper function for YuvFrame::create(AVFrameHandle) that converts a AVFrame into a std::vector.
 std::vector<uint8_t> convertChannelPlaneToBytes(uint8_t* data, int line_size, int width, int height)
 {
     std::vector<uint8_t> bytes(static_cast<long long>(width) * height);
@@ -24,41 +24,6 @@ YuvFrame YuvFrame::create(AVFrameHandle& av_frame)
         std::move(convertChannelPlaneToBytes(av_frame->data[2], av_frame->linesize[2], av_frame->width / 2, av_frame->height / 2)),
         av_frame->width,
         av_frame->height);
-}
-
-YuvFrame YuvFrame::createFromAzureKinectYuy2Buffer(const uint8_t* buffer, int width, int height, int stride)
-{
-    // Sizes assume Kinect runs in ColorImageFormat_Yuy2.
-    std::vector<uint8_t> y_channel(static_cast<long long>(width) * height);
-    std::vector<uint8_t> u_channel(width * height / 4);
-    std::vector<uint8_t> v_channel(width * height / 4);
-
-    // Conversion of the Y channels of the pixels.
-    int y_channel_index = 0;
-    for (int j = 0; j < height; ++j) {
-        int buffer_index = j * stride;
-        for (int i = 0; i < width; ++i) {
-            y_channel[y_channel_index++] = buffer[buffer_index];
-            buffer_index += 2;
-        }
-    }
-
-    // Calculation of the U and V channels of the pixels.
-    int uv_width = width / 2;
-    int uv_height = height / 2;
-
-    int uv_index = 0;
-    for (int j = 0; j < uv_height; ++j) {
-        int buffer_index = j * stride * 2 + 1;
-        for (int i = 0; i < uv_width; ++i) {
-            u_channel[uv_index] = buffer[buffer_index];
-            v_channel[uv_index] = buffer[buffer_index + 2];
-            ++uv_index;
-            buffer_index += 4;
-        }
-    }
-
-    return YuvFrame(std::move(y_channel), std::move(u_channel), std::move(v_channel), width, height);
 }
 
 // Reference: https://docs.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering

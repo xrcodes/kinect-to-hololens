@@ -24,13 +24,13 @@ void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11Devi
 {
     TextureGroup* texture_group{texture_groups_.at(texture_group_id).get()};
     texture_group->y_texture->updatePixels(device_context,
-                                           texture_group->ffmpeg_frame->data[0],
-                                           texture_group->ffmpeg_frame->linesize[0]);
+                                           texture_group->av_frame->data[0],
+                                           texture_group->av_frame->linesize[0]);
     texture_group->uv_texture->updatePixels(device_context,
-                                            texture_group->ffmpeg_frame->data[1],
-                                            texture_group->ffmpeg_frame->linesize[1],
-                                            texture_group->ffmpeg_frame->data[2],
-                                            texture_group->ffmpeg_frame->linesize[2]);
+                                            texture_group->av_frame->data[1],
+                                            texture_group->av_frame->linesize[1],
+                                            texture_group->av_frame->data[2],
+                                            texture_group->av_frame->linesize[2]);
 
     texture_group->depth_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, reinterpret_cast<uint16_t*>(texture_group->depth_pixels.data()));
 }
@@ -90,9 +90,9 @@ extern "C"
         texture_group->height = height;
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API texture_group_set_ffmpeg_frame(TextureGroup* texture_group, tt::AVFrameHandle* ffmpeg_frame)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API texture_group_set_av_frame(TextureGroup* texture_group, tt::AVFrameHandle* av_frame)
     {
-        texture_group->ffmpeg_frame = std::move(*ffmpeg_frame);
+        texture_group->av_frame = std::move(*av_frame);
     }
 
     void UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API texture_group_set_depth_pixels(TextureGroup* texture_group, std::vector<short>* depth_pixels)
