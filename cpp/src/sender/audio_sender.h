@@ -15,14 +15,14 @@ public:
     AudioSender(const int sender_id)
         : sender_id_{sender_id}
         , sound_io_{create_sound_io_handle()}
-        , kinect_microphone_stream_{create_kinect_microphone_stream(sound_io_)}
+        , kinect_microphone_stream_{create_kinect_microphone_stream(sound_io_, soundio_callback::kinect_microphone_read_callback, soundio_callback::overflow_callback)}
         , opus_encoder_{tt::create_opus_encoder_handle(KH_SAMPLE_RATE, KH_CHANNEL_COUNT)}
         , pcm_{}
         , audio_frame_id_{0}
     {
         constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
-        soundio_callback::ring_buffer = soundio_ring_buffer_create(sound_io_.get(), capacity);
-        if (!soundio_callback::ring_buffer)
+        soundio_callback::ring_buffer_ = soundio_ring_buffer_create(sound_io_.get(), capacity);
+        if (!soundio_callback::ring_buffer_)
             throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
 
         if (int error = soundio_instream_start(kinect_microphone_stream_.get()))
@@ -32,8 +32,8 @@ public:
     void send(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
     {
         soundio_flush_events(sound_io_.get());
-        const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer)};
-        const int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer)};
+        const char* read_ptr{soundio_ring_buffer_read_ptr(soundio_callback::ring_buffer_)};
+        const int fill_bytes{soundio_ring_buffer_fill_count(soundio_callback::ring_buffer_)};
 
         constexpr int BYTES_PER_FRAME{gsl::narrow<int>(sizeof(float) * KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT)};
         int cursor = 0;
@@ -54,7 +54,7 @@ public:
             cursor += BYTES_PER_FRAME;
         }
 
-        soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer, cursor);
+        soundio_ring_buffer_advance_read_ptr(soundio_callback::ring_buffer_, cursor);
     }
 
 private:

@@ -1,10 +1,3 @@
-/*
- * Copyright (c) 2015 Andrew Kelley
- *
- * This file is part of libsoundio, which is MIT licensed.
- * See http://opensource.org/licenses/MIT
- */
-
 #pragma once
 
 #include <optional>
@@ -18,73 +11,23 @@ namespace kh
 // from the kinect microphone which actually has 7 channels.
 namespace soundio_callback
 {
-static SoundIoRingBuffer* ring_buffer{nullptr};
+static SoundIoRingBuffer* ring_buffer_{nullptr};
 
-static void read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max)
+void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, int frame_count_max, SoundIoRingBuffer* ring_buffer, int channel_count)
 {
     SoundIoChannelArea* areas;
     int err;
     char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
     int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
-    int free_count = free_bytes / instream->bytes_per_frame;
 
-    if (frame_count_min > free_count) {
-        printf("ring buffer overflow");
-        abort();
-    }
-
-    int write_frames = std::min<int>(free_count, frame_count_max);
-    int frames_left = write_frames;
-
-    for (;;) {
-        int frame_count = frames_left;
-
-        if ((err = soundio_instream_begin_read(instream, &areas, &frame_count))) {
-            printf("begin read error: %s", soundio_strerror(err));
-            abort();
-        }
-
-        if (!frame_count)
-            break;
-
-        if (!areas) {
-            // Due to an overflow there is a hole. Fill the ring buffer with
-            // silence for the size of the hole.
-            memset(write_ptr, 0, frame_count * instream->bytes_per_frame);
-            fprintf(stderr, "Dropped %d frames due to internal overflow\n", frame_count);
-        } else {
-            for (int frame = 0; frame < frame_count; frame += 1) {
-                for (int ch = 0; ch < instream->layout.channel_count; ch += 1) {
-                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
-                    areas[ch].ptr += areas[ch].step;
-                    write_ptr += instream->bytes_per_sample;
-                }
-            }
-        }
-
-        if ((err = soundio_instream_end_read(instream))) {
-            printf("end read error: %s", soundio_strerror(err));
-            abort();
-        }
-
-        frames_left -= frame_count;
-        if (frames_left <= 0)
-            break;
-    }
-
-    int advance_bytes = write_frames * instream->bytes_per_frame;
-    soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
-}
-
-static void kinect_microphone_read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max)
-{
-    SoundIoChannelArea* areas;
-    int err;
-    char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
-    int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
     // Using only the first two channels of Azure Kinect...
-    int kinect_microphone_bytes_per_frame = instream->bytes_per_sample * KH_CHANNEL_COUNT;
-    int free_count = free_bytes / kinect_microphone_bytes_per_frame;
+    // Usage of bytes_per_frame based on the input channel_count instead of
+    // instream->bytes_per_frame based on the number of channels detected from the device
+    // allows not using all instream channels of the device.
+    // This is important for Azure Kinect as it has 7 instreams and one way of converting it to a stereo instream
+    // is using only the first two channels of it.
+    int bytes_per_frame = instream->bytes_per_sample * channel_count;
+    int free_count = free_bytes / bytes_per_frame;
 
     if (frame_count_min > free_count) {
         printf("ring buffer overflow\n");
@@ -107,7 +50,7 @@ static void kinect_microphone_read_callback(SoundIoInStream* instream, int frame
         if (!areas) {
             // Due to an overflow there is a hole. Fill the ring buffer with
             // silence for the size of the hole.
-            memset(write_ptr, 0, frame_count * kinect_microphone_bytes_per_frame);
+            memset(write_ptr, 0, frame_count * bytes_per_frame);
             printf("Dropped %d frames due to internal overflow\n", frame_count);
         } else {
             for (int frame = 0; frame < frame_count; frame += 1) {
@@ -129,11 +72,22 @@ static void kinect_microphone_read_callback(SoundIoInStream* instream, int frame
             break;
     }
 
-    int advance_bytes = write_frames * kinect_microphone_bytes_per_frame;
+    int advance_bytes = write_frames * bytes_per_frame;
     soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
 }
 
-static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max) {
+static void read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max)
+{
+    write_instream_to_buffer(instream, frame_count_min, frame_count_max, ring_buffer_, instream->bytes_per_frame / instream->bytes_per_sample);
+}
+
+static void kinect_microphone_read_callback(SoundIoInStream* instream, int frame_count_min, int frame_count_max)
+{
+    write_instream_to_buffer(instream, frame_count_min, frame_count_max, ring_buffer_, KH_CHANNEL_COUNT);
+}
+
+void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max, SoundIoRingBuffer* ring_buffer)
+{
     struct SoundIoChannelArea* areas;
     int frames_left;
     int frame_count;
@@ -203,9 +157,14 @@ static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int
     soundio_ring_buffer_advance_read_ptr(ring_buffer, read_count * outstream->bytes_per_frame);
 }
 
+static void write_callback(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max)
+{
+    write_buffer_to_outstream(outstream, frame_count_min, frame_count_max, ring_buffer_);
+}
+
 static void underflow_callback(struct SoundIoOutStream* outstream) {
     static int count = 0;
-    // This line leaves too much logs...
+    // This line leaves too many logs...
     //printf("underflow %d\n", ++count);
 }
 
@@ -215,48 +174,4 @@ static void overflow_callback(struct SoundIoInStream* instream) {
 }
 }
 
-SoundIoInStreamHandle create_kinect_microphone_stream(const SoundIoHandle& sound_io)
-{
-    auto kinect_microphone_stream{create_sound_io_instream(find_kinect_microphone(sound_io))};
-    // These settings came from tools/k4aviewer/k4amicrophone.cpp of Azure-Kinect-Sensor-SDK.
-    kinect_microphone_stream->format = SoundIoFormatFloat32LE;
-    kinect_microphone_stream->sample_rate = KH_SAMPLE_RATE;
-    kinect_microphone_stream->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutId7Point0);
-    kinect_microphone_stream->software_latency = KH_LATENCY_SECONDS;
-    kinect_microphone_stream->read_callback = soundio_callback::kinect_microphone_read_callback;
-    kinect_microphone_stream->overflow_callback = soundio_callback::overflow_callback;
-
-    if (int error = soundio_instream_open(kinect_microphone_stream.get()))
-        throw std::runtime_error(std::string("Failed to open AudioInStream: ") + std::to_string(error));
-    
-    // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
-    // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
-    const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
-    if (KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second)
-        throw std::runtime_error("KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second");
-
-    return kinect_microphone_stream;
-}
-
-SoundIoOutStreamHandle create_default_speaker_stream(const SoundIoHandle& sound_io)
-{
-    auto default_speaker_stream(create_sound_io_outstream(get_sound_io_default_output_device(sound_io)));
-    // These settings are those generic and similar to Azure Kinect's.
-    // It is set to be Stereo, which is the default setting of Unity3D.
-    default_speaker_stream.get()->format = SoundIoFormatFloat32LE;
-    default_speaker_stream.get()->sample_rate = KH_SAMPLE_RATE;
-    default_speaker_stream.get()->layout = *soundio_channel_layout_get_builtin(SoundIoChannelLayoutIdStereo);
-    default_speaker_stream.get()->software_latency = KH_LATENCY_SECONDS;
-    default_speaker_stream.get()->write_callback = soundio_callback::write_callback;
-    default_speaker_stream.get()->underflow_callback = soundio_callback::underflow_callback;
-
-    if (int error = soundio_outstream_open(default_speaker_stream.get()))
-        throw std::runtime_error(std::string("Failed to open AudioOutStream: ") + std::to_string(error));
-
-    const int default_speaker_bytes_per_second{default_speaker_stream.get()->sample_rate * default_speaker_stream.get()->bytes_per_frame};
-    if (KH_BYTES_PER_SECOND != default_speaker_bytes_per_second)
-        throw std::runtime_error("KH_BYTES_PER_SECOND != default_speaker_bytes_per_second");
-
-    return default_speaker_stream;
-}
 }

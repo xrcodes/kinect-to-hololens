@@ -38,4 +38,10 @@ SoundIoOutStreamHandle create_sound_io_outstream(const SoundIoDeviceHandle& devi
 
 // A utility function for using Azure Kinect.
 SoundIoDeviceHandle find_kinect_microphone(const SoundIoHandle& sound_io);
+SoundIoInStreamHandle create_kinect_microphone_stream(const SoundIoHandle& sound_io,
+                                                      void (*read_callback)(struct SoundIoInStream*, int frame_count_min, int frame_count_max),
+                                                      void (*overflow_callback)(struct SoundIoInStream*));
+SoundIoOutStreamHandle create_default_speaker_stream(const SoundIoHandle& sound_io,
+                                                     void (*write_callback)(struct SoundIoOutStream*, int frame_count_min, int frame_count_max),
+                                                     void (*underflow_callback)(struct SoundIoOutStream*));
 }
