@@ -57,28 +57,28 @@ extern "C"
         delete ptr;
     }
 
-    UNITY_INTERFACE_EXPORT tt::AudioDecoder* UNITY_INTERFACE_API create_audio_decoder(int sample_rate, int channel_count)
+    UNITY_INTERFACE_EXPORT tt::OpusDecoderHandle* UNITY_INTERFACE_API create_audio_decoder(int sample_rate, int channel_count)
     {
-        return new tt::AudioDecoder(sample_rate, channel_count);
+        return tt::create_opus_decoder_handle_ptr(sample_rate, channel_count);
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API destroy_audio_decoder(tt::AudioDecoder* ptr)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API destroy_audio_decoder(tt::OpusDecoderHandle* ptr)
     {
         delete ptr;
     }
 
     UNITY_INTERFACE_EXPORT int UNITY_INTERFACE_API audio_decoder_decode
     (
-        tt::AudioDecoder* decoder,
+        tt::OpusDecoderHandle* decoder,
         std::byte* opus_frame_data,
         int opus_frame_size,
         float* pcm_data,
         int frame_size
     )
     {
-        if(opus_frame_data)
-            return decoder->decode(gsl::span<std::byte>{opus_frame_data, gsl::narrow<size_t>(opus_frame_size)}, pcm_data, frame_size, 0);
-        else
-            return decoder->decode(std::nullopt, pcm_data, frame_size, 0);
+        if (opus_frame_data)
+            return tt::decode_opus(*decoder, gsl::span<std::byte>{opus_frame_data, gsl::narrow<size_t>(opus_frame_size)}, pcm_data, frame_size, 0);
+
+        return tt::decode_opus(*decoder, std::nullopt, pcm_data, frame_size, 0);
     }
 }

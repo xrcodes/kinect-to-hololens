@@ -16,7 +16,7 @@ public:
         : sender_id_{sender_id}
         , audio_{}
         , kinect_microphone_stream_{create_kinect_microphone_stream(audio_)}
-        , audio_encoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT, false}
+        , opus_encoder_{tt::create_opus_encoder_handle(KH_SAMPLE_RATE, KH_CHANNEL_COUNT)}
         , pcm_{}
         , audio_frame_id_{0}
     {
@@ -40,10 +40,11 @@ public:
             memcpy(pcm_.data(), read_ptr + cursor, BYTES_PER_FRAME);
 
             std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
-            const int opus_frame_size{audio_encoder_.encode(opus_frame.data(),
-                                                            pcm_.data(),
-                                                            KH_SAMPLES_PER_FRAME,
-                                                            gsl::narrow<opus_int32>(opus_frame.size()))};
+            const int opus_frame_size{tt::encode_opus(opus_encoder_,
+                                                      opus_frame.data(),
+                                                      pcm_.data(),
+                                                      KH_SAMPLES_PER_FRAME,
+                                                      gsl::narrow<opus_int32>(opus_frame.size()))};
             opus_frame.resize(opus_frame_size);
             for (auto& [_, remote_receiver] : remote_receivers) {
                 if(remote_receiver.audio_requested)
@@ -60,7 +61,7 @@ private:
 
     Audio audio_;
     AudioInStream kinect_microphone_stream_;
-    tt::AudioEncoder audio_encoder_;
+    tt::OpusEncoderHandle opus_encoder_;
 
     std::array<float, KH_SAMPLES_PER_FRAME * KH_CHANNEL_COUNT> pcm_;
     int audio_frame_id_;

@@ -10,7 +10,7 @@ class AudioReceiver
 public:
     AudioReceiver()
         : audio_{}, default_speaker_stream_{create_default_speaker_stream(audio_)},
-        audio_decoder_{KH_SAMPLE_RATE, KH_CHANNEL_COUNT},
+        opus_decoder_{tt::create_opus_decoder_handle(KH_SAMPLE_RATE, KH_CHANNEL_COUNT)},
         pcm_{}, last_audio_frame_id_{-1}
     {
         constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
@@ -53,7 +53,8 @@ public:
                 continue;
             }
 
-            frame_size = audio_decoder_.decode(packet_it->opus_frame, pcm_.data(), KH_SAMPLES_PER_FRAME, 0);
+            //frame_size = opus_decoder_.decode(packet_it->opus_frame, pcm_.data(), KH_SAMPLES_PER_FRAME, 0);
+            frame_size = tt::decode_opus(opus_decoder_, packet_it->opus_frame, pcm_.data(), KH_SAMPLES_PER_FRAME, 0);
 
             if (frame_size < 0)
                 throw std::runtime_error(std::string("Failed to decode audio: ") + opus_strerror(frame_size));
@@ -75,7 +76,7 @@ private:
     Audio audio_;
     AudioOutStream default_speaker_stream_;
 
-    tt::AudioDecoder audio_decoder_;
+    tt::OpusDecoderHandle opus_decoder_;
     std::array<float, KH_SAMPLES_PER_FRAME* KH_CHANNEL_COUNT> pcm_;
 
     int last_audio_frame_id_;
