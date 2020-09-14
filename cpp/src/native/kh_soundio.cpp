@@ -57,8 +57,8 @@ SoundIoDeviceHandle find_kinect_microphone(const SoundIoHandle& sound_io)
 {
     auto input_devices{get_sound_io_input_devices(sound_io)};
     for (auto& input_device : input_devices) {
-        if (!input_device.get()->is_raw) {
-            std::string device_name{input_device.get()->name};
+        if (!input_device->is_raw) {
+            std::string device_name{input_device->name};
             if (device_name.find("Azure Kinect Microphone Array") != device_name.npos)
                 return std::move(input_device);
         }
@@ -85,7 +85,7 @@ SoundIoInStreamHandle create_kinect_microphone_stream(const SoundIoHandle& sound
 
     // While the Azure Kinect is set to have 7.0 channel layout, which has 7 channels, only two of them gets used.
     // Therefore, we use bytes_per_sample * 2 instead of bytes_per_frame.
-    const int kinect_microphone_bytes_per_second{kinect_microphone_stream.get()->sample_rate * kinect_microphone_stream.get()->bytes_per_sample * KH_CHANNEL_COUNT};
+    const int kinect_microphone_bytes_per_second{kinect_microphone_stream->sample_rate * kinect_microphone_stream->bytes_per_sample * KH_CHANNEL_COUNT};
     if (KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second)
         throw std::runtime_error("KH_BYTES_PER_SECOND != kinect_microphone_bytes_per_second");
 
@@ -109,10 +109,144 @@ SoundIoOutStreamHandle create_default_speaker_stream(const SoundIoHandle& sound_
     if (int error = soundio_outstream_open(default_speaker_stream.get()))
         throw std::runtime_error(std::string("Failed to open AudioOutStream: ") + std::to_string(error));
 
-    const int default_speaker_bytes_per_second{default_speaker_stream.get()->sample_rate * default_speaker_stream.get()->bytes_per_frame};
+    const int default_speaker_bytes_per_second{default_speaker_stream->sample_rate * default_speaker_stream->bytes_per_frame};
     if (KH_BYTES_PER_SECOND != default_speaker_bytes_per_second)
         throw std::runtime_error("KH_BYTES_PER_SECOND != default_speaker_bytes_per_second");
 
     return default_speaker_stream;
+}
+
+void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, int frame_count_max, SoundIoRingBuffer* ring_buffer, int channel_count)
+{
+    SoundIoChannelArea* areas;
+    int err;
+    char* write_ptr = soundio_ring_buffer_write_ptr(ring_buffer);
+    int free_bytes = soundio_ring_buffer_free_count(ring_buffer);
+
+    // Using only the first two channels of Azure Kinect...
+    // Usage of bytes_per_frame based on the input channel_count instead of
+    // instream->bytes_per_frame based on the number of channels detected from the device
+    // allows not using all instream channels of the device.
+    // This is important for Azure Kinect as it has 7 instreams and one way of converting it to a stereo instream
+    // is using only the first two channels of it.
+    int bytes_per_frame = instream->bytes_per_sample * channel_count;
+    int free_count = free_bytes / bytes_per_frame;
+
+    if (frame_count_min > free_count) {
+        printf("ring buffer overflow\n");
+        return;
+    }
+
+    int write_frames = std::min<int>(free_count, frame_count_max);
+    int frames_left = write_frames;
+    for (;;) {
+        int frame_count = frames_left;
+
+        if ((err = soundio_instream_begin_read(instream, &areas, &frame_count))) {
+            printf("begin read error: %s", soundio_strerror(err));
+            abort();
+        }
+
+        if (!frame_count)
+            break;
+
+        if (!areas) {
+            // Due to an overflow there is a hole. Fill the ring buffer with
+            // silence for the size of the hole.
+            memset(write_ptr, 0, frame_count * bytes_per_frame);
+            printf("Dropped %d frames due to internal overflow\n", frame_count);
+        } else {
+            for (int frame = 0; frame < frame_count; frame += 1) {
+                for (int ch = 0; ch < KH_CHANNEL_COUNT; ch += 1) {
+                    memcpy(write_ptr, areas[ch].ptr, instream->bytes_per_sample);
+                    areas[ch].ptr += areas[ch].step;
+                    write_ptr += instream->bytes_per_sample;
+                }
+            }
+        }
+
+        if ((err = soundio_instream_end_read(instream))) {
+            printf("end read error: %s", soundio_strerror(err));
+            abort();
+        }
+
+        frames_left -= frame_count;
+        if (frames_left <= 0)
+            break;
+    }
+
+    int advance_bytes = write_frames * bytes_per_frame;
+    soundio_ring_buffer_advance_write_ptr(ring_buffer, advance_bytes);
+}
+
+void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max, SoundIoRingBuffer* ring_buffer)
+{
+    struct SoundIoChannelArea* areas;
+    int frames_left;
+    int frame_count;
+    int err;
+
+    char* read_ptr = soundio_ring_buffer_read_ptr(ring_buffer);
+    int fill_bytes = soundio_ring_buffer_fill_count(ring_buffer);
+    int fill_count = fill_bytes / outstream->bytes_per_frame;
+
+    if (frame_count_min > fill_count) {
+        // Ring buffer does not have enough data, fill with zeroes.
+        frames_left = frame_count_min;
+        for (;;) {
+            frame_count = frames_left;
+            if (frame_count <= 0)
+                return;
+            if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
+                printf("begin write error: %s", soundio_strerror(err));
+                abort();
+            }
+            if (frame_count <= 0)
+                return;
+            for (int frame = 0; frame < frame_count; frame += 1) {
+                for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+                    memset(areas[ch].ptr, 0, outstream->bytes_per_sample);
+                    areas[ch].ptr += areas[ch].step;
+                }
+            }
+            if ((err = soundio_outstream_end_write(outstream))) {
+                printf("end write error: %s", soundio_strerror(err));
+                abort();
+            }
+            frames_left -= frame_count;
+        }
+    }
+
+    int read_count = std::min<int>(frame_count_max, fill_count);
+    frames_left = read_count;
+
+    while (frames_left > 0) {
+        int frame_count = frames_left;
+
+        if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
+            printf("begin write error: %s", soundio_strerror(err));
+            abort();
+        }
+
+        if (frame_count <= 0)
+            break;
+
+        for (int frame = 0; frame < frame_count; frame += 1) {
+            for (int ch = 0; ch < outstream->layout.channel_count; ch += 1) {
+                memcpy(areas[ch].ptr, read_ptr, outstream->bytes_per_sample);
+                areas[ch].ptr += areas[ch].step;
+                read_ptr += outstream->bytes_per_sample;
+            }
+        }
+
+        if ((err = soundio_outstream_end_write(outstream))) {
+            printf("end write error: %s", soundio_strerror(err));
+            abort();
+        }
+
+        frames_left -= frame_count;
+    }
+
+    soundio_ring_buffer_advance_read_ptr(ring_buffer, read_count * outstream->bytes_per_frame);
 }
 }

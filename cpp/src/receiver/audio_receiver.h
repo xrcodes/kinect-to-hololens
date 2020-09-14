@@ -2,6 +2,19 @@
 
 namespace kh
 {
+SoundIoRingBuffer* ring_buffer{nullptr};
+
+void write_callback(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max)
+{
+    write_buffer_to_outstream(outstream, frame_count_min, frame_count_max, ring_buffer);
+}
+
+void underflow_callback(struct SoundIoOutStream* outstream) {
+    static int count = 0;
+    // This line leaves too many logs...
+    //printf("underflow %d\n", ++count);
+}
+
 // AudioPacketPlayer better suits what this class does.
 // However, this is named receiver to match the corresponding c# class,
 // which only receives packets and enqueues them to a ring buffer.
@@ -9,14 +22,14 @@ class AudioReceiver
 {
 public:
     AudioReceiver()
-        : sound_io_{create_sound_io_handle()}, default_speaker_stream_{create_default_speaker_stream(sound_io_, soundio_callback::write_callback, soundio_callback::underflow_callback)},
+        : sound_io_{create_sound_io_handle()}, default_speaker_stream_{create_default_speaker_stream(sound_io_, write_callback, underflow_callback)},
         opus_decoder_{tt::create_opus_decoder_handle(KH_SAMPLE_RATE, KH_CHANNEL_COUNT)},
         pcm_{}, last_audio_frame_id_{-1}
     {
         constexpr int capacity{gsl::narrow<int>(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND)};
 
-        soundio_callback::ring_buffer_ = soundio_ring_buffer_create(sound_io_.get(), capacity);
-        if (!soundio_callback::ring_buffer_)
+        ring_buffer = soundio_ring_buffer_create(sound_io_.get(), capacity);
+        if (!ring_buffer)
             throw std::runtime_error("Failed in soundio_ring_buffer_create()...");
 
         if (int error = soundio_outstream_start(default_speaker_stream_.get()))
@@ -36,8 +49,8 @@ public:
                   audio_packets.end(),
                   [](AudioSenderPacket& a, AudioSenderPacket& b) { return a.frame_id < b.frame_id; });
 
-        char* write_ptr{soundio_ring_buffer_write_ptr(soundio_callback::ring_buffer_)};
-        int free_bytes{soundio_ring_buffer_free_count(soundio_callback::ring_buffer_)};
+        char* write_ptr{soundio_ring_buffer_write_ptr(ring_buffer)};
+        int free_bytes{soundio_ring_buffer_free_count(ring_buffer)};
 
         const int FRAME_BYTE_SIZE{gsl::narrow<int>(sizeof(float) * pcm_.size())};
 
@@ -70,7 +83,7 @@ public:
             write_cursor += FRAME_BYTE_SIZE;
         }
 
-        soundio_ring_buffer_advance_write_ptr(soundio_callback::ring_buffer_, write_cursor);
+        soundio_ring_buffer_advance_write_ptr(ring_buffer, write_cursor);
     }
 
 private:

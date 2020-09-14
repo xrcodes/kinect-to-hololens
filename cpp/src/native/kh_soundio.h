@@ -36,7 +36,6 @@ SoundIoDeviceHandle get_sound_io_default_output_device(const SoundIoHandle& soun
 SoundIoInStreamHandle create_sound_io_instream(const SoundIoDeviceHandle& device);
 SoundIoOutStreamHandle create_sound_io_outstream(const SoundIoDeviceHandle& device);
 
-// A utility function for using Azure Kinect.
 SoundIoDeviceHandle find_kinect_microphone(const SoundIoHandle& sound_io);
 SoundIoInStreamHandle create_kinect_microphone_stream(const SoundIoHandle& sound_io,
                                                       void (*read_callback)(struct SoundIoInStream*, int frame_count_min, int frame_count_max),
@@ -44,4 +43,8 @@ SoundIoInStreamHandle create_kinect_microphone_stream(const SoundIoHandle& sound
 SoundIoOutStreamHandle create_default_speaker_stream(const SoundIoHandle& sound_io,
                                                      void (*write_callback)(struct SoundIoOutStream*, int frame_count_min, int frame_count_max),
                                                      void (*underflow_callback)(struct SoundIoOutStream*));
+
+// These functions are from example/sio_microphone.c of libsoundio (https://github.com/andrewrk/libsoundio).
+void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, int frame_count_max, SoundIoRingBuffer* ring_buffer, int channel_count);
+void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max, SoundIoRingBuffer* ring_buffer);
 }
