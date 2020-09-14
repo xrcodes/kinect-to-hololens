@@ -1,10 +1,7 @@
 #include <algorithm>
 #include <iostream>
-#define NOMINMAX
-#include <windows.h>
-#undef NOMINMAX
 #include <gsl/gsl>
-#include "utils/soundio_utils.h"
+#include "native/kh_native.h"
 
 
 namespace kh

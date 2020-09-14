@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sender/remote_receiver.h"
-#include "utils/soundio_utils.h"
+#include "native/kh_native.h"
 
 namespace kh
 {
