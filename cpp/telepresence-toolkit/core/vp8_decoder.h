@@ -11,6 +11,7 @@ extern "C" {
 
 namespace tt
 {
+
 // A wrapper for AVFrame, the outcome of Vp8Decoder.
 class FFmpegFrame
 {
@@ -46,21 +47,24 @@ private:
     AVFrame* av_frame_;
 };
 
-// A wrapper class for FFMpeg, decoding colors pixels in the VP8 codec.
+
+// An FFMPEG wrapper class that decodes VP8 frames.
 class Vp8Decoder
 {
 private:
-    class CodecContext;
-    class CodecParserContext;
-    class Packet;
+    typedef std::unique_ptr<AVCodecContext, std::function<void(AVCodecContext*)>> AVCodecContextHandle;
+    typedef std::unique_ptr<AVCodecParserContext, std::function<void(AVCodecParserContext*)>> AVCodecParserContextHandle;
+    typedef std::unique_ptr<AVPacket, std::function<void(AVPacket*)>> AVPacketHandle;
 
 public:
     Vp8Decoder();
     FFmpegFrame decode(gsl::span<const std::byte> vp8_frame);
+private:
+    void decode_packet(AVCodecContextHandle& codec_context, AVPacketHandle& packet, std::vector<FFmpegFrame>& decoder_frames);
 
 private:
-    std::shared_ptr<CodecContext> codec_context_;
-    std::shared_ptr<CodecParserContext> codec_parser_context_;
-    std::shared_ptr<Packet> packet_;
+    AVCodecContextHandle codec_context_;
+    AVCodecParserContextHandle codec_parser_context_;
+    AVPacketHandle packet_;
 };
 }

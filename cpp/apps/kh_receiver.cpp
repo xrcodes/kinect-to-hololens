@@ -79,9 +79,7 @@ void start_session(const std::string ip_address, const int port, const int recei
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint last_received_any_time{tt::TimePoint::now()};
     tt::TimePoint last_request_time{tt::TimePoint::now()};
-    tt::TimePoint last_report_time{tt::TimePoint::now()};
 
-    //VideoMessageAssembler video_message_assembler{receiver_id, remote_endpoint};
     AudioReceiver audio_packet_receiver;
     std::unique_ptr<VideoRenderer> video_renderer{nullptr};
     std::optional<int> last_frame_id{std::nullopt};
@@ -166,15 +164,8 @@ void start_session(const std::string ip_address, const int port, const int recei
                     ++it;
                 }
             }
-        }
 
-        if (last_frame_id) {
-            // No more than once in 10 ms.
-            if (last_report_time.elapsed_time().ms() > 10.0f) {
-                udp_socket.send(create_report_receiver_packet(receiver_id, *last_frame_id).bytes, sender_endpoint);
-                last_report_time = tt::TimePoint::now();
-            }
-            //std::cout << "send report: " << video_renderer.last_frame_id() << std::endl;
+            udp_socket.send(create_report_receiver_packet(receiver_id, *last_frame_id).bytes, sender_endpoint);
             video_receiver_storage.removeObsolete(*last_frame_id);
         }
     }
