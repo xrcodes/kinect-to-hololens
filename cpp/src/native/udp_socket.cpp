@@ -1,6 +1,6 @@
-#include "kh_udp_socket.h"
+#include "udp_socket.h"
 
-#include "kh_packet.h"
+#include "packet.h"
 
 namespace kh
 {

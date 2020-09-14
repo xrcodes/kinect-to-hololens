@@ -1,6 +1,5 @@
-#include "kh_packet.h"
+#include "packet.h"
 
-#include <iostream>
 #include "kh_kinect.h"
 
 namespace kh

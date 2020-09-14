@@ -1,19 +1,19 @@
 add_library(KinectToHololensNative
+  imgui_wrapper.h
   kh_kinect.h
   kh_kinect.cpp
   kh_native.h
   kh_opencv.h
   kh_opencv.cpp
-  kh_packet.h
-  kh_packet.cpp
-  kh_udp_socket.h
-  kh_udp_socket.cpp
-  kh_vp8_encoder.h
-  kh_vp8_encoder.cpp
-  imgui_wrapper.h
+  packet.h
+  packet.cpp
   profiler.h
   soundio_utils.h
   soundio_utils.cpp
+  udp_socket.h
+  udp_socket.cpp
+  vp8_encoder.h
+  vp8_encoder.cpp
 )
 target_include_directories(KinectToHololensNative PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
