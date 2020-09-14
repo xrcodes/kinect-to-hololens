@@ -1,9 +1,6 @@
 #pragma once
 
-#include <stdexcept>
 #include <optional>
-#include <vector>
-#include <string>
 #include <gsl/gsl>
 #include <opus/opus.h>
 

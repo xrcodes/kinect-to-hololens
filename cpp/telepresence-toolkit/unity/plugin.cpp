@@ -57,17 +57,17 @@ extern "C"
         delete ptr;
     }
 
-    UNITY_INTERFACE_EXPORT tt::OpusDecoderHandle* UNITY_INTERFACE_API create_audio_decoder(int sample_rate, int channel_count)
+    UNITY_INTERFACE_EXPORT tt::OpusDecoderHandle* UNITY_INTERFACE_API create_opus_decoder(int sample_rate, int channel_count)
     {
         return tt::create_opus_decoder_handle_ptr(sample_rate, channel_count);
     }
 
-    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API destroy_audio_decoder(tt::OpusDecoderHandle* ptr)
+    UNITY_INTERFACE_EXPORT void UNITY_INTERFACE_API delete_opus_decoder(tt::OpusDecoderHandle* ptr)
     {
         delete ptr;
     }
 
-    UNITY_INTERFACE_EXPORT int UNITY_INTERFACE_API audio_decoder_decode
+    UNITY_INTERFACE_EXPORT int UNITY_INTERFACE_API opus_decoder_decode
     (
         tt::OpusDecoderHandle* decoder,
         std::byte* opus_frame_data,

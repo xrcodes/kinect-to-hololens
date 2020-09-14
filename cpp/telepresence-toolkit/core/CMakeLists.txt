@@ -1,7 +1,7 @@
 add_library(TelepresenceToolkitCore
   tt_core.h
-  opus.h
-  opus.cpp
+  opus_utils.h
+  opus_utils.cpp
   rvl.h
   rvl.cpp
   time.h

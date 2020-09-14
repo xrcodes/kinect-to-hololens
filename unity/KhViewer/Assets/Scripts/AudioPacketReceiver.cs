@@ -2,12 +2,12 @@
 
 public class AudioPacketReceiver
 {
-    private AudioDecoder audioDecoder;
+    private OpusDecoder opusDecoder;
     private int lastAudioFrameId;
 
     public AudioPacketReceiver()
     {
-        audioDecoder = new AudioDecoder(KinectSpeaker.KH_SAMPLE_RATE, KinectSpeaker.KH_CHANNEL_COUNT);
+        opusDecoder = new OpusDecoder(KinectSpeaker.KH_SAMPLE_RATE, KinectSpeaker.KH_CHANNEL_COUNT);
         lastAudioFrameId = -1;
     }
 
@@ -26,7 +26,7 @@ public class AudioPacketReceiver
             if (audioPacketData.frameId <= lastAudioFrameId)
                 continue;
 
-            audioDecoder.Decode(audioPacketData.opusFrame, pcm, KinectSpeaker.KH_SAMPLES_PER_FRAME);
+            opusDecoder.Decode(audioPacketData.opusFrame, pcm, KinectSpeaker.KH_SAMPLES_PER_FRAME);
             ringBuffer.Write(pcm);
             lastAudioFrameId = audioPacketData.frameId;
         }

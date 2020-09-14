@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-public class AudioDecoder
+public class OpusDecoder
 {
     private IntPtr ptr;
 
-    public AudioDecoder(int sampleRate, int channelCount)
+    public OpusDecoder(int sampleRate, int channelCount)
     {
-        ptr = Plugin.create_audio_decoder(sampleRate, channelCount);
+        ptr = Plugin.create_opus_decoder(sampleRate, channelCount);
     }
 
-    ~AudioDecoder()
+    ~OpusDecoder()
     {
-        Plugin.destroy_audio_decoder(ptr);
+        Plugin.delete_opus_decoder(ptr);
     }
 
     //public int Decode(byte[] opusFrame, ref IntPtr pcm, int frameSize)
@@ -26,14 +26,14 @@ public class AudioDecoder
             Marshal.Copy(opusFrame, 0, nativeOpusFrame, opusFrame.Length);
 
             
-            pcmFrameSize = Plugin.audio_decoder_decode(ptr, nativeOpusFrame, opusFrame.Length, nativePcm, frameSize);
+            pcmFrameSize = Plugin.opus_decoder_decode(ptr, nativeOpusFrame, opusFrame.Length, nativePcm, frameSize);
             Marshal.Copy(nativePcm, pcm, 0, pcm.Length);
             
             Marshal.FreeHGlobal(nativeOpusFrame);
         }
         else
         {
-            pcmFrameSize = Plugin.audio_decoder_decode(ptr, IntPtr.Zero, 0, nativePcm, frameSize);
+            pcmFrameSize = Plugin.opus_decoder_decode(ptr, IntPtr.Zero, 0, nativePcm, frameSize);
         }
         Marshal.FreeHGlobal(nativePcm);
 
