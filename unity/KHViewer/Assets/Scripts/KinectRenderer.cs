@@ -27,7 +27,7 @@ public class KinectRenderer : MonoBehaviour
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
     }
 
-    public void StartPrepare(VideoSenderMessageData videoMessageData)
+    public void StartPrepare(VideoSenderMessage videoMessageData)
     {
         StartCoroutine(SetupMesh(videoMessageData));
     }
@@ -35,7 +35,7 @@ public class KinectRenderer : MonoBehaviour
     // Since calculation including Unproject() takes too much time,
     // this function is made to run as a coroutine that takes a break
     // every 100 ms.
-    private IEnumerator SetupMesh(VideoSenderMessageData videoMessageData)
+    private IEnumerator SetupMesh(VideoSenderMessage videoMessageData)
     {
         State = PrepareState.Preparing;
         Progress = 0.0f;

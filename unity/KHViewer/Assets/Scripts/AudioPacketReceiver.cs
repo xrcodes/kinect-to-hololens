@@ -11,7 +11,7 @@ public class AudioPacketReceiver
         lastAudioFrameId = -1;
     }
 
-    public void Receive(List<AudioSenderPacketData> audioPacketDataList, RingBuffer ringBuffer)
+    public void Receive(List<AudioSenderPacket> audioPacketDataList, RingBuffer ringBuffer)
     {
         audioPacketDataList.Sort((x, y) => x.frameId.CompareTo(y.frameId));
 

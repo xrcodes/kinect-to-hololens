@@ -6,7 +6,7 @@ using UnityEngine;
 
 public class TextureSetUpdater
 {
-    private PrepareState state;
+    public PrepareState State { get; private set; }
     private int sessionId;
     private IPEndPoint endPoint;
 
@@ -19,11 +19,10 @@ public class TextureSetUpdater
     private Vp8Decoder colorDecoder;
     private TrvlDecoder depthDecoder;
 
-    public PrepareState State => state;
 
     public TextureSetUpdater(Material azureKinectScreenMaterial, int sessionId, IPEndPoint endPoint)
     {
-        state = PrepareState.Unprepared;
+        State = PrepareState.Unprepared;
 
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
@@ -37,17 +36,17 @@ public class TextureSetUpdater
         this.endPoint = endPoint;
     }
 
-    public void StartPrepare(VideoSenderMessageData videoMessageData)
+    public void StartPrepare(VideoSenderMessage videoMessageData)
     {
         CoroutineRunner.Run(Prepare(videoMessageData));
     }
 
-    public IEnumerator Prepare(VideoSenderMessageData videoMessageData)
+    public IEnumerator Prepare(VideoSenderMessage videoMessageData)
     {
-        if(state != PrepareState.Unprepared)
+        if(State != PrepareState.Unprepared)
             throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
 
-        state = PrepareState.Preparing;
+        State = PrepareState.Preparing;
 
         textureSet.SetWidth(videoMessageData.width);
         textureSet.SetHeight(videoMessageData.height);
@@ -56,7 +55,7 @@ public class TextureSetUpdater
         colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(videoMessageData.width * videoMessageData.height);
 
-        state = PrepareState.Prepared;
+        State = PrepareState.Prepared;
 
         while (!textureSet.IsInitialized())
             yield return null;
@@ -66,12 +65,12 @@ public class TextureSetUpdater
         azureKinectScreenMaterial.SetTexture("_UvTex", textureSet.GetUvTexture());
         azureKinectScreenMaterial.SetTexture("_DepthTex", textureSet.GetDepthTexture());
 
-        state = PrepareState.Prepared;
+        State = PrepareState.Prepared;
     }
 
-    public void UpdateFrame(UdpSocket udpSocket, SortedDictionary<int, VideoSenderMessageData> videoMessages)
+    public void UpdateFrame(UdpSocket udpSocket, SortedDictionary<int, VideoSenderMessage> videoMessages)
     {
-        if (state != PrepareState.Prepared)
+        if (State != PrepareState.Prepared)
         {
             UnityEngine.Debug.Log("TextureGroupUpdater is not prepared yet...");
             return;
@@ -121,7 +120,7 @@ public class TextureSetUpdater
 
         lastFrameId = frameIdToRender.Value;
 
-        udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId, lastFrameId), endPoint);
+        udpSocket.Send(PacketUtils.createReportReceiverPacketBytes(sessionId, lastFrameId), endPoint);
 
         textureSet.SetAvFrame(avFrame);
         textureSet.SetDepthPixels(depthPixels);

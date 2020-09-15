@@ -9,22 +9,22 @@ public class VideoMessageAssembler
     private const int FEC_GROUP_SIZE = 2;
     private int sessionId;
     private IPEndPoint remoteEndPoint;
-    private Dictionary<int, VideoSenderPacketData[]> videoPacketCollections;
+    private Dictionary<int, VideoSenderPacket[]> videoPacketCollections;
     private Dictionary<int, ParitySenderPacketData[]> parityPacketCollections;
 
     public VideoMessageAssembler(int sessionId, IPEndPoint remoteEndPoint)
     {
         this.sessionId = sessionId;
         this.remoteEndPoint = remoteEndPoint;
-        videoPacketCollections = new Dictionary<int, VideoSenderPacketData[]>();
+        videoPacketCollections = new Dictionary<int, VideoSenderPacket[]>();
         parityPacketCollections = new Dictionary<int, ParitySenderPacketData[]>();
     }
 
     public void Assemble(UdpSocket udpSocket,
-                         List<VideoSenderPacketData> videoPacketDataList,
+                         List<VideoSenderPacket> videoPacketDataList,
                          List<ParitySenderPacketData> parityPacketDataList,
                          int lastVideoFrameId,
-                         IDictionary<int, VideoSenderMessageData> videoMessages)
+                         IDictionary<int, VideoSenderMessage> videoMessages)
     {
         int? addedFrameId = null;
         // Collect the received video packets.
@@ -35,7 +35,7 @@ public class VideoMessageAssembler
 
             if(!videoPacketCollections.ContainsKey(videoSenderPacketData.frameId))
             {
-                videoPacketCollections[videoSenderPacketData.frameId] = new VideoSenderPacketData[videoSenderPacketData.packetCount];
+                videoPacketCollections[videoSenderPacketData.frameId] = new VideoSenderPacket[videoSenderPacketData.packetCount];
                 // Assign the largest new frame_id.
                 if (!addedFrameId.HasValue || addedFrameId < videoSenderPacketData.frameId)
                     addedFrameId = videoSenderPacketData.frameId;
@@ -64,7 +64,7 @@ public class VideoMessageAssembler
             foreach (var videoPacketCollection in videoPacketCollections)
             {
                 int frameId = videoPacketCollection.Key;
-                VideoSenderPacketData[] videoPackets = videoPacketCollection.Value;
+                VideoSenderPacket[] videoPackets = videoPacketCollection.Value;
 
                 // Skip the frame that just got added or even newer.
                 if (frameId >= addedFrameId)
@@ -109,7 +109,7 @@ public class VideoMessageAssembler
 
                     // Find if there is existing video packets and missing video packet indices.
                     // Check all video packets that relates to this parity packet.
-                    var existingVideoPackets = new List<VideoSenderPacketData>();
+                    var existingVideoPackets = new List<VideoSenderPacket>();
                     var missingVideoPacketIndices = new List<int>();
                     for (int videoPacketIndex = videoPacketStartIndex; videoPacketIndex < videoPacketEndIndex; ++videoPacketIndex)
                     {
@@ -142,7 +142,7 @@ public class VideoMessageAssembler
                     int missingVideoPacketIndex = missingVideoPacketIndices[0];
 
                     // Reconstruct the missing video packet.
-                    VideoSenderPacketData fecVideoPacketData = new VideoSenderPacketData();
+                    VideoSenderPacket fecVideoPacketData = new VideoSenderPacket();
                     fecVideoPacketData.frameId = frameId;
                     fecVideoPacketData.packetIndex = missingVideoPacketIndex;
                     fecVideoPacketData.packetCount = videoPackets.Length;
@@ -159,7 +159,7 @@ public class VideoMessageAssembler
                     videoPacketCollections[frameId][missingVideoPacketIndex] = fecVideoPacketData;
                 }
                 // Request the video packets that FEC was not enough to fix.
-                udpSocket.Send(PacketHelper.createRequestReceiverPacketBytes(sessionId, frameId, false, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest), remoteEndPoint);
+                udpSocket.Send(PacketUtils.createRequestReceiverPacketBytes(sessionId, frameId, false, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest), remoteEndPoint);
             }
         }
 
@@ -193,7 +193,7 @@ public class VideoMessageAssembler
                 ms.Write(packetData.messageData, 0, packetData.messageData.Length);
             }
 
-            var videoMessageData = VideoSenderMessageData.Parse(ms.ToArray());
+            var videoMessageData = VideoSenderMessage.Create(ms.ToArray());
             videoMessages.Add(fullFrameId, videoMessageData);
 
             videoPacketCollections.Remove(fullFrameId);

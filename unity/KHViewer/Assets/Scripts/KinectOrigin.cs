@@ -45,9 +45,9 @@ public class KinectOrigin : MonoBehaviour
         progressText.text = $"Preparation for {senderEndPoint}\n{progress * 100.0f:F0}% done.";
     }
 
-    public void UpdateFrame(IDictionary<int, VideoSenderMessageData> videoMessages)
+    public void UpdateFrame(IDictionary<int, VideoSenderMessage> videoMessages)
     {
-        VideoSenderMessageData videoMessageData = null;
+        VideoSenderMessage videoMessageData = null;
         foreach(var videoMessagePair in videoMessages)
         {
             if (videoMessagePair.Value.floor != null)

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
-using UnityEngine;
 using UnityEngine.Assertions;
 
 public enum PrepareState
@@ -16,7 +15,8 @@ public class KinectReceiver
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
 
-    public int ReceiverSessionId { get; private set; }
+    public int ReceiverId { get; private set; }
+    public int SenderId { get; private set; }
     public IPEndPoint SenderEndPoint { get; private set; }
     public PrepareState State { get; private set; }
     
@@ -27,9 +27,10 @@ public class KinectReceiver
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int receiverId, IPEndPoint senderEndPoint)
+    public KinectReceiver(int receiverId, int senderId, IPEndPoint senderEndPoint)
     {
-        ReceiverSessionId = receiverId;
+        ReceiverId = receiverId;
+        SenderId = senderId;
         SenderEndPoint = senderEndPoint;
         State = PrepareState.Unprepared;
     }
@@ -38,8 +39,8 @@ public class KinectReceiver
     {
         State = PrepareState.Prepared;
         KinectOrigin = kinectOrigin;
-        TextureGroupUpdater = new TextureSetUpdater(kinectOrigin.Screen.Material, ReceiverSessionId, SenderEndPoint);
-        videoMessageAssembler = new VideoMessageAssembler(ReceiverSessionId, SenderEndPoint);
+        TextureGroupUpdater = new TextureSetUpdater(kinectOrigin.Screen.Material, ReceiverId, SenderEndPoint);
+        videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
@@ -50,12 +51,12 @@ public class KinectReceiver
         // UpdateFrame() should not be called before Prepare().
         Assert.AreEqual(PrepareState.Prepared, State);
 
-        var videoMessages = new SortedDictionary<int, VideoSenderMessageData>();
+        var videoMessages = new SortedDictionary<int, VideoSenderMessage>();
         try
         {
             if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
             {
-                udpSocket.Send(PacketHelper.createHeartbeatReceiverPacketBytes(ReceiverSessionId), SenderEndPoint);
+                udpSocket.Send(PacketUtils.createHeartbeatReceiverPacketBytes(ReceiverId), SenderEndPoint);
                 heartbeatStopWatch = Stopwatch.StartNew();
             }
 
@@ -73,7 +74,7 @@ public class KinectReceiver
 
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
-                                               senderPacketSet.FecPacketDataList,
+                                               senderPacketSet.ParityPacketDataList,
                                                TextureGroupUpdater.lastFrameId,
                                                videoMessages);
 

@@ -188,7 +188,7 @@ public class ViewerManager : MonoBehaviour
         {
             var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
                                                   receiver.SenderEndPoint.Port,
-                                                  receiver.ReceiverSessionId);
+                                                  receiver.ReceiverId);
             receiverStates.Add(receiverState);
         }
 
@@ -210,15 +210,15 @@ public class ViewerManager : MonoBehaviour
             var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, remoteSenders);
             foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
             {
-                if (remoteSenders.Exists(x => x.SenderSessionId == confirmPacketInfo.SenderSessionId))
+                if (remoteSenders.Exists(x => x.SenderSessionId == confirmPacketInfo.SenderId))
                     continue;
 
                 // Create a KinectReceiver if there is none with the ID yet.
-                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == confirmPacketInfo.ConfirmPacketData.receiverSessionId);
+                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == confirmPacketInfo.ConfirmPacketData.receiverId);
                 if (kinectReceiver != null)
                     continue;
 
-                kinectReceiver = new KinectReceiver(confirmPacketInfo.ConfirmPacketData.receiverSessionId, confirmPacketInfo.SenderEndPoint);
+                kinectReceiver = new KinectReceiver(confirmPacketInfo.ConfirmPacketData.receiverId, confirmPacketInfo.SenderId, confirmPacketInfo.SenderEndPoint);
                 kinectReceivers.Add(kinectReceiver);
 
                 var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
@@ -239,11 +239,11 @@ public class ViewerManager : MonoBehaviour
                 kinectReceiver.Prepare(kinectOrigin);
                 kinectReceiver.KinectOrigin.Speaker.Setup();
 
-                print($"Sender {confirmPacketInfo.SenderSessionId} connected.");
+                print($"Sender {confirmPacketInfo.SenderId} connected.");
 
                 remoteSenders.Add(new RemoteSender(confirmPacketInfo.SenderEndPoint,
-                                                   confirmPacketInfo.SenderSessionId,
-                                                   confirmPacketInfo.ConfirmPacketData.receiverSessionId));
+                                                   confirmPacketInfo.SenderId,
+                                                   confirmPacketInfo.ConfirmPacketData.receiverId));
             }
 
             // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
@@ -253,7 +253,7 @@ public class ViewerManager : MonoBehaviour
                 if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
                     continue;
 
-                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == remoteSender.ReceiverSessionId);
+                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == remoteSender.ReceiverSessionId);
                 if (kinectReceiver == null)
                     continue;
 
@@ -276,7 +276,7 @@ public class ViewerManager : MonoBehaviour
             if (remoteSender != null)
             {
                 remoteSenders.Remove(remoteSender);
-                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == remoteSender.ReceiverSessionId);
+                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == remoteSender.ReceiverSessionId);
                 if (kinectReceiver != null)
                 {
                     kinectReceivers.Remove(kinectReceiver);
@@ -343,7 +343,7 @@ public class ViewerManager : MonoBehaviour
         // Nudge the sender five times.
         for (int i = 0; i < 5; ++i)
         {
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverId, true, true), endPoint);
+            udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true), endPoint);
             print($"Sent connect packet #{i}");
 
             await Task.Delay(300);

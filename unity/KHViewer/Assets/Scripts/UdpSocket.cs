@@ -49,7 +49,7 @@ public class UdpSocket
 
     public UdpSocketPacket ReceiveFrom(EndPoint endPoint)
     {
-        var bytes = new byte[PacketHelper.PACKET_SIZE];
+        var bytes = new byte[PacketUtils.PACKET_SIZE];
         SocketError error = SocketError.Success;
         int packetSize = 0;
         try

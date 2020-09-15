@@ -2,7 +2,7 @@
 
 public static class FloorUtils
 {
-    public static void ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(VideoSenderMessageData videoSenderMessageData, out Vector3 position, out Quaternion rotation)
+    public static void ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(VideoSenderMessage videoSenderMessageData, out Vector3 position, out Quaternion rotation)
     {
         //Vector3 upVector = new Vector3(floorSenderPacketData.a, floorSenderPacketData.b, floorSenderPacketData.c);
         // y component is fliped since the coordinate system of unity and azure kinect is different.

@@ -4,13 +4,13 @@ using System.Net;
 public class ConfirmPacketInfo
 {
     public IPEndPoint SenderEndPoint { get; private set; }
-    public int SenderSessionId { get; private set; }
-    public ConfirmSenderPacketData ConfirmPacketData { get; private set; }
+    public int SenderId { get; private set; }
+    public ConfirmSenderPacket ConfirmPacketData { get; private set; }
 
-    public ConfirmPacketInfo(IPEndPoint senderEndPoint, int senderSessionId, ConfirmSenderPacketData confirmPacketData)
+    public ConfirmPacketInfo(IPEndPoint senderEndPoint, int senderId, ConfirmSenderPacket confirmPacketData)
     {
         SenderEndPoint = senderEndPoint;
-        SenderSessionId = senderSessionId;
+        SenderId = senderId;
         ConfirmPacketData = confirmPacketData;
     }
 }
@@ -18,16 +18,16 @@ public class ConfirmPacketInfo
 public class SenderPacketSet
 {
     public bool ReceivedAny { get; set; }
-    public List<VideoSenderPacketData> VideoPacketDataList { get; private set; }
-    public List<ParitySenderPacketData> FecPacketDataList { get; private set; }
-    public List<AudioSenderPacketData> AudioPacketDataList { get; private set; }
+    public List<VideoSenderPacket> VideoPacketDataList { get; private set; }
+    public List<ParitySenderPacketData> ParityPacketDataList { get; private set; }
+    public List<AudioSenderPacket> AudioPacketDataList { get; private set; }
 
     public SenderPacketSet()
     {
         ReceivedAny = false;
-        VideoPacketDataList = new List<VideoSenderPacketData>();
-        FecPacketDataList = new List<ParitySenderPacketData>();
-        AudioPacketDataList = new List<AudioSenderPacketData>();
+        VideoPacketDataList = new List<VideoSenderPacket>();
+        ParityPacketDataList = new List<ParitySenderPacketData>();
+        AudioPacketDataList = new List<AudioSenderPacket>();
     }
 }
 
@@ -83,12 +83,12 @@ public static class SenderPacketClassifier
 
     private static void CollectPacket(UdpSocketPacket packet, SenderPacketCollection senderPacketCollection)
     {
-        int senderSessionId = PacketHelper.getSessionIdFromSenderPacketBytes(packet.Bytes);
-        SenderPacketType packetType = PacketHelper.getPacketTypeFromSenderPacketBytes(packet.Bytes);
+        int senderSessionId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
+        SenderPacketType packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
 
         if (packetType == SenderPacketType.Confirm)
         {
-            senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(packet.EndPoint, senderSessionId, ConfirmSenderPacketData.Parse(packet.Bytes)));
+            senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(packet.EndPoint, senderSessionId, ConfirmSenderPacket.Create(packet.Bytes)));
             return;
         }
 
@@ -100,14 +100,14 @@ public static class SenderPacketClassifier
         senderPacketSet.ReceivedAny = true;
         switch (packetType)
         {
-            case SenderPacketType.Frame:
-                senderPacketSet.VideoPacketDataList.Add(VideoSenderPacketData.Parse(packet.Bytes));
+            case SenderPacketType.Video:
+                senderPacketSet.VideoPacketDataList.Add(VideoSenderPacket.Create(packet.Bytes));
                 break;
             case SenderPacketType.Parity:
-                senderPacketSet.FecPacketDataList.Add(ParitySenderPacketData.Parse(packet.Bytes));
+                senderPacketSet.ParityPacketDataList.Add(ParitySenderPacketData.Create(packet.Bytes));
                 break;
             case SenderPacketType.Audio:
-                senderPacketSet.AudioPacketDataList.Add(AudioSenderPacketData.Parse(packet.Bytes));
+                senderPacketSet.AudioPacketDataList.Add(AudioSenderPacket.Create(packet.Bytes));
                 break;
         }
     }
