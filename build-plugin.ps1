@@ -12,12 +12,12 @@ $buildPath = (Get-Location).path + "\cpp\build"
 &$msBuild ("/t:TelepresenceToolkitUnity", "/p:Configuration=$configuration", "/p:Platform=Win32", "$buildPath\x86\KinectToHololens.sln")
 &$msBuild ("/t:TelepresenceToolkitUnity", "/p:Configuration=$configuration", "/p:Platform=x64", "$buildPath\x64\KinectToHololens.sln")
 
-$assetsPath = (Get-Location).path + "\unity\KhViewer\Assets"
+$packagePath = (Get-Location).path + "\unity\TelepresenceToolkit"
 
 $x86Path = "$buildPath\x86\telepresence-toolkit\unity\$configuration"
 $x64Path = "$buildPath\x64\telepresence-toolkit\unity\$configuration"
-$editorPath = "$assetsPath\Editor"
-$uwpPluginPath = "$assetsPath\Plugins\WSA"
+$editorPath = "$packagePath\Editor\Plugins"
+$uwpPluginPath = "$packagePath\Runtime\Plugins\UWP\x86"
 
 Copy-Item "$x86Path\TelepresenceToolkitUnity.dll" -Destination $uwpPluginPath
 Copy-Item "$x64Path\TelepresenceToolkitUnity.dll" -Destination $editorPath
@@ -25,6 +25,13 @@ Copy-Item "$x64Path\TelepresenceToolkitUnity.dll" -Destination $editorPath
 $binPath = (Get-Location).path + "\bin"
 Copy-Item "$binPath\msvcp140.dll" -Destination $uwpPluginPath
 Copy-Item "$binPath\vcruntime140.dll" -Destination $uwpPluginPath
+Copy-Item "$binPath\avcodec-58.dll.meta" -Destination $uwpPluginPath
+Copy-Item "$binPath\avutil-56.dll.meta" -Destination $uwpPluginPath
+Copy-Item "$binPath\msvcp140.dll.meta" -Destination $uwpPluginPath
+Copy-Item "$binPath\opus.dll.meta" -Destination $uwpPluginPath
+Copy-Item "$binPath\swresample-3.dll.meta" -Destination $uwpPluginPath
+Copy-Item "$binPath\TelepresenceToolkitUnity.dll.meta" -Destination $uwpPluginPath
+Copy-Item "$binPath\vcruntime140.dll.meta" -Destination $uwpPluginPath
 
 Copy-Item "$x86Path\avcodec-58.dll" -Destination $uwpPluginPath
 Copy-Item "$x86Path\avutil-56.dll" -Destination $uwpPluginPath
