@@ -18,7 +18,7 @@ add_definitions(-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
 
 # Assign the top directory as a directory to include.
 # This allows including header files without the ".."s.
-include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/telepresence-toolkit")
+include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src")
 
 # By adding the directory containing asio.hpp, that is the directory containing
 # all header files of vcpkg, header files from vcpkg can be included to this project.
@@ -48,6 +48,6 @@ set(IMGUI_EXAMPLES_DIR ${PROJECT_SOURCE_DIR}/imgui-1.73-examples)
 
 # The directory for general source files.
 add_subdirectory(src)
-add_subdirectory(telepresence-toolkit)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src telepresence-toolkit)
 # The directory for cpp files corresponding to exe files.
 add_subdirectory(apps)
