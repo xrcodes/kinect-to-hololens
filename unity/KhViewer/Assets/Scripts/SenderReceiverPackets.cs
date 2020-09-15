@@ -21,7 +21,7 @@ public enum ReceiverPacketType : int
 
 public static class PacketHelper
 {
-    public const int PACKET_SIZE = 1472;
+    public const int PACKET_SIZE = 508;
 
     public static int getSessionIdFromSenderPacketBytes(byte[] packetBytes)
     {

@@ -62,8 +62,9 @@ public:
                                                       gsl::narrow<opus_int32>(opus_frame.size()))};
             opus_frame.resize(opus_frame_size);
             for (auto& [_, remote_receiver] : remote_receivers) {
-                if(remote_receiver.audio_requested)
+                if (remote_receiver.audio_requested) {
                     udp_socket.send(create_audio_sender_packet(sender_id_, audio_frame_id_++, opus_frame).bytes, remote_receiver.endpoint);
+                }
             }
             cursor += BYTES_PER_FRAME;
         }

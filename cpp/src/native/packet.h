@@ -27,7 +27,7 @@ enum class ReceiverPacketType : std::int32_t
     Request = 3,
 };
 
-constexpr int KH_PACKET_SIZE{1472};
+constexpr int KH_PACKET_SIZE{508};
 
 // Video packets need more information for reassembly of packets.
 constexpr int KH_VIDEO_PACKET_HEADER_SIZE{20};
