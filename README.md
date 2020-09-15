@@ -10,14 +10,18 @@ Seeing through a Kinect from a HoloLens.
 # How to Build
 1. git config core.symlinks true (allow your git using symbolic links)
 2. git clone --recursive https://github.com/hanseuljun/kinect-to-hololens
-3. Using vcpkg, install these libraries: asio, ffmpeg, imgui, libsoundio, libvpx, ms-gsl, opencv, and opus.
+3. Install libraries for telepresnece-toolkit.
 ```powershell
-.\vcpkg.exe install asio:x86-windows asio:x64-windows ffmpeg:x86-windows ffmpeg:x64-windows imgui[dx11-binding,win32-binding]:x86-windows imgui[dx11-binding,win32-binding]:x64-windows libsoundio:x86-windows libsoundio:x64-windows libvpx:x86-windows libvpx:x64-windows ms-gsl:x86-windows ms-gsl:x64-windows opencv:x86-windows opencv:x64-windows opus:x86-windows opus:x64-windows
+.\vcpkg.exe install ffmpeg:x86-windows ffmpeg:x64-windows ms-gsl:x86-windows ms-gsl:x64-windows opus:x86-windows opus:x64-windows
 ```
-4. Install Kinect for Azure Kinect Sensor SDK 1.4.1 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
-5. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.
-6. Run build-plugin.ps1 to build the Unity3D plugin and copy it into the Unity3D project in directory /unity/KinectViewer.
-7. Build applications with the Visual Studio solution in /cpp/build/x64 and the Unity3D project in /unity/KinectViewer.
+4. Install libraries for kinect-to-hololens.
+```powershell
+.\vcpkg.exe install asio:x64-windows imgui[dx11-binding,win32-binding]:x64-windows libsoundio:x64-windows libvpx:x64-windows opencv:x64-windows
+```
+5. Install Kinect for Azure Kinect Sensor SDK 1.4.1 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
+6. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.
+7. Run build-plugin.ps1 to build the Unity3D plugin and copy it into the Unity3D project in directory /unity/KinectViewer.
+8. Build applications with the Visual Studio solution in /cpp/build/x64 and the Unity3D project in /unity/KinectViewer.
 
 # How to Use
 Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/hanseuljun/kinect-to-hololens/releases/tag/v0.3.  
