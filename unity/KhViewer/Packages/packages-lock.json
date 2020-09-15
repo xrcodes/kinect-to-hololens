@@ -90,7 +90,7 @@
       "url": "https://packages.unity.com"
     },
     "telepresence-toolkit": {
-      "version": "file:C:/Users/Hanseul/GitHub/kinect-to-hololens/unity/TelepresenceToolkit",
+      "version": "file:C:/Users/Hanseul/GitHub/kinect-to-hololens/telepresence-toolkit/unity/TelepresenceToolkit",
       "depth": 0,
       "source": "local",
       "dependencies": {}
