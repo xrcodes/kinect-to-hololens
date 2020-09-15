@@ -33,8 +33,8 @@ target_include_directories(KinectToHololensSenderApp PRIVATE
 target_link_libraries(KinectToHololensSenderApp
   KinectToHololensSenderModules
   ${Libvpx_LIB}
-  ImguiExamples
   imgui::imgui
+  d3d11.lib
 )
 set_target_properties(KinectToHololensSenderApp PROPERTIES
   CXX_STANDARD 17
