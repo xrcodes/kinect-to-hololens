@@ -3,7 +3,9 @@
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
+#define NOMINMAX
 #include <d3d11.h>
+#undef NOMINMAX
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <tchar.h>

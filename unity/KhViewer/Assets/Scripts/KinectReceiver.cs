@@ -22,7 +22,7 @@ public class KinectReceiver
     public PrepareState State { get; private set; }
     
     public KinectOrigin KinectOrigin { get; private set; }
-    public TextureGroupUpdater TextureGroupUpdater { get; private set; }
+    public TextureSetUpdater TextureGroupUpdater { get; private set; }
     private VideoMessageAssembler videoMessageAssembler;
     private AudioPacketReceiver audioPacketReceiver;
     private Stopwatch heartbeatStopWatch;
@@ -39,7 +39,7 @@ public class KinectReceiver
     {
         State = PrepareState.Prepared;
         KinectOrigin = kinectOrigin;
-        TextureGroupUpdater = new TextureGroupUpdater(kinectOrigin.Screen.Material, ReceiverSessionId, SenderEndPoint);
+        TextureGroupUpdater = new TextureSetUpdater(kinectOrigin.Screen.Material, ReceiverSessionId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverSessionId, SenderEndPoint);
         audioPacketReceiver = new AudioPacketReceiver();
         heartbeatStopWatch = Stopwatch.StartNew();

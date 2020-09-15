@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using UnityEngine;
 
-public class TextureGroupUpdater
+public class TextureSetUpdater
 {
     private PrepareState state;
     private int sessionId;
@@ -13,7 +12,7 @@ public class TextureGroupUpdater
 
     private Material azureKinectScreenMaterial;
 
-    private TextureGroup textureGroup;
+    private TextureSet textureSet;
 
     public int lastVideoFrameId;
 
@@ -24,14 +23,14 @@ public class TextureGroupUpdater
 
     public PrepareState State => state;
 
-    public TextureGroupUpdater(Material azureKinectScreenMaterial, int sessionId, IPEndPoint endPoint)
+    public TextureSetUpdater(Material azureKinectScreenMaterial, int sessionId, IPEndPoint endPoint)
     {
         state = PrepareState.Unprepared;
 
         this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
-        textureGroup = new TextureGroup();
-        UnityEngine.Debug.Log($"textureGroup id: {textureGroup.GetId()}");
+        textureSet = new TextureSet();
+        UnityEngine.Debug.Log($"textureGroup id: {textureSet.GetId()}");
 
         lastVideoFrameId = -1;
 
@@ -60,21 +59,21 @@ public class TextureGroupUpdater
 
         state = PrepareState.Preparing;
 
-        textureGroup.SetWidth(videoMessageData.width);
-        textureGroup.SetHeight(videoMessageData.height);
-        TelepresenceToolkitPlugin.InitTextureGroup(textureGroup.GetId());
+        textureSet.SetWidth(videoMessageData.width);
+        textureSet.SetHeight(videoMessageData.height);
+        TelepresenceToolkitPlugin.InitTextureGroup(textureSet.GetId());
 
         depthDecoder = new TrvlDecoder(videoMessageData.width * videoMessageData.height);
 
         state = PrepareState.Prepared;
 
-        while (!textureGroup.IsInitialized())
+        while (!textureSet.IsInitialized())
             yield return null;
 
         // TextureGroup includes Y, U, V, and a depth texture.
-        azureKinectScreenMaterial.SetTexture("_YTex", textureGroup.GetYTexture());
-        azureKinectScreenMaterial.SetTexture("_UvTex", textureGroup.GetUvTexture());
-        azureKinectScreenMaterial.SetTexture("_DepthTex", textureGroup.GetDepthTexture());
+        azureKinectScreenMaterial.SetTexture("_YTex", textureSet.GetYTexture());
+        azureKinectScreenMaterial.SetTexture("_UvTex", textureSet.GetUvTexture());
+        azureKinectScreenMaterial.SetTexture("_DepthTex", textureSet.GetDepthTexture());
 
         state = PrepareState.Prepared;
     }
@@ -151,10 +150,10 @@ public class TextureGroupUpdater
         udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId, lastVideoFrameId), endPoint);
 
         //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
-        textureGroup.SetAvFrame(avFrame);
+        textureSet.SetAvFrame(avFrame);
         //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
-        textureGroup.SetDepthPixels(depthPixels);
-        TelepresenceToolkitPlugin.UpdateTextureGroup(textureGroup.GetId());
+        textureSet.SetDepthPixels(depthPixels);
+        TelepresenceToolkitPlugin.UpdateTextureGroup(textureSet.GetId());
 
         // Remove frame messages before the rendered frame.
         var frameMessageKeys = new List<int>();

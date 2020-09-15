@@ -21,40 +21,40 @@ public static class TelepresenceToolkitPlugin
     public static extern IntPtr get_render_event_function_pointer();
 
     [DllImport(DLL_NAME)]
-    public static extern void texture_group_reset();
+    public static extern void texture_set_reset();
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr texture_group_create();
+    public static extern IntPtr texture_set_create();
 
     [DllImport(DLL_NAME)]
-    public static extern int texture_group_get_id(IntPtr textureGroup);
+    public static extern int texture_set_get_id(IntPtr textureSet);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr texture_group_get_y_texture_view(IntPtr textureGroup);
+    public static extern IntPtr texture_set_get_y_texture_view(IntPtr textureSet);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr texture_group_get_uv_texture_view(IntPtr textureGroup);
+    public static extern IntPtr texture_set_get_uv_texture_view(IntPtr textureSet);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr texture_group_get_depth_texture_view(IntPtr textureGroup);
+    public static extern IntPtr texture_set_get_depth_texture_view(IntPtr textureSet);
 
     [DllImport(DLL_NAME)]
-    public static extern int texture_group_get_width(IntPtr textureGroup);
+    public static extern int texture_set_get_width(IntPtr textureSet);
 
     [DllImport(DLL_NAME)]
-    public static extern void texture_group_set_width(IntPtr textureGroup, int width);
+    public static extern void texture_set_set_width(IntPtr textureSet, int width);
 
     [DllImport(DLL_NAME)]
-    public static extern int texture_group_get_height(IntPtr textureGroup);
+    public static extern int texture_set_get_height(IntPtr textureSet);
 
     [DllImport(DLL_NAME)]
-    public static extern void texture_group_set_height(IntPtr textureGroup, int height);
+    public static extern void texture_set_set_height(IntPtr textureSet, int height);
 
     [DllImport(DLL_NAME)]
-    public static extern void texture_group_set_av_frame(IntPtr textureGroup, IntPtr av_frame_ptr);
+    public static extern void texture_set_set_av_frame(IntPtr textureSet, IntPtr avFrame);
 
     [DllImport(DLL_NAME)]
-    public static extern void texture_group_set_depth_pixels(IntPtr textureGroup, IntPtr depth_pixels_ptr);
+    public static extern void texture_set_set_depth_pixels(IntPtr textureSet, IntPtr depthPixels);
 
     [DllImport(DLL_NAME)]
     public static extern IntPtr create_vp8_decoder();
@@ -63,31 +63,31 @@ public static class TelepresenceToolkitPlugin
     public static extern void delete_vp8_decoder(IntPtr ptr);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr vp8_decoder_decode(IntPtr decoder_ptr, IntPtr frame_ptr, int frame_size);
+    public static extern IntPtr vp8_decoder_decode(IntPtr decoder, IntPtr frame, int frameSize);
 
     [DllImport(DLL_NAME)]
     public static extern void delete_av_frame(IntPtr ptr);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr create_trvl_decoder(int frame_size);
+    public static extern IntPtr create_trvl_decoder(int frameSize);
 
     [DllImport(DLL_NAME)]
     public static extern void delete_trvl_decoder(IntPtr ptr);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr trvl_decoder_decode(IntPtr decoder_ptr, IntPtr frame_ptr, int frame_size, bool keyframe);
+    public static extern IntPtr trvl_decoder_decode(IntPtr decoder, IntPtr frame, int frameSize, bool keyframe);
 
     [DllImport(DLL_NAME)]
     public static extern void delete_depth_pixels(IntPtr ptr);
 
     [DllImport(DLL_NAME)]
-    public static extern IntPtr create_opus_decoder(int sample_rate, int channel_count);
+    public static extern IntPtr create_opus_decoder(int sampleRate, int channelCount);
 
     [DllImport(DLL_NAME)]
     public static extern void delete_opus_decoder(IntPtr ptr);
 
     [DllImport(DLL_NAME)]
-    public static extern int opus_decoder_decode(IntPtr decoder_ptr, IntPtr opus_frame_data, int opus_frame_size, IntPtr pcm_data, int frame_size);
+    public static extern int opus_decoder_decode(IntPtr decoder, IntPtr opusFrameData, int opusFrameSize, IntPtr pcmData, int frameSize);
 
     public static void InitTextureGroup(int textureGroupId)
     {
