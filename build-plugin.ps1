@@ -7,15 +7,15 @@ $msBuilds = Get-ChildItem $vsPath -recurse -filter "MSBuild.exe"
 $msBuild = $msBuilds[0].FullName
 
 $configuration = "RelWithDebInfo"
-$buildPath = (Get-Location).path + "\cpp\build"
+$buildPath = (Get-Location).path + "\telepresence-toolkit\build"
 
-&$msBuild ("/t:TelepresenceToolkitUnity", "/p:Configuration=$configuration", "/p:Platform=Win32", "$buildPath\x86\KinectToHololens.sln")
-&$msBuild ("/t:TelepresenceToolkitUnity", "/p:Configuration=$configuration", "/p:Platform=x64", "$buildPath\x64\KinectToHololens.sln")
+&$msBuild ("/t:TelepresenceToolkitUnity", "/p:Configuration=$configuration", "/p:Platform=Win32", "$buildPath\x86\TelepresenceToolkit.sln")
+&$msBuild ("/t:TelepresenceToolkitUnity", "/p:Configuration=$configuration", "/p:Platform=x64", "$buildPath\x64\TelepresenceToolkit.sln")
 
 $packagePath = (Get-Location).path + "\unity\TelepresenceToolkit"
 
-$x86Path = "$buildPath\x86\telepresence-toolkit\unity\$configuration"
-$x64Path = "$buildPath\x64\telepresence-toolkit\unity\$configuration"
+$x86Path = "$buildPath\x86\src\unity\$configuration"
+$x64Path = "$buildPath\x64\src\unity\$configuration"
 $editorPath = "$packagePath\Editor\Plugins"
 $uwpPluginPath = "$packagePath\Runtime\Plugins\UWP\x86"
 

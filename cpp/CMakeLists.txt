@@ -1,12 +1,14 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.17)
 project(KinectToHololens)
 
 # Include headers from src.
 include_directories(${PROJECT_SOURCE_DIR}/src)
+
 # Include headers from telepresence-toolkit.
 include_directories(${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src)
+
 # Include headers from vcpkg.
-find_path(VCPKG_INCLUDE_DIR NAMES asio.hpp)
+find_path(VCPKG_INCLUDE_DIR NAMES zlib.h)
 include_directories(${VCPKG_INCLUDE_DIR})
 
 # Find Azure Kinect directories.
@@ -19,9 +21,6 @@ else()
 	set(AZURE_KINECT_LIB ${AZURE_KINECT_DIR}/sdk/windows-desktop/x86/release/lib)
 endif()
 
-# Prepare ${Libvpx_LIB} linking to libvpx.
-set(Libvpx_LIB ${VCPKG_INCLUDE_DIR}/../lib/vpxmd.lib)
-
 # Prepare ${FFMPEG_LIBRARIES} for linking to FFmpeg.
 unset(FFMPEG_LIBRARIES CACHE)
 foreach(FFMPEG_SUBLIBRARY avcodec avutil)
@@ -29,17 +28,20 @@ foreach(FFMPEG_SUBLIBRARY avcodec avutil)
   list(APPEND FFMPEG_LIBRARIES ${FFMPEG_lib${FFMPEG_SUBLIBRARY}_LIBRARY})
 endforeach()
 
-# Prepare ${OpenCV_LIBS} for OpenCV.
-find_package(OpenCV REQUIRED)
-
-# Prepare libsoundio::libsoundio.
-find_package(libsoundio CONFIG REQUIRED)
+# Prepare Opus::opus.
+find_package(Opus CONFIG REQUIRED)
 
 # Prepare imgui::imgui.
 find_package(imgui CONFIG REQUIRED)
 
-# Prepare Opus::opus.
-find_package(Opus CONFIG REQUIRED)
+# Prepare libsoundio::libsoundio.
+find_package(libsoundio CONFIG REQUIRED)
+
+# Prepare ${Libvpx_LIB} linking to libvpx.
+set(Libvpx_LIB ${VCPKG_INCLUDE_DIR}/../lib/vpxmd.lib)
+
+# Prepare ${OpenCV_LIBS} for OpenCV.
+find_package(OpenCV REQUIRED)
 
 # Add files in /src.
 add_subdirectory(src)
