@@ -22,7 +22,7 @@ include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/../telepr
 
 # By adding the directory containing asio.hpp, that is the directory containing
 # all header files of vcpkg, header files from vcpkg can be included to this project.
-find_path(VCPKG_INCLUDE_DIR NAMES asio.hpp PATH_SUFFIXES asio)
+find_path(VCPKG_INCLUDE_DIR NAMES asio.hpp)
 include_directories(${VCPKG_INCLUDE_DIR})
 
 set(Libvpx_LIB ${VCPKG_INCLUDE_DIR}/../lib/vpxmd.lib)
