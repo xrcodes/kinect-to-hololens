@@ -43,9 +43,9 @@ public class SenderPacketCollection
     }
 };
 
-public static class SenderPacketReceiver
+public static class SenderPacketClassifier
 {
-    public static SenderPacketCollection Receive(UdpSocket udpSocket, List<RemoteSender> remoteSenders)
+    public static SenderPacketCollection Classify(UdpSocket udpSocket, List<RemoteSender> remoteSenders)
     {
         var senderEndPoints = new List<IPEndPoint>();
         var senderPacketCollection = new SenderPacketCollection();

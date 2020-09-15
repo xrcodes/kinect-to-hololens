@@ -207,20 +207,19 @@ public class ViewerManager : MonoBehaviour
     {
         try
         {
-            var senderPacketCollection = SenderPacketReceiver.Receive(udpSocket, remoteSenders);
+            var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, remoteSenders);
             foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
             {
                 if (remoteSenders.Exists(x => x.SenderSessionId == confirmPacketInfo.SenderSessionId))
                     continue;
 
-                // There should be a receiver trying to connect that the confirmation matches.
+                // Create a KinectReceiver if there is none with the ID yet.
                 var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == confirmPacketInfo.ConfirmPacketData.receiverSessionId);
-                if (kinectReceiver == null)
+                if (kinectReceiver != null)
                     continue;
 
-                // Also, the receiver should not have been prepared with a ConfirmSenderPacket yet.
-                if (kinectReceiver.State != PrepareState.Unprepared)
-                    continue;
+                kinectReceiver = new KinectReceiver(confirmPacketInfo.ConfirmPacketData.receiverSessionId, confirmPacketInfo.SenderEndPoint);
+                kinectReceivers.Add(kinectReceiver);
 
                 var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
 
@@ -339,36 +338,16 @@ public class ViewerManager : MonoBehaviour
         TextToaster.Toast($"Try connecting to a Sender at {endPoint}...");
 
         var random = new System.Random();
-        int receiverId;
-        // Avoiding accidentally using the same randomly created number.
-        while (true)
-        {
-            receiverId = random.Next();
-            if (kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == receiverId) == null)
-                break;
-        }
+        int receiverId = random.Next();
 
-        var kinectReceiver = new KinectReceiver(receiverId, endPoint);
-        kinectReceivers.Add(kinectReceiver);
-
-        // Nudge the sender until a confirm packet is received.
+        // Nudge the sender five times.
         for (int i = 0; i < 5; ++i)
         {
-            if (kinectReceiver.State != PrepareState.Unprepared)
-            {
-                --connectingCount;
-                return;
-            }
-
             udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverId, true, true), endPoint);
             print($"Sent connect packet #{i}");
 
             await Task.Delay(300);
         }
-
-        // Give up and forget about the connection if a confirm packet has not been received after all the connect packets.
-        if (kinectReceiver.State == PrepareState.Unprepared)
-            kinectReceivers.Remove(kinectReceiver);
 
         --connectingCount;
     }
