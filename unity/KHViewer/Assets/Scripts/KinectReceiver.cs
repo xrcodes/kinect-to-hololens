@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -51,7 +51,7 @@ public class KinectReceiver
         // UpdateFrame() should not be called before Prepare().
         Assert.AreEqual(PrepareState.Prepared, State);
 
-        var videoMessageList = new List<Tuple<int, VideoSenderMessageData>>();
+        var videoMessages = new SortedDictionary<int, VideoSenderMessageData>();
         try
         {
             if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
@@ -76,14 +76,18 @@ public class KinectReceiver
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,
                                                TextureGroupUpdater.lastFrameId,
-                                               videoMessageList);
+                                               videoMessages);
 
-                if (videoMessageList.Count > 0)
+                if (videoMessages.Count > 0)
                 {
                     if (KinectOrigin.Screen.State == PrepareState.Unprepared)
                     {
-                        KinectOrigin.Screen.StartPrepare(videoMessageList[0].Item2);
-                        TextureGroupUpdater.StartPrepare(monoBehaviour, videoMessageList[0].Item2);
+                        foreach (var videoMessagePair in videoMessages)
+                        {
+                            KinectOrigin.Screen.StartPrepare(videoMessagePair.Value);
+                            TextureGroupUpdater.StartPrepare(monoBehaviour, videoMessagePair.Value);
+                            break;
+                        }
                     }
                 }
 
@@ -115,8 +119,8 @@ public class KinectReceiver
             KinectOrigin.ProgressTextVisibility = false;
         }
 
-        KinectOrigin.UpdateFrame(videoMessageList);
-        TextureGroupUpdater.UpdateFrame(udpSocket, videoMessageList);
+        KinectOrigin.UpdateFrame(videoMessages);
+        TextureGroupUpdater.UpdateFrame(udpSocket, videoMessages);
 
         return true;
     }

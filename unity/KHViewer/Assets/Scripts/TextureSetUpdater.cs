@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using UnityEngine;
 
@@ -75,7 +74,7 @@ public class TextureSetUpdater
         state = PrepareState.Prepared;
     }
 
-    public void UpdateFrame(UdpSocket udpSocket, List<Tuple<int, VideoSenderMessageData>> videoMessageList)
+    public void UpdateFrame(UdpSocket udpSocket, SortedDictionary<int, VideoSenderMessageData> videoMessages)
     {
         if (state != PrepareState.Prepared)
         {
@@ -87,11 +86,11 @@ public class TextureSetUpdater
         if (lastFrameId == -1)
         {
             // For the first frame, find a keyframe.
-            foreach (var videoMessagePair in videoMessageList)
+            foreach (var videoMessagePair in videoMessages)
             {
-                if (videoMessagePair.Item2.keyframe)
+                if (videoMessagePair.Value.keyframe)
                 {
-                    frameIdToRender = videoMessagePair.Item1;
+                    frameIdToRender = videoMessagePair.Key;
                     break;
                 }
             }
@@ -99,19 +98,19 @@ public class TextureSetUpdater
         else
         {
             // If there is a key frame, use the most recent one.
-            foreach (var videoMessagePair in videoMessageList)
+            foreach (var videoMessagePair in videoMessages)
             {
-                if (videoMessagePair.Item1 <= lastFrameId)
+                if (videoMessagePair.Key <= lastFrameId)
                     continue;
 
-                if (videoMessagePair.Item2.keyframe)
-                    frameIdToRender = videoMessagePair.Item1;
+                if (videoMessagePair.Value.keyframe)
+                    frameIdToRender = videoMessagePair.Key;
             }
 
             // Find if there is the next frame.
             if (!frameIdToRender.HasValue)
             {
-                if (videoMessageList.FirstOrDefault(x => x.Item1 == (lastFrameId + 1)) != null)
+                if (videoMessages.ContainsKey(lastFrameId + 1))
                     frameIdToRender = lastFrameId + 1;
             }
         }
@@ -121,7 +120,7 @@ public class TextureSetUpdater
             return;
         }
 
-        var videoMessage = videoMessageList.First(x => x.Item1 == frameIdToRender).Item2;
+        var videoMessage = videoMessages[frameIdToRender.Value];
         AVFrame avFrame = colorDecoder.Decode(videoMessage.colorEncoderFrame);
         DepthPixels depthPixels = depthDecoder.Decode(videoMessage.depthEncoderFrame, videoMessage.keyframe);
 
