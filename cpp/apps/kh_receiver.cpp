@@ -32,9 +32,8 @@ std::optional<std::pair<int, std::shared_ptr<VideoSenderMessage>>> find_frame_to
             if (frame_id <= *last_frame_id)
                 continue;
 
-            if (video_message->keyframe) {
+            if (video_message->keyframe)
                 frame_id_to_render = frame_id;
-            }
         }
 
         // Find if there is the next frame.

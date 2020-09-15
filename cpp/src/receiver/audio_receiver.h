@@ -2,7 +2,7 @@
 
 namespace kh
 {
-SoundIoRingBuffer* ring_buffer{nullptr};
+static SoundIoRingBuffer* ring_buffer{nullptr};
 
 void write_callback(SoundIoOutStream* outstream, int frame_count_min, int frame_count_max)
 {

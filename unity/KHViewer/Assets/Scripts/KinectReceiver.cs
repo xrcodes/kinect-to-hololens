@@ -75,7 +75,7 @@ public class KinectReceiver
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.FecPacketDataList,
-                                               TextureGroupUpdater.lastVideoFrameId,
+                                               TextureGroupUpdater.lastFrameId,
                                                videoMessageList);
 
                 if (videoMessageList.Count > 0)
