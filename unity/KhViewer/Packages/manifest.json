@@ -4,6 +4,7 @@
     "com.unity.xr.legacyinputhelpers": "2.1.4",
     "com.unity.xr.management": "3.2.13",
     "com.unity.xr.windowsmr": "2.2.0",
+    "telepresence-toolkit": "file:C:/Users/Hanseul/GitHub/kinect-to-hololens/unity/TelepresenceToolkit",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",

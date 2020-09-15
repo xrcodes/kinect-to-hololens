@@ -1,0 +1,11 @@
+{
+  "name": "telepresence-toolkit",
+  "version": "0.1.0",
+  "displayName": "Telepresence Toolkit",
+  "unity": "2019.4",
+  "author": {
+    "name": "Hanseul Jun",
+    "email": "hanseuljun@gmail.com",
+    "url": "https://hanseuljun.com"
+  }
+}

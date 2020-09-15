@@ -53,7 +53,7 @@ std::optional<std::pair<int, std::shared_ptr<VideoSenderMessage>>> find_frame_to
 }
 }
 
-void start_session(const std::string ip_address, const int port, const int receiver_id)
+void start_receiver(const std::string ip_address, const unsigned short port, const int receiver_id)
 {
     constexpr int RECEIVER_RECEIVE_BUFFER_SIZE{128 * 1024};
     constexpr float HEARTBEAT_INTERVAL_SEC{1.0f};
@@ -63,7 +63,6 @@ void start_session(const std::string ip_address, const int port, const int recei
 
     asio::io_context io_context;
     asio::ip::udp::socket socket(io_context, asio::ip::udp::v4());
-    //std::cout << "endpoint: " << socket.remote_endpoint().port() << "\n";
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
 
     asio::ip::udp::endpoint sender_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow<unsigned short>(port)};
@@ -172,7 +171,7 @@ void start_session(const std::string ip_address, const int port, const int recei
 
 void start()
 {
-    constexpr int PORT{3773};
+    constexpr unsigned short PORT{3773};
 
     for (;;) {
         // Receive IP address from the user.
@@ -184,8 +183,7 @@ void start()
             ip_address = "127.0.0.1";
 
         const int receiver_id{gsl::narrow<const int>(std::random_device{}() % (static_cast<unsigned int>(INT_MAX) + 1))};
-
-        start_session(ip_address, PORT, receiver_id);
+        start_receiver(ip_address, PORT, receiver_id);
     }
 }
 }
