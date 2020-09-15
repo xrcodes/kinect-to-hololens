@@ -18,10 +18,15 @@ public class TrvlDecoder
 
     public TrvlFrame Decode(byte[] frame, bool keyframe)
     {
-        IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
-        Marshal.Copy(frame, 0, bytes, frame.Length);
+        //IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
+        //Marshal.Copy(frame, 0, bytes, frame.Length);
+        //var trvlFrame = new TrvlFrame(TelepresenceToolkitPlugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
+        //Marshal.FreeHGlobal(bytes);
+
+        GCHandle handle = GCHandle.Alloc(frame, GCHandleType.Pinned);
+        IntPtr bytes = handle.AddrOfPinnedObject();
         var trvlFrame = new TrvlFrame(TelepresenceToolkitPlugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
-        Marshal.FreeHGlobal(bytes);
+        handle.Free();
 
         return trvlFrame;
     }

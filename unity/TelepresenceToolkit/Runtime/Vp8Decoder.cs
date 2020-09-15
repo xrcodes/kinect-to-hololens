@@ -18,11 +18,11 @@ public class Vp8Decoder
 
     public AVFrame Decode(byte[] frame)
     {
-        IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
-        Marshal.Copy(frame, 0, bytes, frame.Length);
-        var ffmpegFrame =  new AVFrame(TelepresenceToolkitPlugin.vp8_decoder_decode(ptr, bytes, frame.Length));
-        Marshal.FreeHGlobal(bytes);
+        GCHandle handle = GCHandle.Alloc(frame, GCHandleType.Pinned);
+        IntPtr bytes = handle.AddrOfPinnedObject();
+        var avFrame = new AVFrame(TelepresenceToolkitPlugin.vp8_decoder_decode(ptr, bytes, frame.Length));
+        handle.Free();
 
-        return ffmpegFrame;
+        return avFrame;
     }
 }

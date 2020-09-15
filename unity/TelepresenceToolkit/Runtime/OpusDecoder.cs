@@ -15,7 +15,6 @@ public class OpusDecoder
         TelepresenceToolkitPlugin.delete_opus_decoder(ptr);
     }
 
-    //public int Decode(byte[] opusFrame, ref IntPtr pcm, int frameSize)
     public int Decode(byte[] opusFrame, float[] pcm, int frameSize)
     {
         IntPtr nativePcm = Marshal.AllocHGlobal(sizeof(float) * pcm.Length);
