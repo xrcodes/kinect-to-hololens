@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/tt_core.h"
 #include <k4a/k4a.h>
+#include "core/tt_core.h"
 
 namespace k4a
 {
@@ -266,7 +266,7 @@ struct RequestReceiverPacket
     int receiver_id{0};
     ReceiverPacketType type{ReceiverPacketType::Request};
     int frame_id{0};
-    bool all_packets;
+    bool all_packets{false};
     std::vector<int> video_packet_indices;
     std::vector<int> parity_packet_indices;
 };

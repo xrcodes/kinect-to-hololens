@@ -29,8 +29,6 @@ add_executable(KinectToHololensSenderApp
 )
 target_include_directories(KinectToHololensSenderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
-  ${AZURE_KINECT_SAMPLES_DIR}
-  ${IMGUI_EXAMPLES_DIR}
 )
 target_link_libraries(KinectToHololensSenderApp
   KinectToHololensSenderModules

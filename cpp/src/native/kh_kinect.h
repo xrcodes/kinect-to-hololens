@@ -2,8 +2,7 @@
 
 #include <optional>
 #pragma warning(push)
-#pragma warning(disable: 26495)
-#pragma warning(disable: 26812)
+#pragma warning(disable: 26495 26812)
 #include <k4arecord/playback.hpp>
 #pragma warning(pop)
 #include "core/tt_core.h"

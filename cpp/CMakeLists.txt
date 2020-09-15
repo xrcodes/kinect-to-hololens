@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.13)
 project(KinectToHololens)
 
+# Include headers from src.
+include_directories(${PROJECT_SOURCE_DIR}/src)
+# Include headers from telepresence-toolkit.
+include_directories(${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src)
+# Include headers from vcpkg.
+find_path(VCPKG_INCLUDE_DIR NAMES asio.hpp)
+include_directories(${VCPKG_INCLUDE_DIR})
+
+# Find Azure Kinect directories.
 set(AZURE_KINECT_DIR $ENV{PROGRAMFILES}/Azure\ Kinect\ SDK\ v1.4.1)
 if(CMAKE_SIZEOF_VOID_P GREATER 4)
 	set(AZURE_KINECT_BIN ${AZURE_KINECT_DIR}/sdk/windows-desktop/amd64/release/bin)
@@ -10,44 +19,33 @@ else()
 	set(AZURE_KINECT_LIB ${AZURE_KINECT_DIR}/sdk/windows-desktop/x86/release/lib)
 endif()
 
-message(STATUS ${AZURE_KINECT_BIN})
-
-# To keep asio quite from leaving a lot of warnings.
-# reference: https://github.com/chriskohlhoff/asio/issues/290
-add_definitions(-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING)
-
-# Assign the top directory as a directory to include.
-# This allows including header files without the ".."s.
-include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src")
-
-# By adding the directory containing asio.hpp, that is the directory containing
-# all header files of vcpkg, header files from vcpkg can be included to this project.
-find_path(VCPKG_INCLUDE_DIR NAMES asio.hpp)
-include_directories(${VCPKG_INCLUDE_DIR})
-
+# Prepare ${Libvpx_LIB} linking to libvpx.
 set(Libvpx_LIB ${VCPKG_INCLUDE_DIR}/../lib/vpxmd.lib)
 
-# Set ${FFMPEG_LIBRARIES} for FFmpeg.
+# Prepare ${FFMPEG_LIBRARIES} for linking to FFmpeg.
 unset(FFMPEG_LIBRARIES CACHE)
 foreach(FFMPEG_SUBLIBRARY avcodec avutil)
   find_library(FFMPEG_lib${FFMPEG_SUBLIBRARY}_LIBRARY NAMES ${FFMPEG_SUBLIBRARY})
   list(APPEND FFMPEG_LIBRARIES ${FFMPEG_lib${FFMPEG_SUBLIBRARY}_LIBRARY})
 endforeach()
 
-# Set ${OpenCV_LIBS} for OpenCV.
+# Prepare ${OpenCV_LIBS} for OpenCV.
 find_package(OpenCV REQUIRED)
 
+# Prepare libsoundio::libsoundio.
 find_package(libsoundio CONFIG REQUIRED)
 
+# Prepare imgui::imgui.
 find_package(imgui CONFIG REQUIRED)
 
+# Prepare Opus::opus.
 find_package(Opus CONFIG REQUIRED)
 
-set(AZURE_KINECT_SAMPLES_DIR ${PROJECT_SOURCE_DIR}/azure-kinect-samples)
-set(IMGUI_EXAMPLES_DIR ${PROJECT_SOURCE_DIR}/imgui-1.73-examples)
-
-# The directory for general source files.
+# Add files in /src.
 add_subdirectory(src)
+
+# Add files from telepresence-toolkit.
 add_subdirectory(${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src telepresence-toolkit)
-# The directory for cpp files corresponding to exe files.
+
+# Add files for the applications.
 add_subdirectory(apps)

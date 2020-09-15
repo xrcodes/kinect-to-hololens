@@ -153,7 +153,7 @@ void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, in
         if (!areas) {
             // Due to an overflow there is a hole. Fill the ring buffer with
             // silence for the size of the hole.
-            memset(write_ptr, 0, frame_count * bytes_per_frame);
+            memset(write_ptr, 0, static_cast<long long>(frame_count) * bytes_per_frame);
             printf("Dropped %d frames due to internal overflow\n", frame_count);
         } else {
             for (int frame = 0; frame < frame_count; frame += 1) {

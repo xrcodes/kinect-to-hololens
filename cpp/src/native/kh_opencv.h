@@ -1,6 +1,9 @@
 #pragma once
 
+#pragma warning(push)
+#pragma warning(disable: 6201 6294 6269 26439 26451 26495 26812)
 #include <opencv2/opencv.hpp>
+#pragma warning(pop)
 #include "core/tt_core.h"
 
 namespace kh
