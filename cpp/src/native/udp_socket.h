@@ -40,7 +40,7 @@ class UdpSocket
 public:
     UdpSocket(asio::ip::udp::socket&& socket);
     ~UdpSocket();
-    std::optional<UdpSocketPacket> receive();
+    std::optional<UdpSocketPacket> receive(const int max_packet_size);
     void send(gsl::span<const std::byte> bytes, asio::ip::udp::endpoint endpoint);
 
 private:

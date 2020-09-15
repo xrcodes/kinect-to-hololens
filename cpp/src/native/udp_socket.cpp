@@ -1,6 +1,6 @@
 #include "udp_socket.h"
 
-#include "packet.h"
+#include <iostream>
 
 namespace kh
 {
@@ -16,9 +16,9 @@ UdpSocket::~UdpSocket()
     socket_.close();
 }
 
-std::optional<UdpSocketPacket> UdpSocket::receive()
+std::optional<UdpSocketPacket> UdpSocket::receive(const int max_packet_size)
 {
-    std::vector<std::byte> bytes(KH_PACKET_SIZE);
+    std::vector<std::byte> bytes(max_packet_size);
     asio::ip::udp::endpoint endpoint;
     std::error_code error;
     const size_t packet_size{socket_.receive_from(asio::buffer(bytes), endpoint, 0, error)};

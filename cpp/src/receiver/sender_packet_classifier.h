@@ -17,7 +17,7 @@ public:
     {
         SenderPacketInfo sender_packet_info;
         sender_packet_info.received_any = false;
-        while (auto packet{udp_socket.receive()}) {
+        while (auto packet{udp_socket.receive(KH_PACKET_SIZE)}) {
             sender_packet_info.received_any = true;
             switch (get_packet_type_from_sender_packet_bytes(packet->bytes))
             {

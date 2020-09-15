@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include "native/kh_native.h"
 
 namespace kh
@@ -34,7 +35,15 @@ public:
             receiver_packet_collection.receiver_packet_infos.insert({receiver_id, ReceiverPacketInfo{}});
 
         // Iterate through all received UDP packets.
-        while (auto packet{udp_socket.receive()}) {
+        while (auto packet{udp_socket.receive(KH_PACKET_SIZE)}) {
+            // After an update with vcpkg, there started to be some zero-length datagrams arriving.
+            // Since they were never sent, I suspect this is a bug (or a new feature) from the newer version of asio, but not sure.
+            // TODO: Fix this in the right way.
+            if (packet->bytes.size() == 0) {
+                std::cout << "ReceiverPacketClassifier found a zero-length packet.\n";
+                continue;
+            }
+
             int receiver_id{get_receiver_id_from_receiver_packet_bytes(packet->bytes)};
             auto packet_type{get_packet_type_from_receiver_packet_bytes(packet->bytes)};
 

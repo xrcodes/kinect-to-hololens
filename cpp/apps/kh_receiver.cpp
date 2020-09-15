@@ -129,8 +129,7 @@ void start_receiver(const std::string ip_address, const unsigned short port, con
                 for (int frame_id = *last_frame_id + 1; frame_id < max_storage_frame_id; ++frame_id) {
                     auto request_packet_it{request_packets.find(frame_id)};
                     if (request_packet_it == request_packets.end()) {
-                        request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true,
-                                                                                            std::vector<int>(), std::vector<int>())});
+                        request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true, std::vector<int>(), std::vector<int>())});
                     }
                 }
             }
