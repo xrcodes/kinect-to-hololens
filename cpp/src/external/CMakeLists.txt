@@ -1,2 +1,13 @@
-# The directory for files from Azure Kinect samples (i.e., floor detection).
-add_subdirectory(azure-kinect-samples)
+add_library(AzureKinectSamples
+  FloorDetector.h
+  FloorDetector.cpp
+  PointCloudGenerator.h
+  PointCloudGenerator.cpp
+  SampleMathTypes.h
+ )
+target_include_directories(AzureKinectSamples PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
+set_target_properties(AzureKinectSamples PROPERTIES
+  CXX_STANDARD 17
+)

@@ -5,8 +5,8 @@
 #include "occlusion_remover.h"
 
 // These header files are from a Microsoft's Azure Kinect sample project.
-#include "external/azure-kinect-samples/PointCloudGenerator.h"
-#include "external/azure-kinect-samples/FloorDetector.h"
+#include "external/PointCloudGenerator.h"
+#include "external/FloorDetector.h"
 
 namespace kh
 {
