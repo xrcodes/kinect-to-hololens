@@ -101,6 +101,6 @@ public static class TelepresenceToolkitPlugin
 
     private static void InvokeRenderEvent(int renderEvent)
     {
-        GL.IssuePluginEvent(TelepresenceToolkitPlugin.get_render_event_function_pointer(), renderEvent);
+        GL.IssuePluginEvent(get_render_event_function_pointer(), renderEvent);
     }
 }

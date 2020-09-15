@@ -131,7 +131,7 @@ public class TextureGroupUpdater
         // ffmpegFrame and trvlFrame are guaranteed to be non-null
         // since the existence of beginIndex's value.
         AVFrame avFrame = null;
-        TrvlFrame trvlFrame = null;
+        DepthPixels depthPixels = null;
 
         for (int i = beginFrameId.Value; ; ++i)
         {
@@ -145,7 +145,7 @@ public class TextureGroupUpdater
             var depthEncoderFrame = frameMessage.depthEncoderFrame;
 
             avFrame = colorDecoder.Decode(colorEncoderFrame);
-            trvlFrame = depthDecoder.Decode(depthEncoderFrame, frameMessage.keyframe);
+            depthPixels = depthDecoder.Decode(depthEncoderFrame, frameMessage.keyframe);
         }
 
         udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId, lastVideoFrameId), endPoint);
@@ -153,7 +153,7 @@ public class TextureGroupUpdater
         //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
         textureGroup.SetAvFrame(avFrame);
         //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
-        textureGroup.SetTrvlFrame(trvlFrame);
+        textureGroup.SetDepthPixels(depthPixels);
         TelepresenceToolkitPlugin.UpdateTextureGroup(textureGroup.GetId());
 
         // Remove frame messages before the rendered frame.

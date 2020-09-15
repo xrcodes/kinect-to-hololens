@@ -49,7 +49,7 @@ void DepthTexture::updatePixels(ID3D11Device* device,
 								ID3D11DeviceContext* device_context,
 								int width,
 								int height,
-								uint16_t* pixels)
+								int16_t* pixels)
 {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	HRESULT hr = device_context->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
@@ -60,7 +60,7 @@ void DepthTexture::updatePixels(ID3D11Device* device,
 
 	// row_pitch should be divided by two to support uint16* since mapped.RowPitch is for bytes.
 	int row_pitch = mapped.RowPitch / 2;
-    auto texture_data = reinterpret_cast<uint16_t*>(mapped.pData);
+    auto texture_data = reinterpret_cast<int16_t*>(mapped.pData);
 
     //for (int i = 0; i < height; ++i)
     //    memcpy(texture_data + i * row_pitch, frame_data + i * frame_linesize, width);

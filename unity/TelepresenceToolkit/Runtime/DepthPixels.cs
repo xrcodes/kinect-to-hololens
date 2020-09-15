@@ -1,16 +1,15 @@
 ﻿using System;
 
-// A wrapper of a C++ vector for depth pixels.
-public class TrvlFrame
+public class DepthPixels
 {
     public IntPtr Ptr { get; private set; }
 
-    public TrvlFrame(IntPtr ptr)
+    public DepthPixels(IntPtr ptr)
     {
         Ptr = ptr;
     }
 
-    ~TrvlFrame()
+    ~DepthPixels()
     {
         TelepresenceToolkitPlugin.delete_depth_pixels(Ptr);
     }

@@ -1,6 +1,6 @@
 #include "texture_group.h"
 
-#include "interfaces/IUnityInterface.h"
+#include "external/IUnityInterface.h"
 
 std::unordered_map<int, std::unique_ptr<TextureGroup>> texture_groups_;
 int next_texture_group_id_;
@@ -32,7 +32,7 @@ void texture_group_update(int texture_group_id, ID3D11Device* device, ID3D11Devi
                                             texture_group->av_frame->data[2],
                                             texture_group->av_frame->linesize[2]);
 
-    texture_group->depth_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, reinterpret_cast<uint16_t*>(texture_group->depth_pixels.data()));
+    texture_group->depth_texture->updatePixels(device, device_context, texture_group->width, texture_group->height, texture_group->depth_pixels.data());
 }
 
 extern "C"

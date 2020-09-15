@@ -31,7 +31,7 @@ public:
     // These variables get set in the main thread of Unity, then gets assigned to textures in the render thread of Unity.
     tt::AVFrameHandle av_frame{nullptr};
     std::unique_ptr<tt::TrvlDecoder> depth_decoder;
-    std::vector<short> depth_pixels;
+    std::vector<int16_t> depth_pixels;
 
     TextureGroup(int id) : id{id} {};
 };

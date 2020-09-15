@@ -21,7 +21,7 @@ public:
 					  ID3D11DeviceContext* device_context,
 					  int width,
 					  int height,
-                      uint16_t* pixels);
+                      int16_t* pixels);
 
 private:
     int width_;

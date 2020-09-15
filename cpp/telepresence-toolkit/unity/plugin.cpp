@@ -1,9 +1,7 @@
-#include <opus/opus.h>
-#include "interfaces/IUnityInterface.h"
 #include "core/tt_core.h"
+#include "external/IUnityInterface.h"
 
-// External functions for Unity C# scripts.
-//"C" VoidPtr UNITY_INTERFACE_EXPORT UNITY_INTERFACE_API create_vp8_decoder()
+// Functions for Unity.
 extern "C"
 {
     UNITY_INTERFACE_EXPORT tt::Vp8Decoder* UNITY_INTERFACE_API create_vp8_decoder()

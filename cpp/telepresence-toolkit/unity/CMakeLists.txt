@@ -11,9 +11,9 @@ set(SOURCE_FILES
   texture_group.cpp
   two_channel_texture.h
   two_channel_texture.cpp
-  interfaces/IUnityGraphics.h
-  interfaces/IUnityGraphicsD3D11.h
-  interfaces/IUnityInterface.h
+  external/IUnityGraphics.h
+  external/IUnityGraphicsD3D11.h
+  external/IUnityInterface.h
 )
 
 add_library(TelepresenceToolkitUnity SHARED

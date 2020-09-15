@@ -16,18 +16,13 @@ public class TrvlDecoder
         TelepresenceToolkitPlugin.delete_trvl_decoder(ptr);
     }
 
-    public TrvlFrame Decode(byte[] frame, bool keyframe)
+    public DepthPixels Decode(byte[] frame, bool keyframe)
     {
-        //IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
-        //Marshal.Copy(frame, 0, bytes, frame.Length);
-        //var trvlFrame = new TrvlFrame(TelepresenceToolkitPlugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
-        //Marshal.FreeHGlobal(bytes);
-
         GCHandle handle = GCHandle.Alloc(frame, GCHandleType.Pinned);
         IntPtr bytes = handle.AddrOfPinnedObject();
-        var trvlFrame = new TrvlFrame(TelepresenceToolkitPlugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
+        var depthPixels = new DepthPixels(TelepresenceToolkitPlugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
         handle.Free();
 
-        return trvlFrame;
+        return depthPixels;
     }
 }

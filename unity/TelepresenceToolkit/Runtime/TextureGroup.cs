@@ -45,9 +45,9 @@ public class TextureGroup
         TelepresenceToolkitPlugin.texture_group_set_av_frame(ptr, avFrame.Ptr);
     }
 
-    public void SetTrvlFrame(TrvlFrame trvlFrame)
+    public void SetDepthPixels(DepthPixels depthPixels)
     {
-        TelepresenceToolkitPlugin.texture_group_set_depth_pixels(ptr, trvlFrame.Ptr);
+        TelepresenceToolkitPlugin.texture_group_set_depth_pixels(ptr, depthPixels.Ptr);
     }
 
     public Texture2D GetYTexture()

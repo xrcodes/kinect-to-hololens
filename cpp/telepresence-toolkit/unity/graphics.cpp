@@ -2,8 +2,8 @@
 #define NOMINMAX
 #include <d3d11.h>
 #undef NOMINMAX
-#include "interfaces/IUnityGraphics.h"
-#include "interfaces/IUnityGraphicsD3D11.h"
+#include "external/IUnityGraphics.h"
+#include "external/IUnityGraphicsD3D11.h"
 #include "texture_group.h"
 
 // Unity and Direct3D varaibles that are saved for future use that is mainly through OnRenderEvent().
