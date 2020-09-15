@@ -4,3 +4,6 @@
 [submodule "unity/dear-imgui-unity"]
 	path = unity/dear-imgui-unity
 	url = https://github.com/hanseuljun/dear-imgui-unity
+[submodule "telepresence-toolkit"]
+	path = telepresence-toolkit
+	url = https://github.com/hanseuljun/telepresence-toolkit.git
