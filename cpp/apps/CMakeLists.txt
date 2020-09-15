@@ -25,7 +25,7 @@ add_custom_command(TARGET KinectToHololensReaderApp POST_BUILD
 
 add_executable(KinectToHololensSenderApp
   kh_sender.cpp
-  resources/KinectSenderApp.rc
+  resources/kh_sender.rc
 )
 target_include_directories(KinectToHololensSenderApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"

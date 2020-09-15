@@ -110,7 +110,7 @@ void read_device_calibration()
 void start()
 {
     // First one is for running the application inside visual studio, and the other is for running the built application.
-    const std::vector<std::string> DATA_FOLDER_PATHS{"../../../../playback/", "../../../../../playback/"};
+    const std::vector<std::string> DATA_FOLDER_PATHS{"../../../playback/", "../../../../playback/"};
 
     for (;;) {
         auto data_folder(find_data_folder(DATA_FOLDER_PATHS));
