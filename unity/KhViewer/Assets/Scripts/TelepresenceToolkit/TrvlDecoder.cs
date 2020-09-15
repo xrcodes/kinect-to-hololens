@@ -8,19 +8,19 @@ public class TrvlDecoder
 
     public TrvlDecoder(int frameSize)
     {
-        ptr = Plugin.create_trvl_decoder(frameSize);
+        ptr = TelepresenceToolkitPlugin.create_trvl_decoder(frameSize);
     }
 
     ~TrvlDecoder()
     {
-        Plugin.delete_trvl_decoder(ptr);
+        TelepresenceToolkitPlugin.delete_trvl_decoder(ptr);
     }
 
     public TrvlFrame Decode(byte[] frame, bool keyframe)
     {
         IntPtr bytes = Marshal.AllocHGlobal(frame.Length);
         Marshal.Copy(frame, 0, bytes, frame.Length);
-        var trvlFrame = new TrvlFrame(Plugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
+        var trvlFrame = new TrvlFrame(TelepresenceToolkitPlugin.trvl_decoder_decode(ptr, bytes, frame.Length, keyframe));
         Marshal.FreeHGlobal(bytes);
 
         return trvlFrame;

@@ -12,6 +12,6 @@ public class TrvlFrame
 
     ~TrvlFrame()
     {
-        Plugin.delete_depth_pixels(Ptr);
+        TelepresenceToolkitPlugin.delete_depth_pixels(Ptr);
     }
 }

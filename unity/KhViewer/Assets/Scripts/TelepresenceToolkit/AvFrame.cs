@@ -12,6 +12,6 @@ public class AVFrame
 
     ~AVFrame()
     {
-        Plugin.delete_av_frame(Ptr);
+        TelepresenceToolkitPlugin.delete_av_frame(Ptr);
     }
 }

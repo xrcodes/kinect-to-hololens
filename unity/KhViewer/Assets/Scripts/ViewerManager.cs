@@ -28,7 +28,7 @@ public class ViewerManager : MonoBehaviour
 
     void Start()
     {
-        Plugin.texture_group_reset();
+        TelepresenceToolkitPlugin.texture_group_reset();
 
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 };
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));

@@ -62,7 +62,7 @@ public class TextureGroupUpdater
 
         textureGroup.SetWidth(videoMessageData.width);
         textureGroup.SetHeight(videoMessageData.height);
-        PluginHelper.InitTextureGroup(textureGroup.GetId());
+        TelepresenceToolkitPlugin.InitTextureGroup(textureGroup.GetId());
 
         depthDecoder = new TrvlDecoder(videoMessageData.width * videoMessageData.height);
 
@@ -154,7 +154,7 @@ public class TextureGroupUpdater
         textureGroup.SetAvFrame(avFrame);
         //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
         textureGroup.SetTrvlFrame(trvlFrame);
-        PluginHelper.UpdateTextureGroup(textureGroup.GetId());
+        TelepresenceToolkitPlugin.UpdateTextureGroup(textureGroup.GetId());
 
         // Remove frame messages before the rendered frame.
         var frameMessageKeys = new List<int>();

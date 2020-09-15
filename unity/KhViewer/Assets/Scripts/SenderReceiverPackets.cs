@@ -107,7 +107,7 @@ public class VideoSenderMessageData
 
     public int width;
     public int height;
-    public KinectCalibration.Intrinsics intrinsics;
+    public KinectIntrinsics intrinsics;
 
     public byte[] colorEncoderFrame;
     public byte[] depthEncoderFrame;
@@ -124,7 +124,7 @@ public class VideoSenderMessageData
         videoSenderMessageData.width = reader.ReadInt32();
         videoSenderMessageData.height = reader.ReadInt32();
 
-        var depthIntrinsics = new KinectCalibration.Intrinsics();
+        var depthIntrinsics = new KinectIntrinsics();
         depthIntrinsics.cx = reader.ReadSingle();
         depthIntrinsics.cy = reader.ReadSingle();
         depthIntrinsics.fx = reader.ReadSingle();

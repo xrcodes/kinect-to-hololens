@@ -7,13 +7,13 @@ public class KinectOrigin : MonoBehaviour
 {
     public TextMesh progressText;
     public Transform gimbalTransform;
-    public KinectScreen screen;
+    public KinectRenderer screen;
     public KinectSpeaker speaker;
     public Transform floorTransform;
     private Queue<Vector3> inversePlaneNormalQueue = new Queue<Vector3>();
     private Queue<float> inversePlaneHeightQueue = new Queue<float>();
 
-    public KinectScreen Screen => screen;
+    public KinectRenderer Screen => screen;
     public KinectSpeaker Speaker => speaker;
 
     public bool ProgressTextVisibility

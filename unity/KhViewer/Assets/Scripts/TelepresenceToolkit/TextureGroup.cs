@@ -7,47 +7,47 @@ public class TextureGroup
 
     public TextureGroup()
     {
-        ptr = Plugin.texture_group_create();
+        ptr = TelepresenceToolkitPlugin.texture_group_create();
     }
 
     public int GetId()
     {
-        return Plugin.texture_group_get_id(ptr);
+        return TelepresenceToolkitPlugin.texture_group_get_id(ptr);
     }
 
     public bool IsInitialized()
     {
-        return Plugin.texture_group_get_y_texture_view(ptr).ToInt64() != 0;
+        return TelepresenceToolkitPlugin.texture_group_get_y_texture_view(ptr).ToInt64() != 0;
     }
 
     public int GetWidth()
     {
-        return Plugin.texture_group_get_width(ptr);
+        return TelepresenceToolkitPlugin.texture_group_get_width(ptr);
     }
 
     public void SetWidth(int width)
     {
-        Plugin.texture_group_set_width(ptr, width);
+        TelepresenceToolkitPlugin.texture_group_set_width(ptr, width);
     }
 
     public int GetHeight()
     {
-        return Plugin.texture_group_get_height(ptr);
+        return TelepresenceToolkitPlugin.texture_group_get_height(ptr);
     }
 
     public void SetHeight(int height)
     {
-        Plugin.texture_group_set_height(ptr, height);
+        TelepresenceToolkitPlugin.texture_group_set_height(ptr, height);
     }
 
     public void SetAvFrame(AVFrame avFrame)
     {
-        Plugin.texture_group_set_av_frame(ptr, avFrame.Ptr);
+        TelepresenceToolkitPlugin.texture_group_set_av_frame(ptr, avFrame.Ptr);
     }
 
     public void SetTrvlFrame(TrvlFrame trvlFrame)
     {
-        Plugin.texture_group_set_depth_pixels(ptr, trvlFrame.Ptr);
+        TelepresenceToolkitPlugin.texture_group_set_depth_pixels(ptr, trvlFrame.Ptr);
     }
 
     public Texture2D GetYTexture()
@@ -57,7 +57,7 @@ public class TextureGroup
                                                TextureFormat.R8,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_y_texture_view(ptr));
+                                               TelepresenceToolkitPlugin.texture_group_get_y_texture_view(ptr));
     }
 
     public Texture2D GetUvTexture()
@@ -67,7 +67,7 @@ public class TextureGroup
                                                TextureFormat.RG16,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_uv_texture_view(ptr));
+                                               TelepresenceToolkitPlugin.texture_group_get_uv_texture_view(ptr));
     }
 
     public Texture2D GetDepthTexture()
@@ -77,6 +77,6 @@ public class TextureGroup
                                                TextureFormat.R16,
                                                false,
                                                false,
-                                               Plugin.texture_group_get_depth_texture_view(ptr));
+                                               TelepresenceToolkitPlugin.texture_group_get_depth_texture_view(ptr));
     }
 }
