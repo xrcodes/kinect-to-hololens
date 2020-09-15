@@ -45,14 +45,14 @@ public class SenderPacketCollection
 
 public static class SenderPacketClassifier
 {
-    public static SenderPacketCollection Classify(UdpSocket udpSocket, List<RemoteSender> remoteSenders)
+    public static SenderPacketCollection Classify(UdpSocket udpSocket, List<KinectReceiver> kinectReceivers)
     {
         var senderEndPoints = new List<IPEndPoint>();
         var senderPacketCollection = new SenderPacketCollection();
-        foreach (var remoteSender in remoteSenders)
+        foreach (var kinectReceiver in kinectReceivers)
         {
-            senderEndPoints.Add(remoteSender.SenderEndPoint);
-            senderPacketCollection.SenderPacketSets.Add(remoteSender.SenderSessionId, new SenderPacketSet());
+            senderEndPoints.Add(kinectReceiver.SenderEndPoint);
+            senderPacketCollection.SenderPacketSets.Add(kinectReceiver.SenderId, new SenderPacketSet());
         }
 
         // During this loop, SocketExceptions will have endpoint information.

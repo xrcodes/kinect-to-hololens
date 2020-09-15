@@ -23,7 +23,6 @@ public class ViewerManager : MonoBehaviour
 
     private ViewerScene viewerScene;
     private List<KinectReceiver> kinectReceivers;
-    private List<RemoteSender> remoteSenders;
     private int connectingCount;
 
     void Start()
@@ -36,7 +35,6 @@ public class ViewerManager : MonoBehaviour
 
         viewerScene = null;
         kinectReceivers = new List<KinectReceiver>();
-        remoteSenders = new List<RemoteSender>();
         connectingCount = 0;
 
         sharedSpaceAnchor.GizmoVisibility = false;
@@ -207,12 +205,9 @@ public class ViewerManager : MonoBehaviour
     {
         try
         {
-            var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, remoteSenders);
+            var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, kinectReceivers);
             foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
             {
-                if (remoteSenders.Exists(x => x.SenderSessionId == confirmPacketInfo.SenderId))
-                    continue;
-
                 // Create a KinectReceiver if there is none with the ID yet.
                 var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == confirmPacketInfo.ConfirmPacketData.receiverId);
                 if (kinectReceiver != null)
@@ -240,21 +235,14 @@ public class ViewerManager : MonoBehaviour
                 kinectReceiver.KinectOrigin.Speaker.Setup();
 
                 print($"Sender {confirmPacketInfo.SenderId} connected.");
-
-                remoteSenders.Add(new RemoteSender(confirmPacketInfo.SenderEndPoint,
-                                                   confirmPacketInfo.SenderId,
-                                                   confirmPacketInfo.ConfirmPacketData.receiverId));
             }
 
             // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
-            foreach (var remoteSender in remoteSenders.ToList())
+            //foreach (var remoteSender in remoteSenders.ToList())
+            foreach (var kinectReceiver in kinectReceivers.ToList())
             {
                 SenderPacketSet senderPacketSet;
-                if (!senderPacketCollection.SenderPacketSets.TryGetValue(remoteSender.SenderSessionId, out senderPacketSet))
-                    continue;
-
-                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == remoteSender.ReceiverSessionId);
-                if (kinectReceiver == null)
+                if (!senderPacketCollection.SenderPacketSets.TryGetValue(kinectReceiver.SenderId, out senderPacketSet))
                     continue;
 
                 if (kinectReceiver.State == PrepareState.Unprepared)
@@ -262,7 +250,6 @@ public class ViewerManager : MonoBehaviour
 
                 if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSet))
                 {
-                    remoteSenders.Remove(remoteSender);
                     kinectReceivers.Remove(kinectReceiver);
                     sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
                     connectionWindow.Visibility = true;
@@ -272,21 +259,16 @@ public class ViewerManager : MonoBehaviour
         catch (UdpSocketException e)
         {
             print($"UdpSocketException: {e}");
-            var remoteSender = remoteSenders.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
-            if (remoteSender != null)
+            var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
+            if (kinectReceiver != null)
             {
-                remoteSenders.Remove(remoteSender);
-                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == remoteSender.ReceiverSessionId);
-                if (kinectReceiver != null)
-                {
-                    kinectReceivers.Remove(kinectReceiver);
-                    sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
-                }
-                else
-                {
-                    print("Failed to find the KinectReceiver to remove...");
-                }
+                kinectReceivers.Remove(kinectReceiver);
+                sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
                 connectionWindow.Visibility = true;
+            }
+            else
+            {
+                print("Failed to find the KinectReceiver to remove...");
             }
         }
     }
