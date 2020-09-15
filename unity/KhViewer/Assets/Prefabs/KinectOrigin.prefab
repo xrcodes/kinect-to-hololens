@@ -408,7 +408,7 @@ GameObject:
   - component: {fileID: 5479693726970791576}
   - component: {fileID: 5479693726970791579}
   m_Layer: 0
-  m_Name: KinectScreen
+  m_Name: KinectRenderer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -484,7 +484,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5479693726970791557}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 81862ada3a8167c4987e9db056d2e499, type: 3}
+  m_Script: {fileID: 11500000, guid: 05a55e0ba8523e545ae4e54e00a4c245, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   shader: {fileID: 4800000, guid: 48fc2a51e1386c641bad367ea7a078c4, type: 3}
