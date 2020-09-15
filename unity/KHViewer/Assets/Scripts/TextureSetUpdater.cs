@@ -32,23 +32,17 @@ public class TextureSetUpdater
 
         lastFrameId = -1;
 
-        //textureGroup.SetWidth(initPacketData.depthWidth);
-        //textureGroup.SetHeight(initPacketData.depthHeight);
-        //PluginHelper.InitTextureGroup(textureGroup.GetId());
-
-        colorDecoder = new Vp8Decoder();
-        //depthDecoder = new TrvlDecoder(initPacketData.depthWidth * initPacketData.depthHeight);
 
         this.sessionId = sessionId;
         this.endPoint = endPoint;
     }
 
-    public void StartPrepare(MonoBehaviour monoBehaviour, VideoSenderMessageData videoMessageData)
+    public void StartPrepare(VideoSenderMessageData videoMessageData)
     {
-        monoBehaviour.StartCoroutine(SetupTextureGroup(videoMessageData));
+        CoroutineRunner.Run(Prepare(videoMessageData));
     }
 
-    public IEnumerator SetupTextureGroup(VideoSenderMessageData videoMessageData)
+    public IEnumerator Prepare(VideoSenderMessageData videoMessageData)
     {
         if(state != PrepareState.Unprepared)
             throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
@@ -59,6 +53,7 @@ public class TextureSetUpdater
         textureSet.SetHeight(videoMessageData.height);
         TelepresenceToolkitPlugin.InitTextureGroup(textureSet.GetId());
 
+        colorDecoder = new Vp8Decoder();
         depthDecoder = new TrvlDecoder(videoMessageData.width * videoMessageData.height);
 
         state = PrepareState.Prepared;
@@ -128,9 +123,7 @@ public class TextureSetUpdater
 
         udpSocket.Send(PacketHelper.createReportReceiverPacketBytes(sessionId, lastFrameId), endPoint);
 
-        //Plugin.texture_group_set_ffmpeg_frame(textureGroup, ffmpegFrame.Ptr);
         textureSet.SetAvFrame(avFrame);
-        //Plugin.texture_group_set_depth_pixels(textureGroup, trvlFrame.Ptr);
         textureSet.SetDepthPixels(depthPixels);
         TelepresenceToolkitPlugin.UpdateTextureGroup(textureSet.GetId());
     }

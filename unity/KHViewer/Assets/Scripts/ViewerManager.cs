@@ -261,7 +261,7 @@ public class ViewerManager : MonoBehaviour
                 if (kinectReceiver.State == PrepareState.Unprepared)
                     continue;
 
-                if (!kinectReceiver.UpdateFrame(this, udpSocket, senderPacketSet))
+                if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSet))
                 {
                     remoteSenders.Remove(remoteSender);
                     kinectReceivers.Remove(kinectReceiver);
@@ -339,15 +339,16 @@ public class ViewerManager : MonoBehaviour
         TextToaster.Toast($"Try connecting to a Sender at {endPoint}...");
 
         var random = new System.Random();
-        int receiverSessionId;
+        int receiverId;
+        // Avoiding accidentally using the same randomly created number.
         while (true)
         {
-            receiverSessionId = random.Next();
-            if (kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == receiverSessionId) == null)
+            receiverId = random.Next();
+            if (kinectReceivers.FirstOrDefault(x => x.ReceiverSessionId == receiverId) == null)
                 break;
         }
 
-        var kinectReceiver = new KinectReceiver(receiverSessionId, endPoint);
+        var kinectReceiver = new KinectReceiver(receiverId, endPoint);
         kinectReceivers.Add(kinectReceiver);
 
         // Nudge the sender until a confirm packet is received.
@@ -359,7 +360,7 @@ public class ViewerManager : MonoBehaviour
                 return;
             }
 
-            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverSessionId, true, true), endPoint);
+            udpSocket.Send(PacketHelper.createConnectReceiverPacketBytes(receiverId, true, true), endPoint);
             print($"Sent connect packet #{i}");
 
             await Task.Delay(300);

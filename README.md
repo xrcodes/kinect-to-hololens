@@ -16,7 +16,7 @@ Seeing through a Kinect from a HoloLens.
 ```
 4. Install libraries for kinect-to-hololens.
 ```powershell
-.\vcpkg.exe install asio:x64-windows imgui[dx11-binding,win32-binding]:x64-windows libsoundio:x64-windows libvpx:x64-windows opencv:x64-windows
+.\vcpkg.exe install asio:x64-windows imgui[dx11-binding,win32-binding]:x64-windows libsoundio:x64-windows libvpx:x64-windows opencv:x64-windows x264:x64-windows
 ```
 5. Install Kinect for Azure Kinect Sensor SDK 1.4.1 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
 6. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.

@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -28,9 +27,9 @@ public class KinectReceiver
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int receiverSessionId, IPEndPoint senderEndPoint)
+    public KinectReceiver(int receiverId, IPEndPoint senderEndPoint)
     {
-        ReceiverSessionId = receiverSessionId;
+        ReceiverSessionId = receiverId;
         SenderEndPoint = senderEndPoint;
         State = PrepareState.Unprepared;
     }
@@ -46,7 +45,7 @@ public class KinectReceiver
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
 
-    public bool UpdateFrame(MonoBehaviour monoBehaviour, UdpSocket udpSocket, SenderPacketSet senderPacketSet)
+    public bool UpdateFrame(UdpSocket udpSocket, SenderPacketSet senderPacketSet)
     {
         // UpdateFrame() should not be called before Prepare().
         Assert.AreEqual(PrepareState.Prepared, State);
@@ -85,7 +84,7 @@ public class KinectReceiver
                         foreach (var videoMessagePair in videoMessages)
                         {
                             KinectOrigin.Screen.StartPrepare(videoMessagePair.Value);
-                            TextureGroupUpdater.StartPrepare(monoBehaviour, videoMessagePair.Value);
+                            TextureGroupUpdater.StartPrepare(videoMessagePair.Value);
                             break;
                         }
                     }

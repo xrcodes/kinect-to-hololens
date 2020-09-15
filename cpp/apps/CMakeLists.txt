@@ -23,6 +23,19 @@ add_custom_command(TARGET KinectToHololensReaderApp POST_BUILD
   $<TARGET_FILE_DIR:KinectToHololensReaderApp>
 )
 
+add_executable(KinectToHololensListenerApp
+  kh_listener.cpp
+)
+target_include_directories(KinectToHololensListenerApp PRIVATE
+  "${AZURE_KINECT_DIR}/sdk/include"
+)
+target_link_libraries(KinectToHololensListenerApp
+  KinectToHololensNative
+)
+set_target_properties(KinectToHololensListenerApp PROPERTIES
+  CXX_STANDARD 17
+)
+
 add_executable(KinectToHololensSenderApp
   kh_sender.cpp
   resources/kh_sender.rc
@@ -62,18 +75,5 @@ target_link_libraries(KinectToHololensReceiverApp
   KinectToHololensNative
 )
 set_target_properties(KinectToHololensReceiverApp PROPERTIES
-  CXX_STANDARD 17
-)
-
-add_executable(KinectToHololensListenerApp
-  kh_listener.cpp
-)
-target_include_directories(KinectToHololensListenerApp PRIVATE
-  "${AZURE_KINECT_DIR}/sdk/include"
-)
-target_link_libraries(KinectToHololensListenerApp
-  KinectToHololensNative
-)
-set_target_properties(KinectToHololensListenerApp PROPERTIES
   CXX_STANDARD 17
 )
