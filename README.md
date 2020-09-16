@@ -18,24 +18,21 @@ Seeing through a Kinect from a HoloLens.
 ```powershell
 .\vcpkg.exe install asio:x64-windows imgui[dx11-binding,win32-binding]:x64-windows libsoundio:x64-windows libvpx:x64-windows opencv4:x64-windows
 ```
-5. Install Kinect for Azure Kinect Sensor SDK 1.4.1 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download). (TODO: use vcpkg)
-6. Run run-cmake.ps1 in directory /cpp to build Visual Studio solutions.
-7. Run build-plugin.ps1 to build the Unity3D plugin and copy it into the Unity3D project in directory /unity/KinectViewer.
-8. Build applications with the Visual Studio solution in /cpp/build/x64 and the Unity3D project in /unity/KinectViewer.
+5. Install Azure Kinect Sensor SDK 1.4.1 (https://docs.microsoft.com/en-us/azure/Kinect-dk/sensor-sdk-download).
+6. Run build-vs-solution.ps1 in /cpp to build Visual Studio solutions.
+7. Run build-vs-solutions.ps1 and build-plugin.ps1 in /telepresence-toolkit build the Unity3D package that the Unity3D project in directory /unity/KinectViewer uses.
+8. Build applications with the Visual Studio solution in /cpp/build and the Unity3D project in /unity/KHViewer and /unity/KHController.
 
-# How to Use
-Download the kinect-sender-v0.3 and kinect-viewer-v0.3 from https://github.com/hanseuljun/kinect-to-hololens/releases/tag/v0.3.  
+# How to Use 
 
-## From the Kinect-side
-1. Connect a Kinect for Azure to a PC.
-2. Run KinectSender.exe. Allow connection to both private and public networks.
+## Sender
+1. Connect a Azure Kinect to a PC.
+2. Run KinectToHololensSenderApp. Allow all inbound connections.
 
-## From the HoloLens-side
-1. Install the app package in kinect-viewer-v0.3 to your HoloLens (see https://www.microsoft.com/en-us/p/microsoft-hololens/9nblggh4qwnx) and run the installed app--Kinect Viewer.
-2. Access the HoloLens through the Windows Device Portal for virtual key input.
-3. Using the virtual key input, enter IP address of KinectSender.exe and press enter.
-4. Place your HoloLens beneth your Kinect on the floor and press space using the portal.
-5. Use arrow keys to adjust the position of the scene and d key to hide the visuals for setup.
+## Viewer
+1. Install and run KH Viewer in a HoloLens.
+2. Type IP address of the Sender and press enter. You can use a wireless keyboard or the virtual key input of Windows Device Portal.
+3. For better experience, press space key making the HoloLens facing yourself.
 
 ## Check firewall when connections don't work.
 Since the sender/controller often gets turned on in a machine that is not built to function as a server, incoming connections to the sender/controller often gets blocked. Actually, they get blocked by default when the firewall is on. If a connection does not work, first turn off the whole firewall and try it again. If this makes the connection to happen, it means the firewall was blocking the connection. Now, turn on the firewall again, as turning off the firewall is terrible for your security, and add inbound firewall rules for both sender and controller (this would mean Unity3D if you are running it as a Unity3D project) allowing domain/private/public (choose the ones that belong to your environment; pick all if you are not sure) connections. (For adding inbound firewall rules, see https://www.howtogeek.com/112564/how-to-create-advanced-firewall-rules-in-the-windows-firewall/)
