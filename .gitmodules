@@ -3,8 +3,7 @@
 	url = https://github.com/microsoft/vcpkg.git
 [submodule "unity/dear-imgui-unity"]
 	path = unity/dear-imgui-unity
-	url = https://github.com/hanseuljun/dear-imgui-unity
+	url = https://github.com/hanseuljun/dear-imgui-unity.git
 [submodule "telepresence-toolkit"]
 	path = telepresence-toolkit
 	url = https://github.com/hanseuljun/telepresence-toolkit.git
-	branch = master
