@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 #include "receiver/video_renderer.h"
 #include "receiver/sender_packet_classifier.h"
 #include "receiver/audio_receiver.h"
@@ -11,8 +11,8 @@ namespace kh
 {
 namespace
 {
-std::optional<std::pair<int, std::shared_ptr<VideoSenderMessage>>> find_frame_to_render(std::map<int, std::shared_ptr<VideoSenderMessage>>& video_messages,
-                                                                                        std::optional<int> last_frame_id)
+std::optional<std::pair<int, std::shared_ptr<tt::VideoSenderMessage>>> find_frame_to_render(std::map<int, std::shared_ptr<tt::VideoSenderMessage>>& video_messages,
+                                                                                            std::optional<int> last_frame_id)
 {
     if (video_messages.empty())
         return std::nullopt;
@@ -48,7 +48,7 @@ std::optional<std::pair<int, std::shared_ptr<VideoSenderMessage>>> find_frame_to
     if (!frame_id_to_render)
         return std::nullopt;
 
-    return std::pair<int, std::shared_ptr<VideoSenderMessage>>(*frame_id_to_render, video_messages[*frame_id_to_render]);
+    return std::pair<int, std::shared_ptr<tt::VideoSenderMessage>>(*frame_id_to_render, video_messages[*frame_id_to_render]);
 }
 }
 
@@ -65,13 +65,13 @@ void start_receiver(const std::string ip_address, const unsigned short port, con
     socket.set_option(asio::socket_base::receive_buffer_size{RECEIVER_RECEIVE_BUFFER_SIZE});
 
     asio::ip::udp::endpoint sender_endpoint{asio::ip::address::from_string(ip_address), gsl::narrow<unsigned short>(port)};
-    UdpSocket udp_socket{std::move(socket)};
+    tt::UdpSocket udp_socket{std::move(socket)};
 
     // When ping then check if a init packet arrived.
     // Repeat until it happens.
     int ping_count{0};
 
-    udp_socket.send(create_connect_receiver_packet(receiver_id, true, true).bytes, sender_endpoint);
+    udp_socket.send(tt::create_connect_receiver_packet(receiver_id, true, true).bytes, sender_endpoint);
     bool stopped{false};
     tt::TimePoint last_heartbeat_time{tt::TimePoint::now()};
     tt::TimePoint last_received_any_time{tt::TimePoint::now()};
@@ -82,22 +82,22 @@ void start_receiver(const std::string ip_address, const unsigned short port, con
     std::optional<int> last_frame_id{std::nullopt};
 
     VideoReceiverStorage video_receiver_storage;
-    std::map<int, std::shared_ptr<VideoSenderMessage>> video_messages;
+    std::map<int, std::shared_ptr<tt::VideoSenderMessage>> video_messages;
 
     for (;;) {
         try {
             if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
-                udp_socket.send(create_heartbeat_receiver_packet(receiver_id).bytes, sender_endpoint);
+                udp_socket.send(tt::create_heartbeat_receiver_packet(receiver_id).bytes, sender_endpoint);
                 last_heartbeat_time = tt::TimePoint::now();
             }
 
             auto sender_packet_info{SenderPacketClassifier::classify(udp_socket)};
             if (sender_packet_info.received_any) {
                 for (auto& video_packet : sender_packet_info.video_packets)
-                    video_receiver_storage.addVideoPacket(std::make_unique<VideoSenderPacket>(video_packet));
+                    video_receiver_storage.addVideoPacket(std::make_unique<tt::VideoSenderPacket>(video_packet));
 
                 for (auto& parity_packet : sender_packet_info.parity_packets)
-                    video_receiver_storage.addParityPacket(std::make_unique<ParitySenderPacket>(parity_packet));
+                    video_receiver_storage.addParityPacket(std::make_unique<tt::ParitySenderPacket>(parity_packet));
 
                 video_receiver_storage.build(video_messages);
 
@@ -109,18 +109,18 @@ void start_receiver(const std::string ip_address, const unsigned short port, con
                     break;
                 }
             }
-        } catch (UdpSocketRuntimeError e) {
+        } catch (tt::UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError:\n  " << e.what() << "\n";
             break;
         }
 
         if (last_request_time.elapsed_time().sec() > 0.1f) {
             auto missing_indices{video_receiver_storage.getMissingIndices()};
-            std::map<int, Packet> request_packets;
+            std::map<int, tt::Packet> request_packets;
             for (auto& indices : missing_indices) {
-                request_packets.insert({indices.frame_id, create_request_receiver_packet(receiver_id, indices.frame_id, false,
-                                                                                            indices.video_packet_indices,
-                                                                                            indices.parity_packet_indices)});
+                request_packets.insert({indices.frame_id, tt::create_request_receiver_packet(receiver_id, indices.frame_id, false,
+                                                                                             indices.video_packet_indices,
+                                                                                             indices.parity_packet_indices)});
             }
 
             if (last_frame_id) {
@@ -128,7 +128,7 @@ void start_receiver(const std::string ip_address, const unsigned short port, con
                 for (int frame_id = *last_frame_id + 1; frame_id < max_storage_frame_id; ++frame_id) {
                     auto request_packet_it{request_packets.find(frame_id)};
                     if (request_packet_it == request_packets.end()) {
-                        request_packets.insert({frame_id, create_request_receiver_packet(receiver_id, frame_id, true, std::vector<int>(), std::vector<int>())});
+                        request_packets.insert({frame_id, tt::create_request_receiver_packet(receiver_id, frame_id, true, std::vector<int>(), std::vector<int>())});
                     }
                 }
             }
@@ -161,7 +161,7 @@ void start_receiver(const std::string ip_address, const unsigned short port, con
                 }
             }
 
-            udp_socket.send(create_report_receiver_packet(receiver_id, *last_frame_id).bytes, sender_endpoint);
+            udp_socket.send(tt::create_report_receiver_packet(receiver_id, *last_frame_id).bytes, sender_endpoint);
             video_receiver_storage.removeObsolete(*last_frame_id);
         }
     }

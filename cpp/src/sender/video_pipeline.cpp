@@ -7,10 +7,10 @@ namespace kh
 {
 namespace
 {
-Vp8Encoder create_color_encoder(k4a::calibration calibration)
+tt::Vp8Encoder create_color_encoder(k4a::calibration calibration)
 {
-    return Vp8Encoder{calibration.depth_camera_calibration.resolution_width,
-                      calibration.depth_camera_calibration.resolution_height};
+    return tt::Vp8Encoder{calibration.depth_camera_calibration.resolution_width,
+                          calibration.depth_camera_calibration.resolution_height};
 }
 
 tt::TrvlEncoder create_depth_encoder(k4a::calibration calibration)
@@ -58,7 +58,7 @@ VideoPipeline::VideoPipeline(k4a::calibration calibration)
 
 VideoPipelineFrame VideoPipeline::process(KinectFrame& kinect_frame,
                                           bool keyframe,
-                                          Profiler& profiler)
+                                          tt::Profiler& profiler)
 {
     gsl::span<int16_t> depth_image_span{reinterpret_cast<int16_t*>(kinect_frame.depth_image.get_buffer()),
                                         kinect_frame.depth_image.get_size()};

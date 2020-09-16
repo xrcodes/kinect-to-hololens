@@ -41,6 +41,9 @@ find_package(OpenCV CONFIG REQUIRED)
 # Add files in /src.
 add_subdirectory(src)
 
+# Set CORE_UNITY_ONLY false to add all from /src.
+set(CORE_UNITY_ONLY FALSE)
+
 # Add files from telepresence-toolkit.
 add_subdirectory(${PROJECT_SOURCE_DIR}/../telepresence-toolkit/src telepresence-toolkit)
 

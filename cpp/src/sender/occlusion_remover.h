@@ -1,6 +1,6 @@
 #pragma once
 
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 #include "win32/kh_kinect.h"
 
 namespace k4a

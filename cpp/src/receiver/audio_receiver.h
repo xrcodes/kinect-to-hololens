@@ -38,7 +38,7 @@ public:
             throw std::runtime_error(std::string("Failed to start AudioOutStream: ") + std::to_string(error));
     }
 
-    void receive(std::vector<AudioSenderPacket>& audio_packets)
+    void receive(std::vector<tt::AudioSenderPacket>& audio_packets)
     {
         constexpr float AMPLIFIER{8.0f};
 
@@ -49,7 +49,7 @@ public:
 
         std::sort(audio_packets.begin(),
                   audio_packets.end(),
-                  [](AudioSenderPacket& a, AudioSenderPacket& b) { return a.frame_id < b.frame_id; });
+                  [](tt::AudioSenderPacket& a, tt::AudioSenderPacket& b) { return a.frame_id < b.frame_id; });
 
         char* write_ptr{soundio_ring_buffer_write_ptr(ring_buffer)};
         int free_bytes{soundio_ring_buffer_free_count(ring_buffer)};

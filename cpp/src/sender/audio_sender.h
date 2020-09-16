@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sender/remote_receiver.h"
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 #include "win32/soundio_utils.h"
 
 namespace kh
@@ -44,7 +44,7 @@ public:
             throw std::runtime_error(std::string("Failed to start AudioInStream: ") + std::to_string(error));
     }
 
-    void send(UdpSocket& udp_socket, std::unordered_map<int, RemoteReceiver>& remote_receivers)
+    void send(tt::UdpSocket& udp_socket, std::map<int, RemoteReceiver>& remote_receivers)
     {
         soundio_flush_events(sound_io_.get());
         const char* read_ptr{soundio_ring_buffer_read_ptr(ring_buffer)};
@@ -55,7 +55,7 @@ public:
         while ((fill_bytes - cursor) >= BYTES_PER_FRAME) {
             memcpy(pcm_.data(), read_ptr + cursor, BYTES_PER_FRAME);
 
-            std::vector<std::byte> opus_frame(KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
+            std::vector<std::byte> opus_frame(tt::KH_MAX_AUDIO_PACKET_CONTENT_SIZE);
             const int opus_frame_size{tt::encode_opus(opus_encoder_,
                                                       opus_frame.data(),
                                                       pcm_.data(),
@@ -64,7 +64,7 @@ public:
             opus_frame.resize(opus_frame_size);
             for (auto& [_, remote_receiver] : remote_receivers) {
                 if (remote_receiver.audio_requested) {
-                    udp_socket.send(create_audio_sender_packet(sender_id_, audio_frame_id_++, opus_frame).bytes, remote_receiver.endpoint);
+                    udp_socket.send(tt::create_audio_sender_packet(sender_id_, audio_frame_id_++, opus_frame).bytes, remote_receiver.endpoint);
                 }
             }
             cursor += BYTES_PER_FRAME;

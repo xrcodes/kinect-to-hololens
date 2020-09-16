@@ -1,5 +1,5 @@
 #include <iostream>
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 #include "sender/video_pipeline.h"
 #include "receiver/video_renderer.h"
 #include "utils/filesystem_utils.h"
@@ -19,7 +19,7 @@ void read_frames(KinectInterface& kinect_interface)
     const int height{calibration.depth_camera_calibration.resolution_height};
     VideoRenderer video_renderer{width, height};
 
-    Profiler profiler;
+    tt::Profiler profiler;
     for (;;) {
         auto kinect_frame{kinect_interface.getFrame()};
         if (!kinect_frame)

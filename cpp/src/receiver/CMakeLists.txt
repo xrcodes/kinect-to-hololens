@@ -5,7 +5,7 @@ add_library(KinectToHololensReceiverModules
   video_renderer.h
 )
 target_link_libraries(KinectToHololensReceiverModules
-  KinectToHololensNative
+  KinectToHololensWin32
 )
 set_target_properties(KinectToHololensReceiverModules PROPERTIES
   CXX_STANDARD 17

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 #include <tuple>
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 #include "sender/audio_sender.h"
 #include "sender/video_pipeline.h"
 #include "sender/video_sender_storage.h"
@@ -43,7 +43,7 @@ void imgui_loop(const Func& f)
     cleanup_imgui(window);
 };
 
-std::pair<bool, bool> plan_video_bitrate_control(std::unordered_map<int, RemoteReceiver>& remote_receivers, int last_frame_id, tt::TimePoint last_frame_time)
+std::pair<bool, bool> plan_video_bitrate_control(std::map<int, RemoteReceiver>& remote_receivers, int last_frame_id, tt::TimePoint last_frame_time)
 {
     bool video_required_by_any = false;
     for (auto& [_, remote_receiver] : remote_receivers) {
@@ -88,16 +88,16 @@ void send_video_message(VideoPipelineFrame& video_frame,
                         int sender_id,
                         tt::TimePoint session_start_time,
                         k4a::calibration calibration,
-                        UdpSocket& udp_socket,
+                        tt::UdpSocket& udp_socket,
                         VideoSenderStorage& video_sender_storage,
-                        std::unordered_map<int, RemoteReceiver>& remote_receivers,
+                        std::map<int, RemoteReceiver>& remote_receivers,
                         std::mt19937& rng)
 {
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
     int width{calibration.depth_camera_calibration.resolution_width};
     int height{calibration.depth_camera_calibration.resolution_height};
-    KinectIntrinsics intrinsics;
+    tt::KinectIntrinsics intrinsics;
     intrinsics.cx = calibration.depth_camera_calibration.intrinsics.parameters.param.cx;
     intrinsics.cy = calibration.depth_camera_calibration.intrinsics.parameters.param.cy;
     intrinsics.fx = calibration.depth_camera_calibration.intrinsics.parameters.param.fx;
@@ -112,14 +112,14 @@ void send_video_message(VideoPipelineFrame& video_frame,
     intrinsics.cody = calibration.depth_camera_calibration.intrinsics.parameters.param.cody;
     intrinsics.max_radius_for_projection = calibration.depth_camera_calibration.metric_radius;
 
-    const auto message{create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, width, height, intrinsics,
+    const auto message{tt::create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, width, height, intrinsics,
                                                    video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
-    auto video_packets{split_video_sender_message_bytes(sender_id, video_frame.frame_id, message.bytes)};
-    auto parity_packets{create_parity_sender_packets(sender_id, video_frame.frame_id, video_packets)};
+    auto video_packets{tt::split_video_sender_message_bytes(sender_id, video_frame.frame_id, message.bytes)};
+    auto parity_packets{tt::create_parity_sender_packets(sender_id, video_frame.frame_id, video_packets)};
 
     // Send video/parity packets.
     // Sending them in a random order makes the packets more robust to packet loss.
-    std::vector<Packet*> packet_ptrs;
+    std::vector<tt::Packet*> packet_ptrs;
     for (auto& video_packet : video_packets)
         packet_ptrs.push_back(&video_packet);
 
@@ -146,9 +146,9 @@ void send_video_message(VideoPipelineFrame& video_frame,
 }
 
 // Update receiver_state and summary with Report packets.
-void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
+void apply_report_packets(std::vector<tt::ReportReceiverPacket>& report_packets,
                           RemoteReceiver& remote_receiver,
-                          Profiler& profiler)
+                          tt::Profiler& profiler)
 {
     // Update receiver_state and summary with Report packets.
     for (auto& report_packet : report_packets) {
@@ -166,11 +166,11 @@ void apply_report_packets(std::vector<ReportReceiverPacket>& report_packets,
     }
 }
 
-void retransmit_requested_packets(UdpSocket& udp_socket,
-                                  std::vector<RequestReceiverPacket>& request_packets,
+void retransmit_requested_packets(tt::UdpSocket& udp_socket,
+                                  std::vector<tt::RequestReceiverPacket>& request_packets,
                                   VideoSenderStorage& video_sender_storage,
                                   const asio::ip::udp::endpoint remote_endpoint,
-                                  Profiler& profiler)
+                                  tt::Profiler& profiler)
 {
     if (request_packets.size() > 0)
         std::cout << "request_packets.size(): " << request_packets.size() << std::endl;
@@ -219,12 +219,12 @@ void retransmit_requested_packets(UdpSocket& udp_socket,
     }
 }
 
-void log_receiver_report_summary(ExampleAppLog& log, Profiler& profiler)
+void log_receiver_report_summary(ExampleAppLog& log, tt::Profiler& profiler)
 {
     log.AddLog("Receiver FPS %f\n", profiler.getNumber("report-count") / profiler.getElapsedTime().sec());
 }
 
-void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, Profiler& profiler)
+void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, tt::Profiler& profiler)
 {
     auto elapsed_time{profiler.getElapsedTime()};
     log.AddLog("VideoPipeline Summary:\n");
@@ -241,7 +241,7 @@ void log_video_pipeline_summary(ExampleAppLog& log, int last_frame_id, Profiler&
     log.AddLog("  Floor Detection Time Average: %f\n", profiler.getNumber("pipeline-floor") / profiler.getNumber("pipeline-frame"));
 }
 
-void log_retransmission_summary(ExampleAppLog& log, Profiler& profiler)
+void log_retransmission_summary(ExampleAppLog& log, tt::Profiler& profiler)
 {
     auto elapsed_time{profiler.getElapsedTime()};
     log.AddLog("Retransmission Summary:\n");
@@ -281,7 +281,7 @@ void start(KinectInterface& kinect_interface)
         }
     }
     socket->set_option(asio::socket_base::send_buffer_size{SENDER_SEND_BUFFER_SIZE});
-    UdpSocket udp_socket{std::move(*socket)};
+    tt::UdpSocket udp_socket{std::move(*socket)};
 
     // Print IP addresses of this machine.
     asio::ip::udp::resolver resolver(io_context);
@@ -308,11 +308,11 @@ void start(KinectInterface& kinect_interface)
     
     VideoSenderStorage video_packet_storage;
 
-    std::unordered_map<int, RemoteReceiver> remote_receivers;
+    std::map<int, RemoteReceiver> remote_receivers;
 
     std::mt19937 rng{std::random_device{}()};
 
-    Profiler profiler;
+    tt::Profiler profiler;
 
     // Our state
     ExampleAppLog log;
@@ -360,7 +360,7 @@ void start(KinectInterface& kinect_interface)
             // Then, create ReceiverState with it.
             for (auto& connect_packet_info : receiver_packet_collection.connect_packet_infos) {
                 // Send packet confirming the receiver that the connect packet got received.
-                udp_socket.send(create_confirm_sender_packet(sender_id, connect_packet_info.connect_packet.receiver_id).bytes, connect_packet_info.receiver_endpoint);
+                udp_socket.send(tt::create_confirm_sender_packet(sender_id, connect_packet_info.connect_packet.receiver_id).bytes, connect_packet_info.receiver_endpoint);
 
                 // Skip already existing receivers.
                 if (remote_receivers.find(connect_packet_info.connect_packet.receiver_id) != remote_receivers.end())
@@ -381,7 +381,7 @@ void start(KinectInterface& kinect_interface)
                 // Send heartbeat packets to receivers.
                 if (last_heartbeat_time.elapsed_time().sec() > HEARTBEAT_INTERVAL_SEC) {
                     for (auto& [_, remote_receiver] : remote_receivers)
-                        udp_socket.send(create_heartbeat_sender_packet(sender_id).bytes, remote_receiver.endpoint);
+                        udp_socket.send(tt::create_heartbeat_sender_packet(sender_id).bytes, remote_receiver.endpoint);
                     last_heartbeat_time = tt::TimePoint::now();
                 }
 
@@ -431,7 +431,7 @@ void start(KinectInterface& kinect_interface)
             if(min_receiver_frame_id != INT_MAX)
                 video_packet_storage.cleanup(min_receiver_frame_id);
 
-        } catch (UdpSocketRuntimeError e) {
+        } catch (tt::UdpSocketRuntimeError e) {
             std::cout << "UdpSocketRuntimeError\n  message: " << e.what() << "\n  endpoint: " << e.endpoint() << "\n";
             std::cout << "remote_receivers.size(): " << remote_receivers.size() << "\n";
             for (auto it{remote_receivers.begin()}; it != remote_receivers.end();) {

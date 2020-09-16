@@ -1,6 +1,6 @@
 #pragma once
 
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 #include "native/profiler.h"
 #include "occlusion_remover.h"
 #include "win32/kh_kinect.h"
@@ -30,11 +30,11 @@ public:
     tt::TimePoint last_frame_time() { return last_frame_time_; }
     VideoPipelineFrame process(KinectFrame& kinect_frame,
                                bool keyframe,
-                               Profiler& profiler);
+                               tt::Profiler& profiler);
 private:
     k4a::calibration calibration_;
     k4a::transformation transformation_;
-    Vp8Encoder color_encoder_;
+    tt::Vp8Encoder color_encoder_;
     tt::TrvlEncoder depth_encoder_;
     OcclusionRemover occlusion_remover_;
     Samples::PointCloudGenerator point_cloud_generator_;

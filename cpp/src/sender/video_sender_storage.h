@@ -1,15 +1,15 @@
 #pragma once
 
-#include "native/kh_native.h"
+#include "native/tt_native.h"
 
 namespace kh
 {
 struct VideoFramePackets
 {
-    std::vector<Packet> video_packets;
-    std::vector<Packet> parity_packets;
+    std::vector<tt::Packet> video_packets;
+    std::vector<tt::Packet> parity_packets;
 
-    VideoFramePackets(std::vector<Packet>&& video_packets, std::vector<Packet>&& parity_packets)
+    VideoFramePackets(std::vector<tt::Packet>&& video_packets, std::vector<tt::Packet>&& parity_packets)
         : video_packets{video_packets}, parity_packets{parity_packets}
     {
     }
@@ -23,7 +23,7 @@ public:
     {
     }
 
-    void add(int frame_id, std::vector<Packet>&& video_packets, std::vector<Packet>&& parity_packets)
+    void add(int frame_id, std::vector<tt::Packet>&& video_packets, std::vector<tt::Packet>&& parity_packets)
     {
         video_frame_packets_.insert({frame_id, VideoFramePackets(std::move(video_packets), std::move(parity_packets))});
     }
