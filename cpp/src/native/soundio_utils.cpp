@@ -1,5 +1,7 @@
 #include "soundio_utils.h"
 
+#include <iostream>
+
 namespace kh
 {
 SoundIoHandle create_sound_io_handle()
@@ -7,7 +9,7 @@ SoundIoHandle create_sound_io_handle()
     auto sound_io{soundio_create()};
     if (!sound_io)
         throw std::runtime_error("Null sound_io in create_sound_io_handle().");
-
+    
     int err = soundio_connect(sound_io);
     if (err) {
         throw std::runtime_error("soundio_connect failed in create_sound_io_handle().");
@@ -26,7 +28,7 @@ std::vector<SoundIoDeviceHandle> get_sound_io_input_devices(const SoundIoHandle&
     {
         auto device_ptr{soundio_get_input_device(sound_io.get(), i)};
         if (!device_ptr)
-            printf("Failed to get Input Devices...");
+            std::cout << "Failed to get Input Devices...\n";
 
         input_devices.push_back({device_ptr, &soundio_device_unref});
     }
@@ -38,7 +40,7 @@ SoundIoDeviceHandle get_sound_io_default_output_device(const SoundIoHandle& soun
 {
     auto device_ptr{soundio_get_output_device(sound_io.get(), soundio_default_output_device_index(sound_io.get()))};
     if (!device_ptr)
-        printf("Failed to get the Default Output Device...");
+        std::cout << "Failed to get the Default Output Device...\n";
 
     return SoundIoDeviceHandle(device_ptr, &soundio_device_unref);
 }
@@ -133,7 +135,7 @@ void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, in
     int free_count = free_bytes / bytes_per_frame;
 
     if (frame_count_min > free_count) {
-        printf("ring buffer overflow\n");
+        std::cout << "ring buffer overflow\n";
         return;
     }
 
@@ -143,7 +145,7 @@ void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, in
         int frame_count = frames_left;
 
         if ((err = soundio_instream_begin_read(instream, &areas, &frame_count))) {
-            printf("begin read error: %s", soundio_strerror(err));
+            std::cout << "begin read error: " << soundio_strerror(err) << std::endl;
             abort();
         }
 
@@ -154,7 +156,7 @@ void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, in
             // Due to an overflow there is a hole. Fill the ring buffer with
             // silence for the size of the hole.
             memset(write_ptr, 0, static_cast<long long>(frame_count) * bytes_per_frame);
-            printf("Dropped %d frames due to internal overflow\n", frame_count);
+            std::cout << "Dropped " << frame_count << " frames due to internal overflow\n";
         } else {
             for (int frame = 0; frame < frame_count; frame += 1) {
                 for (int ch = 0; ch < KH_CHANNEL_COUNT; ch += 1) {
@@ -166,7 +168,7 @@ void write_instream_to_buffer(SoundIoInStream* instream, int frame_count_min, in
         }
 
         if ((err = soundio_instream_end_read(instream))) {
-            printf("end read error: %s", soundio_strerror(err));
+            std::cout << "end read error: " << soundio_strerror(err);
             abort();
         }
 
@@ -198,7 +200,7 @@ void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min,
             if (frame_count <= 0)
                 return;
             if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
-                printf("begin write error: %s", soundio_strerror(err));
+                std::cout << "begin write error: " << soundio_strerror(err);
                 abort();
             }
             if (frame_count <= 0)
@@ -210,7 +212,7 @@ void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min,
                 }
             }
             if ((err = soundio_outstream_end_write(outstream))) {
-                printf("end write error: %s", soundio_strerror(err));
+                std::cout << "end write error: " << soundio_strerror(err);
                 abort();
             }
             frames_left -= frame_count;
@@ -224,7 +226,7 @@ void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min,
         int frame_count = frames_left;
 
         if ((err = soundio_outstream_begin_write(outstream, &areas, &frame_count))) {
-            printf("begin write error: %s", soundio_strerror(err));
+            std::cout << "begin write error: " << soundio_strerror(err);
             abort();
         }
 
@@ -240,7 +242,7 @@ void write_buffer_to_outstream(SoundIoOutStream* outstream, int frame_count_min,
         }
 
         if ((err = soundio_outstream_end_write(outstream))) {
-            printf("end write error: %s", soundio_strerror(err));
+            std::cout << "end write error: " << soundio_strerror(err);
             abort();
         }
 

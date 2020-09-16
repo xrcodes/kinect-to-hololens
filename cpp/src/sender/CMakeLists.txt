@@ -12,7 +12,7 @@ target_include_directories(KinectToHololensSenderModules PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectToHololensSenderModules
-  KinectToHololensNative
+  KinectToHololensWin32
   AzureKinectSamples
 )
 set_target_properties(KinectToHololensSenderModules PROPERTIES

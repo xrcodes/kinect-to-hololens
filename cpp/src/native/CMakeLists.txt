@@ -1,12 +1,10 @@
 add_library(KinectToHololensNative
   imgui_wrapper.h
-  kh_kinect.h
-  kh_kinect.cpp
   kh_native.h
-  kh_opencv.h
-  kh_opencv.cpp
-  packet.h
-  packet.cpp
+  opencv_utils.h
+  opencv_utils.cpp
+  packets.h
+  packets.cpp
   profiler.h
   soundio_utils.h
   soundio_utils.cpp
@@ -20,11 +18,9 @@ target_include_directories(KinectToHololensNative PRIVATE
 )
 target_link_libraries(KinectToHololensNative
   TelepresenceToolkitCore
-  "${AZURE_KINECT_LIB}/k4a.lib"
-  "${AZURE_KINECT_LIB}/k4arecord.lib"
   libsoundio::libsoundio
   ${Libvpx_LIB}
-  ${OpenCV_LIBS}
+  opencv_highgui
 )
 set_target_properties(KinectToHololensNative PROPERTIES
   CXX_STANDARD 17

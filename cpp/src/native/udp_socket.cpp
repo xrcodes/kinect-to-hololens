@@ -1,7 +1,5 @@
 #include "udp_socket.h"
 
-#include <iostream>
-
 namespace kh
 {
 UdpSocket::UdpSocket(asio::ip::udp::socket&& socket)

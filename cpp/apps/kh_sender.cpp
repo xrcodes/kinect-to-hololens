@@ -95,7 +95,25 @@ void send_video_message(VideoPipelineFrame& video_frame,
 {
     // Create video/parity packet bytes.
     const float video_frame_time_stamp{(video_frame.time_point - session_start_time).ms()};
-    const auto message{create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, calibration, video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
+    int width{calibration.depth_camera_calibration.resolution_width};
+    int height{calibration.depth_camera_calibration.resolution_height};
+    KinectIntrinsics intrinsics;
+    intrinsics.cx = calibration.depth_camera_calibration.intrinsics.parameters.param.cx;
+    intrinsics.cy = calibration.depth_camera_calibration.intrinsics.parameters.param.cy;
+    intrinsics.fx = calibration.depth_camera_calibration.intrinsics.parameters.param.fx;
+    intrinsics.fy = calibration.depth_camera_calibration.intrinsics.parameters.param.fy;
+    intrinsics.k1 = calibration.depth_camera_calibration.intrinsics.parameters.param.k1;
+    intrinsics.k2 = calibration.depth_camera_calibration.intrinsics.parameters.param.k2;
+    intrinsics.k3 = calibration.depth_camera_calibration.intrinsics.parameters.param.k3;
+    intrinsics.k4 = calibration.depth_camera_calibration.intrinsics.parameters.param.k4;
+    intrinsics.k5 = calibration.depth_camera_calibration.intrinsics.parameters.param.k5;
+    intrinsics.k6 = calibration.depth_camera_calibration.intrinsics.parameters.param.k6;
+    intrinsics.codx = calibration.depth_camera_calibration.intrinsics.parameters.param.codx;
+    intrinsics.cody = calibration.depth_camera_calibration.intrinsics.parameters.param.cody;
+    intrinsics.max_radius_for_projection = calibration.depth_camera_calibration.metric_radius;
+
+    const auto message{create_video_sender_message(video_frame_time_stamp, video_frame.keyframe, width, height, intrinsics,
+                                                   video_frame.vp8_frame, video_frame.trvl_frame, video_frame.floor)};
     auto video_packets{split_video_sender_message_bytes(sender_id, video_frame.frame_id, message.bytes)};
     auto parity_packets{create_parity_sender_packets(sender_id, video_frame.frame_id, video_packets)};
 

@@ -1,12 +1,6 @@
 #pragma once
 
-#include <k4a/k4a.h>
 #include "core/tt_core.h"
-
-namespace k4a
-{
-struct calibration;
-}
 
 namespace kh
 {
@@ -150,12 +144,8 @@ struct HeartbeatSenderPacket
 
 Packet create_heartbeat_sender_packet(int sender_id);
 
-struct VideoSenderMessage
+struct KinectIntrinsics
 {
-    float frame_time_stamp{0.0f};
-    bool keyframe{false};
-    int width{0};
-    int height{0};
     float cx{0.0f};
     float cy{0.0f};
     float fx{0.0f};
@@ -171,6 +161,15 @@ struct VideoSenderMessage
     float p1{0.0f};
     float p2{0.0f};
     float max_radius_for_projection{0.0f};
+};
+
+struct VideoSenderMessage
+{
+    float frame_time_stamp{0.0f};
+    bool keyframe{false};
+    int width{0};
+    int height{0};
+    KinectIntrinsics intrinsics{};
     std::vector<std::byte> color_encoder_frame;
     std::vector<std::byte> depth_encoder_frame;
     std::optional<std::array<float, 4>> floor;
@@ -187,7 +186,8 @@ struct VideoSenderPacket
 };
 
 Message create_video_sender_message(float frame_time_stamp, bool keyframe,
-                                    const k4a::calibration& calibration,
+                                    int width, int height,
+                                    const KinectIntrinsics& intrinsics,
                                     gsl::span<const std::byte> color_encoder_frame,
                                     gsl::span<const std::byte> depth_encoder_frame,
                                     std::optional<std::array<float, 4>> floor);

@@ -35,8 +35,8 @@ find_package(libsoundio CONFIG REQUIRED)
 # Prepare ${Libvpx_LIB} linking to libvpx.
 set(Libvpx_LIB ${VCPKG_INCLUDE_DIR}/../lib/vpxmd.lib)
 
-# Prepare ${OpenCV_LIBS} for OpenCV.
-find_package(OpenCV REQUIRED)
+# Prepare targets including opencv_highgui.
+find_package(OpenCV CONFIG REQUIRED)
 
 # Add files in /src.
 add_subdirectory(src)

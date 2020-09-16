@@ -1,7 +1,5 @@
 #include "packets.h"
 
-#include "kh_kinect.h"
-
 namespace kh
 {
 int get_sender_id_from_sender_packet_bytes(gsl::span<const std::byte> packet_bytes)
@@ -43,7 +41,8 @@ Packet create_heartbeat_sender_packet(int sender_id)
 }
 
 Message create_video_sender_message(float frame_time_stamp, bool keyframe,
-                                    const k4a::calibration& calibration,
+                                    int width, int height,
+                                    const KinectIntrinsics& intrinsics,
                                     gsl::span<const std::byte> color_encoder_frame,
                                     gsl::span<const std::byte> depth_encoder_frame,
                                     std::optional<std::array<float, 4>> floor)
@@ -79,23 +78,23 @@ Message create_video_sender_message(float frame_time_stamp, bool keyframe,
 
     copy_to_message(frame_time_stamp, message, cursor);
     copy_to_message(keyframe, message, cursor);
-    copy_to_message(calibration.depth_camera_calibration.resolution_width, message, cursor); // width
-    copy_to_message(calibration.depth_camera_calibration.resolution_height, message, cursor); // height
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.cx, message, cursor); // cx
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.cy, message, cursor); // cy
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.fx, message, cursor); // fx
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.fy, message, cursor); // fy
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k1, message, cursor); // k1
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k2, message, cursor); // k2
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k3, message, cursor); // k3
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k4, message, cursor); // k4
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k5, message, cursor); // k5
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.k6, message, cursor); // k6
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.codx, message, cursor); // codx
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.cody, message, cursor); // cody
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.p1, message, cursor); // p1
-    copy_to_message(calibration.depth_camera_calibration.intrinsics.parameters.param.p2, message, cursor); // p2
-    copy_to_message(calibration.depth_camera_calibration.metric_radius, message, cursor); // max_radius_for_projection
+    copy_to_message(width, message, cursor);
+    copy_to_message(height, message, cursor);
+    copy_to_message(intrinsics.cx, message, cursor);
+    copy_to_message(intrinsics.cy, message, cursor);
+    copy_to_message(intrinsics.fx, message, cursor);
+    copy_to_message(intrinsics.fy, message, cursor);
+    copy_to_message(intrinsics.k1, message, cursor);
+    copy_to_message(intrinsics.k2, message, cursor);
+    copy_to_message(intrinsics.k3, message, cursor);
+    copy_to_message(intrinsics.k4, message, cursor);
+    copy_to_message(intrinsics.k5, message, cursor);
+    copy_to_message(intrinsics.k6, message, cursor);
+    copy_to_message(intrinsics.codx, message, cursor);
+    copy_to_message(intrinsics.cody, message, cursor);
+    copy_to_message(intrinsics.p1, message, cursor);
+    copy_to_message(intrinsics.p2, message, cursor);
+    copy_to_message(intrinsics.max_radius_for_projection, message, cursor);
 
     copy_to_message(gsl::narrow<int>(color_encoder_frame.size()), message, cursor);
     memcpy(message.bytes.data() + cursor.position, color_encoder_frame.data(), color_encoder_frame.size());
@@ -190,21 +189,22 @@ VideoSenderMessage read_video_sender_message(gsl::span<const std::byte> message_
     copy_from_bytes(video_sender_message.keyframe, message_bytes, cursor);
     copy_from_bytes(video_sender_message.width, message_bytes, cursor);
     copy_from_bytes(video_sender_message.height, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.cx, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.cy, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.fx, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.fy, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.k1, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.k2, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.k3, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.k4, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.k5, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.k6, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.codx, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.cody, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.p1, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.p2, message_bytes, cursor);
-    copy_from_bytes(video_sender_message.max_radius_for_projection, message_bytes, cursor);
+
+    copy_from_bytes(video_sender_message.intrinsics.cx, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.cy, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.fx, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.fy, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.k1, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.k2, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.k3, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.k4, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.k5, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.k6, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.codx, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.cody, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.p1, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.p2, message_bytes, cursor);
+    copy_from_bytes(video_sender_message.intrinsics.max_radius_for_projection, message_bytes, cursor);
 
     // Parsing the bytes of the message into the VP8 and TRVL frames.
     int color_encoder_frame_size{copy_from_bytes<int>(message_bytes, cursor)};

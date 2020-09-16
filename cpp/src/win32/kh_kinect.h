@@ -5,7 +5,7 @@
 #pragma warning(disable: 26495 26812)
 #include <k4arecord/playback.hpp>
 #pragma warning(pop)
-#include "core/tt_core.h"
+#include "native/kh_native.h"
 
 namespace kh
 {
