@@ -3,6 +3,7 @@ add_library(KinectToHololensNative
   packets.h
   packets.cpp
   profiler.h
+  profiler.cpp
   udp_socket.h
   udp_socket.cpp
   vp8_encoder.h
