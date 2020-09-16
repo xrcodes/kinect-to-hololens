@@ -23,7 +23,7 @@ public class KinectReceiver
     public KinectOrigin KinectOrigin { get; private set; }
     public TextureSetUpdater TextureGroupUpdater { get; private set; }
     private VideoMessageAssembler videoMessageAssembler;
-    private AudioPacketReceiver audioPacketReceiver;
+    private AudioReceiver audioPacketReceiver;
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
@@ -41,7 +41,7 @@ public class KinectReceiver
         KinectOrigin = kinectOrigin;
         TextureGroupUpdater = new TextureSetUpdater(kinectOrigin.Screen.Material, ReceiverId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
-        audioPacketReceiver = new AudioPacketReceiver();
+        audioPacketReceiver = new AudioReceiver();
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }

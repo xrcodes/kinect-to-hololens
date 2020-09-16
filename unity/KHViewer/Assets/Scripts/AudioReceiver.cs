@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 
-public class AudioPacketReceiver
+public class AudioReceiver
 {
     private OpusDecoder opusDecoder;
     private int lastAudioFrameId;
 
-    public AudioPacketReceiver()
+    public AudioReceiver()
     {
         opusDecoder = new OpusDecoder(KinectSpeaker.KH_SAMPLE_RATE, KinectSpeaker.KH_CHANNEL_COUNT);
         lastAudioFrameId = -1;
