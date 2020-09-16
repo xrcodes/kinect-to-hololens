@@ -7,3 +7,4 @@
 [submodule "telepresence-toolkit"]
 	path = telepresence-toolkit
 	url = https://github.com/hanseuljun/telepresence-toolkit.git
+	branch = master
