@@ -1,6 +1,3 @@
-[submodule "vcpkg"]
-	path = vcpkg
-	url = https://github.com/microsoft/vcpkg.git
 [submodule "unity/dear-imgui-unity"]
 	path = unity/dear-imgui-unity
 	url = https://github.com/hanseuljun/dear-imgui-unity.git

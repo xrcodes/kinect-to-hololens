@@ -20,11 +20,9 @@ public class TextureSetUpdater
     private TrvlDecoder depthDecoder;
 
 
-    public TextureSetUpdater(Material azureKinectScreenMaterial, int sessionId, IPEndPoint endPoint)
+    public TextureSetUpdater(int sessionId, IPEndPoint endPoint)
     {
         State = PrepareState.Unprepared;
-
-        this.azureKinectScreenMaterial = azureKinectScreenMaterial;
         
         textureSet = new TextureSet();
         UnityEngine.Debug.Log($"textureGroup id: {textureSet.GetId()}");
@@ -36,17 +34,18 @@ public class TextureSetUpdater
         this.endPoint = endPoint;
     }
 
-    public void StartPrepare(VideoSenderMessage videoMessageData)
+    public void StartPrepare(Material azureKinectScreenMaterial, VideoSenderMessage videoMessageData)
     {
-        CoroutineRunner.Run(Prepare(videoMessageData));
+        CoroutineRunner.Run(Prepare(azureKinectScreenMaterial, videoMessageData));
     }
 
-    public IEnumerator Prepare(VideoSenderMessage videoMessageData)
+    public IEnumerator Prepare(Material azureKinectScreenMaterial, VideoSenderMessage videoMessageData)
     {
         if(State != PrepareState.Unprepared)
             throw new Exception("State has to be Unprepared to prepare TextureGroupUpdater.");
 
         State = PrepareState.Preparing;
+        this.azureKinectScreenMaterial = azureKinectScreenMaterial;
 
         textureSet.SetWidth(videoMessageData.width);
         textureSet.SetHeight(videoMessageData.height);

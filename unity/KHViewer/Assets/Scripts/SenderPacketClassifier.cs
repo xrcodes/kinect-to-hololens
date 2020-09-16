@@ -4,13 +4,11 @@ using System.Net;
 public class ConfirmPacketInfo
 {
     public IPEndPoint SenderEndPoint { get; private set; }
-    public int SenderId { get; private set; }
     public ConfirmSenderPacket ConfirmPacketData { get; private set; }
 
-    public ConfirmPacketInfo(IPEndPoint senderEndPoint, int senderId, ConfirmSenderPacket confirmPacketData)
+    public ConfirmPacketInfo(IPEndPoint senderEndPoint, ConfirmSenderPacket confirmPacketData)
     {
         SenderEndPoint = senderEndPoint;
-        SenderId = senderId;
         ConfirmPacketData = confirmPacketData;
     }
 }
@@ -88,7 +86,7 @@ public static class SenderPacketClassifier
 
         if (packetType == SenderPacketType.Confirm)
         {
-            senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(packet.EndPoint, senderSessionId, ConfirmSenderPacket.Create(packet.Bytes)));
+            senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(packet.EndPoint, ConfirmSenderPacket.Create(packet.Bytes)));
             return;
         }
 

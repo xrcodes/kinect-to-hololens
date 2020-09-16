@@ -213,10 +213,10 @@ public class ViewerManager : MonoBehaviour
                 if (kinectReceiver != null)
                     continue;
 
-                kinectReceiver = new KinectReceiver(confirmPacketInfo.ConfirmPacketData.receiverId, confirmPacketInfo.SenderId, confirmPacketInfo.SenderEndPoint);
-                kinectReceivers.Add(kinectReceiver);
-
                 var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
+
+                kinectReceiver = new KinectReceiver(confirmPacketInfo.ConfirmPacketData.receiverId, confirmPacketInfo.ConfirmPacketData.senderId, confirmPacketInfo.SenderEndPoint, kinectOrigin);
+                kinectReceivers.Add(kinectReceiver);
 
                 // viewerScene may not exist if connection through sender did not happen through a controller.
                 if (viewerScene != null)
@@ -231,10 +231,9 @@ public class ViewerManager : MonoBehaviour
                     }
                 }
 
-                kinectReceiver.Prepare(kinectOrigin);
                 kinectReceiver.KinectOrigin.Speaker.Setup();
 
-                print($"Sender {confirmPacketInfo.SenderId} connected.");
+                print($"Sender {confirmPacketInfo.ConfirmPacketData.senderId} connected.");
             }
 
             // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
@@ -243,9 +242,6 @@ public class ViewerManager : MonoBehaviour
             {
                 SenderPacketSet senderPacketSet;
                 if (!senderPacketCollection.SenderPacketSets.TryGetValue(kinectReceiver.SenderId, out senderPacketSet))
-                    continue;
-
-                if (kinectReceiver.State == PrepareState.Unprepared)
                     continue;
 
                 if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSet))

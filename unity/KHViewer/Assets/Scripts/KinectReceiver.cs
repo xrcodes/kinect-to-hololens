@@ -18,8 +18,6 @@ public class KinectReceiver
     public int ReceiverId { get; private set; }
     public int SenderId { get; private set; }
     public IPEndPoint SenderEndPoint { get; private set; }
-    public PrepareState State { get; private set; }
-    
     public KinectOrigin KinectOrigin { get; private set; }
     public TextureSetUpdater TextureGroupUpdater { get; private set; }
     private VideoMessageAssembler videoMessageAssembler;
@@ -27,19 +25,14 @@ public class KinectReceiver
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int receiverId, int senderId, IPEndPoint senderEndPoint)
+    public KinectReceiver(int receiverId, int senderId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin)
     {
         ReceiverId = receiverId;
         SenderId = senderId;
         SenderEndPoint = senderEndPoint;
-        State = PrepareState.Unprepared;
-    }
 
-    public void Prepare(KinectOrigin kinectOrigin)
-    {
-        State = PrepareState.Prepared;
         KinectOrigin = kinectOrigin;
-        TextureGroupUpdater = new TextureSetUpdater(kinectOrigin.Screen.Material, ReceiverId, SenderEndPoint);
+        TextureGroupUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
         audioPacketReceiver = new AudioReceiver();
         heartbeatStopWatch = Stopwatch.StartNew();
@@ -48,9 +41,6 @@ public class KinectReceiver
 
     public bool UpdateFrame(UdpSocket udpSocket, SenderPacketSet senderPacketSet)
     {
-        // UpdateFrame() should not be called before Prepare().
-        Assert.AreEqual(PrepareState.Prepared, State);
-
         var videoMessages = new SortedDictionary<int, VideoSenderMessage>();
         try
         {
@@ -62,16 +52,6 @@ public class KinectReceiver
 
             if (senderPacketSet.ReceivedAny)
             {
-                // Use init packet to prepare rendering video messages.
-                //if (senderPacketSet.InitPacketDataList.Count > 0)
-                //{
-                //    if (KinectOrigin.Screen.State == PrepareState.Unprepared)
-                //    {
-                //        KinectOrigin.Screen.StartPrepare(senderPacketSet.InitPacketDataList[0]);
-                //        TextureGroupUpdater.StartPrepare(monoBehaviour, senderPacketSet.InitPacketDataList[0]);
-                //    }
-                //}
-
                 videoMessageAssembler.Assemble(udpSocket,
                                                senderPacketSet.VideoPacketDataList,
                                                senderPacketSet.ParityPacketDataList,
@@ -85,7 +65,7 @@ public class KinectReceiver
                         foreach (var videoMessagePair in videoMessages)
                         {
                             KinectOrigin.Screen.StartPrepare(videoMessagePair.Value);
-                            TextureGroupUpdater.StartPrepare(videoMessagePair.Value);
+                            TextureGroupUpdater.StartPrepare(KinectOrigin.Screen.Material, videoMessagePair.Value);
                             break;
                         }
                     }
