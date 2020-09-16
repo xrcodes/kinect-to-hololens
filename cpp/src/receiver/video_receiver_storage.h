@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include "native/kh_native.h"
 
 namespace kh

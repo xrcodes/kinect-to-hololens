@@ -6,7 +6,7 @@
 #include "sender/video_pipeline.h"
 #include "sender/video_sender_storage.h"
 #include "sender/receiver_packet_classifier.h"
-#include "native/imgui_wrapper.h"
+#include "win32/imgui_wrapper.h"
 #include "utils/filesystem_utils.h"
 #include "native/profiler.h"
 

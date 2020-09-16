@@ -1,5 +1,7 @@
 #pragma once
 
+#include "win32/soundio_utils.h"
+
 namespace kh
 {
 static SoundIoRingBuffer* ring_buffer{nullptr};

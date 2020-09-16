@@ -1,8 +1,9 @@
 #pragma once
 
+#include "win32/opencv_utils.h"
+
 namespace kh
 {
-
 class VideoRenderer
 {
 public:

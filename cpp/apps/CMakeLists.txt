@@ -30,7 +30,7 @@ target_include_directories(KinectToHololensListenerApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectToHololensListenerApp
-  KinectToHololensNative
+  KinectToHololensWin32
 )
 set_target_properties(KinectToHololensListenerApp PROPERTIES
   CXX_STANDARD 17
@@ -72,7 +72,7 @@ target_include_directories(KinectToHololensReceiverApp PRIVATE
   "${AZURE_KINECT_DIR}/sdk/include"
 )
 target_link_libraries(KinectToHololensReceiverApp
-  KinectToHololensNative
+  KinectToHololensWin32
 )
 set_target_properties(KinectToHololensReceiverApp PROPERTIES
   CXX_STANDARD 17

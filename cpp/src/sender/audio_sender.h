@@ -2,6 +2,7 @@
 
 #include "sender/remote_receiver.h"
 #include "native/kh_native.h"
+#include "win32/soundio_utils.h"
 
 namespace kh
 {
