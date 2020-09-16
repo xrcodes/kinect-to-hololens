@@ -32,7 +32,7 @@ Seeing through a Kinect from a HoloLens.
 ## Viewer
 1. Install and run KH Viewer in a HoloLens.
 2. Type IP address of the Sender and press enter. You can use a wireless keyboard or the virtual key input of Windows Device Portal.
-3. For better experience, press space key making the HoloLens facing yourself.
+3. For a better experience, press space key making the HoloLens facing yourself.
 
 ## Check firewall when connections don't work.
 Since the sender/controller often gets turned on in a machine that is not built to function as a server, incoming connections to the sender/controller often gets blocked. Actually, they get blocked by default when the firewall is on. If a connection does not work, first turn off the whole firewall and try it again. If this makes the connection to happen, it means the firewall was blocking the connection. Now, turn on the firewall again, as turning off the firewall is terrible for your security, and add inbound firewall rules for both sender and controller (this would mean Unity3D if you are running it as a Unity3D project) allowing domain/private/public (choose the ones that belong to your environment; pick all if you are not sure) connections. (For adding inbound firewall rules, see https://www.howtogeek.com/112564/how-to-create-advanced-firewall-rules-in-the-windows-firewall/)
