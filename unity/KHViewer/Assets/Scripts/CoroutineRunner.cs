@@ -7,6 +7,9 @@ public class CoroutineRunner : MonoBehaviour
 
     void Awake()
     {
+        if (instance != null)
+            Debug.LogError("There should be only one CoroutineRunner.");
+
         instance = this;
     }
 

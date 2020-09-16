@@ -129,7 +129,7 @@ public class VideoSenderPacket
     }
 }
 
-public class ParitySenderPacketData
+public class ParitySenderPacket
 {
     public int senderId;
     public SenderPacketType type;
@@ -138,10 +138,10 @@ public class ParitySenderPacketData
     public int videoPacketCount;
     public byte[] bytes;
 
-    public static ParitySenderPacketData Create(byte[] packetBytes)
+    public static ParitySenderPacket Create(byte[] packetBytes)
     {
         var reader = new BinaryReader(new MemoryStream(packetBytes));
-        var paritySenderPacket = new ParitySenderPacketData();
+        var paritySenderPacket = new ParitySenderPacket();
         paritySenderPacket.senderId = reader.ReadInt32();
         paritySenderPacket.type = (SenderPacketType)reader.ReadInt32();
         paritySenderPacket.frameId = reader.ReadInt32();

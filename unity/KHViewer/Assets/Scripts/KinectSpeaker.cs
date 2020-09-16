@@ -10,7 +10,7 @@ public class KinectSpeaker : MonoBehaviour
 
     public RingBuffer RingBuffer { get; set; }
 
-    public void Setup()
+    void Awake()
     {
         RingBuffer = new RingBuffer((int)(KH_LATENCY_SECONDS * 2 * KH_BYTES_PER_SECOND / sizeof(float)));
     }

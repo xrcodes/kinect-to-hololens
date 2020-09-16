@@ -57,21 +57,14 @@ public class KinectOrigin : MonoBehaviour
         if (videoMessageData == null)
             return;
 
-        Vector3 position;
-        Quaternion rotation;
-
-        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessageData, out position, out rotation);
+        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessageData, out Vector3 position, out Quaternion rotation);
 
         floorTransform.localPosition = position;
         floorTransform.localRotation = rotation;
 
-        Vector3 inversePosition;
-        Quaternion inverseRotation;
-        FloorUtils.InvertPositionAndRotation(position, rotation, out inversePosition, out inverseRotation);
+        FloorUtils.InvertPositionAndRotation(position, rotation, out Vector3 inversePosition, out Quaternion inverseRotation);
 
-        Vector3 inversePlaneNormal;
-        float inversePlaneHeight;
-        FloorUtils.ConvertPositionAndRotationToNormalAndY(inversePosition, inverseRotation, out inversePlaneNormal, out inversePlaneHeight);
+        FloorUtils.ConvertPositionAndRotationToNormalAndY(inversePosition, inverseRotation, out Vector3 inversePlaneNormal, out float inversePlaneHeight);
 
         //floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePositionY, 0.0f);
         //floorTransformInverterTransform.localRotation = inverseRotation;
@@ -92,7 +85,7 @@ public class KinectOrigin : MonoBehaviour
             inversePlaneHeightSum += height;
 
         Vector3 inversePlaneNormalAverage = inversePlaneNormalSum / inversePlaneHeightQueue.Count;
-        float inversePlaneHeightAverage = inversePlaneHeightSum / inversePlaneHeightQueue.Count;
+        //float inversePlaneHeightAverage = inversePlaneHeightSum / inversePlaneHeightQueue.Count;
         Quaternion inversePlaneNormalAverageRotation = Quaternion.FromToRotation(Vector3.up, inversePlaneNormalAverage);
 
         //floorTransformInverterTransform.localPosition = new Vector3(0.0f, inversePlaneHeightAverage, 0.0f);

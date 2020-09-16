@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -22,7 +23,7 @@ public class ViewerManager : MonoBehaviour
     private ControllerClientSocket controllerClientSocket;
 
     private ViewerScene viewerScene;
-    private List<KinectReceiver> kinectReceivers;
+    private Dictionary<int, KinectReceiver> kinectReceivers;
     private int connectingCount;
 
     void Start()
@@ -34,7 +35,7 @@ public class ViewerManager : MonoBehaviour
         udpSocket = new UdpSocket(socket);
 
         viewerScene = null;
-        kinectReceivers = new List<KinectReceiver>();
+        kinectReceivers = new Dictionary<int, KinectReceiver>();
         connectingCount = 0;
 
         sharedSpaceAnchor.GizmoVisibility = false;
@@ -65,13 +66,12 @@ public class ViewerManager : MonoBehaviour
                         ipAddressText = "127.0.0.1";
 
 
-                    IPAddress ipAddress;
-                    if (!IPAddress.TryParse(ipAddressText, out ipAddress))
+                    if (!IPAddress.TryParse(ipAddressText, out IPAddress ipAddress))
                     {
                         TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
                     }
 
-                    TryConnectToKinectSender(new IPEndPoint(ipAddress, SENDER_DEFAULT_PORT));
+                    StartCoroutine(TryConnectToKinectSender(new IPEndPoint(ipAddress, SENDER_DEFAULT_PORT)));
                 }
             }
         }
@@ -87,7 +87,12 @@ public class ViewerManager : MonoBehaviour
             sharedSpaceAnchor.GizmoVisibility = !sharedSpaceAnchor.GizmoVisibility;
         }
 
-        if (controllerClientSocket != null)
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            FpsCounter.Toast();
+        }
+
+            if (controllerClientSocket != null)
         {
             UpdateControllerClient();
         }
@@ -136,40 +141,32 @@ public class ViewerManager : MonoBehaviour
         {
             foreach (var kinectSenderElement in viewerScene.kinectSenderElements)
             {
-                IPAddress ipAddress;
-                if (!IPAddress.TryParse(kinectSenderElement.address, out ipAddress))
+                if (!IPAddress.TryParse(kinectSenderElement.address, out IPAddress ipAddress))
                 {
                     TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
                 }
 
                 var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
                 print($"endPoint: {endPoint}");
-                foreach (var receiver in kinectReceivers)
+                foreach (var receiverPair in kinectReceivers)
                 {
-                    print($"receiver.SenderEndPoint: {receiver.SenderEndPoint}");
+                    print($"receiver.SenderEndPoint: {receiverPair.Value.SenderEndPoint}");
                 }
 
-                if (kinectReceivers.FirstOrDefault(x => x.SenderEndPoint.Equals(endPoint)) != null)
-                {
-                    print("exists");
+                if (kinectReceivers.Values.FirstOrDefault(x => x.SenderEndPoint.Equals(endPoint)) != null)
                     continue;
-                }
-                else
-                {
-                    print("not exists");
-                }
 
-                TryConnectToKinectSender(endPoint);
+                StartCoroutine(TryConnectToKinectSender(endPoint));
             }
 
-            foreach(var kinectReceiver in kinectReceivers)
+            foreach(var kinectReceiverPair in kinectReceivers)
             {
-                var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiver.SenderEndPoint.Address.ToString()
-                                                                                            && x.port == kinectReceiver.SenderEndPoint.Port);
+                var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiverPair.Value.SenderEndPoint.Address.ToString()
+                                                                                            && x.port == kinectReceiverPair.Value.SenderEndPoint.Port);
 
                 if (kinectSenderElement != null)
                 {
-                    var kinectOrigin = kinectReceiver.KinectOrigin;
+                    var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(kinectReceiverPair.Key);
                     if (kinectOrigin != null)
                     {
                         kinectOrigin.transform.localPosition = kinectSenderElement.position;
@@ -182,7 +179,7 @@ public class ViewerManager : MonoBehaviour
         }
 
         var receiverStates = new List<ReceiverState>();
-        foreach (var receiver in kinectReceivers)
+        foreach (var receiver in kinectReceivers.Values)
         {
             var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
                                                   receiver.SenderEndPoint.Port,
@@ -205,49 +202,44 @@ public class ViewerManager : MonoBehaviour
     {
         try
         {
-            var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, kinectReceivers);
+            var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, kinectReceivers.Values);
             foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
             {
-                // Create a KinectReceiver if there is none with the ID yet.
-                var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.ReceiverId == confirmPacketInfo.ConfirmPacketData.receiverId);
-                if (kinectReceiver != null)
+                int receiverId = confirmPacketInfo.ConfirmPacketData.receiverId;
+                // Ignore if there is already a receiver with the receiver ID.
+                if (kinectReceivers.ContainsKey(receiverId))
                     continue;
 
-                var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin();
+                var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin(receiverId);
+                
+                var kinectReceiver = new KinectReceiver(receiverId, confirmPacketInfo.ConfirmPacketData.senderId, confirmPacketInfo.SenderEndPoint);
+                kinectReceivers.Add(confirmPacketInfo.ConfirmPacketData.receiverId, kinectReceiver);
 
-                kinectReceiver = new KinectReceiver(confirmPacketInfo.ConfirmPacketData.receiverId, confirmPacketInfo.ConfirmPacketData.senderId, confirmPacketInfo.SenderEndPoint, kinectOrigin);
-                kinectReceivers.Add(kinectReceiver);
-
-                // viewerScene may not exist if connection through sender did not happen through a controller.
+                // Apply transformation of kinectSenderElement if there is a corresponding one.
                 if (viewerScene != null)
                 {
                     var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiver.SenderEndPoint.Address.ToString()
                                                                                                 && x.port == kinectReceiver.SenderEndPoint.Port);
-
                     if (kinectSenderElement != null)
                     {
                         kinectOrigin.transform.localPosition = kinectSenderElement.position;
                         kinectOrigin.transform.localRotation = kinectSenderElement.rotation;
                     }
                 }
-
-                kinectReceiver.KinectOrigin.Speaker.Setup();
-
-                print($"Sender {confirmPacketInfo.ConfirmPacketData.senderId} connected.");
             }
 
             // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
-            //foreach (var remoteSender in remoteSenders.ToList())
-            foreach (var kinectReceiver in kinectReceivers.ToList())
+            foreach (var senderPacketSetPair in senderPacketCollection.SenderPacketSets)
             {
-                SenderPacketSet senderPacketSet;
-                if (!senderPacketCollection.SenderPacketSets.TryGetValue(kinectReceiver.SenderId, out senderPacketSet))
+                int receiverId = senderPacketSetPair.Key;
+                if (!kinectReceivers.TryGetValue(receiverId, out KinectReceiver kinectReceiver))
                     continue;
 
-                if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSet))
+                var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverId);
+                if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSetPair.Value, kinectOrigin))
                 {
-                    kinectReceivers.Remove(kinectReceiver);
-                    sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
+                    kinectReceivers.Remove(receiverId);
+                    sharedSpaceAnchor.RemoveKinectOrigin(receiverId);
                     connectionWindow.Visibility = true;
                 }
             }
@@ -255,11 +247,11 @@ public class ViewerManager : MonoBehaviour
         catch (UdpSocketException e)
         {
             print($"UdpSocketException: {e}");
-            var kinectReceiver = kinectReceivers.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
+            var kinectReceiver = kinectReceivers.Values.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
             if (kinectReceiver != null)
             {
-                kinectReceivers.Remove(kinectReceiver);
-                sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.KinectOrigin);
+                kinectReceivers.Remove(kinectReceiver.ReceiverId);
+                sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.ReceiverId);
                 connectionWindow.Visibility = true;
             }
             else
@@ -282,8 +274,7 @@ public class ViewerManager : MonoBehaviour
         var random = new System.Random();
         int userId = random.Next();
 
-        IPAddress controllerIpAddress;
-        if (!IPAddress.TryParse(ipAddress, out controllerIpAddress))
+        if (!IPAddress.TryParse(ipAddress, out IPAddress controllerIpAddress))
         {
             TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
             --connectingCount;
@@ -309,22 +300,20 @@ public class ViewerManager : MonoBehaviour
         --connectingCount;
     }
 
-    private async void TryConnectToKinectSender(IPEndPoint endPoint)
+    // Nudge a sender with a connect packet five times.
+    private IEnumerator TryConnectToKinectSender(IPEndPoint senderEndPoint)
     {
         ++connectingCount;
-
-        TextToaster.Toast($"Try connecting to a Sender at {endPoint}...");
-
+        print($"Try Connecting to a Sender: {senderEndPoint}");
+        TextToaster.Toast($"Try Connecting to a Sender: {senderEndPoint}");
         var random = new System.Random();
         int receiverId = random.Next();
 
-        // Nudge the sender five times.
         for (int i = 0; i < 5; ++i)
         {
-            udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true), endPoint);
-            print($"Sent connect packet #{i}");
-
-            await Task.Delay(300);
+            print($"Send connect packet #{i}");
+            udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true), senderEndPoint);
+            yield return new WaitForSeconds(0.3f);
         }
 
         --connectingCount;

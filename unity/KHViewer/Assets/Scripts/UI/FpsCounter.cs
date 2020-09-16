@@ -3,8 +3,17 @@ using UnityEngine;
 
 public class FpsCounter : MonoBehaviour
 {
+    private static FpsCounter instance;
     public float timeInterval;
     private List<float> timeStamps = new List<float>();
+
+    void Awake()
+    {
+        if (instance != null)
+            Debug.LogError("There should be only one FpsCounter.");
+
+        instance = this;
+    }
 
     void Update()
     {
@@ -20,10 +29,10 @@ public class FpsCounter : MonoBehaviour
         timeStamps.Add(time);
 
         this.timeStamps = timeStamps;
+    }
 
-        if (Input.GetKeyDown(KeyCode.F))
-        {
-            TextToaster.Toast($"FPS: {this.timeStamps.Count / timeInterval}");
-        }
+    public static void Toast()
+    {
+        TextToaster.Toast($"FPS: {instance.timeStamps.Count / instance.timeInterval}");
     }
 }

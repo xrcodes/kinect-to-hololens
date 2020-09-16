@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
-using UnityEngine.Assertions;
 
 public enum PrepareState
 {
@@ -18,28 +17,25 @@ public class KinectReceiver
     public int ReceiverId { get; private set; }
     public int SenderId { get; private set; }
     public IPEndPoint SenderEndPoint { get; private set; }
-    public KinectOrigin KinectOrigin { get; private set; }
-    public TextureSetUpdater TextureGroupUpdater { get; private set; }
+    public TextureSetUpdater TextureSetUpdater { get; private set; }
     private VideoMessageAssembler videoMessageAssembler;
     private AudioReceiver audioPacketReceiver;
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int receiverId, int senderId, IPEndPoint senderEndPoint, KinectOrigin kinectOrigin)
+    public KinectReceiver(int receiverId, int senderId, IPEndPoint senderEndPoint)
     {
         ReceiverId = receiverId;
         SenderId = senderId;
         SenderEndPoint = senderEndPoint;
-
-        KinectOrigin = kinectOrigin;
-        TextureGroupUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
+        TextureSetUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
         audioPacketReceiver = new AudioReceiver();
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
 
-    public bool UpdateFrame(UdpSocket udpSocket, SenderPacketSet senderPacketSet)
+    public bool UpdateFrame(UdpSocket udpSocket, SenderPacketSet senderPacketSet, KinectOrigin kinectOrigin)
     {
         var videoMessages = new SortedDictionary<int, VideoSenderMessage>();
         try
@@ -53,25 +49,25 @@ public class KinectReceiver
             if (senderPacketSet.ReceivedAny)
             {
                 videoMessageAssembler.Assemble(udpSocket,
-                                               senderPacketSet.VideoPacketDataList,
-                                               senderPacketSet.ParityPacketDataList,
-                                               TextureGroupUpdater.lastFrameId,
+                                               senderPacketSet.VideoPackets,
+                                               senderPacketSet.ParityPackets,
+                                               TextureSetUpdater.lastFrameId,
                                                videoMessages);
 
                 if (videoMessages.Count > 0)
                 {
-                    if (KinectOrigin.Screen.State == PrepareState.Unprepared)
+                    if (kinectOrigin.Screen.State == PrepareState.Unprepared)
                     {
                         foreach (var videoMessagePair in videoMessages)
                         {
-                            KinectOrigin.Screen.StartPrepare(videoMessagePair.Value);
-                            TextureGroupUpdater.StartPrepare(KinectOrigin.Screen.Material, videoMessagePair.Value);
+                            kinectOrigin.Screen.StartPrepare(videoMessagePair.Value);
+                            TextureSetUpdater.StartPrepare(kinectOrigin.Screen.Material, videoMessagePair.Value);
                             break;
                         }
                     }
                 }
 
-                audioPacketReceiver.Receive(senderPacketSet.AudioPacketDataList, KinectOrigin.Speaker.RingBuffer);
+                audioPacketReceiver.Receive(senderPacketSet.AudioPackets, kinectOrigin.Speaker.RingBuffer);
                 receivedAnyStopWatch = Stopwatch.StartNew();
             }
             else
@@ -89,18 +85,18 @@ public class KinectReceiver
             return false;
         }
 
-        if (KinectOrigin.Screen.State == PrepareState.Preparing)
+        if (kinectOrigin.Screen.State == PrepareState.Preparing)
         {
-            KinectOrigin.SetProgressText(SenderEndPoint, KinectOrigin.screen.Progress);
-            KinectOrigin.ProgressTextVisibility = true;
+            kinectOrigin.SetProgressText(SenderEndPoint, kinectOrigin.screen.Progress);
+            kinectOrigin.ProgressTextVisibility = true;
         }
-        else if(KinectOrigin.Screen.State == PrepareState.Prepared)
+        else if(kinectOrigin.Screen.State == PrepareState.Prepared)
         {
-            KinectOrigin.ProgressTextVisibility = false;
+            kinectOrigin.ProgressTextVisibility = false;
         }
 
-        KinectOrigin.UpdateFrame(videoMessages);
-        TextureGroupUpdater.UpdateFrame(udpSocket, videoMessages);
+        kinectOrigin.UpdateFrame(videoMessages);
+        TextureSetUpdater.UpdateFrame(udpSocket, videoMessages);
 
         return true;
     }

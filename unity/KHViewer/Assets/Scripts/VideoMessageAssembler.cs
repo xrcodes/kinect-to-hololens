@@ -10,19 +10,19 @@ public class VideoMessageAssembler
     private int sessionId;
     private IPEndPoint remoteEndPoint;
     private Dictionary<int, VideoSenderPacket[]> videoPacketCollections;
-    private Dictionary<int, ParitySenderPacketData[]> parityPacketCollections;
+    private Dictionary<int, ParitySenderPacket[]> parityPacketCollections;
 
     public VideoMessageAssembler(int sessionId, IPEndPoint remoteEndPoint)
     {
         this.sessionId = sessionId;
         this.remoteEndPoint = remoteEndPoint;
         videoPacketCollections = new Dictionary<int, VideoSenderPacket[]>();
-        parityPacketCollections = new Dictionary<int, ParitySenderPacketData[]>();
+        parityPacketCollections = new Dictionary<int, ParitySenderPacket[]>();
     }
 
     public void Assemble(UdpSocket udpSocket,
                          List<VideoSenderPacket> videoPacketDataList,
-                         List<ParitySenderPacketData> parityPacketDataList,
+                         List<ParitySenderPacket> parityPacketDataList,
                          int lastVideoFrameId,
                          IDictionary<int, VideoSenderMessage> videoMessages)
     {
@@ -53,7 +53,7 @@ public class VideoMessageAssembler
             if (!parityPacketCollections.ContainsKey(paritySenderPacketData.frameId))
             {
                 int parityPacketCount = (paritySenderPacketData.videoPacketCount - 1) / FEC_GROUP_SIZE + 1;
-                parityPacketCollections[paritySenderPacketData.frameId] = new ParitySenderPacketData[parityPacketCount];
+                parityPacketCollections[paritySenderPacketData.frameId] = new ParitySenderPacket[parityPacketCount];
             }
 
             parityPacketCollections[paritySenderPacketData.frameId][paritySenderPacketData.packetIndex] = paritySenderPacketData;
@@ -75,7 +75,7 @@ public class VideoMessageAssembler
                 if (!parityPacketCollections.ContainsKey(frameId))
                     continue;
 
-                ParitySenderPacketData[] parityPackets = parityPacketCollections[frameId];
+                ParitySenderPacket[] parityPackets = parityPacketCollections[frameId];
 
                 // Loop per each parity packet.
                 // Collect video packet indices to request.

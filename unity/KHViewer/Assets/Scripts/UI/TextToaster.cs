@@ -2,16 +2,13 @@
 
 public class TextToaster : MonoBehaviour
 {
+    private static TextToaster instance;
     public GameObject toastText;
-
-    public static TextToaster instance;
 
     void Awake()
     {
         if(instance != null)
-        {
-            Debug.LogError("There should be only one TextToaster");
-        }
+            Debug.LogError("There should be only one TextToaster.");
 
         instance = this;
     }

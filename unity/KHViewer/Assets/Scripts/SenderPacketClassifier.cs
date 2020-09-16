@@ -16,16 +16,16 @@ public class ConfirmPacketInfo
 public class SenderPacketSet
 {
     public bool ReceivedAny { get; set; }
-    public List<VideoSenderPacket> VideoPacketDataList { get; private set; }
-    public List<ParitySenderPacketData> ParityPacketDataList { get; private set; }
-    public List<AudioSenderPacket> AudioPacketDataList { get; private set; }
+    public List<VideoSenderPacket> VideoPackets { get; private set; }
+    public List<ParitySenderPacket> ParityPackets { get; private set; }
+    public List<AudioSenderPacket> AudioPackets { get; private set; }
 
     public SenderPacketSet()
     {
         ReceivedAny = false;
-        VideoPacketDataList = new List<VideoSenderPacket>();
-        ParityPacketDataList = new List<ParitySenderPacketData>();
-        AudioPacketDataList = new List<AudioSenderPacket>();
+        VideoPackets = new List<VideoSenderPacket>();
+        ParityPackets = new List<ParitySenderPacket>();
+        AudioPackets = new List<AudioSenderPacket>();
     }
 }
 
@@ -43,7 +43,7 @@ public class SenderPacketCollection
 
 public static class SenderPacketClassifier
 {
-    public static SenderPacketCollection Classify(UdpSocket udpSocket, List<KinectReceiver> kinectReceivers)
+    public static SenderPacketCollection Classify(UdpSocket udpSocket, ICollection<KinectReceiver> kinectReceivers)
     {
         var senderEndPoints = new List<IPEndPoint>();
         var senderPacketCollection = new SenderPacketCollection();
@@ -99,13 +99,13 @@ public static class SenderPacketClassifier
         switch (packetType)
         {
             case SenderPacketType.Video:
-                senderPacketSet.VideoPacketDataList.Add(VideoSenderPacket.Create(packet.Bytes));
+                senderPacketSet.VideoPackets.Add(VideoSenderPacket.Create(packet.Bytes));
                 break;
             case SenderPacketType.Parity:
-                senderPacketSet.ParityPacketDataList.Add(ParitySenderPacketData.Create(packet.Bytes));
+                senderPacketSet.ParityPackets.Add(ParitySenderPacket.Create(packet.Bytes));
                 break;
             case SenderPacketType.Audio:
-                senderPacketSet.AudioPacketDataList.Add(AudioSenderPacket.Create(packet.Bytes));
+                senderPacketSet.AudioPackets.Add(AudioSenderPacket.Create(packet.Bytes));
                 break;
         }
     }

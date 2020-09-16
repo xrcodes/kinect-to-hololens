@@ -5,13 +5,13 @@ public class SharedSpaceAnchor : MonoBehaviour
 {
     public KinectOrigin kinectOriginPrefab;
     public GameObject kinectModel;
-    private List<KinectOrigin> kinectOrigins;
+    private Dictionary<int, KinectOrigin> kinectOrigins;
 
     public bool GizmoVisibility
     {
         set
         {
-            foreach (var kinectOrigin in kinectOrigins)
+            foreach (var kinectOrigin in kinectOrigins.Values)
                 kinectOrigin.FloorVisibility = value;
 
             kinectModel.SetActive(value);
@@ -24,21 +24,30 @@ public class SharedSpaceAnchor : MonoBehaviour
 
     void Awake()
     {
-        kinectOrigins = new List<KinectOrigin>();
+        kinectOrigins = new Dictionary<int, KinectOrigin>();
     }
 
-    public KinectOrigin AddKinectOrigin()
+    public KinectOrigin AddKinectOrigin(int receiverId)
     {
         var kinectOrigin = Instantiate(kinectOriginPrefab, transform);
         kinectOrigin.FloorVisibility = GizmoVisibility;
-        kinectOrigins.Add(kinectOrigin);
+        kinectOrigins.Add(receiverId, kinectOrigin);
 
         return kinectOrigin;
     }
 
-    public void RemoveKinectOrigin(KinectOrigin kinectOrigin)
+    public KinectOrigin GetKinectOrigin(int receiverId)
     {
-        kinectOrigins.Remove(kinectOrigin);
+        if (!kinectOrigins.TryGetValue(receiverId, out KinectOrigin kinectOrigin))
+            return null;
+
+        return kinectOrigin;
+    }
+
+    public void RemoveKinectOrigin(int receiverId)
+    {
+        var kinectOrigin = kinectOrigins[receiverId];
+        kinectOrigins.Remove(receiverId);
         Destroy(kinectOrigin.gameObject);
     }
 
