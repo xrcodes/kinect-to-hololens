@@ -2,17 +2,17 @@
 using System.Net;
 using UnityEngine;
 
-public class KinectOrigin : MonoBehaviour
+public class KinectNode : MonoBehaviour
 {
     public TextMesh progressText;
     public Transform gimbalTransform;
-    public KinectRenderer screen;
+    public KinectRenderer kinectRenderer;
     public KinectSpeaker speaker;
     public Transform floorTransform;
     private Queue<Vector3> inversePlaneNormalQueue = new Queue<Vector3>();
     private Queue<float> inversePlaneHeightQueue = new Queue<float>();
 
-    public KinectRenderer Screen => screen;
+    public KinectRenderer KinectRenderer => kinectRenderer;
     public KinectSpeaker Speaker => speaker;
 
     public bool ProgressTextVisibility

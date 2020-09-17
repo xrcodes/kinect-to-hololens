@@ -26,11 +26,6 @@ public class TextureSetUpdater
         lastFrameId = -1;
     }
 
-    public void StartPrepare(Material azureKinectScreenMaterial, VideoSenderMessage videoMessage)
-    {
-        CoroutineRunner.Run(Prepare(azureKinectScreenMaterial, videoMessage));
-    }
-
     public IEnumerator Prepare(Material azureKinectScreenMaterial, VideoSenderMessage videoMessage)
     {
         if(State != PrepareState.Unprepared)

@@ -277,7 +277,7 @@ GameObject:
   - component: {fileID: 116884040}
   - component: {fileID: 116884041}
   m_Layer: 0
-  m_Name: SharedSpaceAnchor
+  m_Name: SharedSpaceScene
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -307,10 +307,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 116884039}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 84b18adc7df1b8940ba89714848f57f0, type: 3}
+  m_Script: {fileID: 11500000, guid: 43e7263c32dcbf64ba420afa81721821, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  kinectOriginPrefab: {fileID: 5479693725422635020, guid: e7d6fef9ac633f044a51a10e356cd4c1,
+  kinectNodePrefab: {fileID: 5479693725422635020, guid: e7d6fef9ac633f044a51a10e356cd4c1,
     type: 3}
   kinectModel: {fileID: 1601828652}
 --- !u!1 &143469454
@@ -1142,7 +1142,7 @@ MonoBehaviour:
   mainCameraTransform: {fileID: 305340168}
   connectionWindow: {fileID: 77780642}
   connectedControllerWindow: {fileID: 614381864}
-  sharedSpaceAnchor: {fileID: 116884041}
+  sharedSpaceScene: {fileID: 116884041}
 --- !u!1 &949020119
 GameObject:
   m_ObjectHideFlags: 0

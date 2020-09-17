@@ -104,7 +104,7 @@ GameObject:
   - component: {fileID: 5479693725422635023}
   - component: {fileID: 5479693725422635020}
   m_Layer: 0
-  m_Name: KinectOrigin
+  m_Name: KinectNode
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -135,12 +135,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 5479693725422635022}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21fbe4c6e8fd4cf40b59d69d2303a99a, type: 3}
+  m_Script: {fileID: 11500000, guid: f39543c174217634597ef100feb3767a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   progressText: {fileID: 4966878173236796109}
   gimbalTransform: {fileID: 5479693725592937775}
-  screen: {fileID: 5479693726970791579}
+  kinectRenderer: {fileID: 5479693726970791579}
   speaker: {fileID: 5479693725838287750}
   floorTransform: {fileID: 5479693725845399344}
 --- !u!1 &5479693725592937774

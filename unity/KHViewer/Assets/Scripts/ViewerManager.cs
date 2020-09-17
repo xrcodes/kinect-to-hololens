@@ -18,7 +18,7 @@ public class ViewerManager : MonoBehaviour
     public ConnectedControllerWindow connectedControllerWindow;
     // The root of the scene that includes everything else except the main camera.
     // This provides a convenient way to place everything in front of the camera.
-    public SharedSpaceAnchor sharedSpaceAnchor;
+    public SharedSpaceScene sharedSpaceScene;
 
     private int viewerId;
     private UdpSocket udpSocket;
@@ -41,7 +41,7 @@ public class ViewerManager : MonoBehaviour
         receivers = new Dictionary<int, Receiver>();
         connectingCount = 0;
 
-        sharedSpaceAnchor.GizmoVisibility = false;
+        sharedSpaceScene.GizmoVisibility = false;
 
         UpdateUI();
     }
@@ -79,10 +79,10 @@ public class ViewerManager : MonoBehaviour
 
         // Sets the anchor's position and rotation using the current position of the HoloLens device.
         if (Input.GetKeyDown(KeyCode.Space))
-            sharedSpaceAnchor.SetPositionAndRotation(mainCameraTransform.position, mainCameraTransform.rotation);
+            sharedSpaceScene.SetPositionAndRotation(mainCameraTransform.position, mainCameraTransform.rotation);
 
         if (Input.GetKeyDown(KeyCode.V))
-            sharedSpaceAnchor.GizmoVisibility = !sharedSpaceAnchor.GizmoVisibility;
+            sharedSpaceScene.GizmoVisibility = !sharedSpaceScene.GizmoVisibility;
 
         if (Input.GetKeyDown(KeyCode.F))
             FpsCounter.Toast();
@@ -132,9 +132,9 @@ public class ViewerManager : MonoBehaviour
 
         if (controllerScene != null)
         {
-            foreach (var node in controllerScene.nodes)
+            foreach (var controllerNode in controllerScene.nodes)
             {
-                if (!IPAddress.TryParse(node.senderAddress, out IPAddress ipAddress))
+                if (!IPAddress.TryParse(controllerNode.senderAddress, out IPAddress ipAddress))
                 {
                     var message = $"Failed to parse an IP address ({ipAddress}) from controller.";
                     TextToaster.Toast(message);
@@ -142,7 +142,7 @@ public class ViewerManager : MonoBehaviour
                     continue;
                 }
 
-                var senderEndPoint = new IPEndPoint(ipAddress, node.senderPort);
+                var senderEndPoint = new IPEndPoint(ipAddress, controllerNode.senderPort);
                 if (receivers.Values.FirstOrDefault(x => x.SenderEndPoint.Equals(senderEndPoint)) != null)
                     continue;
 
@@ -151,14 +151,14 @@ public class ViewerManager : MonoBehaviour
 
             foreach(var receiverPair in receivers)
             {
-                var node = controllerScene.FindNode(receiverPair.Value.SenderEndPoint);
-                if (node != null)
+                var controllerNode = controllerScene.FindNode(receiverPair.Value.SenderEndPoint);
+                if (controllerNode != null)
                 {
-                    var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverPair.Key);
-                    if (kinectOrigin != null)
+                    var kinectNode = sharedSpaceScene.GetKinectNode(receiverPair.Key);
+                    if (kinectNode != null)
                     {
-                        kinectOrigin.transform.localPosition = node.position;
-                        kinectOrigin.transform.localRotation = node.rotation;
+                        kinectNode.transform.localPosition = controllerNode.position;
+                        kinectNode.transform.localRotation = controllerNode.rotation;
                     }
                 }
             }
@@ -209,7 +209,7 @@ public class ViewerManager : MonoBehaviour
                 if (receiver != null)
                 {
                     receivers.Remove(receiver.ReceiverId);
-                    sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
+                    sharedSpaceScene.RemoveKinectNode(receiver.ReceiverId);
                 }
                 else
                 {
@@ -231,16 +231,16 @@ public class ViewerManager : MonoBehaviour
             // When destroying any of them, the other of the pair should also be destroyed.
             var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
             receivers.Add(confirmPacketInfo.ConfirmPacket.receiverId, receiver);
-            var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin(receiverId);
+            var kinectOrigin = sharedSpaceScene.AddKinectNode(receiverId);
 
             // Apply transformation of kinectSenderElement if there is a corresponding one.
             if (controllerScene != null)
             {
-                var node = controllerScene.FindNode(receiver.SenderEndPoint);
-                if (node != null)
+                var controllerNode = controllerScene.FindNode(receiver.SenderEndPoint);
+                if (controllerNode != null)
                 {
-                    kinectOrigin.transform.localPosition = node.position;
-                    kinectOrigin.transform.localRotation = node.rotation;
+                    kinectOrigin.transform.localPosition = controllerNode.position;
+                    kinectOrigin.transform.localRotation = controllerNode.rotation;
                 }
             }
         }
@@ -256,33 +256,33 @@ public class ViewerManager : MonoBehaviour
             int senderId = senderPacketInfoPair.Key;
             // Since senderPacketInfos were built based on receivers, there should be a corresponding receiver.
             var receiver = receivers.Values.First(x => x.SenderId == senderId);
-            var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiver.ReceiverId);
-            receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectOrigin);
+            var kinectNode = sharedSpaceScene.GetKinectNode(receiver.ReceiverId);
+            receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectNode);
 
-            if (kinectOrigin.Screen.State == PrepareState.Unprepared)
+            if (kinectNode.KinectRenderer.State == PrepareState.Unprepared)
             {
                 if (receiver.VideoMessages.Count > 0)
                 {
                     foreach (var videoMessage in receiver.VideoMessages.Values)
                     {
-                        kinectOrigin.Screen.StartPrepare(videoMessage);
+                        kinectNode.KinectRenderer.StartPrepare(videoMessage);
                         break;
                     }
                 }
             }
-            else if (kinectOrigin.Screen.State == PrepareState.Preparing)
+            else if (kinectNode.KinectRenderer.State == PrepareState.Preparing)
             {
-                kinectOrigin.SetProgressText(receiver.SenderEndPoint, kinectOrigin.screen.Progress);
-                kinectOrigin.ProgressTextVisibility = true;
+                kinectNode.SetProgressText(receiver.SenderEndPoint, kinectNode.kinectRenderer.Progress);
+                kinectNode.ProgressTextVisibility = true;
             }
-            else if (kinectOrigin.Screen.State == PrepareState.Prepared)
+            else if (kinectNode.KinectRenderer.State == PrepareState.Prepared)
             {
-                kinectOrigin.ProgressTextVisibility = false;
+                kinectNode.ProgressTextVisibility = false;
             }
 
             var floorVideoMessage = receiver.VideoMessages.Values.FirstOrDefault(x => x.floor != null);
             if (floorVideoMessage != null)
-                kinectOrigin.UpdateFrame(floorVideoMessage.floor);
+                kinectNode.UpdateFrame(floorVideoMessage.floor);
 
             receiver.UpdateFrame(udpSocket);
         }
@@ -296,7 +296,7 @@ public class ViewerManager : MonoBehaviour
             TextToaster.Toast(message);
             print(message);
             receivers.Remove(receiver.ReceiverId);
-            sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
+            sharedSpaceScene.RemoveKinectNode(receiver.ReceiverId);
         }
     }
 

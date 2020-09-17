@@ -1,17 +1,17 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-public class SharedSpaceAnchor : MonoBehaviour
+public class SharedSpaceScene : MonoBehaviour
 {
-    public KinectOrigin kinectOriginPrefab;
+    public KinectNode kinectNodePrefab;
     public GameObject kinectModel;
-    private Dictionary<int, KinectOrigin> kinectOrigins;
+    private Dictionary<int, KinectNode> kinectNodes;
 
     public bool GizmoVisibility
     {
         set
         {
-            foreach (var kinectOrigin in kinectOrigins.Values)
+            foreach (var kinectOrigin in kinectNodes.Values)
                 kinectOrigin.FloorVisibility = value;
 
             kinectModel.SetActive(value);
@@ -24,31 +24,31 @@ public class SharedSpaceAnchor : MonoBehaviour
 
     void Awake()
     {
-        kinectOrigins = new Dictionary<int, KinectOrigin>();
+        kinectNodes = new Dictionary<int, KinectNode>();
     }
 
-    public KinectOrigin AddKinectOrigin(int receiverId)
+    public KinectNode AddKinectNode(int receiverId)
     {
-        var kinectOrigin = Instantiate(kinectOriginPrefab, transform);
-        kinectOrigin.FloorVisibility = GizmoVisibility;
-        kinectOrigins.Add(receiverId, kinectOrigin);
+        var kinectNodes = Instantiate(kinectNodePrefab, transform);
+        kinectNodes.FloorVisibility = GizmoVisibility;
+        this.kinectNodes.Add(receiverId, kinectNodes);
 
-        return kinectOrigin;
+        return kinectNodes;
     }
 
-    public KinectOrigin GetKinectOrigin(int receiverId)
+    public KinectNode GetKinectNode(int receiverId)
     {
-        if (!kinectOrigins.TryGetValue(receiverId, out KinectOrigin kinectOrigin))
+        if (!kinectNodes.TryGetValue(receiverId, out KinectNode kinectNode))
             return null;
 
-        return kinectOrigin;
+        return kinectNode;
     }
 
-    public void RemoveKinectOrigin(int receiverId)
+    public void RemoveKinectNode(int receiverId)
     {
-        var kinectOrigin = kinectOrigins[receiverId];
-        kinectOrigins.Remove(receiverId);
-        Destroy(kinectOrigin.gameObject);
+        var kinectNode = kinectNodes[receiverId];
+        kinectNodes.Remove(receiverId);
+        Destroy(kinectNode.gameObject);
     }
 
     // Rotation of the anchor does not directly gets set to the input camera rotation.

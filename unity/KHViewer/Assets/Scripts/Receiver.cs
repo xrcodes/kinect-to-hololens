@@ -19,10 +19,12 @@ public class Receiver
     public int ReceiverId { get; private set; }
     public int SenderId { get; private set; }
     public IPEndPoint SenderEndPoint { get; private set; }
-    public TextureSetUpdater TextureSetUpdater { get; private set; }
+    public SortedDictionary<int, VideoSenderMessage> VideoMessages { get; private set; }
+
+    private TextureSetUpdater textureSetUpdater;
     private VideoMessageAssembler videoMessageAssembler;
     private AudioReceiver audioReceiver;
-    public SortedDictionary<int, VideoSenderMessage> VideoMessages { get; private set; }
+
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
@@ -31,11 +33,11 @@ public class Receiver
         ReceiverId = receiverId;
         SenderId = senderId;
         SenderEndPoint = senderEndPoint;
+        VideoMessages = new SortedDictionary<int, VideoSenderMessage>();
 
-        TextureSetUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
+        textureSetUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
         audioReceiver = new AudioReceiver();
-        VideoMessages = new SortedDictionary<int, VideoSenderMessage>(); ;
 
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
@@ -57,7 +59,7 @@ public class Receiver
         }
     }
 
-    public void ReceivePackets(UdpSocket udpSocket, SenderPacketInfo senderPacketSet, KinectOrigin kinectOrigin)
+    public void ReceivePackets(UdpSocket udpSocket, SenderPacketInfo senderPacketSet, KinectNode kinectNode)
     {
         if (senderPacketSet.ReceivedAny)
             receivedAnyStopWatch = Stopwatch.StartNew();
@@ -65,16 +67,16 @@ public class Receiver
         videoMessageAssembler.Assemble(udpSocket,
                                        senderPacketSet.VideoPackets,
                                        senderPacketSet.ParityPackets,
-                                       TextureSetUpdater.lastFrameId,
+                                       textureSetUpdater.lastFrameId,
                                        VideoMessages);
 
-        audioReceiver.Receive(senderPacketSet.AudioPackets, kinectOrigin.Speaker.RingBuffer);
+        audioReceiver.Receive(senderPacketSet.AudioPackets, kinectNode.Speaker.RingBuffer);
 
-        if (TextureSetUpdater.State == PrepareState.Unprepared && VideoMessages.Count > 0)
+        if (textureSetUpdater.State == PrepareState.Unprepared && VideoMessages.Count > 0)
         {
             foreach (var videoMessage in VideoMessages.Values)
             {
-                TextureSetUpdater.StartPrepare(kinectOrigin.Screen.Material, videoMessage);
+                CoroutineRunner.Run(textureSetUpdater.Prepare(kinectNode.KinectRenderer.Material, videoMessage));
                 break;
             }
         }
@@ -82,12 +84,12 @@ public class Receiver
 
     public void UpdateFrame(UdpSocket udpSocket)
     {
-        TextureSetUpdater.UpdateFrame(udpSocket, VideoMessages);
+        textureSetUpdater.UpdateFrame(udpSocket, VideoMessages);
 
         // Remove obsolete video messages.
         foreach (var videoMessageFrameId in VideoMessages.Keys.ToList())
         {
-            if(videoMessageFrameId <= TextureSetUpdater.lastFrameId)
+            if(videoMessageFrameId <= textureSetUpdater.lastFrameId)
                 VideoMessages.Remove(videoMessageFrameId);
         }
     }
