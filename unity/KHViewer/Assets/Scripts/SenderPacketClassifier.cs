@@ -32,13 +32,10 @@ public class SenderPacketInfo
 public static class SenderPacketClassifier
 {
     public static void Classify(UdpSocket udpSocket, ICollection<Receiver> receivers,
-                                out List<ConfirmPacketInfo> confirmPacketInfos,
-                                out Dictionary<int, SenderPacketInfo> senderPacketInfos)
+                                List<ConfirmPacketInfo> confirmPacketInfos,
+                                Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
-        confirmPacketInfos = new List<ConfirmPacketInfo>();
-        senderPacketInfos = new Dictionary<int, SenderPacketInfo>();
-
-        // During this loop, SocketExceptions will have endpoint information.
+        // Loop for receiving packets with with specific end points.
         foreach(var receiver in receivers)
         {
             senderPacketInfos.Add(receiver.SenderId, new SenderPacketInfo());
@@ -55,7 +52,7 @@ public static class SenderPacketClassifier
         // During this loop, SocketExceptions won't have endpoint information but connection messages will be received.
         while(true)
         {
-            var packet = udpSocket.Receive();
+            var packet = udpSocket.ReceiveFromAny();
             if (packet == null)
                 break;
 

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net;
 using UnityEngine;
 
@@ -45,9 +44,9 @@ public class KinectOrigin : MonoBehaviour
         progressText.text = $"Preparation for {senderEndPoint}\n{progress * 100.0f:F0}% done.";
     }
 
-    public void UpdateFrame(VideoSenderMessage videoMessage)
+    public void UpdateFrame(float[] floor)
     {
-        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessage, out Vector3 position, out Quaternion rotation);
+        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(floor, out Vector3 position, out Quaternion rotation);
 
         floorTransform.localPosition = position;
         floorTransform.localRotation = rotation;

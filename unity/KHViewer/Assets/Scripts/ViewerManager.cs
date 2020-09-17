@@ -33,9 +33,7 @@ public class ViewerManager : MonoBehaviour
         var random = new System.Random();
         viewerId = random.Next();
 
-        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 };
-        socket.Bind(new IPEndPoint(IPAddress.Any, 0));
-        udpSocket = new UdpSocket(socket);
+        udpSocket = new UdpSocket(1024 * 1024);
 
         controllerScene = null;
         receivers = new Dictionary<int, Receiver>();
@@ -193,100 +191,112 @@ public class ViewerManager : MonoBehaviour
 
     private void UpdateReceivers()
     {
+        var confirmPacketInfos = new List<ConfirmPacketInfo>();
+        var senderPacketInfos = new Dictionary<int, SenderPacketInfo>();
+
         try
         {
-            SenderPacketClassifier.Classify(udpSocket, receivers.Values,
-                                            out var confirmPacketInfos,
-                                            out var senderPacketInfos);
-            foreach (var confirmPacketInfo in confirmPacketInfos)
-            {
-                int receiverId = confirmPacketInfo.ConfirmPacket.receiverId;
-                // Ignore if there is already a receiver with the receiver ID.
-                if (receivers.ContainsKey(receiverId))
-                    continue;
-
-                var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin(receiverId);
-
-                var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
-                receivers.Add(confirmPacketInfo.ConfirmPacket.receiverId, receiver);
-
-                // Apply transformation of kinectSenderElement if there is a corresponding one.
-                if (controllerScene != null)
-                {
-                    var node = controllerScene.FindNode(receiver.SenderEndPoint);
-                    if (node != null)
-                    {
-                        kinectOrigin.transform.localPosition = node.position;
-                        kinectOrigin.transform.localRotation = node.rotation;
-                    }
-                }
-            }
-
-            // Send heartbeat packets to senders.
-            foreach (var receiver in receivers.Values)
-                receiver.SendHeartBeat(udpSocket);
-
-            // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
-            foreach (var senderPacketInfoPair in senderPacketInfos)
-            {
-                // The keys of senderPacketInfos are sender IDs, not receiver IDs like other collections.
-                int senderId = senderPacketInfoPair.Key;
-                // Since senderPacketInfos were built based on receivers, there should be a corresponding receiver.
-                var receiver = receivers.Values.First(x => x.SenderId == senderId);
-
-                var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiver.ReceiverId);
-                receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectOrigin);
-
-                if (kinectOrigin.Screen.State == PrepareState.Unprepared)
-                {
-                    if (receiver.VideoMessages.Count > 0)
-                    {
-                        foreach (var videoMessage in receiver.VideoMessages.Values)
-                        {
-                            kinectOrigin.Screen.StartPrepare(videoMessage);
-                            break;
-                        }
-                    }
-                }
-                else if (kinectOrigin.Screen.State == PrepareState.Preparing)
-                {
-                    kinectOrigin.SetProgressText(receiver.SenderEndPoint, kinectOrigin.screen.Progress);
-                    kinectOrigin.ProgressTextVisibility = true;
-                }
-                else if (kinectOrigin.Screen.State == PrepareState.Prepared)
-                {
-                    kinectOrigin.ProgressTextVisibility = false;
-                }
-
-                var floorVideoMessage = receiver.VideoMessages.Values.FirstOrDefault(x => x.floor != null);
-                if (floorVideoMessage != null)
-                    kinectOrigin.UpdateFrame(floorVideoMessage);
-
-                receiver.UpdateFrame(udpSocket);
-            }
-
-            foreach (var receiver in receivers.Values.ToList())
-            {
-                if (receiver.IsTimedOut())
-                {
-                    print($"Receiver {receiver.ReceiverId} timed out.");
-                    receivers.Remove(receiver.ReceiverId);
-                    sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
-                }
-            }
+            SenderPacketClassifier.Classify(udpSocket, receivers.Values, confirmPacketInfos, senderPacketInfos);
         }
         catch (UdpSocketException e)
         {
-            print($"UdpSocketException: {e}");
-            var receiver = receivers.Values.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
-            if (receiver != null)
+            // Ignore if there is no end point information.
+            if (e.EndPoint.Address == IPAddress.Any)
             {
-                receivers.Remove(receiver.ReceiverId);
-                sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
+                TextToaster.Toast("Error from SenderPacketClassifier.Classify() while receiving packets from IPAddress.Any.");
+                print("Error from SenderPacketClassifier.Classify() while receiving packets from IPAddress.Any.");
             }
             else
             {
-                print("Failed to find the receiver to remove...");
+                // Remove the receiver whose connected sender caused the UdpSocketException.
+                var receiver = receivers.Values.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
+                if (receiver != null)
+                {
+                    receivers.Remove(receiver.ReceiverId);
+                    sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
+                }
+                else
+                {
+                    TextToaster.Toast($"Failed to remove the receiver whose sender's end point is {e.EndPoint}.");
+                    print($"Failed to remove the receiver whose sender's end point is {e.EndPoint}.");
+                }
+            }
+        }
+
+        foreach (var confirmPacketInfo in confirmPacketInfos)
+        {
+            int receiverId = confirmPacketInfo.ConfirmPacket.receiverId;
+            // Ignore if there is already a receiver with the receiver ID.
+            if (receivers.ContainsKey(receiverId))
+                continue;
+
+            // Receiver and KinectOrigin gets created together.
+            // When destroying any of them, the other of the pair should also be destroyed.
+            var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
+            receivers.Add(confirmPacketInfo.ConfirmPacket.receiverId, receiver);
+            var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin(receiverId);
+
+            // Apply transformation of kinectSenderElement if there is a corresponding one.
+            if (controllerScene != null)
+            {
+                var node = controllerScene.FindNode(receiver.SenderEndPoint);
+                if (node != null)
+                {
+                    kinectOrigin.transform.localPosition = node.position;
+                    kinectOrigin.transform.localRotation = node.rotation;
+                }
+            }
+        }
+
+        // Send heartbeat packets to senders.
+        foreach (var receiver in receivers.Values)
+            receiver.SendHeartBeat(udpSocket);
+
+        // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
+        foreach (var senderPacketInfoPair in senderPacketInfos)
+        {
+            // The keys of senderPacketInfos are sender IDs, not receiver IDs like other collections.
+            int senderId = senderPacketInfoPair.Key;
+            // Since senderPacketInfos were built based on receivers, there should be a corresponding receiver.
+            var receiver = receivers.Values.First(x => x.SenderId == senderId);
+            var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiver.ReceiverId);
+            receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectOrigin);
+
+            if (kinectOrigin.Screen.State == PrepareState.Unprepared)
+            {
+                if (receiver.VideoMessages.Count > 0)
+                {
+                    foreach (var videoMessage in receiver.VideoMessages.Values)
+                    {
+                        kinectOrigin.Screen.StartPrepare(videoMessage);
+                        break;
+                    }
+                }
+            }
+            else if (kinectOrigin.Screen.State == PrepareState.Preparing)
+            {
+                kinectOrigin.SetProgressText(receiver.SenderEndPoint, kinectOrigin.screen.Progress);
+                kinectOrigin.ProgressTextVisibility = true;
+            }
+            else if (kinectOrigin.Screen.State == PrepareState.Prepared)
+            {
+                kinectOrigin.ProgressTextVisibility = false;
+            }
+
+            var floorVideoMessage = receiver.VideoMessages.Values.FirstOrDefault(x => x.floor != null);
+            if (floorVideoMessage != null)
+                kinectOrigin.UpdateFrame(floorVideoMessage.floor);
+
+            receiver.UpdateFrame(udpSocket);
+        }
+
+        foreach (var receiver in receivers.Values.ToList())
+        {
+            if (receiver.IsTimedOut())
+            {
+                print($"Receiver {receiver.ReceiverId} timed out.");
+                receivers.Remove(receiver.ReceiverId);
+                sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
             }
         }
     }

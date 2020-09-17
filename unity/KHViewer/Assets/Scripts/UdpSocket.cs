@@ -31,21 +31,14 @@ public class UdpSocket
 {
     private Socket socket;
 
-    public UdpSocket(Socket socket)
+    public UdpSocket(int receiveBufferSize)
     {
-        this.socket = socket;
-        socket.Blocking = false;
+        socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = receiveBufferSize, Blocking = false };
+        socket.Bind(new IPEndPoint(IPAddress.Any, 0));
     }
 
-    // Receive and ReceiveFrom has been split to figure out where the endpoint of SocketExceptions is.
-    // Unfortunately, when there is an error from the native side, .Net throws an exception without
-    // updating the endpoint parameter...
-    public UdpSocketPacket Receive()
-    {
-        EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
-        return ReceiveFrom(endPoint);
-    }
-
+    // Though it is actually an IPEndPoint, endPoint needs to be an EndPoint as ref parameter should exactly match type,
+    // since they can be assigned inside the function--Socket.ReceiveFrom() in our case.
     public UdpSocketPacket ReceiveFrom(EndPoint endPoint)
     {
         var bytes = new byte[PacketUtils.PACKET_SIZE];
@@ -53,10 +46,26 @@ public class UdpSocket
         int packetSize = 0;
         try
         {
-            // ReceiveFrom is a little bit awful and it throws an exception whenever there is an error, even for a WouldBlock error.
-            // This leads to spamming console in Visual Studio's output window.
-            // In other words, even a WouldBlock situation leaves a exception message when this project is built as a Visual Studio solution.
-            // TODO: Find a way not have those spamming exception messages.
+            /*
+            Note 1.
+                There are two cases for the resulting value of endPoint:
+                (1) When there is no exception, endPoint becomes the actual IPEndPoint of the socket that sent the packet.
+                (2) When there is an exception, endPoint does not change.
+
+                This means, when there is a SocketException while the endPoint is {IPAddress.Any, 0},
+                we cannot know the actual IPEndPoint that caused the SocketException.
+                This gives a motivation to directly use UdpSocket.ReceiveFrom with the actual IPEndPoint, not {IPAddress.Any, 0}.
+
+            Note 2.
+                The current .NET implementation of Socket.ReceiveFrom() guarantees endPoint to end up as an IPEndPoint when it handed in as an IPEndPoint.
+                Therefore, there is no need to test whether endPoint is IPEndPoint when casting endPoint to IPEndPoint.
+            
+            Note 3.
+                When C# scripts are transpiled to C++ through IL2CPP, running in debug mode,
+                whenever an exception corresponding to a C# exception is thrown, the exception leaves a message on the ouput window of Visual Studio.
+                This includes the SocketExceptions thrown from Socket.ReceiveFrom(), even when it is due to a SocketError.WouldBlock.
+                I do not know how to get rid of these meaningless messages.
+            */
             packetSize = socket.ReceiveFrom(bytes, bytes.Length, SocketFlags.None, ref endPoint);
         }
         catch (SocketException e)
@@ -66,9 +75,7 @@ public class UdpSocket
         }
 
         if (error == SocketError.WouldBlock)
-        {
             return null;
-        }
 
         if (error != SocketError.Success)
         {
@@ -83,6 +90,11 @@ public class UdpSocket
         }
 
         return new UdpSocketPacket(bytes, (IPEndPoint)endPoint);
+    }
+
+    public UdpSocketPacket ReceiveFromAny()
+    {
+        return ReceiveFrom(new IPEndPoint(IPAddress.Any, 0));
     }
 
     public int Send(byte[] buffer, IPEndPoint endPoint)
