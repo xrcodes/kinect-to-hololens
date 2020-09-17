@@ -15,7 +15,7 @@ public class TextToaster : MonoBehaviour
 
     public static void Toast(string text)
     {
-        print("From TextToaster: " + text);
+        print("[Toast]: " + text);
         var instantiatedToastTest = Instantiate(instance.toastText, instance.transform.position, instance.transform.rotation);
         instantiatedToastTest.GetComponent<TextMesh>().text = text;
     }
