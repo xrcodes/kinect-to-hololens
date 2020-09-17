@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using TelepresenceToolkit;
@@ -28,15 +27,15 @@ public class KinectRenderer : MonoBehaviour
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
     }
 
-    public void StartPrepare(VideoSenderMessage videoMessageData)
+    public void StartPrepare(VideoSenderMessage videoMessage)
     {
-        StartCoroutine(SetupMesh(videoMessageData));
+        CoroutineRunner.RunWithTotalTimeOut(Prepare(videoMessage));
     }
 
     // Since calculation including Unproject() takes too much time,
     // this function is made to run as a coroutine that takes a break
     // every 100 ms.
-    private IEnumerator SetupMesh(VideoSenderMessage videoMessage)
+    private IEnumerator Prepare(VideoSenderMessage videoMessage)
     {
         State = PrepareState.Preparing;
         Progress = 0.0f;
@@ -47,7 +46,6 @@ public class KinectRenderer : MonoBehaviour
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
 
-        var stopWatch = Stopwatch.StartNew();
         for (int i = 0; i < width; ++i)
         {
             for (int j = 0; j < height; ++j)
@@ -70,12 +68,8 @@ public class KinectRenderer : MonoBehaviour
                 uv[i + j * width] = new Vector2(i / (float)(width - 1), j / (float)(height - 1));
             }
 
-            if(stopWatch.ElapsedMilliseconds > 100)
-            {
-                Progress = (i * 0.99f) / width;
-                yield return null;
-                stopWatch = Stopwatch.StartNew();
-            }
+            Progress = i / (float)width * 0.99f;
+            yield return null;
         }
 
         Progress = 0.99f;
