@@ -12,15 +12,17 @@ public class ControllerMessages
 [Serializable]
 public class ReceiverState
 {
+    public int receiverId;
+    public int senderId;
     public string senderAddress;
     public int senderPort;
-    public int sessionId;
 
-    public ReceiverState(string senderAddress, int senderPort, int sessionId)
+    public ReceiverState(int receiverId, int senderId, IPEndPoint senderEndPoint)
     {
-        this.senderAddress = senderAddress;
-        this.senderPort = senderPort;
-        this.sessionId = sessionId;
+        this.receiverId = receiverId;
+        this.senderId = senderId;
+        senderAddress = senderEndPoint.Address.ToString();
+        senderPort = senderEndPoint.Port;
     }
 }
 

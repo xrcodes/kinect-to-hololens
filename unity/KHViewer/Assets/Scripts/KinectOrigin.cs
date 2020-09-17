@@ -45,18 +45,8 @@ public class KinectOrigin : MonoBehaviour
         progressText.text = $"Preparation for {senderEndPoint}\n{progress * 100.0f:F0}% done.";
     }
 
-    public void UpdateFrame(IDictionary<int, VideoSenderMessage> videoMessages)
+    public void UpdateFrame(VideoSenderMessage videoMessage)
     {
-        VideoSenderMessage videoMessage = null;
-        foreach(var message in videoMessages.Values)
-        {
-            if (message.floor != null)
-                videoMessage = message;
-        }
-
-        if (videoMessage == null)
-            return;
-
         FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessage, out Vector3 position, out Quaternion rotation);
 
         floorTransform.localPosition = position;

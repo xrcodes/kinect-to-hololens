@@ -176,9 +176,7 @@ public class ViewerManager : MonoBehaviour
         var receiverStates = new List<ReceiverState>();
         foreach (var receiver in receivers.Values)
         {
-            var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
-                                                  receiver.SenderEndPoint.Port,
-                                                  receiver.ReceiverId);
+            var receiverState = new ReceiverState(receiver.ReceiverId, receiver.SenderId, receiver.SenderEndPoint);
             receiverStates.Add(receiverState);
         }
 
@@ -260,19 +258,20 @@ public class ViewerManager : MonoBehaviour
                     kinectOrigin.ProgressTextVisibility = false;
                 }
 
-                kinectOrigin.UpdateFrame(receiver.VideoMessages);
+                var floorVideoMessage = receiver.VideoMessages.Values.FirstOrDefault(x => x.floor != null);
+                if (floorVideoMessage != null)
+                    kinectOrigin.UpdateFrame(floorVideoMessage);
 
                 receiver.UpdateFrame(udpSocket);
             }
 
-            foreach (var receiver in receivers.Values)
+            foreach (var receiver in receivers.Values.ToList())
             {
                 if (receiver.IsTimedOut())
                 {
                     print($"Receiver {receiver.ReceiverId} timed out.");
                     receivers.Remove(receiver.ReceiverId);
                     sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
-                    connectionWindow.Visibility = true;
                 }
             }
         }
@@ -284,11 +283,10 @@ public class ViewerManager : MonoBehaviour
             {
                 receivers.Remove(receiver.ReceiverId);
                 sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
-                connectionWindow.Visibility = true;
             }
             else
             {
-                print("Failed to find the KinectReceiver to remove...");
+                print("Failed to find the receiver to remove...");
             }
         }
     }

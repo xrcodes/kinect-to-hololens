@@ -130,8 +130,9 @@ public class ControllerManager : MonoBehaviour
             ImGui.Text($"Viewer (ID: {viewerState.viewerId})");
             foreach (var receiverState in viewerState.receiverStates)
             {
-                ImGui.BulletText($"Receiver (Session ID: {receiverState.sessionId})");
+                ImGui.BulletText($"Receiver (ID: {receiverState.receiverId})");
                 ImGui.Indent();
+                ImGui.Text($"  Sender ID: {receiverState.senderId}");
                 ImGui.Text($"  Sender End Point: {receiverState.senderAddress}:{receiverState.senderPort}");
                 ImGui.Unindent();
             }

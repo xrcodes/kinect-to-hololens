@@ -31,26 +31,20 @@ public class SenderPacketInfo
 
 public static class SenderPacketClassifier
 {
-    public static void Classify(UdpSocket udpSocket, ICollection<Receiver> kinectReceivers,
+    public static void Classify(UdpSocket udpSocket, ICollection<Receiver> receivers,
                                 out List<ConfirmPacketInfo> confirmPacketInfos,
                                 out Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
         confirmPacketInfos = new List<ConfirmPacketInfo>();
         senderPacketInfos = new Dictionary<int, SenderPacketInfo>();
 
-        var senderEndPoints = new List<IPEndPoint>();
-        foreach (var kinectReceiver in kinectReceivers)
-        {
-            senderEndPoints.Add(kinectReceiver.SenderEndPoint);
-            senderPacketInfos.Add(kinectReceiver.SenderId, new SenderPacketInfo());
-        }
-
         // During this loop, SocketExceptions will have endpoint information.
-        foreach(var senderEndPoint in senderEndPoints)
+        foreach(var receiver in receivers)
         {
-            while(true)
+            senderPacketInfos.Add(receiver.SenderId, new SenderPacketInfo());
+            while (true)
             {
-                var packet = udpSocket.ReceiveFrom(senderEndPoint);
+                var packet = udpSocket.ReceiveFrom(receiver.SenderEndPoint);
                 if (packet == null)
                     break;
 
@@ -82,13 +76,15 @@ public static class SenderPacketClassifier
             return;
         }
 
+        // Ignore packet if it is sent from a sender without a corresponding receiver.
         if (!senderPacketInfos.TryGetValue(senderId, out SenderPacketInfo senderPacketInfo))
             return;
 
-        // Heartbeat packets turns on ReceivedAny.
         senderPacketInfo.ReceivedAny = true;
         switch (packetType)
         {
+            case SenderPacketType.Heartbeat:
+                break;
             case SenderPacketType.Video:
                 senderPacketInfo.VideoPackets.Add(VideoSenderPacket.Create(packet.Bytes));
                 break;
