@@ -9,7 +9,7 @@ public enum PrepareState
     Prepared
 }
 
-public class KinectReceiver
+public class Receiver
 {
     private const float HEARTBEAT_INTERVAL_SEC = 1.0f;
     private const float HEARTBEAT_TIME_OUT_SEC = 5.0f;
@@ -19,30 +19,30 @@ public class KinectReceiver
     public IPEndPoint SenderEndPoint { get; private set; }
     public TextureSetUpdater TextureSetUpdater { get; private set; }
     private VideoMessageAssembler videoMessageAssembler;
-    private AudioReceiver audioPacketReceiver;
+    private AudioReceiver audioReceiver;
     private Stopwatch heartbeatStopWatch;
     private Stopwatch receivedAnyStopWatch;
 
-    public KinectReceiver(int receiverId, int senderId, IPEndPoint senderEndPoint)
+    public Receiver(int receiverId, int senderId, IPEndPoint senderEndPoint)
     {
         ReceiverId = receiverId;
         SenderId = senderId;
         SenderEndPoint = senderEndPoint;
         TextureSetUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
-        audioPacketReceiver = new AudioReceiver();
+        audioReceiver = new AudioReceiver();
         heartbeatStopWatch = Stopwatch.StartNew();
         receivedAnyStopWatch = Stopwatch.StartNew();
     }
 
-    public bool UpdateFrame(UdpSocket udpSocket, SenderPacketSet senderPacketSet, KinectOrigin kinectOrigin)
+    public bool UpdateFrame(UdpSocket udpSocket, SenderPacketInfo senderPacketSet, KinectOrigin kinectOrigin)
     {
         var videoMessages = new SortedDictionary<int, VideoSenderMessage>();
         try
         {
             if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
             {
-                udpSocket.Send(PacketUtils.createHeartbeatReceiverPacketBytes(ReceiverId), SenderEndPoint);
+                udpSocket.Send(PacketUtils.createHeartbeatReceiverPacketBytes(ReceiverId).bytes, SenderEndPoint);
                 heartbeatStopWatch = Stopwatch.StartNew();
             }
 
@@ -67,7 +67,7 @@ public class KinectReceiver
                     }
                 }
 
-                audioPacketReceiver.Receive(senderPacketSet.AudioPackets, kinectOrigin.Speaker.RingBuffer);
+                audioReceiver.Receive(senderPacketSet.AudioPackets, kinectOrigin.Speaker.RingBuffer);
                 receivedAnyStopWatch = Stopwatch.StartNew();
             }
             else

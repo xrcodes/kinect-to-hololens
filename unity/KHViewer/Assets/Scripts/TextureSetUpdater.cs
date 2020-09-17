@@ -119,7 +119,7 @@ public class TextureSetUpdater
 
         lastFrameId = frameIdToRender.Value;
 
-        udpSocket.Send(PacketUtils.createReportReceiverPacketBytes(sessionId, lastFrameId), endPoint);
+        udpSocket.Send(PacketUtils.createReportReceiverPacketBytes(sessionId, lastFrameId).bytes, endPoint);
 
         textureSet.SetAvFrame(avFrame);
         textureSet.SetDepthPixels(depthPixels);

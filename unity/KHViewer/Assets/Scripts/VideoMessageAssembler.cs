@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -159,7 +158,7 @@ public class VideoMessageAssembler
                     videoPacketCollections[frameId][missingVideoPacketIndex] = fecVideoPacketData;
                 }
                 // Request the video packets that FEC was not enough to fix.
-                udpSocket.Send(PacketUtils.createRequestReceiverPacketBytes(sessionId, frameId, false, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest), remoteEndPoint);
+                udpSocket.Send(PacketUtils.createRequestReceiverPacketBytes(sessionId, frameId, false, videoPacketIndiecsToRequest, parityPacketIndiecsToRequest).bytes, remoteEndPoint);
             }
         }
 

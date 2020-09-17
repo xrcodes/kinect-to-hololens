@@ -4,23 +4,23 @@ using System.Net;
 public class ConfirmPacketInfo
 {
     public IPEndPoint SenderEndPoint { get; private set; }
-    public ConfirmSenderPacket ConfirmPacketData { get; private set; }
+    public ConfirmSenderPacket ConfirmPacket { get; private set; }
 
-    public ConfirmPacketInfo(IPEndPoint senderEndPoint, ConfirmSenderPacket confirmPacketData)
+    public ConfirmPacketInfo(IPEndPoint senderEndPoint, ConfirmSenderPacket confirmPacket)
     {
         SenderEndPoint = senderEndPoint;
-        ConfirmPacketData = confirmPacketData;
+        ConfirmPacket = confirmPacket;
     }
 }
 
-public class SenderPacketSet
+public class SenderPacketInfo
 {
     public bool ReceivedAny { get; set; }
     public List<VideoSenderPacket> VideoPackets { get; private set; }
     public List<ParitySenderPacket> ParityPackets { get; private set; }
     public List<AudioSenderPacket> AudioPackets { get; private set; }
 
-    public SenderPacketSet()
+    public SenderPacketInfo()
     {
         ReceivedAny = false;
         VideoPackets = new List<VideoSenderPacket>();
@@ -29,28 +29,20 @@ public class SenderPacketSet
     }
 }
 
-public class SenderPacketCollection
-{
-    public List<ConfirmPacketInfo> ConfirmPacketInfoList { get; private set; }
-    public Dictionary<int, SenderPacketSet> SenderPacketSets { get; private set; }
-
-    public SenderPacketCollection()
-    {
-        ConfirmPacketInfoList = new List<ConfirmPacketInfo>();
-        SenderPacketSets = new Dictionary<int, SenderPacketSet>();
-    }
-};
-
 public static class SenderPacketClassifier
 {
-    public static SenderPacketCollection Classify(UdpSocket udpSocket, ICollection<KinectReceiver> kinectReceivers)
+    public static void Classify(UdpSocket udpSocket, ICollection<Receiver> kinectReceivers,
+                                out List<ConfirmPacketInfo> confirmPacketInfos,
+                                out Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
+        confirmPacketInfos = new List<ConfirmPacketInfo>();
+        senderPacketInfos = new Dictionary<int, SenderPacketInfo>();
+
         var senderEndPoints = new List<IPEndPoint>();
-        var senderPacketCollection = new SenderPacketCollection();
         foreach (var kinectReceiver in kinectReceivers)
         {
             senderEndPoints.Add(kinectReceiver.SenderEndPoint);
-            senderPacketCollection.SenderPacketSets.Add(kinectReceiver.SenderId, new SenderPacketSet());
+            senderPacketInfos.Add(kinectReceiver.SenderId, new SenderPacketInfo());
         }
 
         // During this loop, SocketExceptions will have endpoint information.
@@ -62,7 +54,7 @@ public static class SenderPacketClassifier
                 if (packet == null)
                     break;
 
-                CollectPacket(packet, senderPacketCollection);
+                CollectPacket(packet, confirmPacketInfos, senderPacketInfos);
             }
         }
 
@@ -73,39 +65,38 @@ public static class SenderPacketClassifier
             if (packet == null)
                 break;
 
-            CollectPacket(packet, senderPacketCollection);
+            CollectPacket(packet, confirmPacketInfos, senderPacketInfos);
         }
-
-        return senderPacketCollection;
     }
 
-    private static void CollectPacket(UdpSocketPacket packet, SenderPacketCollection senderPacketCollection)
+    private static void CollectPacket(UdpSocketPacket packet,
+                                      List<ConfirmPacketInfo> confirmPacketInfos,
+                                      Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
         int senderSessionId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
-        SenderPacketType packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
+        var packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
 
         if (packetType == SenderPacketType.Confirm)
         {
-            senderPacketCollection.ConfirmPacketInfoList.Add(new ConfirmPacketInfo(packet.EndPoint, ConfirmSenderPacket.Create(packet.Bytes)));
+            confirmPacketInfos.Add(new ConfirmPacketInfo(packet.EndPoint, ConfirmSenderPacket.Create(packet.Bytes)));
             return;
         }
 
-        SenderPacketSet senderPacketSet;
-        if (!senderPacketCollection.SenderPacketSets.TryGetValue(senderSessionId, out senderPacketSet))
+        if (!senderPacketInfos.TryGetValue(senderSessionId, out SenderPacketInfo senderPacketInfo))
             return;
 
         // Heartbeat packets turns on ReceivedAny.
-        senderPacketSet.ReceivedAny = true;
+        senderPacketInfo.ReceivedAny = true;
         switch (packetType)
         {
             case SenderPacketType.Video:
-                senderPacketSet.VideoPackets.Add(VideoSenderPacket.Create(packet.Bytes));
+                senderPacketInfo.VideoPackets.Add(VideoSenderPacket.Create(packet.Bytes));
                 break;
             case SenderPacketType.Parity:
-                senderPacketSet.ParityPackets.Add(ParitySenderPacket.Create(packet.Bytes));
+                senderPacketInfo.ParityPackets.Add(ParitySenderPacket.Create(packet.Bytes));
                 break;
             case SenderPacketType.Audio:
-                senderPacketSet.AudioPackets.Add(AudioSenderPacket.Create(packet.Bytes));
+                senderPacketInfo.AudioPackets.Add(AudioSenderPacket.Create(packet.Bytes));
                 break;
         }
     }

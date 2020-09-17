@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using UnityEngine;
 
 public class ViewerManager : MonoBehaviour
@@ -23,7 +22,7 @@ public class ViewerManager : MonoBehaviour
     private ControllerClientSocket controllerClientSocket;
 
     private ViewerScene viewerScene;
-    private Dictionary<int, KinectReceiver> kinectReceivers;
+    private Dictionary<int, Receiver> receivers;
     private int connectingCount;
 
     void Start()
@@ -35,7 +34,7 @@ public class ViewerManager : MonoBehaviour
         udpSocket = new UdpSocket(socket);
 
         viewerScene = null;
-        kinectReceivers = new Dictionary<int, KinectReceiver>();
+        receivers = new Dictionary<int, Receiver>();
         connectingCount = 0;
 
         sharedSpaceAnchor.GizmoVisibility = false;
@@ -102,9 +101,9 @@ public class ViewerManager : MonoBehaviour
 
     private void UpdateUiWindows()
     {
-        connectionWindow.Visibility = controllerClientSocket == null && kinectReceivers.Count == 0 && connectingCount == 0;
+        connectionWindow.Visibility = controllerClientSocket == null && receivers.Count == 0 && connectingCount == 0;
 
-        if (controllerClientSocket != null && kinectReceivers.Count == 0)
+        if (controllerClientSocket != null && receivers.Count == 0)
         {
             if (controllerClientSocket.RemoteEndPoint != null)
             {
@@ -148,25 +147,25 @@ public class ViewerManager : MonoBehaviour
 
                 var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
                 print($"endPoint: {endPoint}");
-                foreach (var receiverPair in kinectReceivers)
+                foreach (var receiverPair in receivers)
                 {
                     print($"receiver.SenderEndPoint: {receiverPair.Value.SenderEndPoint}");
                 }
 
-                if (kinectReceivers.Values.FirstOrDefault(x => x.SenderEndPoint.Equals(endPoint)) != null)
+                if (receivers.Values.FirstOrDefault(x => x.SenderEndPoint.Equals(endPoint)) != null)
                     continue;
 
                 StartCoroutine(TryConnectToKinectSender(endPoint));
             }
 
-            foreach(var kinectReceiverPair in kinectReceivers)
+            foreach(var receiverPair in receivers)
             {
-                var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiverPair.Value.SenderEndPoint.Address.ToString()
-                                                                                            && x.port == kinectReceiverPair.Value.SenderEndPoint.Port);
+                var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == receiverPair.Value.SenderEndPoint.Address.ToString()
+                                                                                            && x.port == receiverPair.Value.SenderEndPoint.Port);
 
                 if (kinectSenderElement != null)
                 {
-                    var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(kinectReceiverPair.Key);
+                    var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverPair.Key);
                     if (kinectOrigin != null)
                     {
                         kinectOrigin.transform.localPosition = kinectSenderElement.position;
@@ -179,7 +178,7 @@ public class ViewerManager : MonoBehaviour
         }
 
         var receiverStates = new List<ReceiverState>();
-        foreach (var receiver in kinectReceivers.Values)
+        foreach (var receiver in receivers.Values)
         {
             var receiverState = new ReceiverState(receiver.SenderEndPoint.Address.ToString(),
                                                   receiver.SenderEndPoint.Port,
@@ -202,24 +201,26 @@ public class ViewerManager : MonoBehaviour
     {
         try
         {
-            var senderPacketCollection = SenderPacketClassifier.Classify(udpSocket, kinectReceivers.Values);
-            foreach (var confirmPacketInfo in senderPacketCollection.ConfirmPacketInfoList)
+            SenderPacketClassifier.Classify(udpSocket, receivers.Values,
+                                            out var confirmPacketInfos,
+                                            out var senderPacketInfos);
+            foreach (var confirmPacketInfo in confirmPacketInfos)
             {
-                int receiverId = confirmPacketInfo.ConfirmPacketData.receiverId;
+                int receiverId = confirmPacketInfo.ConfirmPacket.receiverId;
                 // Ignore if there is already a receiver with the receiver ID.
-                if (kinectReceivers.ContainsKey(receiverId))
+                if (receivers.ContainsKey(receiverId))
                     continue;
 
                 var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin(receiverId);
                 
-                var kinectReceiver = new KinectReceiver(receiverId, confirmPacketInfo.ConfirmPacketData.senderId, confirmPacketInfo.SenderEndPoint);
-                kinectReceivers.Add(confirmPacketInfo.ConfirmPacketData.receiverId, kinectReceiver);
+                var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
+                receivers.Add(confirmPacketInfo.ConfirmPacket.receiverId, receiver);
 
                 // Apply transformation of kinectSenderElement if there is a corresponding one.
                 if (viewerScene != null)
                 {
-                    var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == kinectReceiver.SenderEndPoint.Address.ToString()
-                                                                                                && x.port == kinectReceiver.SenderEndPoint.Port);
+                    var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == receiver.SenderEndPoint.Address.ToString()
+                                                                                                && x.port == receiver.SenderEndPoint.Port);
                     if (kinectSenderElement != null)
                     {
                         kinectOrigin.transform.localPosition = kinectSenderElement.position;
@@ -229,16 +230,18 @@ public class ViewerManager : MonoBehaviour
             }
 
             // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
-            foreach (var senderPacketSetPair in senderPacketCollection.SenderPacketSets)
+            foreach (var senderPacketInfoPair in senderPacketInfos)
             {
-                int receiverId = senderPacketSetPair.Key;
-                if (!kinectReceivers.TryGetValue(receiverId, out KinectReceiver kinectReceiver))
+                int senderId = senderPacketInfoPair.Key;
+                var receiver = receivers.Values.FirstOrDefault(x => x.SenderId == senderId);
+                if (receiver == null)
                     continue;
 
+                int receiverId = receiver.ReceiverId;
                 var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverId);
-                if (!kinectReceiver.UpdateFrame(udpSocket, senderPacketSetPair.Value, kinectOrigin))
+                if (!receiver.UpdateFrame(udpSocket, senderPacketInfoPair.Value, kinectOrigin))
                 {
-                    kinectReceivers.Remove(receiverId);
+                    receivers.Remove(receiverId);
                     sharedSpaceAnchor.RemoveKinectOrigin(receiverId);
                     connectionWindow.Visibility = true;
                 }
@@ -247,11 +250,11 @@ public class ViewerManager : MonoBehaviour
         catch (UdpSocketException e)
         {
             print($"UdpSocketException: {e}");
-            var kinectReceiver = kinectReceivers.Values.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
-            if (kinectReceiver != null)
+            var receiver = receivers.Values.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
+            if (receiver != null)
             {
-                kinectReceivers.Remove(kinectReceiver.ReceiverId);
-                sharedSpaceAnchor.RemoveKinectOrigin(kinectReceiver.ReceiverId);
+                receivers.Remove(receiver.ReceiverId);
+                sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
                 connectionWindow.Visibility = true;
             }
             else
@@ -312,7 +315,7 @@ public class ViewerManager : MonoBehaviour
         for (int i = 0; i < 5; ++i)
         {
             print($"Send connect packet #{i}");
-            udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true), senderEndPoint);
+            udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true).bytes, senderEndPoint);
             yield return new WaitForSeconds(0.3f);
         }
 

@@ -19,6 +19,16 @@ public enum ReceiverPacketType : int
     Request = 3,
 }
 
+public class Packet
+{
+    public byte[] bytes;
+    
+    public Packet(byte[] bytes)
+    {
+        this.bytes = bytes;
+    }
+}
+
 public class ConfirmSenderPacket
 {
     public int senderId;
@@ -189,7 +199,7 @@ public static class PacketUtils
         return (SenderPacketType)BitConverter.ToInt32(packetBytes, 4);
     }
 
-    public static byte[] createConnectReceiverPacketBytes(int receiverId,
+    public static Packet createConnectReceiverPacketBytes(int receiverId,
                                                           bool videoRequested,
                                                           bool audioRequested)
     {
@@ -199,27 +209,30 @@ public static class PacketUtils
         // bools need to be converted to bytes since C# bools are 4 bytes each, different from the 1-byte C++ bools.
         ms.WriteByte(Convert.ToByte(videoRequested));
         ms.WriteByte(Convert.ToByte(audioRequested));
-        return ms.ToArray();
+        
+        return new Packet(ms.ToArray());
     }
 
-    public static byte[] createHeartbeatReceiverPacketBytes(int receiverId)
+    public static Packet createHeartbeatReceiverPacketBytes(int receiverId)
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(receiverId), 0, 4);
         ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Heartbeat), 0, 4);
-        return ms.ToArray();
+        
+        return new Packet(ms.ToArray());
     }
 
-    public static byte[] createReportReceiverPacketBytes(int receiverId, int frameId)
+    public static Packet createReportReceiverPacketBytes(int receiverId, int frameId)
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(receiverId), 0, 4);
         ms.Write(BitConverter.GetBytes((int)ReceiverPacketType.Report), 0, 4);
         ms.Write(BitConverter.GetBytes(frameId), 0, 4);
-        return ms.ToArray();
+        
+        return new Packet(ms.ToArray());
     }
 
-    public static byte[] createRequestReceiverPacketBytes(int receiverId, int frameId, bool allPackets, List<int> videoPacketIndices, List<int> parityPacketIndices)
+    public static Packet createRequestReceiverPacketBytes(int receiverId, int frameId, bool allPackets, List<int> videoPacketIndices, List<int> parityPacketIndices)
     {
         var ms = new MemoryStream();
         ms.Write(BitConverter.GetBytes(receiverId), 0, 4);
@@ -236,6 +249,7 @@ public static class PacketUtils
         {
             ms.Write(BitConverter.GetBytes(index), 0, 4);
         }
-        return ms.ToArray();
+
+        return new Packet(ms.ToArray());
     }
 }
