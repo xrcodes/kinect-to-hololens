@@ -42,6 +42,12 @@ public class CoroutineRunner : MonoBehaviour
     // In other words, it does nothing different for instances that would do something with StartCoroutine(), such as WaitForSeconds.
     public static void RunWithTotalTimeOut(IEnumerator coroutine)
     {
-        instance.totalTimeOutCoroutines.Add(coroutine);
+        print("RunWithTotalTimeOut");
+
+        // Coroutines should at least start, for example, to set state in KinectRenderer.
+        if (coroutine.MoveNext())
+        {
+            instance.totalTimeOutCoroutines.Add(coroutine);
+        }
     }
 }

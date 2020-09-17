@@ -303,8 +303,7 @@ public class ViewerManager : MonoBehaviour
         }
         catch (TcpSocketException e)
         {
-            TextToaster.Toast("Failed not connect to the controller.");
-            print($"An TcpSocketException while connecting to the controller: {e.Message}");
+            TextToaster.Toast($"Failed not connect to the controller: {e.Message}");
         }
 
         Interlocked.Decrement(ref connectingCount);
@@ -318,8 +317,6 @@ public class ViewerManager : MonoBehaviour
         TextToaster.Toast($"Try Connecting to a Sender: {senderEndPoint}");
 
         int receiverId = random.Next();
-        print($"randomly chosen receiver ID: {receiverId}");
-
         for (int i = 0; i < 5; ++i)
         {
             udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true).bytes, senderEndPoint);

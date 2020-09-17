@@ -56,10 +56,7 @@ public static class SenderPacketClassifier
 
             // Ignore packet if it is sent from a sender without a corresponding receiver.
             if (!senderPacketInfos.TryGetValue(senderId, out SenderPacketInfo senderPacketInfo))
-            {
-                //UnityEngine.Debug.Log("Ignored: " + senderId);
                 continue;
-            }
 
             senderPacketInfo.ReceivedAny = true;
             switch (packetType)
