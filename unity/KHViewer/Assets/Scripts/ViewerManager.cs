@@ -193,25 +193,12 @@ public class ViewerManager : MonoBehaviour
         }
         catch (UdpSocketException e)
         {
-            // Ignore if there is no end point information.
-            if (e.EndPoint.Address == IPAddress.Any)
-            {
-                TextToaster.Toast("Error from SenderPacketClassifier.Classify() while receiving packets from IPAddress.Any.");
-            }
-            else
-            {
-                // Remove the receiver whose connected sender caused the UdpSocketException.
-                var receiver = receivers.Values.FirstOrDefault(x => x.SenderEndPoint == e.EndPoint);
-                if (receiver != null)
-                {
-                    receivers.Remove(receiver.ReceiverId);
-                    sharedSpaceScene.RemoveKinectNode(receiver.ReceiverId);
-                }
-                else
-                {
-                    TextToaster.Toast($"Failed to remove the receiver whose sender's end point is {e.EndPoint}.");
-                }
-            }
+            TextToaster.Toast("Error from SenderPacketClassifier.Classify(): " + e.Message);
+        }
+
+        foreach (var info in senderPacketInfos)
+        {
+            print($"info ID: {info.Key}, ReceivedAny: {info.Value.ReceivedAny}");
         }
 
         foreach (var confirmPacketInfo in confirmPacketInfos)
@@ -221,7 +208,6 @@ public class ViewerManager : MonoBehaviour
             if (receivers.ContainsKey(receiverId))
                 continue;
 
-            print("confirm packet: " + receiverId);
             // Receiver and KinectOrigin gets created together.
             // When destroying any of them, the other of the pair should also be destroyed.
             var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
@@ -254,7 +240,6 @@ public class ViewerManager : MonoBehaviour
             var kinectNode = sharedSpaceScene.GetKinectNode(receiver.ReceiverId);
             receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectNode.KinectRenderer.Material, kinectNode.Speaker.RingBuffer);
 
-            print("sender packet: " + receiver.ReceiverId);
             // Remove receivers that did not receive any packet for too long.
             if (receiver.IsTimedOut())
             {
@@ -270,7 +255,7 @@ public class ViewerManager : MonoBehaviour
                 {
                     foreach (var videoMessage in receiver.VideoMessages.Values)
                     {
-                        kinectNode.KinectRenderer.StartPrepare(videoMessage);
+                        CoroutineRunner.RunWithTotalTimeOut(kinectNode.KinectRenderer.Prepare(videoMessage));
                         break;
                     }
                 }

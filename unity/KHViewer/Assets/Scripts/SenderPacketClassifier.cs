@@ -36,64 +36,43 @@ public static class SenderPacketClassifier
                                 List<ConfirmPacketInfo> confirmPacketInfos,
                                 Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
-        // Loop for receiving packets from specific end points.
-        foreach(var receiver in receivers)
-        {
+        foreach (var receiver in receivers)
             senderPacketInfos.Add(receiver.SenderId, new SenderPacketInfo());
-            while (true)
-            {
-                var packet = udpSocket.ReceiveFrom(receiver.SenderEndPoint);
-                if (packet == null)
-                    break;
 
-                ClassifyPacket(packet, confirmPacketInfos, senderPacketInfos);
-            }
-        }
-
-        // Loop for receiving packets from any end points.
-        // This is needed to receive new connections.
-        // However, UdpSocketExceptions from this loop cannot include a meaningful IPEndPoint.
         while (true)
         {
-            var packet = udpSocket.ReceiveFromAny();
+            var packet = udpSocket.Receive();
             if (packet == null)
                 break;
 
-            ClassifyPacket(packet, confirmPacketInfos, senderPacketInfos);
-        }
-    }
+            int senderId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
+            var packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
 
-    private static void ClassifyPacket(UdpSocketPacket packet,
-                                       List<ConfirmPacketInfo> confirmPacketInfos,
-                                       Dictionary<int, SenderPacketInfo> senderPacketInfos)
-    {
-        int senderId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
-        var packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
+            if (packetType == SenderPacketType.Confirm)
+            {
+                confirmPacketInfos.Add(new ConfirmPacketInfo(packet.EndPoint, ConfirmSenderPacket.Create(packet.Bytes)));
+                continue;
+            }
 
-        if (packetType == SenderPacketType.Confirm)
-        {
-            confirmPacketInfos.Add(new ConfirmPacketInfo(packet.EndPoint, ConfirmSenderPacket.Create(packet.Bytes)));
-            return;
-        }
+            // Ignore packet if it is sent from a sender without a corresponding receiver.
+            if (!senderPacketInfos.TryGetValue(senderId, out SenderPacketInfo senderPacketInfo))
+                continue;
 
-        // Ignore packet if it is sent from a sender without a corresponding receiver.
-        if (!senderPacketInfos.TryGetValue(senderId, out SenderPacketInfo senderPacketInfo))
-            return;
-
-        senderPacketInfo.ReceivedAny = true;
-        switch (packetType)
-        {
-            case SenderPacketType.Heartbeat:
-                break;
-            case SenderPacketType.Video:
-                senderPacketInfo.VideoPackets.Add(VideoSenderPacket.Create(packet.Bytes));
-                break;
-            case SenderPacketType.Parity:
-                senderPacketInfo.ParityPackets.Add(ParitySenderPacket.Create(packet.Bytes));
-                break;
-            case SenderPacketType.Audio:
-                senderPacketInfo.AudioPackets.Add(AudioSenderPacket.Create(packet.Bytes));
-                break;
+            senderPacketInfo.ReceivedAny = true;
+            switch (packetType)
+            {
+                case SenderPacketType.Heartbeat:
+                    break;
+                case SenderPacketType.Video:
+                    senderPacketInfo.VideoPackets.Add(VideoSenderPacket.Create(packet.Bytes));
+                    break;
+                case SenderPacketType.Parity:
+                    senderPacketInfo.ParityPackets.Add(ParitySenderPacket.Create(packet.Bytes));
+                    break;
+                case SenderPacketType.Audio:
+                    senderPacketInfo.AudioPackets.Add(AudioSenderPacket.Create(packet.Bytes));
+                    break;
+            }
         }
     }
 }

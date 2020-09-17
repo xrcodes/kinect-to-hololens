@@ -27,15 +27,8 @@ public class KinectRenderer : MonoBehaviour
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
     }
 
-    public void StartPrepare(VideoSenderMessage videoMessage)
-    {
-        CoroutineRunner.RunWithTotalTimeOut(Prepare(videoMessage));
-    }
-
-    // Since calculation including Unproject() takes too much time,
-    // this function is made to run as a coroutine that takes a break
-    // every 100 ms.
-    private IEnumerator Prepare(VideoSenderMessage videoMessage)
+    // Since calculation including Unproject() takes too much time, this function is made to run as a coroutine.
+    public IEnumerator Prepare(VideoSenderMessage videoMessage)
     {
         State = PrepareState.Preparing;
         Progress = 0.0f;
