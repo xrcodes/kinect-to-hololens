@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using UnityEngine;
+using TelepresenceToolkit;
 
 public class ViewerManager : MonoBehaviour
 {
@@ -68,9 +70,7 @@ public class ViewerManager : MonoBehaviour
 
 
                     if (!IPAddress.TryParse(ipAddressText, out IPAddress ipAddress))
-                    {
                         TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
-                    }
 
                     StartCoroutine(TryConnectToKinectSender(new IPEndPoint(ipAddress, SENDER_DEFAULT_PORT)));
                 }
@@ -79,24 +79,16 @@ public class ViewerManager : MonoBehaviour
 
         // Sets the anchor's position and rotation using the current position of the HoloLens device.
         if (Input.GetKeyDown(KeyCode.Space))
-        {
             sharedSpaceAnchor.SetPositionAndRotation(mainCameraTransform.position, mainCameraTransform.rotation);
-        }
 
         if (Input.GetKeyDown(KeyCode.V))
-        {
             sharedSpaceAnchor.GizmoVisibility = !sharedSpaceAnchor.GizmoVisibility;
-        }
 
         if (Input.GetKeyDown(KeyCode.F))
-        {
             FpsCounter.Toast();
-        }
 
         if (controllerClientSocket != null)
-        {
             UpdateControllerClient();
-        }
 
         UpdateReceivers();
     }
@@ -133,7 +125,7 @@ public class ViewerManager : MonoBehaviour
         }
         catch (TcpSocketException e)
         {
-            print($"TcpSocketException while receiving: {e}");
+            print($"TcpSocketException while receiving from controller: {e}");
             controllerClientSocket = null;
             return;
         }
@@ -144,7 +136,10 @@ public class ViewerManager : MonoBehaviour
             {
                 if (!IPAddress.TryParse(node.senderAddress, out IPAddress ipAddress))
                 {
-                    TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
+                    var message = $"Failed to parse an IP address ({ipAddress}) from controller.";
+                    TextToaster.Toast(message);
+                    print(message);
+                    continue;
                 }
 
                 var senderEndPoint = new IPEndPoint(ipAddress, node.senderPort);
@@ -203,8 +198,9 @@ public class ViewerManager : MonoBehaviour
             // Ignore if there is no end point information.
             if (e.EndPoint.Address == IPAddress.Any)
             {
-                TextToaster.Toast("Error from SenderPacketClassifier.Classify() while receiving packets from IPAddress.Any.");
-                print("Error from SenderPacketClassifier.Classify() while receiving packets from IPAddress.Any.");
+                var message = "Error from SenderPacketClassifier.Classify() while receiving packets from IPAddress.Any.";
+                TextToaster.Toast(message);
+                print(message);
             }
             else
             {
@@ -217,8 +213,9 @@ public class ViewerManager : MonoBehaviour
                 }
                 else
                 {
-                    TextToaster.Toast($"Failed to remove the receiver whose sender's end point is {e.EndPoint}.");
-                    print($"Failed to remove the receiver whose sender's end point is {e.EndPoint}.");
+                    var message = $"Failed to remove the receiver whose sender's end point is {e.EndPoint}.";
+                    TextToaster.Toast(message);
+                    print(message);
                 }
             }
         }
@@ -292,12 +289,14 @@ public class ViewerManager : MonoBehaviour
 
         foreach (var receiver in receivers.Values.ToList())
         {
-            if (receiver.IsTimedOut())
-            {
-                print($"Receiver {receiver.ReceiverId} timed out.");
-                receivers.Remove(receiver.ReceiverId);
-                sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
-            }
+            if (!receiver.IsTimedOut())
+                continue;
+
+            var message = $"Receiver {receiver.ReceiverId} timed out.";
+            TextToaster.Toast(message);
+            print(message);
+            receivers.Remove(receiver.ReceiverId);
+            sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
         }
     }
 
@@ -309,15 +308,13 @@ public class ViewerManager : MonoBehaviour
             return;
         }
 
-        ++connectingCount;
-
         if (!IPAddress.TryParse(ipAddress, out IPAddress controllerIpAddress))
         {
             TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
-            --connectingCount;
             return;
         }
 
+        Interlocked.Increment(ref connectingCount);
         var controllerEndPoint = new IPEndPoint(controllerIpAddress, port);
 
         var tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
@@ -334,15 +331,18 @@ public class ViewerManager : MonoBehaviour
             print($"An TcpSocketException while connecting to the controller: {e.Message}");
         }
 
-        --connectingCount;
+        Interlocked.Decrement(ref connectingCount);
     }
 
     // Nudge a sender with a connect packet five times.
     private IEnumerator TryConnectToKinectSender(IPEndPoint senderEndPoint)
     {
-        ++connectingCount;
-        TextToaster.Toast($"Try Connecting to a Sender: {senderEndPoint}");
-        print($"Try Connecting to a Sender: {senderEndPoint}");
+        Interlocked.Increment(ref connectingCount);
+
+        var message = $"Try Connecting to a Sender: {senderEndPoint}";
+        TextToaster.Toast(message);
+        print(message);
+
         var random = new System.Random();
         int receiverId = random.Next();
 
@@ -352,6 +352,6 @@ public class ViewerManager : MonoBehaviour
             yield return new WaitForSeconds(0.3f);
         }
 
-        --connectingCount;
+        Interlocked.Decrement(ref connectingCount);
     }
 }

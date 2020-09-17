@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using TelepresenceToolkit;
 
 public class KinectSpeaker : MonoBehaviour
 {

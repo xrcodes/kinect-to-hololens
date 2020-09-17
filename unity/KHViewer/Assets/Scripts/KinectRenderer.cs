@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using TelepresenceToolkit;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class KinectRenderer : MonoBehaviour
@@ -35,13 +36,13 @@ public class KinectRenderer : MonoBehaviour
     // Since calculation including Unproject() takes too much time,
     // this function is made to run as a coroutine that takes a break
     // every 100 ms.
-    private IEnumerator SetupMesh(VideoSenderMessage videoMessageData)
+    private IEnumerator SetupMesh(VideoSenderMessage videoMessage)
     {
         State = PrepareState.Preparing;
         Progress = 0.0f;
 
-        int width = videoMessageData.width;
-        int height = videoMessageData.height;
+        int width = videoMessage.width;
+        int height = videoMessage.height;
 
         var vertices = new Vector3[width * height];
         var uv = new Vector2[width * height];
@@ -54,9 +55,9 @@ public class KinectRenderer : MonoBehaviour
                 float[] xy = new float[2];
                 int valid = 0;
                 // TODO: Check whether using videoMessageData.intrinsics.maxRadiusForProjection is correct.
-                if (KinectSolver.Unproject(videoMessageData.intrinsics,
-                                                            videoMessageData.intrinsics.maxRadiusForProjection,
-                                                            new float[2] { i, j }, ref xy, ref valid))
+                if (KinectSolver.Unproject(videoMessage.intrinsics,
+                                           videoMessage.intrinsics.maxRadiusForProjection,
+                                           new float[2] { i, j }, ref xy, ref valid))
                 {
                     // Flip y since Azure Kinect's y axis is downwards.
                     // https://docs.microsoft.com/en-us/azure/kinect-dk/coordinate-systems

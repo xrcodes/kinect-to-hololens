@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using TelepresenceToolkit;
 
 public class UdpSocketPacket
 {
@@ -41,7 +42,7 @@ public class UdpSocket
     // since they can be assigned inside the function--Socket.ReceiveFrom() in our case.
     public UdpSocketPacket ReceiveFrom(EndPoint endPoint)
     {
-        var bytes = new byte[PacketUtils.PACKET_SIZE];
+        byte[] bytes = new byte[PacketUtils.PACKET_SIZE];
         SocketError error = SocketError.Success;
         int packetSize = 0;
         try

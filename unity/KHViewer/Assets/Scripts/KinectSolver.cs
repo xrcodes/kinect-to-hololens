@@ -1,4 +1,6 @@
-﻿// This class is from src/transformation/intrinsic_transformation.c of Azure Kinect Sensor SDK.
+﻿using TelepresenceToolkit;
+
+// This class is from src/transformation/intrinsic_transformation.c of Azure Kinect Sensor SDK.
 public static class KinectSolver
 {
     // Equivalent to transformation_unproject_internal(). 

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Net;
+using TelepresenceToolkit;
 
 public class ConfirmPacketInfo
 {
@@ -35,7 +36,7 @@ public static class SenderPacketClassifier
                                 List<ConfirmPacketInfo> confirmPacketInfos,
                                 Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
-        // Loop for receiving packets with with specific end points.
+        // Loop for receiving packets from specific end points.
         foreach(var receiver in receivers)
         {
             senderPacketInfos.Add(receiver.SenderId, new SenderPacketInfo());
@@ -45,24 +46,26 @@ public static class SenderPacketClassifier
                 if (packet == null)
                     break;
 
-                CollectPacket(packet, confirmPacketInfos, senderPacketInfos);
+                ClassifyPacket(packet, confirmPacketInfos, senderPacketInfos);
             }
         }
 
-        // During this loop, SocketExceptions won't have endpoint information but connection messages will be received.
-        while(true)
+        // Loop for receiving packets from any end points.
+        // This is needed to receive new connections.
+        // However, UdpSocketExceptions from this loop cannot include a meaningful IPEndPoint.
+        while (true)
         {
             var packet = udpSocket.ReceiveFromAny();
             if (packet == null)
                 break;
 
-            CollectPacket(packet, confirmPacketInfos, senderPacketInfos);
+            ClassifyPacket(packet, confirmPacketInfos, senderPacketInfos);
         }
     }
 
-    private static void CollectPacket(UdpSocketPacket packet,
-                                      List<ConfirmPacketInfo> confirmPacketInfos,
-                                      Dictionary<int, SenderPacketInfo> senderPacketInfos)
+    private static void ClassifyPacket(UdpSocketPacket packet,
+                                       List<ConfirmPacketInfo> confirmPacketInfos,
+                                       Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
         int senderId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
         var packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
