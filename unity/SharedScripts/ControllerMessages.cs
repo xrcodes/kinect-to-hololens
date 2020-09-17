@@ -35,14 +35,14 @@ public class ViewerState
 }
 
 [Serializable]
-public class KinectSenderElement
+public class ControllerNode
 {
     public string address;
     public int port;
     public Vector3 position;
     public Quaternion rotation;
 
-    public KinectSenderElement(string address, int port, Vector3 position, Quaternion rotation)
+    public ControllerNode(string address, int port, Vector3 position, Quaternion rotation)
     {
         this.address = address;
         this.port = port;
@@ -51,12 +51,12 @@ public class KinectSenderElement
     }
 }
 
-public class ViewerScene
+public class ControllerScene
 {
-    public List<KinectSenderElement> kinectSenderElements;
+    public List<ControllerNode> nodes;
 
-    public ViewerScene()
+    public ControllerScene()
     {
-        kinectSenderElements = new List<KinectSenderElement>();
+        nodes = new List<ControllerNode>();
     }
 }

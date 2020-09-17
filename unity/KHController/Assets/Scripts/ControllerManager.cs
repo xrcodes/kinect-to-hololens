@@ -13,7 +13,7 @@ public class ControllerManager : MonoBehaviour
     private TcpSocket tcpSocket;
     private List<ControllerServerSocket> serverSockets;
     private Dictionary<ControllerServerSocket, ViewerState> viewerStates;
-    private Dictionary<ControllerServerSocket, ViewerScene> viewerScenes;
+    private Dictionary<ControllerServerSocket, ControllerScene> controllerScenes;
     private Dictionary<ControllerServerSocket, Stopwatch> socketTimers;
 
     private List<IPAddress> localIpAddresses;
@@ -29,7 +29,7 @@ public class ControllerManager : MonoBehaviour
         tcpSocket = new TcpSocket(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp));
         serverSockets = new List<ControllerServerSocket>();
         viewerStates = new Dictionary<ControllerServerSocket, ViewerState>();
-        viewerScenes = new Dictionary<ControllerServerSocket, ViewerScene>();
+        controllerScenes = new Dictionary<ControllerServerSocket, ControllerScene>();
         socketTimers = new Dictionary<ControllerServerSocket, Stopwatch>();
 
         localIpAddresses = new List<IPAddress>();
@@ -58,7 +58,7 @@ public class ControllerManager : MonoBehaviour
                 print($"remoteSocket: {remoteSocket.RemoteEndPoint}");
                 var serverSocket = new ControllerServerSocket(remoteSocket);
                 serverSockets.Add(serverSocket);
-                viewerScenes.Add(serverSocket, new ViewerScene());
+                controllerScenes.Add(serverSocket, new ControllerScene());
                 socketTimers.Add(serverSocket, Stopwatch.StartNew());
             }
         }
@@ -91,7 +91,7 @@ public class ControllerManager : MonoBehaviour
         {
             serverSockets.Remove(timedOutSocket);
             viewerStates.Remove(timedOutSocket);
-            viewerScenes.Remove(timedOutSocket);
+            controllerScenes.Remove(timedOutSocket);
             socketTimers.Remove(timedOutSocket);
         }
     }
@@ -163,15 +163,15 @@ public class ControllerManager : MonoBehaviour
             {
                 foreach(var serverSocket in serverSockets)
                 {
-                    var kinectSenderElement = new KinectSenderElement(singleCameraAddress,
-                                                                      singleCameraPort,
-                                                                      new Vector3(0.0f, 0.0f, singleCameraDistance),
-                                                                      Quaternion.identity);
+                    var node = new ControllerNode(singleCameraAddress,
+                                                  singleCameraPort,
+                                                  new Vector3(0.0f, 0.0f, singleCameraDistance),
+                                                  Quaternion.identity);
 
-                    var viewerScene = new ViewerScene();
-                    viewerScene.kinectSenderElements = new List<KinectSenderElement>();
-                    viewerScene.kinectSenderElements.Add(kinectSenderElement);
-                    viewerScenes[serverSocket] = viewerScene;
+                    var controllerScene = new ControllerScene();
+                    controllerScene.nodes = new List<ControllerNode>();
+                    controllerScene.nodes.Add(node);
+                    controllerScenes[serverSocket] = controllerScene;
                 }
             }
         }
@@ -188,10 +188,10 @@ public class ControllerManager : MonoBehaviour
         {
             var serverSocket = viewerStatePair.Key;
             var viewerState = viewerStatePair.Value;
-            var viewerScene = viewerScenes[serverSocket];
+            var controllerScene = controllerScenes[serverSocket];
             if (ImGui.BeginTabItem(viewerState.userId.ToString()))
             {
-                foreach (var kinectSenderElement in viewerScene.kinectSenderElements.ToList())
+                foreach (var kinectSenderElement in controllerScene.nodes.ToList())
                 {
                     ImGui.InputText("Address##" + kinectSenderElementIndex, ref kinectSenderElement.address, 30);
                     ImGui.InputInt("Port##" + kinectSenderElementIndex, ref kinectSenderElement.port);
@@ -204,7 +204,7 @@ public class ControllerManager : MonoBehaviour
                     
                     if(ImGui.Button("Remove This Sender##" + kinectSenderElementIndex))
                     {
-                        bool removeResult = viewerScene.kinectSenderElements.Remove(kinectSenderElement);
+                        bool removeResult = controllerScene.nodes.Remove(kinectSenderElement);
                         print($"removeResult: {removeResult}");
                     }
 
@@ -215,13 +215,13 @@ public class ControllerManager : MonoBehaviour
 
                 if(ImGui.Button("Add Kinect Sender"))
                 {
-                    viewerScene.kinectSenderElements.Add(new KinectSenderElement("127.0.0.1", SENDER_PORT, Vector3.zero, Quaternion.identity));
+                    controllerScene.nodes.Add(new ControllerNode("127.0.0.1", SENDER_PORT, Vector3.zero, Quaternion.identity));
                 }
 
                 if(ImGui.Button("Update Scene"))
                 {
                     string invalidIpAddress = null;
-                    foreach (var kinectSenderElement in viewerScene.kinectSenderElements)
+                    foreach (var kinectSenderElement in controllerScene.nodes)
                     {
                         if(!IsValidIpAddress(kinectSenderElement.address))
                         {
@@ -232,7 +232,7 @@ public class ControllerManager : MonoBehaviour
 
                     if (invalidIpAddress == null)
                     {
-                        serverSocket.SendViewerScene(viewerScene);
+                        serverSocket.SendViewerScene(controllerScene);
                     }
                     else
                     {

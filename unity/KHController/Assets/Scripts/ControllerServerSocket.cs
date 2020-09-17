@@ -26,14 +26,14 @@ public class ControllerServerSocket
         return viewerState;
     }
 
-    public void SendViewerScene(ViewerScene viewerScene)
+    public void SendViewerScene(ControllerScene controllerScene)
     {
-        var viewerSceneJson = JsonUtility.ToJson(viewerScene);
-        var viewerSceneBytes = Encoding.ASCII.GetBytes(viewerSceneJson);
+        var controllerSceneJson = JsonUtility.ToJson(controllerScene);
+        var controllerSceneBytes = Encoding.ASCII.GetBytes(controllerSceneJson);
 
         var ms = new MemoryStream();
-        ms.Write(BitConverter.GetBytes(viewerSceneBytes.Length), 0, 4);
-        ms.Write(viewerSceneBytes, 0, viewerSceneBytes.Length);
+        ms.Write(BitConverter.GetBytes(controllerSceneBytes.Length), 0, 4);
+        ms.Write(controllerSceneBytes, 0, controllerSceneBytes.Length);
         tcpSocket.Send(ms.ToArray());
     }
 }

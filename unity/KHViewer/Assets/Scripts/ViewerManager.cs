@@ -21,7 +21,7 @@ public class ViewerManager : MonoBehaviour
     private UdpSocket udpSocket;
     private ControllerClientSocket controllerClientSocket;
 
-    private ViewerScene viewerScene;
+    private ControllerScene controllerScene;
     private Dictionary<int, Receiver> receivers;
     private int connectingCount;
 
@@ -33,7 +33,7 @@ public class ViewerManager : MonoBehaviour
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
         udpSocket = new UdpSocket(socket);
 
-        viewerScene = null;
+        controllerScene = null;
         receivers = new Dictionary<int, Receiver>();
         connectingCount = 0;
 
@@ -124,7 +124,7 @@ public class ViewerManager : MonoBehaviour
 
     private void UpdateControllerClient()
     {
-        ViewerScene viewerScene = null;
+        ControllerScene viewerScene = null;
         try
         {
             viewerScene = controllerClientSocket.ReceiveViewerScene();
@@ -138,14 +138,14 @@ public class ViewerManager : MonoBehaviour
 
         if (viewerScene != null)
         {
-            foreach (var kinectSenderElement in viewerScene.kinectSenderElements)
+            foreach (var node in viewerScene.nodes)
             {
-                if (!IPAddress.TryParse(kinectSenderElement.address, out IPAddress ipAddress))
+                if (!IPAddress.TryParse(node.address, out IPAddress ipAddress))
                 {
                     TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
                 }
 
-                var endPoint = new IPEndPoint(ipAddress, kinectSenderElement.port);
+                var endPoint = new IPEndPoint(ipAddress, node.port);
                 print($"endPoint: {endPoint}");
                 foreach (var receiverPair in receivers)
                 {
@@ -160,21 +160,21 @@ public class ViewerManager : MonoBehaviour
 
             foreach(var receiverPair in receivers)
             {
-                var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == receiverPair.Value.SenderEndPoint.Address.ToString()
-                                                                                            && x.port == receiverPair.Value.SenderEndPoint.Port);
+                var node = viewerScene.nodes.FirstOrDefault(x => x.address == receiverPair.Value.SenderEndPoint.Address.ToString()
+                                                              && x.port == receiverPair.Value.SenderEndPoint.Port);
 
-                if (kinectSenderElement != null)
+                if (node != null)
                 {
                     var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverPair.Key);
                     if (kinectOrigin != null)
                     {
-                        kinectOrigin.transform.localPosition = kinectSenderElement.position;
-                        kinectOrigin.transform.localRotation = kinectSenderElement.rotation;
+                        kinectOrigin.transform.localPosition = node.position;
+                        kinectOrigin.transform.localRotation = node.rotation;
                     }
                 }
             }
 
-            this.viewerScene = viewerScene;
+            this.controllerScene = viewerScene;
         }
 
         var receiverStates = new List<ReceiverState>();
@@ -217,18 +217,19 @@ public class ViewerManager : MonoBehaviour
                 receivers.Add(confirmPacketInfo.ConfirmPacket.receiverId, receiver);
 
                 // Apply transformation of kinectSenderElement if there is a corresponding one.
-                if (viewerScene != null)
+                if (controllerScene != null)
                 {
-                    var kinectSenderElement = viewerScene.kinectSenderElements.FirstOrDefault(x => x.address == receiver.SenderEndPoint.Address.ToString()
-                                                                                                && x.port == receiver.SenderEndPoint.Port);
-                    if (kinectSenderElement != null)
+                    var node = controllerScene.nodes.FirstOrDefault(x => x.address == receiver.SenderEndPoint.Address.ToString()
+                                                                  && x.port == receiver.SenderEndPoint.Port);
+                    if (node != null)
                     {
-                        kinectOrigin.transform.localPosition = kinectSenderElement.position;
-                        kinectOrigin.transform.localRotation = kinectSenderElement.rotation;
+                        kinectOrigin.transform.localPosition = node.position;
+                        kinectOrigin.transform.localRotation = node.rotation;
                     }
                 }
             }
 
+            // Send heartbeat packets to senders.
             foreach (var receiver in receivers.Values)
                 receiver.SendHeartBeat(udpSocket);
 
@@ -237,9 +238,8 @@ public class ViewerManager : MonoBehaviour
             {
                 // The keys of senderPacketInfos are sender IDs, not receiver IDs like other collections.
                 int senderId = senderPacketInfoPair.Key;
-                var receiver = receivers.Values.FirstOrDefault(x => x.SenderId == senderId);
-                if (receiver == null)
-                    continue;
+                // Since senderPacketInfos were built based on receivers, there should be a corresponding receiver.
+                var receiver = receivers.Values.First(x => x.SenderId == senderId);
 
                 var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiver.ReceiverId);
                 receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectOrigin);
@@ -341,14 +341,13 @@ public class ViewerManager : MonoBehaviour
     private IEnumerator TryConnectToKinectSender(IPEndPoint senderEndPoint)
     {
         ++connectingCount;
-        print($"Try Connecting to a Sender: {senderEndPoint}");
         TextToaster.Toast($"Try Connecting to a Sender: {senderEndPoint}");
+        print($"Try Connecting to a Sender: {senderEndPoint}");
         var random = new System.Random();
         int receiverId = random.Next();
 
         for (int i = 0; i < 5; ++i)
         {
-            print($"Send connect packet #{i}");
             udpSocket.Send(PacketUtils.createConnectReceiverPacketBytes(receiverId, true, true).bytes, senderEndPoint);
             yield return new WaitForSeconds(0.3f);
         }
