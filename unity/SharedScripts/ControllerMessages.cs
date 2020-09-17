@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using UnityEngine;
 
 public class ControllerMessages
@@ -37,15 +39,15 @@ public class ViewerState
 [Serializable]
 public class ControllerNode
 {
-    public string address;
-    public int port;
+    public string senderAddress;
+    public int senderPort;
     public Vector3 position;
     public Quaternion rotation;
 
     public ControllerNode(string address, int port, Vector3 position, Quaternion rotation)
     {
-        this.address = address;
-        this.port = port;
+        senderAddress = address;
+        senderPort = port;
         this.position = position;
         this.rotation = rotation;
     }
@@ -59,4 +61,10 @@ public class ControllerScene
     {
         nodes = new List<ControllerNode>();
     }
+
+    public ControllerNode FindNode(IPEndPoint endPoint)
+    {
+        return nodes.FirstOrDefault(x => x.senderAddress == endPoint.Address.ToString() && x.senderPort == endPoint.Port);
+    }
+
 }

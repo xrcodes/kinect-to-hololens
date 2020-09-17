@@ -26,16 +26,14 @@ public class ControllerClientSocket
         messageBuffer = new MessageBuffer();
     }
 
-    public ControllerScene ReceiveViewerScene()
+    public ControllerScene ReceiveControllerScene()
     {
         byte[] message;
         if (!messageBuffer.TryReceiveMessage(tcpSocket, out message))
             return null;
 
-        var viewerSceneJson = Encoding.ASCII.GetString(message);
-        var viewerScene = JsonUtility.FromJson<ControllerScene>(viewerSceneJson);
-
-        return viewerScene;
+        var controllerSceneJson = Encoding.ASCII.GetString(message);
+        return JsonUtility.FromJson<ControllerScene>(controllerSceneJson);
     }
 
     public void SendViewerState(List<ReceiverState> receiverStates)

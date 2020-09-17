@@ -191,20 +191,20 @@ public class ControllerManager : MonoBehaviour
             var controllerScene = controllerScenes[serverSocket];
             if (ImGui.BeginTabItem(viewerState.userId.ToString()))
             {
-                foreach (var kinectSenderElement in controllerScene.nodes.ToList())
+                foreach (var node in controllerScene.nodes.ToList())
                 {
-                    ImGui.InputText("Address##" + kinectSenderElementIndex, ref kinectSenderElement.address, 30);
-                    ImGui.InputInt("Port##" + kinectSenderElementIndex, ref kinectSenderElement.port);
-                    ImGui.InputFloat3("Position##" + kinectSenderElementIndex, ref kinectSenderElement.position);
-                    var eulerAngles = kinectSenderElement.rotation.eulerAngles;
+                    ImGui.InputText("Address##" + kinectSenderElementIndex, ref node.senderAddress, 30);
+                    ImGui.InputInt("Port##" + kinectSenderElementIndex, ref node.senderPort);
+                    ImGui.InputFloat3("Position##" + kinectSenderElementIndex, ref node.position);
+                    var eulerAngles = node.rotation.eulerAngles;
                     if(ImGui.InputFloat3("Rotation##" + kinectSenderElementIndex, ref eulerAngles))
                     {
-                        kinectSenderElement.rotation = Quaternion.Euler(eulerAngles);
+                        node.rotation = Quaternion.Euler(eulerAngles);
                     }
                     
                     if(ImGui.Button("Remove This Sender##" + kinectSenderElementIndex))
                     {
-                        bool removeResult = controllerScene.nodes.Remove(kinectSenderElement);
+                        bool removeResult = controllerScene.nodes.Remove(node);
                         print($"removeResult: {removeResult}");
                     }
 
@@ -221,11 +221,11 @@ public class ControllerManager : MonoBehaviour
                 if(ImGui.Button("Update Scene"))
                 {
                     string invalidIpAddress = null;
-                    foreach (var kinectSenderElement in controllerScene.nodes)
+                    foreach (var node in controllerScene.nodes)
                     {
-                        if(!IsValidIpAddress(kinectSenderElement.address))
+                        if(!IsValidIpAddress(node.senderAddress))
                         {
-                            invalidIpAddress = kinectSenderElement.address;
+                            invalidIpAddress = node.senderAddress;
                             break;
                         }
                     }

@@ -39,12 +39,12 @@ public class ViewerManager : MonoBehaviour
 
         sharedSpaceAnchor.GizmoVisibility = false;
 
-        UpdateUiWindows();
+        UpdateUI();
     }
 
     void Update()
     {
-        UpdateUiWindows();
+        UpdateUI();
 
         if (connectionWindow.Visibility)
         {
@@ -91,7 +91,7 @@ public class ViewerManager : MonoBehaviour
             FpsCounter.Toast();
         }
 
-            if (controllerClientSocket != null)
+        if (controllerClientSocket != null)
         {
             UpdateControllerClient();
         }
@@ -99,7 +99,7 @@ public class ViewerManager : MonoBehaviour
         UpdateReceivers();
     }
 
-    private void UpdateUiWindows()
+    private void UpdateUI()
     {
         connectionWindow.Visibility = controllerClientSocket == null && receivers.Count == 0 && connectingCount == 0;
 
@@ -124,10 +124,10 @@ public class ViewerManager : MonoBehaviour
 
     private void UpdateControllerClient()
     {
-        ControllerScene viewerScene = null;
+        ControllerScene controllerScene = null;
         try
         {
-            viewerScene = controllerClientSocket.ReceiveViewerScene();
+            controllerScene = controllerClientSocket.ReceiveControllerScene();
         }
         catch (TcpSocketException e)
         {
@@ -136,33 +136,25 @@ public class ViewerManager : MonoBehaviour
             return;
         }
 
-        if (viewerScene != null)
+        if (controllerScene != null)
         {
-            foreach (var node in viewerScene.nodes)
+            foreach (var node in controllerScene.nodes)
             {
-                if (!IPAddress.TryParse(node.address, out IPAddress ipAddress))
+                if (!IPAddress.TryParse(node.senderAddress, out IPAddress ipAddress))
                 {
                     TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
                 }
 
-                var endPoint = new IPEndPoint(ipAddress, node.port);
-                print($"endPoint: {endPoint}");
-                foreach (var receiverPair in receivers)
-                {
-                    print($"receiver.SenderEndPoint: {receiverPair.Value.SenderEndPoint}");
-                }
-
-                if (receivers.Values.FirstOrDefault(x => x.SenderEndPoint.Equals(endPoint)) != null)
+                var senderEndPoint = new IPEndPoint(ipAddress, node.senderPort);
+                if (receivers.Values.FirstOrDefault(x => x.SenderEndPoint.Equals(senderEndPoint)) != null)
                     continue;
 
-                StartCoroutine(TryConnectToKinectSender(endPoint));
+                StartCoroutine(TryConnectToKinectSender(senderEndPoint));
             }
 
             foreach(var receiverPair in receivers)
             {
-                var node = viewerScene.nodes.FirstOrDefault(x => x.address == receiverPair.Value.SenderEndPoint.Address.ToString()
-                                                              && x.port == receiverPair.Value.SenderEndPoint.Port);
-
+                var node = controllerScene.FindNode(receiverPair.Value.SenderEndPoint);
                 if (node != null)
                 {
                     var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverPair.Key);
@@ -174,7 +166,7 @@ public class ViewerManager : MonoBehaviour
                 }
             }
 
-            this.controllerScene = viewerScene;
+            this.controllerScene = controllerScene;
         }
 
         var receiverStates = new List<ReceiverState>();
@@ -219,8 +211,7 @@ public class ViewerManager : MonoBehaviour
                 // Apply transformation of kinectSenderElement if there is a corresponding one.
                 if (controllerScene != null)
                 {
-                    var node = controllerScene.nodes.FirstOrDefault(x => x.address == receiver.SenderEndPoint.Address.ToString()
-                                                                  && x.port == receiver.SenderEndPoint.Port);
+                    var node = controllerScene.FindNode(receiver.SenderEndPoint);
                     if (node != null)
                     {
                         kinectOrigin.transform.localPosition = node.position;
