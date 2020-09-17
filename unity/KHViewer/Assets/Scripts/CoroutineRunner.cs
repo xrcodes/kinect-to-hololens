@@ -25,12 +25,8 @@ public class CoroutineRunner : MonoBehaviour
         {
             while (coroutine.MoveNext())
             {
-                print("Iterate");
                 if (stopWatch.ElapsedMilliseconds > instance.totalTimeOutMsPerFrame)
-                {
-                    print("Time Out");
                     return;
-                }
             }
 
             totalTimeOutCoroutines.Remove(coroutine);

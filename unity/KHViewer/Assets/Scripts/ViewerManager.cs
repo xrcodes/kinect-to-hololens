@@ -20,6 +20,7 @@ public class ViewerManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceScene sharedSpaceScene;
 
+    System.Random random;
     private int viewerId;
     private UdpSocket udpSocket;
     private ControllerClientSocket controllerClientSocket;
@@ -32,7 +33,7 @@ public class ViewerManager : MonoBehaviour
     {
         TelepresenceToolkitPlugin.texture_set_reset();
 
-        var random = new System.Random();
+        random = new System.Random();
         viewerId = random.Next();
 
         udpSocket = new UdpSocket(1024 * 1024);
@@ -193,21 +194,18 @@ public class ViewerManager : MonoBehaviour
         }
         catch (UdpSocketException e)
         {
-            TextToaster.Toast("Error from SenderPacketClassifier.Classify(): " + e.Message);
-        }
-
-        foreach (var info in senderPacketInfos)
-        {
-            print($"info ID: {info.Key}, ReceivedAny: {info.Value.ReceivedAny}");
+            TextToaster.Toast($"Error from SenderPacketClassifier.Classify(): {e.Message}");
         }
 
         foreach (var confirmPacketInfo in confirmPacketInfos)
         {
             int receiverId = confirmPacketInfo.ConfirmPacket.receiverId;
+            print($"confirmPacketInfo - 1: receiver: {receiverId}");
             // Ignore if there is already a receiver with the receiver ID.
             if (receivers.ContainsKey(receiverId))
                 continue;
 
+            print($"confirmPacketInfo - 2: receiver: {receiverId}, sender: {confirmPacketInfo.ConfirmPacket.senderId}");
             // Receiver and KinectOrigin gets created together.
             // When destroying any of them, the other of the pair should also be destroyed.
             var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
@@ -319,8 +317,8 @@ public class ViewerManager : MonoBehaviour
 
         TextToaster.Toast($"Try Connecting to a Sender: {senderEndPoint}");
 
-        var random = new System.Random();
         int receiverId = random.Next();
+        print($"randomly chosen receiver ID: {receiverId}");
 
         for (int i = 0; i < 5; ++i)
         {
