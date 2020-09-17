@@ -26,12 +26,12 @@ public class ReceiverState
 
 public class ViewerState
 {
-    public int userId;
+    public int viewerId;
     public List<ReceiverState> receiverStates;
 
-    public ViewerState(int userId, List<ReceiverState> receiverStates)
+    public ViewerState(int viewerId, List<ReceiverState> receiverStates)
     {
-        this.userId = userId;
+        this.viewerId = viewerId;
         this.receiverStates = receiverStates;
     }
 }

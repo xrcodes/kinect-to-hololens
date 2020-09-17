@@ -127,7 +127,7 @@ public class ControllerManager : MonoBehaviour
         ImGui.Begin("Viewer States");
         foreach (var viewerState in viewerStates.Values)
         {
-            ImGui.Text($"Viewer (User ID: {viewerState.userId})");
+            ImGui.Text($"Viewer (ID: {viewerState.viewerId})");
             foreach (var receiverState in viewerState.receiverStates)
             {
                 ImGui.BulletText($"Receiver (Session ID: {receiverState.sessionId})");
@@ -189,7 +189,7 @@ public class ControllerManager : MonoBehaviour
             var serverSocket = viewerStatePair.Key;
             var viewerState = viewerStatePair.Value;
             var controllerScene = controllerScenes[serverSocket];
-            if (ImGui.BeginTabItem(viewerState.userId.ToString()))
+            if (ImGui.BeginTabItem(viewerState.viewerId.ToString()))
             {
                 foreach (var node in controllerScene.nodes.ToList())
                 {

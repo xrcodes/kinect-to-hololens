@@ -18,6 +18,7 @@ public class ViewerManager : MonoBehaviour
     // This provides a convenient way to place everything in front of the camera.
     public SharedSpaceAnchor sharedSpaceAnchor;
 
+    private int viewerId;
     private UdpSocket udpSocket;
     private ControllerClientSocket controllerClientSocket;
 
@@ -28,6 +29,9 @@ public class ViewerManager : MonoBehaviour
     void Start()
     {
         TelepresenceToolkitPlugin.texture_set_reset();
+
+        var random = new System.Random();
+        viewerId = random.Next();
 
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ReceiveBufferSize = 1024 * 1024 };
         socket.Bind(new IPEndPoint(IPAddress.Any, 0));
@@ -113,7 +117,7 @@ public class ViewerManager : MonoBehaviour
             {
                 connectedControllerWindow.IpAddress = "N/A";
             }
-            connectedControllerWindow.UserId = controllerClientSocket.UserId.ToString();
+            connectedControllerWindow.ViewerId = controllerClientSocket.ViewerId.ToString();
             connectedControllerWindow.Visibility = true;
         }
         else
@@ -299,9 +303,6 @@ public class ViewerManager : MonoBehaviour
 
         ++connectingCount;
 
-        var random = new System.Random();
-        int userId = random.Next();
-
         if (!IPAddress.TryParse(ipAddress, out IPAddress controllerIpAddress))
         {
             TextToaster.Toast($"Failed to parse {ipAddress} as an IP address.");
@@ -316,7 +317,7 @@ public class ViewerManager : MonoBehaviour
         {
             if (await tcpSocket.ConnectAsync(controllerEndPoint))
             {
-                controllerClientSocket = new ControllerClientSocket(userId, tcpSocket);
+                controllerClientSocket = new ControllerClientSocket(viewerId, tcpSocket);
             }
         }
         catch (TcpSocketException e)

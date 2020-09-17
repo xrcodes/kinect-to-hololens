@@ -959,7 +959,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ipAddressText: {fileID: 143469456}
-  userIdText: {fileID: 623023856}
+  viewerIdText: {fileID: 623023856}
 --- !u!1 &623023854
 GameObject:
   m_ObjectHideFlags: 0
@@ -972,7 +972,7 @@ GameObject:
   - component: {fileID: 623023857}
   - component: {fileID: 623023856}
   m_Layer: 0
-  m_Name: UserIdText
+  m_Name: ViewerIdText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

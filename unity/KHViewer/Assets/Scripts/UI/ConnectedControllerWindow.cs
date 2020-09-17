@@ -3,7 +3,7 @@
 public class ConnectedControllerWindow : MonoBehaviour
 {
     public TextMesh ipAddressText;
-    public TextMesh userIdText;
+    public TextMesh viewerIdText;
 
     public bool Visibility
     {
@@ -25,11 +25,11 @@ public class ConnectedControllerWindow : MonoBehaviour
         }
     }
 
-    public string UserId
+    public string ViewerId
     {
         set
         {
-            userIdText.text = $"User ID: {value}";
+            viewerIdText.text = $"Viewer ID: {value}";
         }
     }
 }

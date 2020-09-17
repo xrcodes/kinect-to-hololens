@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class ControllerClientSocket
 {
-    public readonly int UserId;
+    public readonly int ViewerId;
     private TcpSocket tcpSocket;
     private MessageBuffer messageBuffer;
 
@@ -19,9 +19,9 @@ public class ControllerClientSocket
         }
     }
 
-    public ControllerClientSocket(int userId, TcpSocket tcpSocket)
+    public ControllerClientSocket(int viewerId, TcpSocket tcpSocket)
     {
-        UserId = userId;
+        ViewerId = viewerId;
         this.tcpSocket = tcpSocket;
         messageBuffer = new MessageBuffer();
     }
@@ -38,7 +38,7 @@ public class ControllerClientSocket
 
     public void SendViewerState(List<ReceiverState> receiverStates)
     {
-        var viewerState = new ViewerState(UserId, receiverStates);
+        var viewerState = new ViewerState(ViewerId, receiverStates);
         var viewerStateJson = JsonUtility.ToJson(viewerState);
         var viewerStateBytes = Encoding.ASCII.GetBytes(viewerStateJson);
 
