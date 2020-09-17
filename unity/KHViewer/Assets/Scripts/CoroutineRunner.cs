@@ -17,4 +17,9 @@ public class CoroutineRunner : MonoBehaviour
     {
         instance.StartCoroutine(coroutine);
     }
+
+    public static void RunWithTotalTimeOut()
+    {
+
+    }
 }

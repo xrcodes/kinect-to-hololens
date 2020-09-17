@@ -257,7 +257,18 @@ public class ViewerManager : MonoBehaviour
             // Since senderPacketInfos were built based on receivers, there should be a corresponding receiver.
             var receiver = receivers.Values.First(x => x.SenderId == senderId);
             var kinectNode = sharedSpaceScene.GetKinectNode(receiver.ReceiverId);
-            receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectNode);
+            receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectNode.KinectRenderer.Material, kinectNode.Speaker.RingBuffer);
+
+            // Remove receivers that did not receive any packet for too long.
+            if (receiver.IsTimedOut())
+            {
+                var message = $"Receiver {receiver.ReceiverId} timed out.";
+                TextToaster.Toast(message);
+                print(message);
+                receivers.Remove(receiver.ReceiverId);
+                sharedSpaceScene.RemoveKinectNode(receiver.ReceiverId);
+                continue;
+            }
 
             if (kinectNode.KinectRenderer.State == PrepareState.Unprepared)
             {
@@ -285,18 +296,6 @@ public class ViewerManager : MonoBehaviour
                 kinectNode.UpdateFrame(floorVideoMessage.floor);
 
             receiver.UpdateFrame(udpSocket);
-        }
-
-        foreach (var receiver in receivers.Values.ToList())
-        {
-            if (!receiver.IsTimedOut())
-                continue;
-
-            var message = $"Receiver {receiver.ReceiverId} timed out.";
-            TextToaster.Toast(message);
-            print(message);
-            receivers.Remove(receiver.ReceiverId);
-            sharedSpaceScene.RemoveKinectNode(receiver.ReceiverId);
         }
     }
 

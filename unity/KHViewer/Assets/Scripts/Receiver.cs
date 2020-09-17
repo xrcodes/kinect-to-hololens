@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using UnityEngine;
 using TelepresenceToolkit;
 
 public enum PrepareState
@@ -21,8 +22,8 @@ public class Receiver
     public IPEndPoint SenderEndPoint { get; private set; }
     public SortedDictionary<int, VideoSenderMessage> VideoMessages { get; private set; }
 
-    private TextureSetUpdater textureSetUpdater;
     private VideoMessageAssembler videoMessageAssembler;
+    private TextureSetUpdater textureSetUpdater;
     private AudioReceiver audioReceiver;
 
     private Stopwatch heartbeatStopWatch;
@@ -35,8 +36,8 @@ public class Receiver
         SenderEndPoint = senderEndPoint;
         VideoMessages = new SortedDictionary<int, VideoSenderMessage>();
 
-        textureSetUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
         videoMessageAssembler = new VideoMessageAssembler(ReceiverId, SenderEndPoint);
+        textureSetUpdater = new TextureSetUpdater(ReceiverId, SenderEndPoint);
         audioReceiver = new AudioReceiver();
 
         heartbeatStopWatch = Stopwatch.StartNew();
@@ -45,41 +46,39 @@ public class Receiver
 
     public void SendHeartBeat(UdpSocket udpSocket)
     {
-        try
+        if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
         {
-            if (heartbeatStopWatch.Elapsed.TotalSeconds > HEARTBEAT_INTERVAL_SEC)
-            {
-                udpSocket.Send(PacketUtils.createHeartbeatReceiverPacketBytes(ReceiverId).bytes, SenderEndPoint);
-                heartbeatStopWatch = Stopwatch.StartNew();
-            }
-        }
-        catch (UdpSocketException e)
-        {
-            UnityEngine.Debug.Log($"UdpSocketRuntimeError: {e}");
+            udpSocket.Send(PacketUtils.createHeartbeatReceiverPacketBytes(ReceiverId).bytes, SenderEndPoint);
+            heartbeatStopWatch = Stopwatch.StartNew();
         }
     }
 
-    public void ReceivePackets(UdpSocket udpSocket, SenderPacketInfo senderPacketSet, KinectNode kinectNode)
+    public void ReceivePackets(UdpSocket udpSocket, SenderPacketInfo senderPacketSet, Material material, RingBuffer ringBuffer)
     {
-        if (senderPacketSet.ReceivedAny)
-            receivedAnyStopWatch = Stopwatch.StartNew();
-
         videoMessageAssembler.Assemble(udpSocket,
                                        senderPacketSet.VideoPackets,
                                        senderPacketSet.ParityPackets,
                                        textureSetUpdater.lastFrameId,
                                        VideoMessages);
 
-        audioReceiver.Receive(senderPacketSet.AudioPackets, kinectNode.Speaker.RingBuffer);
-
         if (textureSetUpdater.State == PrepareState.Unprepared && VideoMessages.Count > 0)
         {
             foreach (var videoMessage in VideoMessages.Values)
             {
-                CoroutineRunner.Run(textureSetUpdater.Prepare(kinectNode.KinectRenderer.Material, videoMessage));
+                CoroutineRunner.Run(textureSetUpdater.Prepare(material, videoMessage));
                 break;
             }
         }
+
+        audioReceiver.Receive(senderPacketSet.AudioPackets, ringBuffer);
+
+        if (senderPacketSet.ReceivedAny)
+            receivedAnyStopWatch = Stopwatch.StartNew();
+    }
+
+    public bool IsTimedOut()
+    {
+        return receivedAnyStopWatch.Elapsed.TotalSeconds > HEARTBEAT_TIME_OUT_SEC;
     }
 
     public void UpdateFrame(UdpSocket udpSocket)
@@ -92,10 +91,5 @@ public class Receiver
             if(videoMessageFrameId <= textureSetUpdater.lastFrameId)
                 VideoMessages.Remove(videoMessageFrameId);
         }
-    }
-
-    public bool IsTimedOut()
-    {
-        return receivedAnyStopWatch.Elapsed.TotalSeconds > HEARTBEAT_TIME_OUT_SEC;
     }
 }
