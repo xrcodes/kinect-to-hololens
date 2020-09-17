@@ -212,7 +212,7 @@ public class ViewerManager : MonoBehaviour
                     continue;
 
                 var kinectOrigin = sharedSpaceAnchor.AddKinectOrigin(receiverId);
-                
+
                 var receiver = new Receiver(receiverId, confirmPacketInfo.ConfirmPacket.senderId, confirmPacketInfo.SenderEndPoint);
                 receivers.Add(confirmPacketInfo.ConfirmPacket.receiverId, receiver);
 
@@ -229,20 +229,54 @@ public class ViewerManager : MonoBehaviour
                 }
             }
 
+            foreach (var receiver in receivers.Values)
+                receiver.SendHeartBeat(udpSocket);
+
             // Using a copy of remoteSenders through ToList() as this allows removal of elements from remoteSenders.
             foreach (var senderPacketInfoPair in senderPacketInfos)
             {
+                // The keys of senderPacketInfos are sender IDs, not receiver IDs like other collections.
                 int senderId = senderPacketInfoPair.Key;
                 var receiver = receivers.Values.FirstOrDefault(x => x.SenderId == senderId);
                 if (receiver == null)
                     continue;
 
-                int receiverId = receiver.ReceiverId;
-                var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiverId);
-                if (!receiver.UpdateFrame(udpSocket, senderPacketInfoPair.Value, kinectOrigin))
+                var kinectOrigin = sharedSpaceAnchor.GetKinectOrigin(receiver.ReceiverId);
+                receiver.ReceivePackets(udpSocket, senderPacketInfoPair.Value, kinectOrigin);
+
+                if (kinectOrigin.Screen.State == PrepareState.Unprepared)
                 {
-                    receivers.Remove(receiverId);
-                    sharedSpaceAnchor.RemoveKinectOrigin(receiverId);
+                    if (receiver.VideoMessages.Count > 0)
+                    {
+                        foreach (var videoMessage in receiver.VideoMessages.Values)
+                        {
+                            kinectOrigin.Screen.StartPrepare(videoMessage);
+                            break;
+                        }
+                    }
+                }
+                else if (kinectOrigin.Screen.State == PrepareState.Preparing)
+                {
+                    kinectOrigin.SetProgressText(receiver.SenderEndPoint, kinectOrigin.screen.Progress);
+                    kinectOrigin.ProgressTextVisibility = true;
+                }
+                else if (kinectOrigin.Screen.State == PrepareState.Prepared)
+                {
+                    kinectOrigin.ProgressTextVisibility = false;
+                }
+
+                kinectOrigin.UpdateFrame(receiver.VideoMessages);
+
+                receiver.UpdateFrame(udpSocket);
+            }
+
+            foreach (var receiver in receivers.Values)
+            {
+                if (receiver.IsTimedOut())
+                {
+                    print($"Receiver {receiver.ReceiverId} timed out.");
+                    receivers.Remove(receiver.ReceiverId);
+                    sharedSpaceAnchor.RemoveKinectOrigin(receiver.ReceiverId);
                     connectionWindow.Visibility = true;
                 }
             }

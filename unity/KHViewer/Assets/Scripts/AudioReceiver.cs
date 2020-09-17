@@ -11,18 +11,18 @@ public class AudioReceiver
         lastAudioFrameId = -1;
     }
 
-    public void Receive(List<AudioSenderPacket> audioPacketDataList, RingBuffer ringBuffer)
+    public void Receive(List<AudioSenderPacket> audioPackets, RingBuffer ringBuffer)
     {
-        audioPacketDataList.Sort((x, y) => x.frameId.CompareTo(y.frameId));
+        audioPackets.Sort((x, y) => x.frameId.CompareTo(y.frameId));
 
         float[] pcm = new float[KinectSpeaker.KH_SAMPLES_PER_FRAME * KinectSpeaker.KH_CHANNEL_COUNT];
         int index = 0;
         while (ringBuffer.FreeSamples >= pcm.Length)
         {
-            if (index >= audioPacketDataList.Count)
+            if (index >= audioPackets.Count)
                 break;
 
-            var audioPacketData = audioPacketDataList[index++];
+            var audioPacketData = audioPackets[index++];
             if (audioPacketData.frameId <= lastAudioFrameId)
                 continue;
 

@@ -47,17 +47,17 @@ public class KinectOrigin : MonoBehaviour
 
     public void UpdateFrame(IDictionary<int, VideoSenderMessage> videoMessages)
     {
-        VideoSenderMessage videoMessageData = null;
-        foreach(var videoMessagePair in videoMessages)
+        VideoSenderMessage videoMessage = null;
+        foreach(var message in videoMessages.Values)
         {
-            if (videoMessagePair.Value.floor != null)
-                videoMessageData = videoMessagePair.Value;
+            if (message.floor != null)
+                videoMessage = message;
         }
 
-        if (videoMessageData == null)
+        if (videoMessage == null)
             return;
 
-        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessageData, out Vector3 position, out Quaternion rotation);
+        FloorUtils.ConvertFloorFromVideoSenderMessageDataToPositionAndRotation(videoMessage, out Vector3 position, out Quaternion rotation);
 
         floorTransform.localPosition = position;
         floorTransform.localRotation = rotation;

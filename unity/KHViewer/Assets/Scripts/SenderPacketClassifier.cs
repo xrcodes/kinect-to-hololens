@@ -73,7 +73,7 @@ public static class SenderPacketClassifier
                                       List<ConfirmPacketInfo> confirmPacketInfos,
                                       Dictionary<int, SenderPacketInfo> senderPacketInfos)
     {
-        int senderSessionId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
+        int senderId = PacketUtils.getSessionIdFromSenderPacketBytes(packet.Bytes);
         var packetType = PacketUtils.getPacketTypeFromSenderPacketBytes(packet.Bytes);
 
         if (packetType == SenderPacketType.Confirm)
@@ -82,7 +82,7 @@ public static class SenderPacketClassifier
             return;
         }
 
-        if (!senderPacketInfos.TryGetValue(senderSessionId, out SenderPacketInfo senderPacketInfo))
+        if (!senderPacketInfos.TryGetValue(senderId, out SenderPacketInfo senderPacketInfo))
             return;
 
         // Heartbeat packets turns on ReceivedAny.
