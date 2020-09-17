@@ -8,15 +8,11 @@ namespace kh
 {
 void read_frames(KinectInterface& kinect_interface)
 {
-    constexpr short CHANGE_THRESHOLD{10};
-    constexpr int INVALID_THRESHOLD{2};
-
     const auto calibration{kinect_interface.getCalibration()};
-    const k4a::transformation transformation{calibration};
-
-    VideoPipeline video_pipeline{calibration};
     const int width{calibration.depth_camera_calibration.resolution_width};
     const int height{calibration.depth_camera_calibration.resolution_height};
+
+    VideoPipeline video_pipeline{calibration};
     VideoRenderer video_renderer{width, height};
 
     tt::Profiler profiler;
@@ -107,7 +103,7 @@ void read_device_calibration()
         std::cout << "extrinsic translation[" << i << "]: " << extrinsics.translation[i] << std::endl;
 }
 
-void start()
+void main()
 {
     // First one is for running the application inside visual studio, and the other is for running the built application.
     const std::vector<std::string> DATA_FOLDER_PATHS{"../../../playback/", "../../../../playback/"};
@@ -117,14 +113,11 @@ void start()
 
         if (data_folder) {
             std::cout << "Input filenames inside the data folder:" << std::endl;
-            for (int i = 0; i < data_folder->filenames.size(); ++i) {
+            for (int i = 0; i < data_folder->filenames.size(); ++i)
                 std::cout << "    (" << i << ") " << data_folder->filenames[i] << std::endl;
-            }
-
             std::cout << "Press Enter to Start with a Device or Enter Filename Index: ";
         } else {
             std::cout << "Failed to find the data folder...\n";
-
             std::cout << "Press Enter to Start: ";
         }
 
@@ -157,6 +150,6 @@ void start()
 
 int main()
 {
-    kh::start();
+    kh::main();
     return 0;
 }

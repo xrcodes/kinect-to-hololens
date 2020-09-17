@@ -13,9 +13,8 @@ struct SenderPacketInfo
 class SenderPacketClassifier
 {
 public:
-    static SenderPacketInfo classify(tt::UdpSocket& udp_socket)
+    static void classify(tt::UdpSocket& udp_socket, SenderPacketInfo& sender_packet_info)
     {
-        SenderPacketInfo sender_packet_info;
         sender_packet_info.received_any = false;
         while (auto packet{udp_socket.receive(tt::KH_PACKET_SIZE)}) {
             sender_packet_info.received_any = true;
@@ -34,8 +33,6 @@ public:
                 break;
             }
         }
-
-        return sender_packet_info;
     }
 };
 }

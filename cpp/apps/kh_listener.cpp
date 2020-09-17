@@ -31,7 +31,7 @@ void underflow_callback(struct SoundIoOutStream* outstream) {
     //printf("underflow %d\n", ++count);
 }
 
-int start()
+int main()
 {
     auto sound_io{create_sound_io_handle()};
     auto kinect_microphone{find_kinect_microphone(sound_io)};
@@ -68,5 +68,5 @@ int start()
 
 int main()
 {
-    return kh::start();
+    return kh::main();
 }
